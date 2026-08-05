@@ -1,0 +1,78 @@
+import { defineConfig } from 'vitest/config'
+import path from 'node:path'
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src/renderer'),
+    },
+  },
+  test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['src/test-setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: 'coverage',
+      include: ['src/renderer/**/*.{ts,tsx}'],
+      exclude: [
+        'src/renderer/main.tsx',
+        'src/renderer/env.d.ts',
+        'src/renderer/App.tsx',
+        'src/renderer/**/*.test.{ts,tsx}',
+        // IPC layer (requires Tauri runtime)
+        'src/renderer/lib/ipc.ts',
+        // Heavy integration components (deep Tauri IPC, PTY, xterm, shiki deps)
+        'src/renderer/components/settings/SettingsPanel.tsx',
+        'src/renderer/components/chat/ChatPanel.tsx',
+        'src/renderer/components/chat/ChatInput.tsx',
+        'src/renderer/components/chat/ChatMarkdown.tsx',
+        'src/renderer/components/chat/MessageList.tsx',
+        'src/renderer/components/chat/MessageItem.tsx',
+        'src/renderer/components/chat/InlineDiff.tsx',
+        'src/renderer/components/chat/TerminalDrawer.tsx',
+        'src/renderer/components/chat/BranchSelector.tsx',
+        'src/renderer/components/chat/ChangedFilesSummary.tsx',
+        'src/renderer/components/chat/FileMentionPicker.tsx',
+        'src/renderer/components/chat/SlashCommandPicker.tsx',
+        'src/renderer/components/chat/SlashPanels.tsx',
+        'src/renderer/components/chat/ModelPicker.tsx',
+        'src/renderer/components/chat/AttachmentPreview.tsx',
+        'src/renderer/components/chat/PermissionBanner.tsx',
+        'src/renderer/components/chat/QuestionCards.tsx',
+        'src/renderer/components/chat/ToolCallDisplay.tsx',
+        'src/renderer/components/chat/ToolCallEntry.tsx',
+        'src/renderer/components/chat/TaskListDisplay.tsx',
+        'src/renderer/components/chat/ExecutionPlan.tsx',
+        'src/renderer/components/chat/PendingChat.tsx',
+        'src/renderer/components/chat/UserMessageRow.tsx',
+        'src/renderer/components/chat/AssistantTextRow.tsx',
+        'src/renderer/components/chat/SystemMessageRow.tsx',
+        'src/renderer/components/chat/WorkGroupRow.tsx',
+        'src/renderer/components/chat/TimelineRows.tsx',
+        'src/renderer/components/code/**',
+        'src/renderer/components/diff/**',
+        'src/renderer/components/debug/**',
+        'src/renderer/components/sidebar/**',
+        'src/renderer/components/dashboard/**',
+        'src/renderer/components/task/**',
+        'src/renderer/components/AppHeader.tsx',
+        'src/renderer/components/Onboarding.tsx',
+        'src/renderer/components/GitActionsGroup.tsx',
+        'src/renderer/components/OpenInEditorGroup.tsx',
+        // Hooks that deeply depend on Tauri APIs
+        'src/renderer/hooks/useAttachments.ts',
+        'src/renderer/hooks/useChatInput.ts',
+        'src/renderer/hooks/useKeyboardShortcuts.ts',
+        'src/renderer/hooks/useSidebarTasks.ts',
+        'src/renderer/hooks/useFileMention.ts',
+        'src/renderer/hooks/useSlashAction.ts',
+        'src/renderer/hooks/useResizeHandle.ts',
+        // Types-only file
+        'src/renderer/types/index.ts',
+      ],
+    },
+  },
+})

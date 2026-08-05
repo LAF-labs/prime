@@ -1,0 +1,211 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Extract release notes from annotated tag ─────────────────────
+  release-notes:
+    runs-on: ubuntu-22.04
+    outputs:
+      notes: ${{ steps.notes.outputs.notes }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Extract tag annotation
+        id: notes
+        run: |
+          # Get the tag message body (skip the first line which is the tag name)
+          NOTES=$(git tag -l --format='%(contents:body)' "${{ github.ref_name }}" | sed '/^$/d')
+          if [ -z "$NOTES" ]; then
+            NOTES="Maintenance release."
+          fi
+          # Use EOF delimiter for multiline output
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  # ── Build for all platforms ──────────────────────────────────────
+  # tauri-action reads the version from tauri.conf.json automatically.
+  # The `bun run release` script ensures Cargo.toml, tauri.conf.json,
+  # and package.json are all in sync before tagging.
+  build:
+    needs: release-notes
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14
+            args: '--target aarch64-apple-darwin'
+            name: macOS
+          - platform: ubuntu-22.04
+            args: ''
+            name: Linux
+          - platform: windows-latest
+            args: ''
+            name: Windows
+
+    runs-on: ${{ matrix.platform }}
+    name: Build (${{ matrix.name }})
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - run: bun install --frozen-lockfile
+
+      # tauri-action handles: cert import → build → sign → notarize → create release → upload assets
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # PostHog — compiled into the Vite bundle. Leave these unset in dev
+          # and the analytics wrapper no-ops. Add the keys as repository
+          # secrets before the first release that ships analytics.
+          VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
+        with:
+          # Use the git tag directly — tauri-action creates the release at this tag
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Kirodex ${{ github.ref_name }}'
+          releaseBody: |
+            ${{ needs.release-notes.outputs.notes }}
+
+            ---
+
+            ### Download
+
+            | Platform | File |
+            |----------|------|
+            | **macOS** (Apple Silicon) | `.dmg` |
+            | **Linux** (x86_64) | `.deb` / `.AppImage` |
+            | **Windows** (x86_64) | `.exe` |
+
+            **Homebrew:**
+            ```bash
+            brew install --cask thabti/tap/kirodex        # first install
+            brew update && brew reinstall kirodex       # upgrade
+            ```
+
+            > Requires [kiro-cli](https://kiro.dev)
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          args: --config src-tauri/tauri.ci.conf.json ${{ matrix.args }}
+
+  # ── Remove standalone .sig files (updater sigs in .tar.gz.sig / .zip.sig are kept) ──
+  cleanup:
+    needs: build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Delete redundant signature files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for asset in $(gh release view "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --json assets --jq '.assets[].name'); do
+            case "$asset" in
+              *.deb.sig|*.AppImage.sig|*.exe.sig|*.msi.sig)
+                echo "Deleting $asset"
+                gh release delete-asset "${{ github.ref_name }}" "$asset" \
+                  --repo "${{ github.repository }}" --yes
+                ;;
+            esac
+          done
+
+  # ── Update Homebrew tap ──────────────────────────────────────────
+  homebrew:
+    needs: [build, cleanup]
+    runs-on: macos-14
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Download DMG and compute hash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DMG="Kirodex_${VERSION}_aarch64.dmg"
+          for i in $(seq 1 12); do
+            echo "Attempt $i: downloading ${DMG}..."
+            if gh release download "${GITHUB_REF_NAME}" \
+                 --repo "${{ github.repository }}" \
+                 --pattern "${DMG}" --dir /tmp 2>/dev/null; then
+              echo "Downloaded successfully"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::Failed to download ${DMG}"; exit 1; }
+            sleep 15
+          done
+          echo "SHA256=$(shasum -a 256 /tmp/${DMG} | awk '{print $1}')" >> $GITHUB_ENV
+
+      - name: Update homebrew cask
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GH_PAT secret is not set — required to push to homebrew-tap"
+            exit 1
+          fi
+          if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/thabti/homebrew-tap.git" /tmp/tap 2>/dev/null; then
+            echo "::warning::thabti/homebrew-tap not found — skipping"
+            exit 0
+          fi
+          cd /tmp/tap
+          mkdir -p Casks
+          sed -e "s|{{VERSION}}|${VERSION}|g" \
+              -e "s|{{SHA256_ARM}}|${SHA256}|g" \
+              "${{ github.workspace }}/.github/homebrew/Casks/kirodex.rb.template" > Casks/kirodex.rb
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Casks/kirodex.rb
+          git diff --cached --quiet || (git commit -m "Update kirodex to ${VERSION}" && git push)

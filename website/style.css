@@ -1,0 +1,283 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-info: var(--info);
+  --color-success: var(--success);
+}
+
+:root {
+  --background: #1C1C1E;
+  --foreground: #E4E4E6;
+  --card: #28282A;
+  --card-foreground: #E4E4E6;
+  --primary: #0000FF;
+  --primary-foreground: #ffffff;
+  --muted-foreground: #8A8A8C;
+  --border: rgba(255, 255, 255, 0.08);
+  --info: #60a5fa;
+  --success: #34d399;
+}
+
+html.light {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #fafafa;
+  --card-foreground: #1a1a1a;
+  --primary: #0000FF;
+  --primary-foreground: #ffffff;
+  --muted-foreground: #6b7280;
+  --border: rgba(0, 0, 0, 0.08);
+  --info: #3b82f6;
+  --success: #10b981;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.65;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Code blocks */
+pre, code {
+  font-family: "SF Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* Download cards */
+.download-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #28282A;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.download-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: #323234;
+}
+.download-card--active {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.04);
+}
+.download-card--active:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.download-card--muted {
+  opacity: 0.45;
+}
+.download-card--muted:hover {
+  opacity: 0.75;
+}
+
+/* Light mode download cards */
+html.light .download-card {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+html.light .download-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: #fafafa;
+}
+html.light .download-card--active {
+  border-color: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.04);
+}
+html.light .download-card--active:hover {
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Nav backdrop */
+.nav-backdrop {
+  background: rgba(28, 28, 30, 0.85);
+}
+html.light .nav-backdrop {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Light mode inline overrides */
+html.light .brew-block {
+  background: #f5f5f5;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .pill {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.03);
+}
+html.light .pill:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+html.light .card-bg {
+  background: #fafafa;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+html.light .card-bg:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+html.light .icon-bg {
+  background: rgba(0, 0, 0, 0.04);
+}
+html.light .border-subtle {
+  border-color: rgba(0, 0, 0, 0.06);
+}
+html.light .screenshot-shadow {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+html.light .ghost-svg path[fill="rgb(255,255,255)"] {
+  fill: #1a1a1a;
+}
+
+/* Changelog timeline */
+.changelog-border {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.changelog-dot-bg {
+  background: #0a0a0a;
+}
+.changelog-bullet::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  height: 4px;
+  width: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.25);
+}
+html.light .changelog-border {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .changelog-dot-bg {
+  background: #ffffff;
+}
+html.light .changelog-bullet::before {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Changelog toggle */
+.changelog-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1rem;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.changelog-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground);
+}
+.changelog-toggle-icon {
+  transition: transform 0.2s ease;
+}
+html.light .changelog-toggle {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+html.light .changelog-toggle:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Features page kbd */
+html.light kbd.kbd-bg {
+  background: #f0f0f0;
+}
+html.light .cta-btn {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+html.light .cta-btn:hover {
+  background: #333333;
+}
+
+/* Ghost SVG in light mode */
+html.light .ghost-svg svg {
+  filter: invert(1);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+}
+.theme-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-toggle button:hover {
+  color: var(--foreground);
+}
+.theme-toggle button.active {
+  background: var(--border);
+  color: var(--foreground);
+}

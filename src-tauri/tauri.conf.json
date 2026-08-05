@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "Kirodex",
+  "version": "0.65.1",
+  "identifier": "com.kirodex.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "bun run dev:renderer",
+    "beforeBuildCommand": "bun run build:renderer",
+    "removeUnusedCommands": true
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kirodex",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 600,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "decorations": true,
+        "trafficLightPosition": { "x": 14, "y": 22 },
+        "transparent": false,
+        "zoomHotkeysEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' ipc: http://ipc.localhost https://*.posthog.com https://*.i.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost blob: data:; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "deb", "appimage", "nsis"],
+    "icon": ["icons/dev/icon.png", "icons/dev/icon.icns", "icons/dev/icon.ico"],
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": null,
+      "entitlements": "Kirodex.entitlements"
+    },
+    "category": "DeveloperTool",
+    "shortDescription": "AI coding agents on your desktop",
+    "longDescription": "A native macOS desktop client for Kiro CLI AI coding agents. Chat with agents, manage tasks, view diffs, and run terminals — all in one app."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENGQjFDNzVBMjIwQUQ0MjkKUldRcDFBb2lXc2V4ejVIb3N1bzZvQU5rVnI4amM5UkNKNkpuQTdvS01RY2FTVUtKT21lUVdSdW4K",
+      "endpoints": [
+        "https://github.com/thabti/kirodex/releases/latest/download/latest.json"
+      ]
+    },
+    "shell": {
+      "open": true
+    }
+  }
+}

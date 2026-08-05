@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- base href injected by CI for GitHub Pages -->
+  <title>Kirodex — AI coding agents on your desktop</title>
+  <meta name="description" content="Kirodex is a native desktop app for managing AI coding agents. Chat interface, diff viewer, git integration, terminal, and plan mode. Built with Tauri and React.">
+  <meta property="og:title" content="Kirodex — AI coding agents on your desktop">
+  <meta property="og:description" content="A native desktop app for managing AI coding agents via the Agent Client Protocol.">
+  <meta property="og:image" content="https://thabti.github.io/kirodex/assets/main.png">
+  <meta property="og:url" content="https://thabti.github.io/kirodex/">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dist/style.css">
+  <script>
+    (function(){var t=localStorage.getItem('kirodex-theme');if(t==='light')document.documentElement.classList.add('light');else if(t==='system'&&window.matchMedia('(prefers-color-scheme: light)').matches)document.documentElement.classList.add('light');})();
+  </script>
+</head>
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────── -->
+  <nav class="fixed top-0 left-0 right-0 z-50 nav-backdrop backdrop-blur-md">
+    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+      <a href="#" class="flex items-center gap-2.5 text-[15px] font-bold text-foreground no-underline">
+        <img src="assets/icon.png" alt="" width="24" height="24" class="rounded">
+        Kirodex
+      </a>
+      <div class="flex items-center gap-6 text-[14px] text-muted-foreground">
+        <a href="features.html" class="transition-colors hover:text-foreground no-underline">Features</a>
+        <a href="changelog.html" class="transition-colors hover:text-foreground no-underline">Changelog</a>
+        <a href="https://github.com/thabti/kirodex" target="_blank" rel="noopener" class="transition-colors hover:text-foreground no-underline">GitHub ↗</a>
+        <div class="theme-toggle" id="theme-toggle">
+          <button data-theme="light" title="Light mode" aria-label="Light mode">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+          <button data-theme="system" title="System preference" aria-label="System preference">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </button>
+          <button data-theme="dark" title="Dark mode" aria-label="Dark mode" class="active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────────────── -->
+  <section class="flex flex-col items-center px-6 pt-32 pb-16 text-center">
+    <div class="ghost-svg mb-6 h-16 w-[53px] opacity-80" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid slice" style="width: 100%; height: 100%;"><defs><clipPath id="kiro-ghost"><rect width="500" height="600" x="0" y="0"></rect></clipPath></defs><g clip-path="url(#kiro-ghost)"><g transform="matrix(1.45761,0,0,1.45761,265.367,317.039)" opacity="1"><g opacity="1"><g opacity="1" transform="matrix(-1,0,0,1,0,0)"><path fill="rgb(255,255,255)" fill-opacity="1" d="M124.872,-2.098 C121.933,-31.071 121.463,-58.981 113.863,-83.37 C81.313,-222.739 -107.797,-222.6 -145.633,-84.076 C-201.448,150.349 133.689,84.831 124.872,-2.098z"/></g></g></g><g transform="matrix(1.45761,0,0,1.45761,265.367,317.039)" opacity="1"><g opacity="1"><g opacity="1" transform="matrix(-1,0,0,1,0,0)"><path fill="rgb(255,255,255)" fill-opacity="1" d="M-9.994,160.678 C7.798,54.302 -74.528,-129.561 -145.633,-84.076 C-151.149,-63.764 -172.644,34.713 -119.418,131.246 C-95.27,175.043 -27.933,217.214 -9.994,160.678z"/></g></g></g><g transform="matrix(1.45761,0,0,1.45761,265.367,317.039)" opacity="1"><g opacity="1"><g opacity="1" transform="matrix(-1,0,0,1,0,0)"><path fill="rgb(255,255,255)" fill-opacity="1" d="M-9.994,160.677 C51.057,211.092 133.831,189.493 94.958,103.345 C94.958,103.345 29.176,-50.213 -20.944,-22.834 C-74.722,6.544 -64.237,96.151 -9.994,160.677z"/></g></g></g><g transform="matrix(1.45761,0,0,1.45761,265.367,317.039)" opacity="1"><g opacity="1"><g opacity="1" transform="matrix(-1,0,0,1,0,0)"><path fill="rgb(255,255,255)" fill-opacity="1" d="M100.242,105.752 C100.242,105.757 100.242,105.736 100.242,105.736 C156.154,126.169 161.723,86.208 149.883,66.353 C112.421,3.534 128.201,-32.828 113.863,-83.37 C81.313,-222.739 -15.528,40.717 100.242,105.752z"/></g></g></g><g transform="matrix(1.45761,0,0,1.45761,263.3,317.039)" opacity="1"><g opacity="1" transform="matrix(1,0,0,1,17.992,-53.739)"><path fill="rgb(0,0,0)" fill-opacity="1" d="M-18.456,-0.001 C-18.456,11.057 -16.138,29.607 -0.615,29.607 C-0.615,29.607 -0.612,29.607 -0.612,29.607 C11.327,29.607 18.456,18.54 18.456,-0.001 C18.456,-9.814 16.48,-17.707 12.741,-22.831 C9.459,-27.328 4.807,-29.607 -0.615,-29.607 C-6.037,-29.607 -10.3,-27.363 -13.28,-22.94 C-16.667,-17.913 -18.456,-9.981 -18.456,-0.001z"/></g></g><g transform="matrix(1.45761,0,0,1.45761,265.367,317.039)" opacity="1"><g opacity="1" transform="matrix(1,0,0,1,81.822,-53.739)"><path fill="rgb(0,0,0)" fill-opacity="1" d="M-18.456,-0.001 C-18.456,11.057 -16.138,29.607 -0.615,29.607 C-0.615,29.607 -0.612,29.607 -0.612,29.607 C11.327,29.607 18.456,18.54 18.456,-0.001 C18.456,-9.814 16.48,-17.707 12.741,-22.831 C9.459,-27.328 4.807,-29.607 -0.615,-29.607 C-6.037,-29.607 -10.3,-27.363 -13.28,-22.94 C-16.667,-17.913 -18.456,-9.981 -18.456,-0.001z"/></g></g></g></svg></div>
+    <a href="https://lastline.app" target="_blank" rel="noopener" class="pill mb-6 inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-1.5 text-[13px] text-muted-foreground no-underline transition-colors hover:text-foreground hover:border-[rgba(255,255,255,0.15)]" aria-label="Sponsored by Lastline" tabindex="0">
+      <span class="text-muted-foreground/60">Sponsored by</span>
+      <img src="assets/lastline-logo.svg" alt="Lastline" width="18" height="16" class="inline-block">
+      <span class="font-medium text-foreground">Lastline</span>
+    </a>
+    <h1 class="mb-8 max-w-4xl text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-7xl">Kirodex is the best way to code with AI agents.</h1>
+
+    <!-- Stats pills -->
+    <div class="mb-10 flex flex-wrap items-center justify-center gap-3">
+      <span class="pill inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-1.5 text-[14px] text-muted-foreground">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        12 MB app
+      </span>
+      <span class="pill inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-1.5 text-[14px] text-muted-foreground">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        ~0% CPU at idle
+      </span>
+      <span class="pill inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-1.5 text-[14px] text-muted-foreground">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        ~110 MB RAM
+      </span>
+      <span class="pill inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-1.5 text-[14px] text-muted-foreground">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Open source · MIT
+      </span>
+    </div>
+
+    <!-- Download cards -->
+    <div id="download-cards" class="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
+      <!-- macOS -->
+      <a data-platform="macos" data-pattern="_aarch64.dmg"
+         href="https://github.com/thabti/kirodex/releases/latest"
+         class="download-card" aria-label="Download Kirodex for macOS" tabindex="0">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="mb-2 text-foreground"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        <span class="text-[14px] font-medium text-foreground">macOS</span>
+        <span class="download-meta text-[12px] text-muted-foreground">.dmg · Apple Silicon</span>
+      </a>
+      <!-- Windows -->
+      <a data-platform="windows" data-pattern="_x64-setup.exe"
+         href="https://github.com/thabti/kirodex/releases/latest"
+         class="download-card" aria-label="Download Kirodex for Windows" tabindex="0">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="mb-2 text-foreground"><path d="M3 12V6.75l6-1.32v6.48L3 12zm6.98.09l.02 6.63-6.98-1.01V12.1l6.96-.01zM10 5.22L19.75 3.5v8.34H10V5.22zm0 13.56V12.16h9.75v8.34L10 18.78z"/></svg>
+        <span class="text-[14px] font-medium text-foreground">Windows</span>
+        <span class="download-meta text-[12px] text-muted-foreground">.exe · x64</span>
+      </a>
+      <!-- Linux .deb -->
+      <a data-platform="linux" data-pattern="_amd64.deb"
+         href="https://github.com/thabti/kirodex/releases/latest"
+         class="download-card" aria-label="Download Kirodex for Linux (deb)" tabindex="0">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="mb-2 text-foreground"><path d="M12.5 2c-1.79 0-2.61 1.46-2.61 2.6 0 .62.14 1.14.33 1.57-.94.52-1.6 1.24-2.08 2.05-.46.77-.73 1.6-.86 2.42-.37-.07-.76-.1-1.18-.05-1.43.16-2.6 1.07-2.6 2.41 0 1.04.67 1.89 1.58 2.3-.14.58-.2 1.2-.14 1.85.2 2.01 1.52 3.6 3.41 4.35.52.2 1.06.35 1.6.42.36.78.98 1.38 1.75 1.58.28.07.57.1.85.1.28 0 .57-.03.85-.1.77-.2 1.39-.8 1.75-1.58.54-.07 1.08-.22 1.6-.42 1.89-.75 3.21-2.34 3.41-4.35.06-.65 0-1.27-.14-1.85.91-.41 1.58-1.26 1.58-2.3 0-1.34-1.17-2.25-2.6-2.41-.42-.05-.81-.02-1.18.05-.13-.82-.4-1.65-.86-2.42-.48-.81-1.14-1.53-2.08-2.05.19-.43.33-.95.33-1.57C15.11 3.46 14.29 2 12.5 2z"/></svg>
+        <span class="text-[14px] font-medium text-foreground">Linux</span>
+        <span class="download-meta text-[12px] text-muted-foreground">.deb · x64</span>
+      </a>
+      <!-- Linux AppImage -->
+      <a data-platform="linux" data-pattern="_amd64.AppImage"
+         href="https://github.com/thabti/kirodex/releases/latest"
+         class="download-card" aria-label="Download Kirodex for Linux (AppImage)" tabindex="0">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="mb-2 text-foreground"><path d="M12.5 2c-1.79 0-2.61 1.46-2.61 2.6 0 .62.14 1.14.33 1.57-.94.52-1.6 1.24-2.08 2.05-.46.77-.73 1.6-.86 2.42-.37-.07-.76-.1-1.18-.05-1.43.16-2.6 1.07-2.6 2.41 0 1.04.67 1.89 1.58 2.3-.14.58-.2 1.2-.14 1.85.2 2.01 1.52 3.6 3.41 4.35.52.2 1.06.35 1.6.42.36.78.98 1.38 1.75 1.58.28.07.57.1.85.1.28 0 .57-.03.85-.1.77-.2 1.39-.8 1.75-1.58.54-.07 1.08-.22 1.6-.42 1.89-.75 3.21-2.34 3.41-4.35.06-.65 0-1.27-.14-1.85.91-.41 1.58-1.26 1.58-2.3 0-1.34-1.17-2.25-2.6-2.41-.42-.05-.81-.02-1.18.05-.13-.82-.4-1.65-.86-2.42-.48-.81-1.14-1.53-2.08-2.05.19-.43.33-.95.33-1.57C15.11 3.46 14.29 2 12.5 2z"/></svg>
+        <span class="text-[14px] font-medium text-foreground">Linux</span>
+        <span class="download-meta text-[12px] text-muted-foreground">.AppImage · x64</span>
+      </a>
+    </div>
+    <p id="download-version" class="mt-3 text-[13px] text-muted-foreground/60"></p>
+
+    <!-- Brew install terminal block -->
+    <div class="mt-8 w-full max-w-md">
+      <div class="brew-block rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#111111] overflow-hidden shadow-lg">
+        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-subtle border-[rgba(255,255,255,0.06)]">
+          <span class="h-3 w-3 rounded-full bg-[#ff5f57]"></span>
+          <span class="h-3 w-3 rounded-full bg-[#febc2e]"></span>
+          <span class="h-3 w-3 rounded-full bg-[#28c840]"></span>
+          <span class="ml-2 text-[12px] text-muted-foreground">Terminal</span>
+        </div>
+        <div class="px-5 py-4 flex items-center gap-3">
+          <span class="text-muted-foreground select-none">$</span>
+          <code class="text-[14px] text-foreground">brew install --cask thabti/tap/kirodex</code>
+          <button
+            onclick="navigator.clipboard.writeText('brew install --cask thabti/tap/kirodex')"
+            class="ml-auto text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 p-1 rounded"
+            aria-label="Copy brew install command"
+            tabindex="0"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-20 w-full max-w-6xl">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div class="flex flex-col gap-3">
+          <span class="text-center text-[13px] font-medium text-muted-foreground">Light mode</span>
+          <img src="assets/kirodex-light.png" alt="Kirodex light mode"
+               class="w-full rounded-2xl border border-subtle border-[rgba(255,255,255,0.06)] shadow-2xl shadow-black/50 screenshot-shadow"
+               loading="eager">
+        </div>
+        <div class="flex flex-col gap-3">
+          <span class="text-center text-[13px] font-medium text-muted-foreground">Dark mode</span>
+          <img src="assets/kirodex-dark.png" alt="Kirodex dark mode"
+               class="w-full rounded-2xl border border-subtle border-[rgba(255,255,255,0.06)] shadow-2xl shadow-black/50 screenshot-shadow"
+               loading="eager">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ─────────────────────────────────────────────── -->
+  <section class="px-6 py-24">
+    <div class="mx-auto max-w-6xl">
+      <h2 class="mb-4 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Everything you need to ship with AI</h2>
+      <p class="mx-auto mb-16 max-w-2xl text-center text-[16px] text-muted-foreground">Chat, plan, diff, commit, and deploy from one native app. No Electron, no bloat.</p>
+
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <!-- Feature 1 -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-info"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Agentic chat</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Threaded conversations with AI agents via the Agent Client Protocol. Each thread runs independently with its own context and tools. Message queue lets you type while the agent runs.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-success"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Inline diffs</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Syntax-highlighted inline and side-by-side diffs powered by Shiki. Review every change before it lands.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#f97316]"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Git built in</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Branch, stage, commit, push, and pull through native libgit2 bindings. Worktree support isolates each thread.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#a78bfa]"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Integrated terminal</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Full PTY terminal with xterm.js. Run commands without leaving the app.</p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#facc15]"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Plan mode</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Plan first, build second. Context-aware handoff suggests switching to implement mode before the context window fills up.</p>
+        </div>
+
+        <!-- Feature 6: Split-screen -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#38bdf8]"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Split-screen</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">View two threads side by side. Drag from the sidebar, use the toolbar button, or press Cmd+\. Draggable divider with focus indicators.</p>
+        </div>
+
+        <!-- Feature 7: Analytics -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#c084fc]"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Analytics dashboard</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Track coding hours, messages, tokens, tool calls, diff stats, and model usage. Nine chart types with local-only ACID storage.</p>
+        </div>
+
+        <!-- Feature 8: Multi-window -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#34d399]"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="5" y="6" width="14" height="8" rx="1" opacity="0.5"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Multi-window</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">Open multiple windows with Cmd+N. Each window has its own state, threads, and terminal sessions.</p>
+        </div>
+
+        <!-- Feature 9 -->
+        <div class="card-bg rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111111] p-6">
+          <div class="mb-4 icon-bg flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.05)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#f472b6]"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3 class="mb-2 text-[16px] font-semibold text-foreground">Native and lightweight</h3>
+          <p class="text-[14px] leading-relaxed text-muted-foreground">12 MB, ~0% CPU at idle, ~110 MB RAM. Built with Tauri and Rust. No Electron.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────── -->
+  <footer class="border-t border-subtle border-[rgba(255,255,255,0.06)] px-6 py-8">
+    <div class="mx-auto flex max-w-6xl items-center justify-between">
+      <p class="text-[13px] text-muted-foreground">&copy; 2026 Sabeur Thabti</p>
+      <div class="flex items-center gap-5 text-[13px] text-muted-foreground">
+        <a href="changelog.html" class="transition-colors hover:text-foreground no-underline">Changelog</a>
+        <a href="https://github.com/thabti/kirodex" target="_blank" rel="noopener" class="transition-colors hover:text-foreground no-underline">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var ua = navigator.userAgent;
+      var detected = /Mac/.test(ua) ? 'macos' : /Win/.test(ua) ? 'windows' : /Linux/.test(ua) ? 'linux' : null;
+      var cards = document.querySelectorAll('.download-card');
+      var hasActive = false;
+      cards.forEach(function (card) {
+        if (detected && card.getAttribute('data-platform') === detected && !hasActive) {
+          card.classList.add('download-card--active');
+          hasActive = true;
+        } else if (detected) {
+          card.classList.add('download-card--muted');
+        }
+      });
+      fetch('https://api.github.com/repos/thabti/kirodex/releases/latest')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var version = (data.tag_name || '').replace(/^v/, '');
+          if (!version || !data.assets) return;
+          document.getElementById('download-version').textContent = 'v' + version;
+          cards.forEach(function (card) {
+            var pattern = card.getAttribute('data-pattern');
+            var asset = data.assets.find(function (a) { return a.name.indexOf(pattern) !== -1; });
+            if (asset) card.href = asset.browser_download_url;
+          });
+        })
+        .catch(function () {});
+    })();
+  </script>
+
+  <script>
+    (function () {
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
+      var buttons = toggle.querySelectorAll('button');
+      var stored = localStorage.getItem('kirodex-theme') || 'dark';
+
+      function applyTheme(theme) {
+        var isLight = theme === 'light' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+        document.documentElement.classList.toggle('light', isLight);
+        buttons.forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-theme') === theme);
+        });
+        localStorage.setItem('kirodex-theme', theme);
+      }
+
+      applyTheme(stored);
+
+      buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          applyTheme(btn.getAttribute('data-theme'));
+        });
+      });
+
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () {
+        if (localStorage.getItem('kirodex-theme') === 'system') applyTheme('system');
+      });
+    })();
+  </script>
+
+</body>
+</html>

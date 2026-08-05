@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- TCC usage descriptions: macOS shows these strings in permission prompts.
+         Kirodex only needs file access to user-selected project folders.
+         These keys prevent generic/confusing TCC prompts for protected directories. -->
+
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Kirodex needs access to your Desktop folder to open projects located there.</string>
+
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Kirodex needs access to your Documents folder to open projects located there.</string>
+
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Kirodex needs access to your Downloads folder to open projects located there.</string>
+
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Kirodex needs access to removable volumes to open projects stored on external drives.</string>
+
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>Kirodex needs access to network volumes to open projects stored on network drives.</string>
+</dict>
+</plist>

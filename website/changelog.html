@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- base href injected by CI for GitHub Pages -->
+  <title>Changelog — Kirodex</title>
+  <meta name="description" content="Kirodex release history and changelog.">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dist/style.css">
+  <script>
+    (function(){var t=localStorage.getItem('kirodex-theme');if(t==='light')document.documentElement.classList.add('light');else if(t==='system'&&window.matchMedia('(prefers-color-scheme: light)').matches)document.documentElement.classList.add('light');})();
+  </script>
+</head>
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────── -->
+  <nav class="fixed top-0 left-0 right-0 z-50 nav-backdrop backdrop-blur-md">
+    <div class="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
+      <a href="./" class="flex items-center gap-2.5 text-[15px] font-bold text-foreground no-underline">
+        <img src="assets/icon.png" alt="" width="24" height="24" class="rounded">
+        Kirodex
+      </a>
+      <div class="flex items-center gap-6 text-[14px] text-muted-foreground">
+        <a href="changelog.html" class="text-foreground no-underline">Changelog</a>
+        <a href="https://github.com/thabti/kirodex" target="_blank" rel="noopener" class="transition-colors hover:text-foreground no-underline">GitHub ↗</a>
+        <div class="theme-toggle" id="theme-toggle">
+          <button data-theme="light" title="Light mode" aria-label="Light mode">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+          <button data-theme="system" title="System preference" aria-label="System preference">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </button>
+          <button data-theme="dark" title="Dark mode" aria-label="Dark mode" class="active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Changelog ───────────────────────────────────────────── -->
+  <main class="mx-auto max-w-3xl px-6 pt-28 pb-20">
+    <h1 class="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">Changelog</h1>
+    <p class="mb-12 text-[15px] text-muted-foreground">Release history for Kirodex. See <a href="https://github.com/thabti/kirodex/releases" target="_blank" rel="noopener" class="text-[#4444FF] underline underline-offset-2">GitHub Releases</a> for downloads.</p>
+
+    <div id="changelog" class="space-y-12">
+      <noscript>
+        <p class="text-muted-foreground">Enable JavaScript to load the changelog, or view it on <a href="https://github.com/thabti/kirodex/blob/main/CHANGELOG.md" class="text-[#4444FF] underline underline-offset-2">GitHub</a>.</p>
+      </noscript>
+    </div>
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────── -->
+  <footer class="border-t border-subtle border-[rgba(255,255,255,0.06)] px-6 py-8">
+    <div class="mx-auto flex max-w-5xl items-center justify-between">
+      <p class="text-[13px] text-muted-foreground">&copy; 2026 Sabeur Thabti</p>
+      <div class="flex items-center gap-5 text-[13px] text-muted-foreground">
+        <a href="./" class="transition-colors hover:text-foreground no-underline">Home</a>
+        <a href="https://github.com/thabti/kirodex" target="_blank" rel="noopener" class="transition-colors hover:text-foreground no-underline">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { CHANGELOG_DATA } from './changelog-data.js';
+
+    const VISIBLE_COUNT = 5;
+    const CATEGORY_COLORS = {
+      'Features': 'text-[#34d399]',
+      'Bug fixes': 'text-[#f87171]',
+      'Styling': 'text-[#c084fc]',
+      'Refactoring': 'text-[#fbbf24]',
+      'Documentation': 'text-[#60a5fa]',
+      'CI': 'text-[#60a5fa]',
+      'Tests': 'text-[#14b8a6]',
+    };
+
+    const renderEntry = (entry) => {
+      const tag = entry.version.replace('.x', '.0');
+      let html = `<div class="relative pl-6 border-l changelog-border">`;
+      html += `<div class="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-[#4444FF] changelog-dot-bg"></div>`;
+      html += `<div class="flex flex-wrap items-baseline gap-3 mb-4">`;
+      html += `<a href="https://github.com/thabti/kirodex/releases/tag/${tag}" target="_blank" rel="noopener" class="text-lg font-semibold text-foreground no-underline hover:text-[#4444FF] transition-colors">${entry.version}</a>`;
+      html += `<span class="text-[13px] text-muted-foreground">${entry.date}</span>`;
+      if (entry.latest) html += `<span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#4444FF]/10 text-[#4444FF]">Latest</span>`;
+      html += `</div>`;
+      for (const [category, items] of Object.entries(entry.sections)) {
+        const color = CATEGORY_COLORS[category] || 'text-muted-foreground';
+        html += `<p class="mb-2 text-[13px] font-medium ${color}">${category}</p>`;
+        html += `<ul class="mb-4 space-y-1">`;
+        for (const item of items) {
+          html += `<li class="text-[14px] leading-relaxed text-muted-foreground pl-3 relative changelog-bullet">${item}</li>`;
+        }
+        html += `</ul>`;
+      }
+      html += `</div>`;
+      return html;
+    };
+
+    const container = document.getElementById('changelog');
+    const visible = CHANGELOG_DATA.slice(0, VISIBLE_COUNT);
+    const collapsed = CHANGELOG_DATA.slice(VISIBLE_COUNT);
+
+    let html = visible.map(renderEntry).join('');
+
+    if (collapsed.length > 0) {
+      html += `<div id="older-releases" class="hidden">${collapsed.map(renderEntry).join('')}</div>`;
+      html += `<button id="toggle-older" type="button" class="changelog-toggle" aria-expanded="false" aria-controls="older-releases">`;
+      html += `<span class="changelog-toggle-text">Show ${collapsed.length} older releases</span>`;
+      html += `<svg class="changelog-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+      html += `</button>`;
+    }
+
+    container.innerHTML = html;
+
+    const toggleBtn = document.getElementById('toggle-older');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const older = document.getElementById('older-releases');
+        const isHidden = older.classList.contains('hidden');
+        older.classList.toggle('hidden', !isHidden);
+        toggleBtn.setAttribute('aria-expanded', String(isHidden));
+        toggleBtn.querySelector('.changelog-toggle-text').textContent = isHidden
+          ? 'Hide older releases'
+          : `Show ${collapsed.length} older releases`;
+        toggleBtn.querySelector('.changelog-toggle-icon').style.transform = isHidden ? 'rotate(180deg)' : '';
+      });
+      toggleBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBtn.click(); }
+      });
+    }
+  </script>
+
+  <script>
+    (function () {
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
+      var buttons = toggle.querySelectorAll('button');
+      var stored = localStorage.getItem('kirodex-theme') || 'dark';
+
+      function applyTheme(theme) {
+        var isLight = theme === 'light' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+        document.documentElement.classList.toggle('light', isLight);
+        buttons.forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-theme') === theme);
+        });
+        localStorage.setItem('kirodex-theme', theme);
+      }
+
+      applyTheme(stored);
+
+      buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          applyTheme(btn.getAttribute('data-theme'));
+        });
+      });
+
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () {
+        if (localStorage.getItem('kirodex-theme') === 'system') applyTheme('system');
+      });
+    })();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,83 @@
+[package]
+name = "kirodex"
+version = "0.23.0"
+edition = "2021"
+
+[lib]
+name = "kirodex_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "kirodex"
+path = "src/main.rs"
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api", "devtools"] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "io-util", "time", "process"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+async-trait = "0.1"
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_model", "unstable_session_usage", "unstable_session_fork", "unstable_cancel_request", "unstable_message_id"] }
+base64 = "0.22"
+dirs = "6"
+uuid = { version = "1", features = ["v4"] }
+portable-pty = "0.8"
+log = "0.4"
+open = "5"
+ignore = "0.4"
+window-vibrancy = "0.6"
+tauri-plugin-log = "2"
+git2 = { version = "0.20", default-features = false }
+thiserror = "2"
+which = "7"
+confy = "0.6"
+tauri-plugin-store = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+parking_lot = "0.12"
+redb = "2.4"
+imagesize = "0.13"
+notify = "7"
+notify-debouncer-mini = "0.5"
+glob = "0.3"
+rusqlite = { version = "0.31", features = ["bundled"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+url = "2"
+# ── Performance crates (inspired by Zed) ───────────────────────────────────
+# Fuzzy matching for pickers (fzf-style scoring, same family Helix/Zed use)
+nucleo-matcher = "0.3"
+# Fast diff algorithm — Myers/Histogram, faster than `similar` on large inputs
+imara-diff = "0.1"
+# GFM markdown parser, parses to a flat event stream
+pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
+# Syntax highlighting (TextMate/Sublime grammars; no WASM, no JS)
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+# Fast cryptographic hash for cache keys
+blake3 = "1.5"
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = 2
+panic = "abort"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.26.1"
+objc = "0.2"

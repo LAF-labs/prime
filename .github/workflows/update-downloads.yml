@@ -1,0 +1,110 @@
+name: Update downloads.json
+
+on:
+  schedule:
+    - cron: '30 6 * * *' # daily at 06:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-downloads
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Collect stats and write downloads.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # ── GitHub release downloads ──────────────────────────────
+          RELEASES=$(gh api "repos/${REPO}/releases" --paginate)
+
+          # ── Homebrew tap clones (needs TAP_TOKEN with repo scope) ─
+          TAP_CLONES="{}"
+          if [ -n "${TAP_TOKEN:-}" ]; then
+            TAP_CLONES=$(curl -fsSL \
+              -H "Authorization: token ${TAP_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/thabti/homebrew-tap/traffic/clones" 2>/dev/null || echo "{}")
+          fi
+
+          # ── Build JSON with jq ───────────────────────────────────
+          echo "$RELEASES" | jq --argjson tap "$TAP_CLONES" '
+            def platform:
+              if endswith(".dmg") then "macos"
+              elif endswith(".app.tar.gz") then "macos"
+              elif endswith("-setup.exe") then "windows"
+              elif endswith("en-US.msi") and (endswith(".msi.zip") | not) then "windows"
+              elif endswith("nsis.zip") then "windows"
+              elif endswith(".msi.zip") then "windows"
+              elif endswith(".deb") then "linux"
+              elif endswith(".AppImage") then "linux"
+              elif endswith(".AppImage.tar.gz") then "linux"
+              elif endswith(".rpm") then "linux"
+              else "other"
+              end;
+
+            def is_countable:
+              (.name | endswith(".sig") | not) and .name != "latest.json";
+
+            {
+              updated_at: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+              releases: [
+                .[] | select(.assets | length > 0) | {
+                  tag: .tag_name,
+                  published: .published_at,
+                  total: ([.assets[] | select(is_countable) | .download_count] | add // 0),
+                  update_checks: ([.assets[] | select(.name == "latest.json") | .download_count] | add // 0),
+                  assets: [
+                    .assets[] | select(is_countable) | {
+                      name: .name,
+                      downloads: .download_count,
+                      platform: (.name | platform)
+                    }
+                  ]
+                }
+              ],
+              totals: {
+                all: ([.[] | .assets[] | select(is_countable) | .download_count] | add // 0),
+                update_checks: ([.[] | .assets[] | select(.name == "latest.json") | .download_count] | add // 0),
+                macos: ([.[] | .assets[] | select(is_countable) | select(.name | platform == "macos") | .download_count] | add // 0),
+                windows: ([.[] | .assets[] | select(is_countable) | select(.name | platform == "windows") | .download_count] | add // 0),
+                linux: ([.[] | .assets[] | select(is_countable) | select(.name | platform == "linux") | .download_count] | add // 0)
+              },
+              homebrew_tap: (
+                if $tap | has("count") then {
+                  clones_14d: $tap.count,
+                  unique_cloners_14d: $tap.uniques,
+                  daily: [$tap.clones[]? | {date: .timestamp, total: .count, unique: .uniques}]
+                } else null end
+              )
+            }
+          ' > downloads.json
+
+          echo "Generated downloads.json:"
+          cat downloads.json
+
+      - name: Commit and push
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add downloads.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "chore(analytics): update downloads.json"
+            git push origin main
+          fi

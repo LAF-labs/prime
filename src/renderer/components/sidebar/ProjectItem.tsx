@@ -1,0 +1,235 @@
+import { memo, useState, useRef, useEffect } from 'react'
+import { IconEdit, IconTrash, IconArchive, IconMessagePlus, IconFolderOpen, IconPalette, IconMessage, IconCopy, IconArrowUp, IconArrowDown, IconListTree } from '@tabler/icons-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
+import { ipc } from '@/lib/ipc'
+import { useTaskStore } from '@/stores/taskStore'
+import { useFileTreeStore } from '@/stores/fileTreeStore'
+import { ThreadItem } from './ThreadItem'
+import { ProjectIcon } from './ProjectIcon'
+import { useProjectIcon, setProjectIconOverride } from '@/hooks/useProjectIcon'
+import { useMenuPosition } from '@/hooks/useMenuPosition'
+import { IconPickerDialog } from './IconPickerDialog'
+import type { SidebarTask } from '@/hooks/useSidebarTasks'
+
+interface ProjectItemProps {
+  name: string
+  cwd: string
+  tasks: readonly SidebarTask[]
+  selectedTaskId: string | null
+  isActiveProject: boolean
+  canMoveUp: boolean
+  canMoveDown: boolean
+  autoFocus?: boolean
+  jumpLabel?: string | null
+  isMetaHeld?: boolean
+  isCustomSort?: boolean
+  onSelectTask: (id: string) => void
+  onNewThread: () => void
+  onDeleteTask: (id: string) => void
+  onRenameTask: (id: string, name: string) => void
+  onRemoveProject: () => void
+  onArchiveThreads: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  onMoveThread: (from: number, to: number) => void
+}
+
+const DEFAULT_VISIBLE_THREADS = 3
+
+export const ProjectItem = memo(function ProjectItem({
+  name, cwd, tasks, selectedTaskId, isActiveProject, canMoveUp, canMoveDown, autoFocus, jumpLabel, isMetaHeld, isCustomSort,
+  onSelectTask, onNewThread, onDeleteTask, onRenameTask,
+  onRemoveProject, onArchiveThreads,
+  onMoveUp, onMoveDown, onMoveThread,
+}: ProjectItemProps) {
+  const [expanded, setExpanded] = useState(true)
+  const [showAllThreads, setShowAllThreads] = useState(false)
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  const hasMoreThreads = tasks.length > DEFAULT_VISIBLE_THREADS
+  const visibleTasks = showAllThreads || !hasMoreThreads ? tasks : tasks.slice(0, DEFAULT_VISIBLE_THREADS)
+  const handleToggleShowAll = () => setShowAllThreads((v) => !v)
+  const ctxRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const projectIcon = useProjectIcon(cwd)
+  useMenuPosition(ctxRef, ctxMenu)
+
+  useEffect(() => {
+    if (!autoFocus) return
+    buttonRef.current?.focus()
+    useTaskStore.getState().clearLastAddedProject()
+  }, [autoFocus])
+
+  useEffect(() => {
+    if (!ctxMenu) return
+    const handler = (e: MouseEvent) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [ctxMenu])
+
+  return (
+    <li
+      className="group/menu-item relative min-w-0 rounded-md transition-colors"
+    >
+      <div className="relative flex items-center">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY }) }}
+          className={cn(
+            'peer/menu-button flex w-full h-8 cursor-pointer items-center gap-1 overflow-hidden rounded-lg px-1.5 py-1 text-[13px] text-left',
+            'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'hover:bg-accent hover:text-foreground transition-colors',
+          )}
+        >
+          <ProjectIcon icon={projectIcon} />
+          <span className={cn('flex-1 truncate text-[13px] text-foreground/85', isActiveProject ? 'font-medium' : 'font-normal')}>{name}</span>
+          {jumpLabel && (
+            <kbd className="pointer-events-none ml-auto mr-1 inline-flex h-4 shrink-0 items-center rounded-sm bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground select-none">
+              {jumpLabel}
+            </kbd>
+          )}
+        </button>
+
+        {/* Action buttons — hidden until hover/focus, no bg mask */}
+        <div className="absolute inset-y-0 right-1 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/menu-item:opacity-100 focus-within:opacity-100">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`New thread in ${name}`}
+                onClick={onNewThread}
+                className="flex size-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground outline-none focus-visible:opacity-100"
+              >
+                <IconEdit className="size-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">New thread</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Remove ${name}`}
+                onClick={onRemoveProject}
+                className="flex size-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground/80 hover:text-destructive outline-none focus-visible:opacity-100"
+              >
+                <IconTrash className="size-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Remove project</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      {ctxMenu && (
+        <div ref={ctxRef} className="fixed z-[300] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            onClick={() => { onNewThread(); setCtxMenu(null) }}>
+            <IconMessagePlus className="size-3.5" /> New Thread
+          </button>
+          <div className="my-1 border-t border-border/50" />
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            onClick={() => { ipc.openUrl(cwd); setCtxMenu(null) }}>
+            <IconFolderOpen className="size-3.5" /> Open in Finder
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            onClick={() => { useFileTreeStore.getState().setOpen(true); void useFileTreeStore.getState().loadRoot(cwd); setCtxMenu(null) }}>
+            <IconListTree className="size-3.5" /> Open File Tree
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            onClick={() => { void navigator.clipboard.writeText(cwd); setCtxMenu(null) }}>
+            <IconCopy className="size-3.5" /> Copy Path
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            aria-label="Change project icon"
+            onClick={() => { setIconPickerOpen(true); setCtxMenu(null) }}>
+            <IconPalette className="size-3.5" /> Change Icon
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            onClick={() => { onArchiveThreads(); setCtxMenu(null) }}>
+            <IconArchive className="size-3.5" /> Archive Threads
+          </button>
+          {(canMoveUp || canMoveDown) && (
+            <>
+              <div className="my-1 border-t border-border/50" />
+              {canMoveUp && (
+                <button type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                  onClick={() => { onMoveUp(); setCtxMenu(null) }}>
+                  <IconArrowUp className="size-3.5" /> Move Up
+                </button>
+              )}
+              {canMoveDown && (
+                <button type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                  onClick={() => { onMoveDown(); setCtxMenu(null) }}>
+                  <IconArrowDown className="size-3.5" /> Move Down
+                </button>
+              )}
+            </>
+          )}
+          <div className="my-1 border-t border-border/50" />
+          <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10"
+            onClick={() => { onRemoveProject(); setCtxMenu(null) }}>
+            <IconTrash className="size-3.5" /> Delete
+          </button>
+        </div>
+      )}
+
+      <IconPickerDialog
+        open={iconPickerOpen}
+        onOpenChange={setIconPickerOpen}
+        cwd={cwd}
+        onSelect={(override) => { setProjectIconOverride(cwd, override); setIconPickerOpen(false) }}
+        onReset={() => { setProjectIconOverride(cwd, null); setIconPickerOpen(false) }}
+      />
+
+      {expanded && tasks.length > 0 && (
+        <div className="flex min-w-0 flex-col overflow-hidden">
+          <ul className="flex min-w-0 flex-col gap-0">
+            {visibleTasks.map((task, i) => {
+              const threadJumpLabel = isMetaHeld && i < 9 ? `${i + 1}` : null
+              return (
+                <ThreadItem
+                  key={task.id}
+                  task={task}
+                  isActive={selectedTaskId === task.id}
+                  jumpLabel={threadJumpLabel}
+                  canMoveUp={isCustomSort && i > 0 && !task.isDraft}
+                  canMoveDown={isCustomSort && i < visibleTasks.length - 1 && !task.isDraft}
+                  onSelect={() => onSelectTask(task.id)}
+                  onDelete={() => onDeleteTask(task.id)}
+                  onRename={(n) => onRenameTask(task.id, n)}
+                  onMoveUp={() => onMoveThread(i, i - 1)}
+                  onMoveDown={() => onMoveThread(i, i + 1)}
+                />
+              )
+            })}
+          </ul>
+          {hasMoreThreads && (
+            <button
+              type="button"
+              onClick={handleToggleShowAll}
+              className="flex h-7 w-full items-center rounded-md px-2 text-left text-[12px] text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {showAllThreads ? 'Show less' : `Show ${tasks.length - DEFAULT_VISIBLE_THREADS} more`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {expanded && tasks.length === 0 && (
+        <div className="flex items-center gap-2 px-2 py-2">
+          <IconMessage className="size-3.5 text-muted-foreground/50" aria-hidden />
+          <span className="text-[12px] text-muted-foreground/60">No threads yet</span>
+        </div>
+      )}
+    </li>
+  )
+})

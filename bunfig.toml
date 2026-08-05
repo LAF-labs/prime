@@ -1,0 +1,5 @@
+[test]
+# Tests use Vitest, not Bun's native test runner.
+# Set preload to an empty array and root to a no-op dir to prevent
+# bun test from auto-discovering .test.ts files without jsdom.
+root = ".bun-test-noop"

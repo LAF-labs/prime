@@ -27,7 +27,8 @@ HARNESS_REPO="${HARNESS_REPO:-https://github.com/LAF-labs/prime-harness}"
 # The single source of truth for which harness this app ships.
 HARNESS_REF="${HARNESS_REF:-v0.7.0}"
 WORK="$(mktemp -d)"
-OUT="$(cd "$(dirname "$0")/.." && pwd)/src-tauri/resources/prime-agent"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="$REPO_ROOT/src-tauri/resources/prime-agent"
 
 echo "==> Cloning harness at ${HARNESS_REF}"
 git clone --quiet --branch "$HARNESS_REF" --depth 1 "$HARNESS_REPO" "$WORK/prime-agent"
@@ -62,10 +63,15 @@ const pkg = {
   private: true,
   type: 'module',
   piConfig: { name: 'prime-agent', configDir: '.prime/agent' },
-  dependencies: Object.fromEntries(
-    ['zeromq', 'koffi', 'undici', '@silvia-odwyer/photon-node', '@mariozechner/clipboard']
-      .map((m) => [m, ver(m)])
-  ),
+  dependencies: {
+    ...Object.fromEntries(
+      ['zeromq', 'koffi', 'undici', '@silvia-odwyer/photon-node', '@mariozechner/clipboard']
+        .map((m) => [m, ver(m)])
+    ),
+    // OS-level bash sandbox used by the LAF gate (sandbox-exec / bubblewrap).
+    // Not a harness dependency — pinned here, resolved by the gate at runtime.
+    '@anthropic-ai/sandbox-runtime': '0.0.70',
+  },
 };
 fs.writeFileSync(`${out}/package.json`, JSON.stringify(pkg, null, 1));
 EOF
@@ -104,6 +110,12 @@ UV_URL="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${UV_
 curl -fsSL "$UV_URL" | tar -xz -C "$WORK"
 cp "$WORK/uv-${UV_TARGET}/uv" uv
 chmod +x uv
+
+# The gate extension lives INSIDE the sidecar so its value imports resolve
+# against the sidecar's node_modules (sandbox-runtime above). The tracked
+# source stays at src-tauri/resources/laf-agent-gate.ts; this copy is what
+# the app actually loads (agent_launch::gate resolution prefers it).
+cp "$REPO_ROOT/src-tauri/resources/laf-agent-gate.ts" "$OUT/laf-gate.ts"
 
 # Provenance: which harness this sidecar was built from. The app surfaces
 # this in Settings ("Harness vX.Y.Z") and support asks for it first.

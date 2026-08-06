@@ -617,7 +617,8 @@ export const ko: Record<string, string> = {
   'Replay onboarding': '온보딩 다시 보기',
   'Respect .gitignore': '.gitignore 준수',
   'Restore or permanently remove': '복원하거나 영구 삭제합니다',
-  'Restrict agent to project directory': '에이전트를 프로젝트 디렉터리로 제한',
+  'Confine file writes and shell commands to this project. Python and network access are not confined.':
+    '파일 쓰기와 셸 명령을 이 프로젝트로 제한합니다. Python 실행과 네트워크는 제한되지 않습니다.',
   'Run the setup wizard again': '설정 마법사를 다시 실행합니다',
   'Scrollback lines': '스크롤백 줄 수',
   'Show a sparkle button to draft a commit message from the diff':

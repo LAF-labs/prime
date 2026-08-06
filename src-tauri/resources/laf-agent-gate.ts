@@ -14,7 +14,8 @@
 
 import { realpathSync } from "node:fs";
 import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createBashTool, createLocalBashOperations } from "@earendil-works/pi-coding-agent";
+import type { BashOperations, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const READ_ONLY_TOOLS = new Set([
 	"read",
@@ -107,10 +108,125 @@ function escapesWorkspace(input: Record<string, unknown>): string | null {
 	return null;
 }
 
+// ── OS-level bash sandbox ────────────────────────────────────────────
+//
+// The path check above only sees file-path arguments; a bash command can
+// touch anything. This closes that gap with Anthropic's sandbox-runtime
+// (sandbox-exec on macOS, bubblewrap on Linux): writes are confined to the
+// workspace and temp dirs, and credential directories are unreadable, at the
+// OS level, no matter what the command string says. Verified end to end — a
+// model-issued `bash` writing to $HOME comes back "Operation not permitted".
+//
+// WHAT THIS DOES NOT COVER, so nobody mistakes it for full isolation:
+//   * `ipython` — prime-agent's other built-in tool runs in the kernel
+//     process, which is spawned outside this wrapper. Still prompt-gated.
+//   * network — deliberately open. A domain allowlist routes traffic through
+//     a proxy and breaks npm/pip/git for every project.
+//   * reads — only credential directories are denied; the rest of the disk is
+//     readable.
+// upstream prime-agent states plainly that it is "not a security sandbox".
+// This narrows that, it does not overturn it: treat the approval prompt as
+// the real control and this as the floor under it.
+//
+// The dependency lives in the sidecar's node_modules (this file ships next
+// to them — see build-sidecar.sh), so the import is dynamic and failure is
+// tolerated: a dev run of the bare gate, or a user-supplied harness without
+// the package, degrades to prompt-only behavior with a logged warning.
+
+type SandboxRuntime = {
+	SandboxManager: {
+		initialize(config: unknown): Promise<void>;
+		wrapWithSandbox(command: string): Promise<string>;
+		reset(): Promise<void>;
+	};
+};
+
+let runtime: SandboxRuntime | null = null;
+let initOnce: Promise<boolean> | null = null;
+
+/**
+ * Initialize on first use rather than on a lifecycle event — the sandbox has
+ * to be ready before the first command whether or not `session_start` fired,
+ * and repeated calls share one promise.
+ */
+function ensureSandbox(): Promise<boolean> {
+	initOnce ??= (async () => {
+		if (process.platform !== "darwin" && process.platform !== "linux") return false;
+		try {
+			runtime = (await import("@anthropic-ai/sandbox-runtime")) as unknown as SandboxRuntime;
+			await runtime.SandboxManager.initialize({
+				// An empty network object means "don't touch the network" — a
+				// domain allowlist would route through a proxy and break
+				// npm/pip/git for every project. Filesystem confinement is the
+				// point here; network policy is a separate decision.
+				network: {},
+				filesystem: {
+					allowWrite: [WORKSPACE, "/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/dev/null"],
+					denyRead: ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh", "~/.netrc", "~/.prime/agent/auth.json"],
+				},
+			});
+			return true;
+		} catch (err) {
+			runtime = null;
+			console.error(
+				`[laf-gate] bash sandbox unavailable (${err instanceof Error ? err.message : err}); falling back to approval prompts only`,
+			);
+			return false;
+		}
+	})();
+	return initOnce;
+}
+
+/** Wrap a shell command with the OS sandbox; pass through when unavailable. */
+async function sandboxCommand(command: string): Promise<string> {
+	if (!(await ensureSandbox()) || !runtime) return command;
+	try {
+		return await runtime.SandboxManager.wrapWithSandbox(command);
+	} catch (err) {
+		console.error(`[laf-gate] sandbox wrap failed, running unsandboxed: ${err instanceof Error ? err.message : err}`);
+		return command;
+	}
+}
+
+function registerSandboxedBash(pi: ExtensionAPI): void {
+	// Replace the built-in bash tool with one whose operations wrap every
+	// command before it reaches the shell. The tool_call approval flow below
+	// still runs first — the sandbox is the floor under the prompt, not a
+	// replacement for it. The imports resolve because the extension loader
+	// aliases "@earendil-works/pi-coding-agent" to the running harness itself.
+	const localOps = createLocalBashOperations();
+	const sandboxedOps: BashOperations = {
+		exec: async (command, cwd, options) => localOps.exec(await sandboxCommand(command), cwd, options),
+	};
+
+	const cwd = WORKSPACE || process.cwd();
+	const sandboxedBash = createBashTool(cwd, { operations: sandboxedOps });
+
+	// Always route through the sandboxed tool: sandboxCommand() falls back to
+	// the raw command when the runtime is unavailable, so there is no state to
+	// branch on here and no window where the plain tool runs by accident.
+	pi.registerTool(sandboxedBash);
+
+	// `!command` from the user goes through the same wrapper.
+	pi.on("user_bash", () => ({ operations: sandboxedOps }));
+
+	pi.on("session_shutdown", async () => {
+		if (runtime) {
+			try {
+				await runtime.SandboxManager.reset();
+			} catch {
+				// nothing useful to do at shutdown
+			}
+		}
+	});
+}
+
 export default function (pi: ExtensionAPI) {
 	registerParityCommands(pi);
 	registerNativeWebSearch(pi);
 	registerWebFetch(pi);
+
+	if (TIGHT_SANDBOX && WORKSPACE) registerSandboxedBash(pi);
 
 	pi.on("tool_call", async (event, ctx) => {
 		if (READ_ONLY_TOOLS.has(event.toolName)) return undefined;

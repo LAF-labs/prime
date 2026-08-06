@@ -62,6 +62,38 @@ implement ([oven-sh/bun#18546](https://github.com/oven-sh/bun/issues/18546)),
 so the binary crashes at startup. Revisit if Bun closes that gap — it would
 remove the 108 MB Node copy.
 
+## What the sandbox actually enforces
+
+upstream prime-agent states plainly that it runs model-generated code with the
+user's privileges and is "not a security sandbox". That is accurate for a CLI,
+where the user opted into exactly that. A desktop app has a different bar: our
+Settings screen offers a "Tight sandbox" toggle, defaulted on, and a toggle
+that promises something has to deliver it.
+
+So the gate extension (`src-tauri/resources/laf-agent-gate.ts`) adds two
+layers on top of the approval prompt:
+
+1. **Path canonicalization** on file-path tool arguments — `..` collapsed,
+   symlinks resolved, relative paths resolved against the workspace.
+2. **OS-level confinement of `bash`** via `@anthropic-ai/sandbox-runtime`
+   (`sandbox-exec` on macOS, bubblewrap on Linux). Writes are limited to the
+   workspace and temp dirs; `~/.ssh`, `~/.aws`, `~/.gnupg`, and `auth.json`
+   are unreadable. Verified end to end: a model-issued `bash` writing to
+   `$HOME` returns `Operation not permitted`.
+
+Not covered, and stated in the UI rather than buried here:
+
+- **`ipython`** — the other built-in tool runs in the kernel process, spawned
+  outside the wrapper. Prompt-gated only. Closing this means launching the
+  kernel itself under the sandbox; it is the next piece of work.
+- **Network** — deliberately open. A domain allowlist routes traffic through a
+  proxy and breaks npm, pip, and git for every project.
+- **Reads** — only credential directories are denied.
+
+The approval prompt remains the real control. This narrows the blast radius
+when a user approves something they misread; it does not make untrusted
+repositories safe to run.
+
 ## The real cost: version drift
 
 prime-agent shipped v0.5.0 through v0.7.0 in three days, 40 releases so far.

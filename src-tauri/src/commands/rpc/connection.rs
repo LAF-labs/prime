@@ -168,10 +168,21 @@ pub(crate) fn composite_model_id(model: &Value) -> Option<String> {
     Some(format!("{provider}/{id}"))
 }
 
-/// Locate the bundled permission-gate extension. Checked relative to the
-/// resource dir in production and to `src-tauri/` in dev.
+/// Locate the bundled permission-gate extension.
+///
+/// The copy inside the sidecar wins: it sits next to the sidecar's
+/// node_modules, so the gate's value imports (@anthropic-ai/sandbox-runtime)
+/// resolve. The bare resources copy is the tracked source and the fallback
+/// for dev runs or user-supplied harnesses — there the sandbox import fails
+/// gracefully and the gate degrades to prompt-only.
 fn gate_extension_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     use tauri::Manager;
+    if let Some(sidecar) = crate::commands::agent_launch::bundled_sidecar_dir(app) {
+        let in_sidecar = sidecar.join("laf-gate.ts");
+        if in_sidecar.exists() {
+            return Some(in_sidecar);
+        }
+    }
     if let Ok(p) = app
         .path()
         .resolve("resources/laf-agent-gate.ts", tauri::path::BaseDirectory::Resource)

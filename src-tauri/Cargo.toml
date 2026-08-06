@@ -53,6 +53,15 @@ pulldown-cmark = { version = "0.12", default-features = false, features = ["html
 # Syntax highlighting (TextMate/Sublime grammars; no WASM, no JS)
 # Fast cryptographic hash for cache keys
 
+# confy stores settings as TOML; we parse the file ourselves before confy
+# loads it, so an unparseable config can be quarantined instead of silently
+# replaced by defaults.
+toml = "0.8"
+# Bounded line framing for the agent's stdout (LinesCodec with a max length).
+tokio-util = { version = "0.7", features = ["codec"] }
+# StreamExt for FramedRead; already in the tree transitively via reqwest.
+futures-util = { version = "0.3", default-features = false }
+
 [dev-dependencies]
 tempfile = "3"
 

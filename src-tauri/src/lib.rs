@@ -155,6 +155,27 @@ fn shutdown_app(app: &tauri::AppHandle) {
     resource_watcher::stop_all(app);
     project_watcher::stop_all_project_watchers(app);
 
+    // Drain the conversation database. Queued writes died with the process
+    // before this existed, and `synchronous=NORMAL` under WAL means even
+    // committed turns lived only in the -wal file until something folded it.
+    // Bounded so a wedged writer cannot hold the quit hostage.
+    if let Some(db_state) = app.try_state::<thread_db::ThreadDbState>() {
+        let db = db_state.db.clone();
+        let result = tauri::async_runtime::block_on(async move {
+            tokio::time::timeout(std::time::Duration::from_secs(3), async {
+                let flushed = db.flush_and_checkpoint().await;
+                db.shutdown().await;
+                flushed
+            })
+            .await
+        });
+        match result {
+            Ok(Ok(())) => log::info!("Thread DB drained and checkpointed"),
+            Ok(Err(e)) => log::error!("Thread DB flush failed at shutdown: {e}"),
+            Err(_) => log::error!("Thread DB flush timed out at shutdown"),
+        }
+    }
+
     log::info!("Shutdown completed in {:?}", start.elapsed());
 }
 
@@ -529,6 +550,18 @@ pub fn run() {
                     // closed window stay in our map and the reader threads
                     // keep emitting to a dead webview.
                     if window_count > 1 {
+                        // Each window is its own webview with its own JS
+                        // state; only the quit path used to flush, so closing
+                        // a secondary window dropped up to 30 s of its
+                        // autosave interval. Give it the same flush-and-ack
+                        // the last window gets, bounded so a wedged webview
+                        // cannot stall the close.
+                        let (tx, rx) = std::sync::mpsc::channel::<()>();
+                        let _listener = window.listen("app://flush-ack", move |_| {
+                            let _ = tx.send(());
+                        });
+                        let _ = window.emit("app://flush-before-quit", ());
+                        let _ = rx.recv_timeout(std::time::Duration::from_millis(1500));
                         kill_window_ptys(&app, window.label());
                         return;
                     }

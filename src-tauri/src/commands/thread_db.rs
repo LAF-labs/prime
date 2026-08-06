@@ -260,6 +260,7 @@ enum ConnectionMode {
 /// Mutex for SQLite's threading model). Writes are dispatched to a dedicated
 /// background task via a channel, ensuring serialized write access without
 /// blocking the caller beyond the channel send.
+#[derive(Clone)]
 pub struct ThreadDatabase {
     /// Shared connection for read operations. WAL mode allows concurrent reads
     /// even while the write queue is active.
@@ -353,6 +354,16 @@ impl ThreadDatabase {
             .expect("Failed to build from in-memory connection")
     }
 
+    /// Open a database at an explicit path (for testing the file-backed
+    /// behaviors — WAL, checkpointing — that an in-memory DB cannot exercise).
+    #[cfg(test)]
+    pub fn open_at(path: &std::path::Path) -> Result<Self, ThreadDbError> {
+        let conn = rusqlite::Connection::open(path)?;
+        Self::initialize_connection(&conn)?;
+        Self::run_migrations(&conn)?;
+        Self::build_from_connection(conn, ConnectionMode::FileSeparate)
+    }
+
     /// Open an in-memory database (for testing).
     #[cfg(test)]
     pub fn open_memory() -> Result<Self, ThreadDbError> {
@@ -400,8 +411,14 @@ impl ThreadDatabase {
             });
         }
 
-        // File-based: open a second connection for reads (WAL allows concurrent readers)
-        let path = Self::db_path()?;
+        // File-based: open a second connection for reads (WAL allows concurrent
+        // readers). Derive the path from the write connection itself rather
+        // than re-resolving the global one, so a database opened at an
+        // explicit path gets a read connection to the *same* file.
+        let path = write_conn
+            .path()
+            .map(PathBuf::from)
+            .ok_or_else(|| ThreadDbError::Unavailable("file-backed connection has no path".into()))?;
         let read_conn = rusqlite::Connection::open(&path)?;
         Self::initialize_connection(&read_conn)?;
 
@@ -988,8 +1005,24 @@ impl ThreadDatabase {
 
     // ── Shutdown ──────────────────────────────────────────────────────────────
 
+    /// Wait for every queued write to land, then fold the WAL into the
+    /// database file.
+    ///
+    /// Writes are serialized FIFO through the background writer, so awaiting
+    /// this operation *is* the proof that everything enqueued before it has
+    /// committed. The checkpoint matters because `synchronous=NORMAL` under
+    /// WAL keeps recent commits only in the -wal file (4 MB was observed
+    /// live); without folding it at shutdown, an OS crash or power cut right
+    /// after quitting can drop conversations the app told the user were saved.
+    pub async fn flush_and_checkpoint(&self) -> Result<(), ThreadDbError> {
+        self.write_with_result(|conn| {
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
+            Ok(())
+        })
+        .await
+    }
+
     /// Gracefully shut down the background writer. Pending writes will complete.
-    #[allow(dead_code)]
     pub async fn shutdown(&self) {
         let _ = self.write_tx.send(WriteCommand::Shutdown).await;
     }
@@ -1563,5 +1596,82 @@ mod tests {
 
         let loaded = db.load_thread("fallback-1").await.unwrap();
         assert!(loaded.is_some());
+    }
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use super::*;
+
+    fn thread(id: &str) -> DbThread {
+        DbThread {
+            id: id.into(),
+            name: format!("Thread {id}"),
+            workspace: "/w".into(),
+            status: "idle".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            parent_thread_id: None,
+            auto_approve: false,
+            metadata: None,
+            message_count: 0,
+        }
+    }
+
+    fn message(thread_id: &str, n: usize) -> DbMessage {
+        DbMessage {
+            id: 0,
+            thread_id: thread_id.into(),
+            role: "assistant".into(),
+            content: format!("turn {n}: {}", "x".repeat(512)),
+            timestamp: format!("2026-01-01T00:00:{n:02}Z"),
+            thinking: None,
+            tool_calls: None,
+        }
+    }
+
+    /// The shutdown contract: everything enqueued before the flush is on disk
+    /// in the main database file afterwards — not the WAL, not the queue.
+    #[tokio::test]
+    async fn flush_drains_the_queue_and_folds_the_wal() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("threads.db");
+        let db = ThreadDatabase::open_at(&path).unwrap();
+
+        db.save_thread(&thread("t1")).await.unwrap();
+        for n in 0..50 {
+            db.save_message(&message("t1", n)).await.unwrap();
+        }
+
+        db.flush_and_checkpoint().await.unwrap();
+        db.shutdown().await;
+
+        // With synchronous=NORMAL the recent commits live in the -wal file
+        // until something folds it; TRUNCATE leaves it at zero bytes.
+        let wal = std::fs::metadata(path.with_extension("db-wal"))
+            .map(|m| m.len())
+            .unwrap_or(0);
+        assert_eq!(wal, 0, "the WAL must be folded into the database file");
+
+        // A cold reopen — the moral equivalent of the next app launch after a
+        // power cut right past this point — must see every message.
+        let reopened = ThreadDatabase::open_at(&path).unwrap();
+        let messages = reopened.load_messages("t1").await.unwrap();
+        assert_eq!(messages.len(), 50, "no enqueued write may die with the process");
+    }
+
+    /// The read connection must be to the same file the writer uses — a
+    /// regression guard for path derivation in `build_from_connection`.
+    #[tokio::test]
+    async fn reads_and_writes_share_one_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("threads.db");
+        let db = ThreadDatabase::open_at(&path).unwrap();
+
+        db.save_thread(&thread("t1")).await.unwrap();
+        db.save_message(&message("t1", 1)).await.unwrap();
+        db.flush_and_checkpoint().await.unwrap();
+
+        assert_eq!(db.load_messages("t1").await.unwrap().len(), 1);
     }
 }

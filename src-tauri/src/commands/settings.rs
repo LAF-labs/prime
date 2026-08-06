@@ -238,8 +238,47 @@ pub struct SettingsState(pub Mutex<StoreData>);
 
 const APP_NAME: &str = "laf-agent";
 
+/// Move an unparseable settings file aside instead of letting it be replaced.
+///
+/// `confy::load(...).unwrap_or_default()` turns a truncated or malformed TOML
+/// into silent defaults — and the very next save then writes those defaults
+/// over the user's file. Everything not derivable from elsewhere goes with it:
+/// per-project prefs, provider rates, agent profiles, recent projects. This
+/// mirrors what the history store and SQLite already do: quarantine the bytes,
+/// start clean, keep the evidence recoverable.
+///
+/// Returns the quarantine path if the file existed and did not parse.
+pub(crate) fn quarantine_if_corrupt(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let text = std::fs::read_to_string(path).ok()?;
+    if toml::from_str::<StoreData>(&text).is_ok() {
+        return None;
+    }
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let target = path.with_extension(format!("corrupt.{stamp}.toml"));
+    match std::fs::rename(path, &target) {
+        Ok(()) => {
+            log::warn!(
+                "[settings] quarantined an unparseable config: {} -> {}",
+                path.display(),
+                target.display()
+            );
+            Some(target)
+        }
+        Err(e) => {
+            log::error!("[settings] could not quarantine corrupt config: {e}");
+            None
+        }
+    }
+}
+
 impl Default for SettingsState {
     fn default() -> Self {
+        if let Ok(path) = confy::get_configuration_file_path(APP_NAME, None) {
+            quarantine_if_corrupt(&path);
+        }
         let data = confy::load::<StoreData>(APP_NAME, None).unwrap_or_default();
         Self(Mutex::new(data))
     }
@@ -481,5 +520,42 @@ mod tests {
         assert!(json.contains("autoApprove"));
         assert!(json.contains("hasOnboardedV2"));
         assert!(!json.contains("agent_bin"));
+    }
+}
+
+#[cfg(test)]
+mod quarantine_tests {
+    use super::*;
+
+    fn temp(contents: &str) -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("default-config.toml");
+        std::fs::write(&path, contents).expect("write");
+        (dir, path)
+    }
+
+    /// The exact failure this exists for: a truncated write must not become
+    /// "the user has default settings" plus an overwrite of the evidence.
+    #[test]
+    fn a_truncated_config_is_moved_aside_not_replaced() {
+        let (_d, path) = temp("[settings]\nagent_bin = \"prime-a"); // cut mid-write
+        let quarantined = quarantine_if_corrupt(&path).expect("should quarantine");
+        assert!(!path.exists(), "the damaged file must be out of the way");
+        assert!(quarantined.exists(), "and its bytes preserved");
+        let name = quarantined.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.contains("corrupt."), "got: {name}");
+    }
+
+    #[test]
+    fn a_healthy_config_is_left_alone() {
+        let (_d, path) = temp("[settings]\nagent_bin = \"prime-agent\"\n");
+        assert!(quarantine_if_corrupt(&path).is_none());
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn a_missing_config_is_a_first_run_not_a_fault() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(quarantine_if_corrupt(&dir.path().join("nope.toml")).is_none());
     }
 }

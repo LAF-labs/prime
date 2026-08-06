@@ -151,7 +151,12 @@ pub fn task_create(
     // spawning a fresh one so the new subprocess owns the channel cleanly.
     // We drop the sender after Kill so the old thread's recv loop exits, then
     // yield briefly to let the OS reclaim the subprocess resources.
-    if let Some(stale) = state.connections.lock().remove(&id) {
+    // In edition 2021 the lock guard in an `if let` scrutinee lives to the end
+    // of the block, so sleeping inside it held the global connections mutex
+    // for 50 ms — stalling every RPC command on every other thread. Take the
+    // handle out first so the lock is gone before the wait.
+    let stale = state.connections.lock().remove(&id);
+    if let Some(stale) = stale {
         let _ = stale.cmd_tx.send(AgentCommand::Kill);
         drop(stale);
         std::thread::sleep(std::time::Duration::from_millis(50));
@@ -362,12 +367,37 @@ pub fn task_send_message(
             Some(f) => SessionMode::Resume(f),
             None => SessionMode::New,
         };
+
+        // A fresh session gets the transcript replayed, exactly as task_create
+        // and task_fork do. Without this — and a crash during the very first
+        // turn guarantees there is no session file yet — the reconnect sent
+        // the raw message alone, so the user was told "send a new message to
+        // continue" and the agent then had total amnesia about the
+        // conversation still visible on their screen.
+        let full_message = if matches!(session_mode, SessionMode::New) {
+            let preamble = {
+                let tasks = state.tasks.lock();
+                let prior = tasks.get(&task_id).map(|t| t.messages.as_slice()).unwrap_or(&[]);
+                super::build_resumption_preamble(
+                    prior,
+                    "Resumed conversation",
+                    "You are resuming an earlier conversation in this workspace. \
+                     The transcript below is for context only — do not repeat prior work \
+                     or re-execute completed tool calls. The user's new message follows \
+                     after the transcript.",
+                )
+            };
+            format!("{preamble}{message}")
+        } else {
+            message
+        };
+
         let handle = spawn_connection(
             task_id.clone(), workspace, launch, task_auto_approve,
             app.clone(), None, initial_model_id, tight_sandbox, session_mode,
             stored_options,
         )?;
-        let _ = handle.cmd_tx.send(AgentCommand::Prompt(message, attachments.unwrap_or_default()));
+        let _ = handle.cmd_tx.send(AgentCommand::Prompt(full_message, attachments.unwrap_or_default()));
         state.connections.lock().insert(task_id.clone(), handle);
     } else {
         // The liveness check above and this send are not atomic: the child can

@@ -139,7 +139,11 @@ pub fn analytics_load(
         let start_key = if let Some(start) = since { start << 16 } else { 0u64 };
         let iter = table.range(start_key..u64::MAX)
             .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        for entry in iter {
+        // Newest first: keys ascend with time, so an ascending scan capped at
+        // MAX_LOAD_EVENTS kept the *oldest* events — after a few weeks of
+        // heavy use every dashboard silently froze in the past. Walk backwards
+        // instead, then restore chronological order for the aggregators.
+        for entry in iter.rev() {
             let (_, val) = entry
                 .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
             if let Ok(event) = serde_json::from_slice::<AnalyticsEvent>(val.value()) {
@@ -147,6 +151,7 @@ pub fn analytics_load(
                 if results.len() >= MAX_LOAD_EVENTS { break; }
             }
         }
+        results.reverse();
         Ok(results)
     })
 }

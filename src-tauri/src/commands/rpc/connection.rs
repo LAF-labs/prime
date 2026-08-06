@@ -509,7 +509,7 @@ pub(crate) async fn run_rpc_connection(
     // Pipe stderr to debug log
     let app_stderr = app.clone();
     let tid_stderr = task_id.clone();
-    tokio::spawn(async move {
+    let stderr_task = tokio::spawn(async move {
         use tokio::io::AsyncReadExt;
         let mut stderr = stderr;
         let mut buf = vec![0u8; 4096];
@@ -583,16 +583,24 @@ pub(crate) async fn run_rpc_connection(
     // stdout reader task
     let reader_ctx = ctx.clone();
     let reader = tokio::spawn(async move {
-        let mut lines = BufReader::new(stdout).lines();
+        // 64 MB is far beyond any legitimate RPC line while still bounding a
+        // runaway one; past it the codec errors and the connection ends
+        // visibly instead of the process ballooning.
+        const MAX_LINE_BYTES: usize = 64 * 1024 * 1024;
+        use futures_util::StreamExt;
+        let mut lines = tokio_util::codec::FramedRead::new(
+            stdout,
+            tokio_util::codec::LinesCodec::new_with_max_length(MAX_LINE_BYTES),
+        );
         loop {
             // `while let Ok(Some(line))` silently exits on a read error, which
             // is indistinguishable from EOF — the process stays up, `alive`
             // stays true, and the thread accepts prompts it will never render.
             // One non-UTF-8 byte was enough to produce that.
-            let line = match lines.next_line().await {
-                Ok(Some(line)) => line,
-                Ok(None) => break, // EOF — the agent exited or closed stdout.
-                Err(e) => {
+            let line = match lines.next().await {
+                Some(Ok(line)) => line,
+                None => break, // EOF — the agent exited or closed stdout.
+                Some(Err(e)) => {
                     log::warn!("[RPC] stdout read failed, ending the reader: {e}");
                     break;
                 }
@@ -665,6 +673,7 @@ pub(crate) async fn run_rpc_connection(
                 if let Ok(status) = status {
                     if !status.success() {
                         reader.abort();
+                        stderr_task.abort();
                         return Err(describe_exit(status));
                     }
                 }
@@ -677,6 +686,7 @@ pub(crate) async fn run_rpc_connection(
         let _ = child.kill().await;
     }
     reader.abort();
+    stderr_task.abort();
     Ok(())
 }
 

@@ -249,6 +249,11 @@ pub(crate) async fn run_agent_oneshot(launch: &crate::commands::agent_launch::Ag
     // read as an option or an `@file` mention.
     let mut cmd = Command::new(&launch.program);
     cmd.args(&launch.prefix_args);
+    // On timeout the future below is dropped, and a dropped Child without this
+    // flag is *detached*, not killed — a wedged one-shot generator (thread
+    // titles run this in the background) would keep running forever with no
+    // UI that knows it exists.
+    cmd.kill_on_drop(true);
     let child = cmd
         .arg("--print")
         .arg("--no-tools")

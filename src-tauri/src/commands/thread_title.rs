@@ -2,7 +2,7 @@
 //!
 //! After the first turn completes, the frontend calls this command to generate
 //! a concise 3–8 word title from the user's initial message. Uses the same
-//! `prime-agent chat --no-interactive` one-shot pattern as commit message
+//! one-shot `--print` pattern as commit message
 //! generation.
 
 use serde::{Deserialize, Serialize};

@@ -7,7 +7,7 @@ use super::types::*;
 use super::types::{LaunchOptions, SessionMode};
 use super::now_rfc3339;
 
-/// Resolve the model id that should be applied to a freshly spawned ACP
+/// Resolve the model id that should be applied to a freshly spawned agent
 /// session. Order: explicit param → project-pref → global `defaultModel`.
 /// Returns `None` when no preference is set, in which case the CLI subprocess
 /// boots with its own built-in default model.
@@ -39,7 +39,7 @@ pub fn task_create(
     // Stateless resumption: when the frontend supplies an
     // `existing_id`, reuse that id and replay the historical messages into the
     // backend's in-memory task map. The fresh prime-agent subprocess provides a
-    // brand-new ACP session; the message history travels to the model via the
+    // brand-new agent session; the message history travels to the model via the
     // user's next prompt rather than via any session-level resume capability.
     let id = params.existing_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = now_rfc3339();
@@ -621,7 +621,7 @@ pub fn set_mode(
     h.cmd_tx.send(AgentCommand::SetMode(mode_id)).map_err(|e| e.to_string())
 }
 
-/// Apply a model selection to the live ACP session for `task_id`. The change
+/// Apply a model selection to the live agent session for `task_id`. The change
 /// is delivered as an `AgentCommand::SetModel`, which the connection loop
 /// translates into a `session/set_model` request to prime-agent. Returns
 /// `Ok(())` even when the task has no live connection (e.g. deferred-spawn
@@ -851,7 +851,7 @@ pub fn probe_capabilities(
 ) -> Result<Value, String> {
     // Prevent concurrent probes (React StrictMode, HMR reloads)
     if state.probe_running.swap(true, std::sync::atomic::Ordering::SeqCst) {
-        log::info!("[ACP] probe_capabilities skipped (already running)");
+        log::info!("[rpc] probe_capabilities skipped (already running)");
         return Ok(serde_json::json!({ "ok": true, "skipped": true }));
     }
 
@@ -867,8 +867,8 @@ pub fn probe_capabilities(
 
         // ALWAYS reset the probe guard when the thread exits
         use tauri::Manager;
-        if let Some(acp_state) = app_for_flag.try_state::<AgentState>() {
-            acp_state.probe_running.store(false, std::sync::atomic::Ordering::SeqCst);
+        if let Some(agent_state) = app_for_flag.try_state::<AgentState>() {
+            agent_state.probe_running.store(false, std::sync::atomic::Ordering::SeqCst);
         }
 
         match result {

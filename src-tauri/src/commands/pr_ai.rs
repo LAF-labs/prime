@@ -1,7 +1,7 @@
 //! AI-powered PR/MR content generation.
 //!
 //! Generates a PR title and body from the diff between the current branch
-//! and a base branch. Uses the same `prime-agent chat --no-interactive` one-shot
+//! and a base branch. Uses the same one-shot `--print`
 //! pattern as commit message generation.
 
 use serde::{Deserialize, Serialize};

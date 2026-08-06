@@ -4,7 +4,7 @@
 // prime-agent RPC protocol (JSONL over stdin/stdout, LF-delimited). Events
 // from the agent are translated into the same Tauri events the frontend
 // already consumes (`message_chunk`, `tool_call`, `turn_end`, ...), so the
-// renderer is agnostic to the backend swap from prime-agent/ACP.
+// renderer never had to change when the backend was swapped.
 //
 // Permission approval rides on prime-agent's extension UI protocol: a bundled
 // gate extension (resources/laf-agent-gate.ts) intercepts tool calls and
@@ -19,7 +19,7 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::commands::agent_launch::AgentLaunch;
+use crate::commands::agent_launch::{agent_path_env, AgentLaunch};
 use super::types::{
     AgentCommand, AgentState, AttachmentData, ConnectionHandle, LaunchOptions, PendingPermission,
     PendingRequests, PermissionOption, PermissionReply, SessionMode,
@@ -86,7 +86,7 @@ pub(crate) fn build_prompt_payload(
     payload
 }
 
-/// Map a prime-agent tool name to an ACP-style tool kind so the frontend's
+/// Map a prime-agent tool name to the tool kind the frontend's
 /// existing icon/rendering logic keeps working.
 pub(crate) fn tool_kind(tool_name: &str) -> &'static str {
     match tool_name {
@@ -120,7 +120,7 @@ pub(crate) fn tool_title(tool_name: &str, args: &Value) -> String {
     t
 }
 
-/// Wrap plain text as an ACP-style tool-call content array so the existing
+/// Wrap plain text as the tool-call content array shape the existing
 /// ToolCallDisplay component renders it unchanged.
 pub(crate) fn text_content(text: &str) -> Value {
     json!([{ "type": "content", "content": { "type": "text", "text": text } }])
@@ -166,23 +166,6 @@ pub(crate) fn composite_model_id(model: &Value) -> Option<String> {
     let id = model.get("id").and_then(|v| v.as_str())?;
     let provider = model.get("provider").and_then(|v| v.as_str())?;
     Some(format!("{provider}/{id}"))
-}
-
-/// PATH for agent subprocesses: the sidecar directory first, so prime-agent
-/// finds the `uv` we ship before any system copy, then the usual user paths so
-/// tools it spawns (git, node, npx) resolve as they would in a shell.
-pub(crate) fn agent_path_env(launch: &AgentLaunch) -> String {
-    let system = std::env::var("PATH").unwrap_or_default();
-    // A bare program name has an empty parent, and an empty PATH entry means
-    // "current directory" on POSIX — never put one there.
-    let sidecar_dir = std::path::Path::new(&launch.program)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
-        .filter(|d| !d.is_empty());
-    match sidecar_dir {
-        Some(dir) => format!("{dir}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
-        None => format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
-    }
 }
 
 /// Locate the bundled permission-gate extension. Checked relative to the
@@ -612,12 +595,12 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
                 .and_then(|m| m.get("stopReason"))
                 .and_then(|s| s.as_str())
                 .unwrap_or("stop");
-            let acp_stop = match stop_reason {
+            let stop = match stop_reason {
                 "aborted" => "cancelled",
                 "error" => "error",
                 _ => "end_turn",
             };
-            let _ = app.emit("turn_end", json!({ "taskId": tid, "stopReason": acp_stop }));
+            let _ = app.emit("turn_end", json!({ "taskId": tid, "stopReason": stop }));
             // Refresh context usage after every run.
             let _ = ctx.stdin_tx.send(json!({ "id": "__stats", "type": "get_session_stats" }).to_string());
         }
@@ -723,7 +706,7 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
         }
     }
 
-    // Mirror everything into the debug panel, mirroring the old ACP behavior.
+    // Mirror everything into the debug panel.
     let _ = app.emit("debug_log", json!({
         "direction": "in", "category": "notification", "type": event_type,
         "taskId": tid, "summary": event_type, "payload": event, "isError": event_type == "extension_error"

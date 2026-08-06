@@ -11,7 +11,7 @@
 //! - `exit`: "success" or error message
 //!
 //! The frontend can read the trace file via the debug panel for diagnosing
-//! slow operations, stuck ACP connections, or git failures.
+//! slow operations, stuck agent connections, or git failures.
 
 use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};

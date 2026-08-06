@@ -48,7 +48,7 @@ fn reset_app_data(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 /// Install a global panic hook that logs the panic message and backtrace.
-/// This catches panics on *any* thread (background ACP, probe, PTY reader)
+/// This catches panics on *any* thread (background agent, probe, PTY reader)
 /// that would otherwise vanish silently.
 fn install_panic_hook() {
     let default_hook = std::panic::take_hook();
@@ -79,28 +79,28 @@ fn install_panic_hook() {
     }));
 }
 
-/// Gracefully shut down all ACP connections and PTY sessions.
+/// Gracefully shut down all agent connections and PTY sessions.
 fn shutdown_app(app: &tauri::AppHandle) {
     log::info!("Window close requested — shutting down");
     let start = std::time::Instant::now();
 
-    // Kill all ACP connections
-    if let Some(acp_state) = app.try_state::<rpc::AgentState>() {
+    // Kill all agent connections
+    if let Some(agent_state) = app.try_state::<rpc::AgentState>() {
         {
-            let mut conns = acp_state.connections.lock();
+            let mut conns = agent_state.connections.lock();
             let count = conns.len();
             for (task_id, handle) in conns.drain() {
-                log::info!("Killing ACP connection: {}", task_id);
+                log::info!("Killing agent connection: {}", task_id);
                 let _ = handle.cmd_tx.send(rpc::AgentCommand::Kill);
                 // Drop the sender so the receiver side unblocks
                 drop(handle);
             }
-            log::info!("Sent kill to {} ACP connection(s)", count);
+            log::info!("Sent kill to {} agent connection(s)", count);
         }
 
-        // Drop all pending permission resolvers so blocked ACP threads unblock
+        // Drop all pending permission resolvers so blocked agent threads unblock
         {
-            let mut resolvers = acp_state.permission_resolvers.lock();
+            let mut resolvers = agent_state.permission_resolvers.lock();
             let count = resolvers.len();
             resolvers.clear(); // Dropping oneshot::Sender causes Err on the receiver
             if count > 0 {
@@ -600,7 +600,7 @@ pub fn run() {
             git::git_worktree_remove,
             git::git_worktree_has_changes,
             git::git_worktree_setup,
-            // ACP
+            // Agent RPC
             rpc::task_create,
             rpc::task_list,
             rpc::task_send_message,

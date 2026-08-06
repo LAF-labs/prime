@@ -2,16 +2,12 @@ import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect } from 'react'
 import {
   IconCircleCheck, IconExternalLink, IconFolderOpen,
-  IconLoader2, IconRefresh, IconBrandApple, IconTerminal,
-  IconChevronDown, IconChevronUp,
+  IconLoader2, IconRefresh, IconTerminal, IconAlertTriangle,
 } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-external'
-import {
-  type DetectState, type Platform,
-  INSTALL_COMMANDS, PLATFORM_LABELS, detectPlatform, CommandRow,
-} from '@/components/onboarding-shared'
+import type { DetectState } from '@/components/onboarding-shared'
 
 interface OnboardingCliSectionProps {
   onCliReady: (bin: string) => void
@@ -21,10 +17,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
   const [detectState, setDetectState] = useState<DetectState>('detecting')
   const [cliPath, setCliPath] = useState('')
   const [manualPath, setManualPath] = useState('')
-  const [showAlternatives, setShowAlternatives] = useState(false)
-  const [platform] = useState<Platform>(detectPlatform)
   const isCliReady = detectState === 'found' || manualPath.length > 0
-  const installCommands = INSTALL_COMMANDS[platform]
 
   const detect = useCallback(async () => {
     setDetectState('detecting')
@@ -59,11 +52,13 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           )}
         </div>
         <div className="flex-1 text-left">
-          <p className="text-[13px] font-medium text-foreground/90">prime-agent CLI</p>
+          <p className="text-[13px] font-medium text-foreground/90">{t('Agent runtime')}</p>
           <p className="text-[11px] text-muted-foreground">
-            {detectState === 'detecting' && 'Searching for prime-agent...'}
-            {detectState === 'found' && cliPath}
-            {detectState === 'not-found' && !manualPath && 'Not found — install or set path below'}
+            {detectState === 'detecting' && t('Looking for the agent runtime…')}
+            {/* The bundled sidecar reports as the bare name; anything else is a
+                path the user pointed us at. */}
+            {detectState === 'found' && (cliPath === 'prime-agent' ? t('Bundled with the app — nothing to install.') : cliPath)}
+            {detectState === 'not-found' && !manualPath && t('Missing from this build.')}
             {detectState === 'not-found' && manualPath && manualPath}
           </p>
         </div>
@@ -74,30 +69,17 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           </button>
         )}
       </div>
+      {/* LAF Agent ships the runtime inside the bundle, so reaching this branch
+          means the app itself is incomplete — a damaged download or a
+          quarantined copy. Reinstalling is the fix; pointing at your own
+          prime-agent build is the escape hatch. */}
       {detectState === 'not-found' && !manualPath && (
         <div className="flex flex-col gap-3 px-5 py-4">
-          <div className="flex items-center gap-2">
-            {platform === 'macos' ? <IconBrandApple size={14} className="text-muted-foreground" /> : <IconTerminal size={14} className="text-muted-foreground" />}
-            <span className="text-[11px] font-medium text-muted-foreground">Install for {PLATFORM_LABELS[platform]}</span>
-          </div>
-          <CommandRow cmd={installCommands.primary} />
-          {installCommands.alternatives.length > 0 && (
-            <div>
-              <button type="button" onClick={() => setShowAlternatives((v) => !v)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-muted-foreground">
-                {showAlternatives ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
-                Other install methods
-              </button>
-              {showAlternatives && (
-                <div className="mt-2 flex flex-col gap-1.5">
-                  {installCommands.alternatives.map((cmd) => <CommandRow key={cmd.label} cmd={cmd} />)}
-                </div>
-              )}
-            </div>
-          )}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center"><span className="bg-card px-2 text-[10px] text-muted-foreground">or set path manually</span></div>
+          <div className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
+            <IconAlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {t('The agent runtime should ship inside this app. Reinstalling from the DMG usually fixes this. You can also point at your own prime-agent build below.')}
+            </p>
           </div>
           <div className="flex gap-1.5">
             <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/prime-agent"
@@ -109,7 +91,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           </div>
           <a href="https://github.com/PrimeIntellect-ai/prime-agent#readme" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
             className="flex items-center justify-center gap-1.5 text-[12px] text-primary transition-colors hover:text-primary">
-            {t('Full installation guide')} <IconExternalLink size={12} />
+            {t('About Prime Agent')} <IconExternalLink size={12} />
           </a>
         </div>
       )}

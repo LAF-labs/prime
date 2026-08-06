@@ -149,7 +149,7 @@ pub struct AttachmentData {
     pub name: Option<String>,
 }
 
-// ── Commands sent to the ACP connection thread ─────────────────────────
+// ── Commands sent to the agent connection thread ─────────────────────────
 
 pub enum AgentCommand {
     Prompt(String, Vec<AttachmentData>),
@@ -181,7 +181,7 @@ pub struct ConnectionHandle {
 /// Correlation-id → responder for generic RPC requests.
 pub type PendingRequests = Arc<Mutex<HashMap<String, oneshot::Sender<Value>>>>;
 
-// ── Global ACP state ───────────────────────────────────────────────────
+// ── Global agent state ───────────────────────────────────────────────────
 
 pub struct AgentState {
     pub tasks: Mutex<HashMap<String, Task>>,
@@ -214,7 +214,7 @@ pub struct CreateTaskParams {
     pub prompt: String,
     pub auto_approve: Option<bool>,
     pub mode_id: Option<String>,
-    /// Optional model id to apply right after the ACP session is created.
+    /// Optional model id to apply right after the agent session is created.
     /// Falls back to project pref → global `defaultModel` → CLI default
     /// when not provided.
     pub model_id: Option<String>,

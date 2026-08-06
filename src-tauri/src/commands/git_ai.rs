@@ -1,13 +1,13 @@
 //! AI-powered git text generation (commit messages, etc.).
 //!
-//! Spawns the user's configured agent CLI (`prime-agent chat --no-interactive`)
+//! Spawns the resolved agent (`prime-agent --print --no-tools --no-session`)
 //! as a one-shot subprocess, hands it a prompt + the staged diff, and parses
 //! a JSON response of the shape `{ "subject": "...", "body": "..." }`.
 //!
 //! Design notes:
 //!
 //! * The subprocess runs **outside** the user's chat thread so we never touch
-//!   the active ACP session or pollute `turn_end`.
+//!   the active agent session or pollute `turn_end`.
 //! * No new credential surface — reuses whatever auth `prime-agent` already has.
 //! * The diff is compressed (per-line truncation + iterative shrink) to fit a
 //!   conservative byte budget.
@@ -50,7 +50,7 @@ pub struct GeneratedCommitMessage {
 
 /// Internal — what we expect the model to emit.
 #[derive(Deserialize, Debug)]
-struct ModelOutput {
+pub(crate) struct ModelOutput {
     #[serde(default)]
     subject: String,
     #[serde(default)]
@@ -243,23 +243,20 @@ pub(crate) fn build_commit_prompt(branch: Option<&str>, diff_text: &str, custom_
 // ── Subprocess invocation (shared by branch_ai, thread_title, pr_ai) ────
 
 pub(crate) async fn run_agent_oneshot(launch: &crate::commands::agent_launch::AgentLaunch, cwd: &str, prompt: &str) -> Result<String, AppError> {
-    // `--trust-tools=` (empty list) prevents the model from spawning tools we
-    // don't want it to touch in a one-shot text generation context.
-    // `--no-interactive` makes it exit after the response.
-    let path_env = format!(
-        "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{}",
-        std::env::var("PATH").unwrap_or_default()
-    );
-
+    // `--print` answers once and exits, `--no-tools` keeps a text-generation
+    // run from touching the workspace, and `--no-session` keeps it out of the
+    // user's session history. `--` stops flag parsing so a prompt can never be
+    // read as an option or an `@file` mention.
     let mut cmd = Command::new(&launch.program);
     cmd.args(&launch.prefix_args);
     let child = cmd
         .arg("--print")
         .arg("--no-tools")
         .arg("--no-session")
+        .arg("--")
         .arg(prompt)
         .current_dir(cwd)
-        .env("PATH", path_env)
+        .env("PATH", crate::commands::agent_launch::agent_path_env(launch))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -297,7 +294,7 @@ pub(crate) async fn run_agent_oneshot(launch: &crate::commands::agent_launch::Ag
 
 /// Strip prime-agent decoration and extract the JSON `{ subject, body }` payload.
 ///
-/// `prime-agent chat --no-interactive` emits something like:
+/// A one-shot `--print` run emits something like:
 ///
 /// ```text
 /// 📷 Checkpoints are enabled! (took 0.15s)

@@ -583,7 +583,7 @@ fn result_text_is_empty_without_content() {
 }
 
 #[test]
-fn text_content_wraps_in_the_acp_shape_the_ui_renders() {
+fn text_content_wraps_in_the_shape_the_ui_renders() {
     let v = connection::text_content("hello");
     assert_eq!(v[0]["type"], "content");
     assert_eq!(v[0]["content"]["type"], "text");
@@ -647,7 +647,7 @@ fn agent_path_env_puts_the_sidecar_first() {
         program: "/Apps/LAF.app/Contents/Resources/resources/prime-agent/node".to_string(),
         prefix_args: vec![],
     };
-    let path = connection::agent_path_env(&launch);
+    let path = crate::commands::agent_launch::agent_path_env(&launch);
     assert!(path.starts_with("/Apps/LAF.app/Contents/Resources/resources/prime-agent:"));
     assert!(path.contains("/usr/bin"));
 }
@@ -658,7 +658,7 @@ fn agent_path_env_survives_a_bare_program_name() {
         program: "prime-agent".to_string(),
         prefix_args: vec![],
     };
-    let path = connection::agent_path_env(&launch);
+    let path = crate::commands::agent_launch::agent_path_env(&launch);
     assert!(path.starts_with("/opt/homebrew/bin:"));
 }
 

@@ -1,6 +1,6 @@
-//! Line-level diff statistics for ACP tool-call diff content.
+//! Line-level diff statistics for agent tool-call diff content.
 //!
-//! The ACP `tool_call` / `tool_call_update` notifications carry per-file
+//! The `tool_call` / `tool_call_update` events carry per-file
 //! diff blobs (`{ type: "diff", oldText, newText }`). The renderer used to
 //! re-derive `+N / -M` per file by line-multiset diffing in JavaScript, which:
 //!   - fell back to "+1" for any tool call without a structured diff
@@ -57,17 +57,17 @@ pub fn count_diff_lines(old_text: &str, new_text: &str) -> (u32, u32) {
     (added, removed)
 }
 
-/// Walk an ACP `tool_call` / `tool_call_update` JSON payload in place and
+/// Walk a `tool_call` / `tool_call_update` JSON payload in place and
 /// annotate every `content[i]` entry of `type == "diff"` with `linesAdded`
 /// and `linesRemoved` numbers. Idempotent: re-annotating the same payload
 /// recomputes the same values. No-op when `content` is missing or not an
 /// array.
 ///
 /// `value` must be the `sessionUpdate` object (the one with a top-level
-/// `content` array), not the outer ACP envelope. In `client.rs` this is
-/// `update.clone()` — the value obtained via `val.get("update")`.
+/// `content` array), not the outer RPC envelope. See the `tool_call` and
+/// `tool_call_update` arms in `rpc/connection.rs` for the call sites.
 ///
-/// We mutate the JSON value the ACP client received from prime-agent rather
+/// We mutate the JSON value received from prime-agent rather
 /// than introducing a typed struct: prime-agent is free to add fields and
 /// touching the JSON in place keeps every other field byte-identical for
 /// the renderer.

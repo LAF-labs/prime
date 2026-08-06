@@ -79,6 +79,27 @@ pub fn resolve(app: &tauri::AppHandle, configured: &str) -> AgentLaunch {
     AgentLaunch::plain(if configured.is_empty() { "prime-agent" } else { configured })
 }
 
+/// PATH for agent subprocesses: the sidecar directory first, so prime-agent
+/// finds the `uv` we ship before any system copy, then the usual user paths so
+/// tools it spawns (git, node, npx) resolve as they would in a shell.
+///
+/// Every place that spawns the agent — the RPC connection, the kernel
+/// bootstrap, the one-shot text generators — must use this. A sidecar install
+/// has no `uv` anywhere else on the system.
+pub fn agent_path_env(launch: &AgentLaunch) -> String {
+    let system = std::env::var("PATH").unwrap_or_default();
+    // A bare program name has an empty parent, and an empty PATH entry means
+    // "current directory" on POSIX — never put one there.
+    let sidecar_dir = std::path::Path::new(&launch.program)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .filter(|d| !d.is_empty());
+    match sidecar_dir {
+        Some(dir) => format!("{dir}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
+        None => format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -78,7 +78,7 @@ pub async fn kernel_setup(app: tauri::AppHandle) -> Result<(), AppError> {
 
     let mut child = tokio::process::Command::new(&launch.program)
         .arg(&cli)
-        .env("PATH", super::rpc::connection::agent_path_env(&launch))
+        .env("PATH", super::agent_launch::agent_path_env(&launch))
         .env("PRIME_AGENT_INSTALL_UV", "1")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

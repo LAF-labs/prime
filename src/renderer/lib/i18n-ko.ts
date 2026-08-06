@@ -662,4 +662,6 @@ export const ko: Record<string, string> = {
     '단가는 해당 프로바이더의 모든 모델에 적용됩니다. 위에서 OpenAI 호환 엔드포인트를 추가하면 단가를 설정할 수 있습니다.',
   'Rates apply to every model on a provider. Leave a field blank to leave it unset — check the provider’s pricing page for the current numbers.':
     '단가는 해당 프로바이더의 모든 모델에 적용됩니다. 비워 두면 미설정으로 남으며, 최신 단가는 프로바이더의 요금 페이지에서 확인하세요.',
+  'Could not start the thread': '스레드를 시작하지 못했습니다',
+  'Could not send the message': '메시지를 보내지 못했습니다',
 }

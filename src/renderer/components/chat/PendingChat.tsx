@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { toast } from 'sonner'
 import { useCallback, useRef, useState } from 'react'
 import { IconGitBranch, IconPencil } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
@@ -11,6 +12,7 @@ import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { PastedChunk } from '@/hooks/useChatInput'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ChatInput } from './ChatInput'
+import { captureDraft, restoreDraft } from './draft-recovery'
 import { EmptyThreadSplash } from './EmptyThreadSplash'
 import { TerminalDrawer } from './TerminalDrawer'
 
@@ -88,6 +90,13 @@ export function PendingChat({ workspace }: PendingChatProps) {
   }, [])
 
   const handleSend = useCallback(async (msg: string, attachments?: IpcAttachment[]) => {
+    // Hold on to what we are about to clear. This is the very first message of
+    // a thread, so if creating it fails — a typo'd API key, an agent that
+    // won't start — clearing the draft first would destroy the prompt the
+    // user just wrote, with nothing anywhere to recover it from.
+    const savedDraft = captureDraft(useTaskStore.getState(), workspace)
+    const putDraftBack = () => restoreDraft(useTaskStore.getState(), workspace, savedDraft)
+
     removeDraft(workspace)
     removeDraftAttachments(workspace)
     removeDraftPastedChunks(workspace)
@@ -134,7 +143,16 @@ export function PendingChat({ workspace }: PendingChatProps) {
       } catch (wtErr) {
         // Worktree failed — fall back to original workspace with inline error
         const errMsg = wtErr instanceof Error ? wtErr.message : String(wtErr)
-        const created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
+        let created
+        try {
+          created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
+        } catch (err) {
+          // Both the worktree and the plain thread failed; give the prompt back.
+          putDraftBack()
+          const detail = err instanceof Error ? err.message : String(err)
+          toast.error(t('Could not start the thread'), { description: detail })
+          return
+        }
         upsertTask({
           ...created,
           projectId: getProjectId(workspace),
@@ -155,16 +173,22 @@ export function PendingChat({ workspace }: PendingChatProps) {
       }
     }
 
-    const created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
-    upsertTask({ ...created, projectId: getProjectId(workspace) })
-    if (currentModeId && currentModeId !== 'code') {
-      useTaskStore.getState().setTaskMode(created.id, currentModeId)
-    }
-    useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
-    // If this was a /btw question, enter btw mode on the new task
-    if (msg.includes('<laf-agent_tangent>')) {
-      const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
-      useTaskStore.getState().enterBtwMode(created.id, question)
+    try {
+      const created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
+      upsertTask({ ...created, projectId: getProjectId(workspace) })
+      if (currentModeId && currentModeId !== 'code') {
+        useTaskStore.getState().setTaskMode(created.id, currentModeId)
+      }
+      useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
+      // If this was a /btw question, enter btw mode on the new task
+      if (msg.includes('<laf-agent_tangent>')) {
+        const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
+        useTaskStore.getState().enterBtwMode(created.id, question)
+      }
+    } catch (err) {
+      putDraftBack()
+      const detail = err instanceof Error ? err.message : String(err)
+      toast.error(t('Could not start the thread'), { description: detail })
     }
   }, [workspace, upsertTask, removeDraft, removeDraftAttachments, removeDraftPastedChunks, removeDraftMentionedFiles, useWorktree, worktreeSlug, getProjectId])
 

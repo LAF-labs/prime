@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { toast } from 'sonner'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { IconHistory } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -38,7 +39,7 @@ import {
   buildUserMessage,
   captureDispatchSnapshot,
 } from './ChatPanel.logic'
-import type { IpcAttachment } from '@/types'
+import type { AgentTask, IpcAttachment, TaskMessage } from '@/types'
 import type { TimelineRow } from '@/lib/timeline'
 
 /** Plan mode is a client-side behavior: prime-agent has no session modes, so
@@ -129,6 +130,37 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   // back from the timeline. Best-effort: no-op outside git repositories.
   ipc.checkpointCreate(targetTaskId, task.messages.length).catch(() => {})
 
+  try {
+    await dispatchToAgent(targetTaskId, msg, attachments, { task, state, userMsg, shouldCreateNew, isResumed, proj })
+  } catch (err) {
+    // Without this the rejection floats: the message sits in the timeline with
+    // a spinner and nothing changes until the five-minute watchdog. Put the
+    // thread back to a state the user can act on and say what happened.
+    const detail = err instanceof Error ? err.message : String(err)
+    const current = useTaskStore.getState().tasks[targetTaskId]
+    if (current) {
+      useTaskStore.getState().upsertTask({ ...current, status: 'paused' })
+    }
+    useTaskStore.getState().setDispatchSnapshot(targetTaskId, null)
+    toast.error(t('Could not send the message'), { description: detail })
+  }
+}
+
+interface DispatchContext {
+  task: AgentTask
+  state: ReturnType<typeof useTaskStore.getState>
+  userMsg: TaskMessage
+  shouldCreateNew: boolean
+  isResumed: boolean
+  proj: string | undefined
+}
+
+async function dispatchToAgent(
+  targetTaskId: string,
+  msg: string,
+  attachments: IpcAttachment[] | undefined,
+  { task, state, userMsg, shouldCreateNew, isResumed, proj }: DispatchContext,
+): Promise<void> {
   if (shouldCreateNew) {
     const { settings, currentModeId, currentModelId } = useSettingsStore.getState()
     const taskState = useTaskStore.getState()
@@ -186,7 +218,10 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
     state.setSelectedTask(created.id)
   } else {
     const liveMode = useTaskStore.getState().taskModes[task.id] ?? useSettingsStore.getState().currentModeId
-    ipc.sendMessage(task.id, applyPlanMode(msg, liveMode), attachments)
+    // Awaited, not floated: the backend reports a closed connection here, and
+    // that is the difference between an error the user sees now and a spinner
+    // that runs for five minutes.
+    await ipc.sendMessage(task.id, applyPlanMode(msg, liveMode), attachments)
   }
 }
 

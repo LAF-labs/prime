@@ -62,16 +62,33 @@ jobs:
           bun run test:ui
           cargo test --lib --manifest-path src-tauri/Cargo.toml
 
-      - name: Build, sign, and notarize
+      # Apple signing is optional until the maintainer registers a Developer ID:
+      # passing empty-string env vars would make the bundler try to import an
+      # empty certificate, so the variables are only exported when the secret
+      # actually exists. An unsigned draft is a rehearsal artifact, not a
+      # shippable one — Gatekeeper will (correctly) warn on it.
+      - name: Export Apple signing env when configured
+        run: |
+          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+            {
+              echo "APPLE_CERTIFICATE=${{ secrets.APPLE_CERTIFICATE }}"
+              echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+              echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
+              echo "APPLE_ID=${{ secrets.APPLE_ID }}"
+              echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
+              echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+              echo "APPLE_SIGNING=1"
+            } >> "$GITHUB_ENV"
+          else
+            echo "No Apple signing secrets — building an unsigned rehearsal draft."
+          fi
+
+      - name: Build, sign updater artifacts, and publish draft
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # The updater signature is not optional: the app refuses unsigned
+          # manifests, so a draft without it could never be offered to anyone.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
@@ -86,6 +103,7 @@ jobs:
       # checks individually. tauri-action signs the outer bundle, so verify
       # the whole tree rather than discovering the gap on a user's machine.
       - name: Verify the signature covers the bundled runtime
+        if: env.APPLE_SIGNING == '1'
         run: |
           APP="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/LAF Agent.app"
           codesign --verify --deep --strict --verbose=2 "$APP"

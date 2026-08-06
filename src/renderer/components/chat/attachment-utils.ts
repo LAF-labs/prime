@@ -147,7 +147,7 @@ export const buildMessageWithInlineImages = (
 
 /**
  * Extracts image attachments into the IPC-ready format for the Rust backend
- * to build proper ACP ContentBlock::Image entries (fix #14).
+ * to build the image content blocks prime-agent expects.
  */
 export const extractIpcAttachments = (
   attachments: readonly Attachment[],

@@ -122,7 +122,6 @@ All events are subscribed to via the `tauriListen(eventName, callback)` helper, 
 |---|---|---|
 | `tool_call` | `{ taskId: string, toolCall: ToolCall }` | Emitted when the agent initiates a tool call. |
 | `tool_call_update` | `{ taskId: string, toolCall: ToolCall }` | Emitted when a tool call's status or result updates. |
-| `plan_update` | `{ taskId: string, plan: PlanStep[] }` | Emitted when the agent's execution plan changes. |
 | `commands_update` | `{ taskId: string, commands: Command[], mcpServers?: McpServer[] }` | Emitted when available slash commands or MCP servers change. |
 
 ### Subagent and context events
@@ -132,13 +131,15 @@ All events are subscribed to via the `tauriListen(eventName, callback)` helper, 
 | `subagent_update` | `{ taskId: string, subagents: Subagent[], pendingStages: Stage[] }` | Emitted when subagent orchestration state changes. |
 | `compaction_status` | `{ taskId: string, status: string, summary: string }` | Emitted during context compaction with progress and summary. |
 | `usage_update` | `{ taskId: string, used: number, size: number }` | Emitted when context window usage changes. |
+| `goal_update` | `{ taskId: string, goal: unknown }` | Emitted when the session's persistent goal changes. |
+| `session_name_changed` | `{ taskId: string, name: string }` | Emitted when the session display name changes. |
 
-### MCP events
+### MCP status
 
-| Event name | Payload type | Description |
-|---|---|---|
-| `mcp_update` | `{ serverName: string, status: string, error?: string, oauthUrl?: string }` | Emitted when an MCP server's connection status changes. |
-| `mcp_connecting` | *(no payload)* | Emitted when MCP servers begin connecting. |
+prime-agent's RPC protocol has no MCP status stream, so there are no MCP events.
+Server status is derived from the configured credentials when
+`load_mcp_file` reads the config, and live tool counts ride along on
+`commands_update`.
 
 ### Terminal events
 
@@ -146,6 +147,12 @@ All events are subscribed to via the `tauriListen(eventName, callback)` helper, 
 |---|---|---|
 | `pty_data` | `{ id: string, data: string }` | Output data from a PTY session. |
 | `pty_exit` | `{ id: string }` | Emitted when a PTY session exits. |
+
+### Setup events
+
+| Event name | Payload type | Description |
+|---|---|---|
+| `kernel_setup_progress` | `{ line: string }` | A progress line from the Python kernel bootstrap. |
 
 ### System events
 

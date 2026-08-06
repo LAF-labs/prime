@@ -76,7 +76,7 @@ Include a scope when it helps: `feat(chat):`, `fix(git):`, `refactor(settings):`
 | Directory | What lives there |
 |-----------|-----------------|
 | `src/renderer/` | React frontend (components, stores, hooks, types) |
-| `src-tauri/src/commands/` | Rust backend modules (acp, analytics, git, settings, pty, fs_ops, agent_resources, error) |
+| `src-tauri/src/commands/` | Rust backend modules (rpc, agent_launch, kernel_setup, git, analytics, settings, pty, fs_ops, agent_resources, error) |
 | `src/tailwind.css` | Theme tokens and global styles |
 | `.agent/steering/` | Agent agent steering rules |
 
@@ -98,7 +98,7 @@ Include a scope when it helps: `feat(chat):`, `fix(git):`, `refactor(settings):`
 - Use `which::which()` for binary detection, not `Command::new("which")`
 - Use `confy` for config persistence
 - Use `serde_yaml` for YAML parsing
-- Return `Result<T, AppError>` from Tauri commands (exception: `acp.rs` uses `String`)
+- Return `Result<T, AppError>` from Tauri commands (exception: `rpc/`, where errors arrive from the agent as JSON strings)
 - Never `unwrap()` in command handlers; use `?` with `From` impls
 - Use `app.try_state::<T>()` to access managed state from closures
 
@@ -110,8 +110,8 @@ Include a scope when it helps: `feat(chat):`, `fix(git):`, `refactor(settings):`
 
 ## Architecture notes
 
-- **ACP connections** run on dedicated OS threads with single-threaded tokio runtimes (the SDK uses `!Send` futures). Communication with the Tauri async runtime happens via `mpsc` channels.
-- **Permission handling** uses `oneshot` channels bridging the ACP thread to the Tauri runtime. The handler accesses managed state via `app.try_state::<AgentState>()`.
+- **Agent connections** are ordinary `tokio::spawn` tasks: the RPC protocol is JSONL over stdio, so nothing is `!Send`. Tauri command handlers reach a connection through an `mpsc` channel.
+- **Permission handling** uses `oneshot` channels keyed in the managed `AgentState`. The handler reads that state via `app.try_state::<AgentState>()` — never a clone.
 - **Frontend state** lives in Zustand stores. No Redux, no React Context for global state.
 - **IPC** uses Tauri's `invoke()` for commands and `listen()` for events. Always return unlisten functions in `useEffect` cleanup.
 

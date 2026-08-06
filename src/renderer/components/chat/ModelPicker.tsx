@@ -114,7 +114,7 @@ export const ModelPicker = memo(function ModelPicker() {
                 // Store per-task model so split panels stay independent
                 if (resolvedTaskId) {
                   useTaskStore.getState().setTaskModel(resolvedTaskId, m.modelId)
-                  // Push the selection to the live ACP session so prime-agent
+                  // Push the selection to the live agent session so prime-agent
                   // actually starts using the new model on the next prompt.
                   ipc.setModel(resolvedTaskId, m.modelId).catch(() => {})
                 }

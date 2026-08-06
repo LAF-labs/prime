@@ -2,7 +2,7 @@
  * resolve-mentions.ts
  *
  * Resolves @file, @folder, @agent:name, @skill:name, and @prompt-name
- * references in a chat message before it is sent to prime-agent ACP.
+ * references in a chat message before it is sent to prime-agent.
  *
  * This mirrors what the prime-agent CLI does natively in its TUI:
  *  - @src/auth.ts  → inlines the file content as a fenced code block

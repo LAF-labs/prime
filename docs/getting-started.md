@@ -72,7 +72,7 @@ After onboarding, you land on the main interface.
 1. Click the **+** button in the sidebar (or press `Cmd+N` on the thread list)
 2. Select a project folder — this is the working directory for the agent
 3. Type your message in the chat input and press Enter
-4. The agent connects via ACP and begins working
+4. The agent starts and begins working
 
 Each thread is an independent agent conversation with its own context, tool calls, and execution history.
 
@@ -86,7 +86,7 @@ A project is a folder on your filesystem. When you create a thread, you pick a p
 
 Threads are conversations with the agent. Each thread:
 - Has its own message history
-- Runs as an independent ACP connection
+- Runs as an independent agent connection
 - Can be paused, resumed, or cancelled
 - Persists across app restarts
 
@@ -189,7 +189,7 @@ Goal mode turns a thread into an autonomous agent loop. Give it an objective and
 /goal Implement user authentication with email/password login, registration, and password reset. All auth tests pass.
 ```
 
-See [goal-mode.md](goal-mode.md) for configuration and details.
+`/goal` is executed by the agent session itself, so it behaves exactly as it does in the prime-agent CLI — including `status`, `pause`, `resume`, `clear`, and `--budget <tokens>`.
 
 ## Analytics
 
@@ -232,6 +232,5 @@ LAF Agent sends native desktop notifications when the agent finishes a turn whil
 
 - [Keyboard shortcuts](keyboard-shortcuts.md) — Full shortcut reference
 - [Slash commands](slash-commands.md) — All chat commands
-- [Goal mode](goal-mode.md) — Autonomous agent loop
 - [Architecture](architecture.md) — System design (for contributors)
 - [Development guide](development.md) — Local dev setup (for contributors)

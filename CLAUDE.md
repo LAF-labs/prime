@@ -2,7 +2,18 @@
 
 ## Project overview
 
-LAF Agent is a cross-platform native desktop app (macOS, Windows, Linux) for managing AI coding agents via the Agent Client Protocol (ACP). It features a chat interface with threaded conversations, task management, diff viewer, integrated terminal (ghostty-web), git operations (git2), analytics dashboard (recharts + redb), onboarding wizard, multi-window support, and a full settings panel. Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). ~12MB binary, ~0% CPU at idle.
+LAF Agent is a native desktop client for the **prime-agent** coding agent
+(`PrimeIntellect-ai/prime-agent`, MIT). It drives the agent over prime-agent's
+own RPC protocol — newline-delimited JSON over stdin/stdout — and ships the
+agent runtime inside the app bundle, so a DMG install works with no CLI setup.
+
+The UI is a chat client with threaded conversations, a diff viewer, an
+integrated terminal, git operations, a local analytics dashboard, an onboarding
+wizard, multi-window support, and a full settings panel. macOS is the shipping
+platform; the Windows and Linux bundle targets build but are not exercised.
+
+Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). The
+release DMG is ~76 MB, most of which is the bundled Node runtime and `uv`.
 
 ## Tech stack
 
@@ -10,146 +21,95 @@ LAF Agent is a cross-platform native desktop app (macOS, Windows, Linux) for man
 - **Backend**: Rust 2021 edition
 - **Frontend**: React 19, TypeScript 5 (strict mode, ES2022 target)
 - **Styling**: Tailwind CSS 4 (utility-first, dark theme via `@custom-variant dark`)
-- **UI components**: Radix UI primitives (dialog, checkbox, switch, tooltip, scroll-area, label, separator, slot), Tabler icons (`@tabler/icons-react`)
+- **UI components**: Radix UI primitives, Tabler icons (`@tabler/icons-react`)
 - **State management**: Zustand 5 (stores in `src/renderer/stores/`)
+- **i18n**: hand-rolled, gettext-style — English source strings are the keys
+  (`src/renderer/lib/i18n.ts`, Korean dictionary in `i18n-ko.ts`)
 - **Markdown**: react-markdown + remark-gfm
 - **Virtualization**: @tanstack/react-virtual
 - **Diffing**: diff + @pierre/diffs
-- **Terminal**: ghostty-web (WebAssembly terminal emulator) + portable-pty (Rust)
-- **Code highlighting**: Shiki via @pierre/diffs (Oniguruma WASM engine), dynamically imported and warmed during `requestIdleCallback` after first paint
-- **Analytics**: posthog-js (client telemetry), recharts (charts), redb (Rust ACID-compliant local DB)
-- **Toasts**: sonner
-- **Slugs**: slugify (worktree branch names)
-- **Font**: @fontsource-variable/dm-sans
-- **Build**: Vite 6 (via `rolldown-vite` override), Cargo (Rust backend), bun as package manager. Build target: `safari16`. Manual chunks for vendor splitting (analytics, diffs, react, markdown, terminal, tauri, icons)
+- **Terminal**: ghostty-web (WebAssembly) + portable-pty (Rust)
+- **Code highlighting**: Shiki via @pierre/diffs, lazily imported
+- **Analytics**: local only — recharts for charts, redb for storage. Nothing
+  leaves the machine, and there is no telemetry client.
+- **Build**: Vite 6 (via `rolldown-vite`), Cargo, bun as package manager.
+  Build target `safari16`; manual vendor chunks.
 - **Testing**: Vitest 4 with jsdom, @testing-library/react, v8 coverage
-- **Protocol**: agent-client-protocol crate (v0.10.4) for ACP subprocess management with unstable session model, usage, fork, cancel, and message ID features
-- **Rust crates**: git2 (libgit2 bindings), thiserror (error types), which (binary detection), confy (config persistence), redb (analytics DB), parking_lot (fast mutexes), imagesize (image dimensions), window-vibrancy, ignore (gitignore-aware file walking), base64, uuid, open, dirs
-- **Tauri plugins**: tauri-plugin-store (LazyStore persistence), tauri-plugin-notification (native notifications), tauri-plugin-updater (auto-update), tauri-plugin-process (relaunch), tauri-plugin-log (Rust→WebView log forwarding), tauri-plugin-dialog (folder picker)
-- **macOS-specific**: cocoa + objc crates for traffic light repositioning and content view corner radius
+- **Agent**: prime-agent 0.7.0, bundled under `src-tauri/resources/prime-agent/`
+- **Rust crates**: git2, thiserror, which, confy, redb, rusqlite, parking_lot,
+  reqwest, notify, ignore, nucleo-matcher, imara-diff, pulldown-cmark,
+  imagesize, window-vibrancy, glob, base64, uuid, open, dirs, libc
+- **Tauri plugins**: store, notification, updater, process, log, dialog
+- **macOS-specific**: cocoa + objc for traffic-light repositioning and content
+  view corner radius
 
 ## Project structure
 
 ```
 src/
 ├── renderer/                # React frontend
-│   ├── main.tsx             # React entry (splash screen fade, dark theme init)
+│   ├── main.tsx             # React entry (splash fade, theme init)
 │   ├── App.tsx              # Root layout (sidebar + main panel routing)
-│   ├── env.d.ts             # Vite env type declarations
-│   ├── types/
-│   │   ├── index.ts         # Shared types (TaskStatus, AgentTask, ToolCall, etc.)
-│   │   └── analytics.ts     # AnalyticsEvent types
+│   ├── types/               # Shared types + analytics event shapes
 │   ├── lib/
-│   │   ├── ipc.ts           # Tauri invoke/listen wrappers (~60 commands, ~20 events)
-│   │   ├── history-store.ts # LazyStore persistence (tauri-plugin-store) with self-write guard
+│   │   ├── ipc.ts           # Tauri invoke/listen wrappers — the whole IPC surface
+│   │   ├── agent-commands.ts # THE slash-command registry (session/rpc/gui)
+│   │   ├── i18n.ts          # t() + useT(); i18n-ko.ts holds the Korean dictionary
+│   │   ├── provider-catalog.ts # Built-in and OpenAI-compatible providers
+│   │   ├── history-store.ts # LazyStore persistence with a self-write guard
 │   │   ├── timeline.ts      # Timeline rendering logic
-│   │   ├── utils.ts         # cn() helper (clsx + tailwind-merge)
-│   │   ├── analytics.ts     # PostHog analytics wrapper
-│   │   ├── analytics-collector.ts  # Event collection for local analytics
-│   │   ├── analytics-aggregators.ts # Chart data aggregation
-│   │   ├── fuzzy-search.ts  # Fuzzy matching for pickers
-│   │   ├── question-parser.ts # Parse agent question cards
-│   │   ├── notifications.ts # Native notification helpers
-│   │   ├── theme.ts         # Theme management (dark/light/system)
-│   │   ├── sounds.ts        # UI sound effects
-│   │   ├── model-icons.tsx  # Model provider SVG icons
-│   │   ├── framework-icons.tsx # Framework/language SVG icons
-│   │   ├── jsInterceptors.ts # Console/network interceptors for debug panel
-│   │   ├── open-external.ts # Open URLs in default browser
-│   │   ├── relaunch.ts      # App relaunch helper
-│   │   ├── lruCache.ts      # Bounded LRU for highlighted code HTML
-│   │   └── diffRendering.ts # Shared theme + hash helpers for Shiki
-│   ├── hooks/
-│   │   ├── useSidebarTasks.ts    # Sidebar task list with grouping/filtering
-│   │   ├── useUpdateChecker.ts   # Auto-update checker (tauri-plugin-updater)
-│   │   ├── useChatInput.ts       # Chat input state, submission, slash commands
-│   │   ├── useFileMention.ts     # @ file mention picker logic
-│   │   ├── useKeyboardShortcuts.ts # Global keyboard shortcuts
-│   │   ├── useAttachments.ts     # File/image attachment handling
-│   │   ├── useSlashAction.ts     # Client-side slash command handler
-│   │   ├── useSessionTracker.ts  # Analytics session tracking
-│   │   ├── useProjectIcon.ts     # Auto-detect project icon from files
-│   │   ├── useMessageSearch.ts   # Search within chat messages
-│   │   └── useResizeHandle.ts    # Draggable panel resize
-│   ├── stores/
-│   │   ├── taskStore.ts          # Tasks, streaming, connection state (~39KB)
-│   │   ├── task-store-types.ts   # TaskStore type definitions
-│   │   ├── task-store-listeners.ts # IPC event listener setup for taskStore
-│   │   ├── settingsStore.ts      # Agent profiles, models, appearance
-│   │   ├── resourceStore.ts          # .agent/ config state
-│   │   ├── diffStore.ts          # Diff viewer state
-│   │   ├── debugStore.ts         # Debug panel state (Agent logs)
-│   │   ├── jsDebugStore.ts       # JS console/network debug state
-│   │   ├── analyticsStore.ts     # Analytics dashboard state
-│   │   └── updateStore.ts        # App update state
+│   │   ├── analytics-collector.ts / analytics-aggregators.ts
+│   │   └── … (theme, sounds, fuzzy search, notifications, icons, …)
+│   ├── hooks/               # useChatInput, useSlashAction, useFileMention, …
+│   ├── stores/              # taskStore (largest), settingsStore, resourceStore,
+│   │                        # diffStore, debugStore, analyticsStore, updateStore
 │   └── components/
-│       ├── ui/              # Radix-based primitives (button, input, dialog, card, badge, etc.)
-│       ├── chat/            # ChatPanel, MessageList, ChatInput, SlashPanels, BranchSelector, etc.
-│       ├── sidebar/         # TaskSidebar, ResourcePanel, IconPickerDialog, WorktreeCleanupDialog
-│       ├── code/            # CodePanel, DiffViewer, DiffToolbar, DiffFileSidebar, DebugLog
-│       ├── analytics/       # AnalyticsDashboard, chart components (9 chart types)
-│       ├── unified-title-bar/ # Cross-platform title bar (macOS/Windows/Linux)
-│       ├── settings/        # SettingsPanel with sections (general, appearance, keymap, advanced, etc.)
-│       ├── dashboard/       # Dashboard, TaskCard
-│       ├── diff/            # DiffPanel
-│       ├── debug/           # DebugPanel, JsDebugTab, AgentDebugTab
-│       ├── task/            # NewProjectSheet
-│       ├── Onboarding.tsx   # First-run onboarding wizard
-│       ├── OnboardingWelcomeStep.tsx
-│       ├── OnboardingSetupStep.tsx
-│       ├── OnboardingCliSection.tsx
-│       ├── OnboardingAuthSection.tsx
-│       ├── OnboardingThemeStep.tsx
-│       ├── onboarding-shared.tsx
-│       ├── AppHeader.tsx
-│       ├── header-breadcrumb.tsx
-│       ├── header-toolbar.tsx
-│       ├── header-ghost-toolbar.tsx
-│       ├── header-user-menu.tsx
-│       ├── GitActionsGroup.tsx
-│       ├── OpenInEditorGroup.tsx
-│       ├── ErrorBoundary.tsx
-│       └── Playground.tsx
+│       ├── ui/              # Radix-based primitives
+│       ├── chat/            # ChatPanel, MessageList, ChatInput, pickers
+│       ├── sidebar/         # TaskSidebar, ResourcePanel, dialogs
+│       ├── code/            # CodePanel, DiffViewer, DebugLog
+│       ├── analytics/       # Dashboard + chart components
+│       ├── settings/        # SettingsPanel and its sections
+│       ├── unified-title-bar/ # Per-platform title bar
+│       ├── Onboarding*.tsx  # First-run wizard (welcome → theme → setup)
+│       └── … (header, dialogs, error boundary)
 src-tauri/
 ├── src/
 │   ├── main.rs              # Entry point
-│   ├── lib.rs               # Tauri app setup, command registration, window events, native menu, multi-window, panic hook, shutdown
+│   ├── lib.rs               # App setup, ~167 command registrations, window
+│   │                        # events, native menu, panic hook, shutdown
 │   └── commands/
-│       ├── mod.rs           # Module declarations (acp, analytics, error, fs_ops, git, agent_resources, pty, settings)
-│       ├── acp/             # ACP protocol module (split into submodules)
-│       │   ├── mod.rs       # Re-exports, utility functions
-│       │   ├── client.rs    # ACP client wrapper
-│       │   ├── commands.rs  # Tauri command handlers (~60 commands)
-│       │   ├── connection.rs # Connection lifecycle, message handling
-│       │   ├── sandbox.rs   # Path sandboxing for permissions
-│       │   ├── types.rs     # AgentState, AgentCommand, ConnectionHandle types
-│       │   └── tests.rs     # ACP unit tests
-│       ├── analytics.rs     # Analytics persistence (redb ACID-compliant DB)
-│       ├── error.rs         # Shared AppError type (thiserror)
+│       ├── rpc/             # prime-agent RPC client
+│       │   ├── mod.rs       # Re-exports and helpers
+│       │   ├── commands.rs  # Tauri command handlers, incl. agent_rpc_request
+│       │   ├── connection.rs # Process lifecycle + event translation
+│       │   ├── types.rs     # AgentState, AgentCommand, SessionMode, …
+│       │   └── tests.rs     # Event-translation unit tests
+│       ├── agent_launch.rs  # Resolve how to launch the agent + its PATH
+│       ├── kernel_setup.rs  # Provision the Python kernel with the bundled uv
+│       ├── provider_discovery.rs # Probe /models for a user-supplied key
+│       ├── fs_ops.rs        # File ops, agent detection, auth.json management
+│       ├── agent_resources.rs / resource_watcher.rs  # .agent/ discovery
+│       ├── git*.rs          # git2-backed operations (branches, worktrees,
+│       │                    # stack, PRs, history, diff stats, AI text)
+│       ├── analytics.rs     # Local usage stats (redb)
+│       ├── thread_db.rs     # Thread persistence (redb)
 │       ├── pty.rs           # Terminal emulation (portable-pty)
-│       ├── git.rs           # Git operations via git2 (libgit2) — branches, worktrees, stage, commit, push, pull
-│       ├── settings.rs      # Config persistence via confy, recent projects
-│       ├── fs_ops.rs        # File ops, prime-agent detection (which crate), editor detection, project file listing
-│       └── agent_resources.rs   # .agent/ config discovery (serde_yaml for frontmatter)
-├── Cargo.toml
+│       ├── settings.rs      # Config persistence (confy) + recent projects
+│       ├── checkpoint.rs    # Turn checkpoints
+│       ├── markdown.rs      # Server-side markdown parsing
+│       └── error.rs         # Shared AppError (thiserror)
+├── resources/
+│   ├── prime-agent/         # Bundled runtime: node, uv, dist/, node_modules/
+│   └── laf-agent-gate.ts    # Bundled extension: permission gate, sandbox,
+│                            # parity commands, native web search, web_fetch
 ├── tauri.conf.json
-├── tauri.ci.conf.json       # CI-specific Tauri config overrides
-├── LAF Agent.entitlements     # macOS entitlements
-├── Info.plist               # macOS Info.plist
-├── capabilities/            # Tauri v2 permission capabilities
-├── icons/                   # App icons (prod + dev variants)
-└── apps/                    # Bundled app resources
+└── capabilities/            # Tauri v2 permissions
 scripts/
-├── bump-version.sh          # Version bump across package.json, Cargo.toml, tauri.conf.json
-├── release.sh               # Tag + push release workflow
-└── generate-notes.sh        # Generate changelog from git log
-website/                     # Static marketing website (separate bun project)
-docs/
-├── architecture.md          # System diagram, backend module reference
-├── ipc-reference.md         # Full IPC command/event reference
-├── slash-commands.md         # Slash command documentation
-├── keyboard-shortcuts.md     # Keyboard shortcut reference
-└── pr-guidelines.md         # PR review guidelines
+├── build-sidecar.sh         # Rebuild src-tauri/resources/prime-agent
+├── bump-version.sh, release.sh, generate-notes.sh
+docs/                        # architecture, ipc-reference, slash-commands,
+                             # sidecar-architecture, development, …
 ```
 
 ## Commands
@@ -157,246 +117,297 @@ docs/
 ```bash
 # Development
 bun run dev               # Start dev (Vite + Tauri)
-bun run dev:renderer      # Start Vite dev server only (no Rust)
+bun run dev:renderer      # Vite dev server only (no Rust)
 
 # Build
 bun run build             # Production build (.app / .dmg / .exe / .deb)
 bun run build:rust        # Cargo build (debug)
 bun run build:rust:release # Cargo build (release, stripped + LTO)
-bun run package           # Alias for `cargo tauri build`
 
 # Type checking
-bun run check             # Run both check:ts and check:rust
-bun run check:ts          # TypeScript type check (tsc --noEmit)
-bun run check:rust        # Rust type check (cargo check)
-bun run check:web         # TypeScript check + Vite build
+bun run check             # check:ts + check:rust
+bun run check:ts          # tsc --noEmit
+bun run check:rust        # cargo check
 
 # Testing
-bun run test              # Run all tests (Vitest + cargo test)
-bun run test:ui           # Vitest (frontend tests only)
-bun run test:rust         # Rust tests only (cargo test)
-bun run test:coverage     # Vitest with v8 coverage report
+bun run test              # Vitest + cargo test
+bun run test:ui           # Frontend tests only
+bun run test:rust         # Rust tests only
+bun run test:coverage     # Vitest with v8 coverage
 
 # Versioning
-bun run bump              # Interactive version bump
-bun run bump:patch        # Bump patch (0.7.0 → 0.7.1)
-bun run bump:minor        # Bump minor (0.7.0 → 0.8.0)
-bun run bump:major        # Bump major (0.7.0 → 1.0.0)
+bun run bump[:patch|:minor|:major]
 bun run release           # Tag + push (triggers CI release)
 
-# Website
-bun run website:dev       # Dev server for marketing website
-bun run website:build     # Build website
-bun run website:preview   # Build + open website
-
 # Cleanup
-bun run clean             # Remove dist/ and cargo clean
+bun run clean
 ```
 
 ## Architecture decisions
 
-- **Tauri IPC**: All frontend↔backend communication uses `invoke()` for commands and `listen()` for events. No direct Node.js APIs. The `ipc.ts` wrapper provides typed functions for all ~60 commands and ~20 event listeners.
-- **ACP on dedicated OS threads**: The ACP Rust SDK uses `!Send` futures, so each connection runs on a dedicated OS thread with a single-threaded tokio runtime + `LocalSet`. Communication with the Tauri async runtime happens via `mpsc` channels.
-- **ACP module split**: The ACP code is split into `acp/{mod.rs, client.rs, commands.rs, connection.rs, sandbox.rs, types.rs, tests.rs}` for maintainability. `commands.rs` holds Tauri command handlers, `connection.rs` manages lifecycle, `sandbox.rs` handles path permission validation, `client.rs` wraps the SDK client.
-- **Permission handling**: Permission requests from ACP go through a `oneshot` channel. The permission handler runs on the Tauri async runtime and accesses managed state via `app.try_state::<AgentState>()`, not a cloned copy.
-- **State**: Zustand stores are the single source of truth. No Redux, no Context for global state. The taskStore is the largest (~39KB) with extracted types (`task-store-types.ts`) and IPC listeners (`task-store-listeners.ts`).
-- **Persistence**: `tauri-plugin-store` (LazyStore) persists tasks, projects, and soft-deleted threads. A self-write guard (`_selfWriteCount`) prevents reload loops from autoSave-triggered `onKeyChange` events.
-- **Analytics pipeline**: Frontend collects events via `analytics-collector.ts`, aggregates via `analytics-aggregators.ts`, and renders via recharts. Backend persists events in a redb database (`analytics.rs`) with ACID guarantees.
-- **Multi-window**: `lib.rs` supports creating new windows via `create_new_window()` with per-platform configuration (macOS traffic lights, corner radius).
-- **Native menu**: `build_app_menu()` creates File menu with New Window, New Thread, New Project, and a dynamic Recent Projects submenu populated from `SettingsState`.
-- **Styling**: Tailwind utility classes only. No custom CSS files for components. Theme tokens in `src/tailwind.css` using CSS custom properties under `:root` and `.dark`. Uses `@custom-variant dark (&:is(.dark, .dark *))` for dark mode.
-- **Components**: Radix UI primitives with `class-variance-authority` for variants, `clsx` + `tailwind-merge` via `cn()` helper.
-- **Cross-platform title bar**: `unified-title-bar/` provides platform-specific title bars (macOS traffic lights, Windows controls, Linux fallback).
-- **Onboarding**: Multi-step wizard (Welcome → Setup → CLI detection → Auth → Theme) for first-run experience.
-- **Path aliases**: `@/*` maps to `./src/renderer/*` (configured in tsconfig.json and vite.config.ts).
-- **Vite config**: Manual chunks split vendor code (analytics, diffs, react, markdown, shiki, terminal, tauri, icons); the `vendor-shiki` chunk is lazy-loaded by `ChatMarkdown` on first code block. Dev server on port 5174. Watch ignores README.md, activity.md, and src-tauri/.
-- **CI pipeline**: 3-stage sequential pipeline (check → test-ui → test-rust) with PR comment bot summarizing results. Runs on ubuntu-latest with system deps for WebKit.
+- **Transport**: `prime-agent --mode rpc` speaks JSONL over stdio, LF-delimited,
+  with an `id` field correlating requests to responses. `rpc/connection.rs`
+  translates the agent's events into the Tauri events the renderer already
+  consumed, so the UI layer did not change when the backend was swapped.
+- **No `!Send` gymnastics**: the RPC client is plain `tokio::spawn` on the
+  multi-threaded runtime. (An earlier ACP-based backend needed a dedicated OS
+  thread with a `LocalSet` per connection; that constraint is gone. Do not
+  reintroduce it.)
+- **One generic RPC bridge**: `agent_rpc_request(task_id, command, params)`
+  forwards any prime-agent RPC method and awaits its `data`. Prefer it over
+  adding a new typed Tauri command per feature.
+- **Permission approval rides the extension UI protocol**: the bundled gate
+  extension (`resources/laf-agent-gate.ts`) intercepts tool calls and raises a
+  `select` dialog, which arrives as an `extension_ui_request` line. The user's
+  decision goes back as `extension_ui_response`.
+- **Slash commands have one registry**: `lib/agent-commands.ts`. It documents
+  the three kinds (session / rpc / gui) and, importantly, which CLI commands are
+  deliberately absent because they are TUI-only with no RPC method behind them.
+  `get_commands` supplies extensions, prompt templates, and skills at runtime —
+  never the agent's built-ins.
+- **The agent runtime is bundled**: `agent_launch::resolve()` prefers an explicit
+  user path, then the sidecar (`<resources>/prime-agent/node dist/bundle/cli.js`),
+  then PATH. Every spawn site must use `agent_launch::agent_path_env()` so the
+  bundled `uv` wins over any system copy. See `docs/sidecar-architecture.md`.
+- **State**: Zustand stores are the single source of truth. No Redux, no Context
+  for global state.
+- **Persistence**: `tauri-plugin-store` (LazyStore) for tasks, projects, and
+  soft-deleted threads; redb for analytics and thread bodies. A self-write guard
+  (`_selfWriteCount`) prevents reload loops from autoSave-triggered events.
+- **Analytics are local**: `analytics-collector.ts` buffers events, flushes to
+  redb via IPC, and the dashboard reads them back. There is no remote endpoint
+  and no telemetry client — do not add one without asking.
+- **Styling**: Tailwind utility classes only. Theme tokens in
+  `src/tailwind.css` under `:root` and `.dark`.
+- **Path aliases**: `@/*` → `./src/renderer/*` (tsconfig + vite.config).
 
 ## Conventions
 
 - Use `const` arrow functions for components and handlers
-- Prefix event handlers with `handle` (e.g., `handleClick`, `handleKeyDown`)
-- Prefix boolean variables with verbs (`isLoading`, `hasError`, `canSubmit`)
-- Use kebab-case for file names, PascalCase for components, camelCase for variables/functions
+- Prefix event handlers with `handle`; booleans with a verb (`isLoading`)
+- kebab-case file names, PascalCase components, camelCase values
 - One export per file for components
 - Early returns for readability
 - Accessibility: semantic HTML, ARIA attributes, keyboard navigation
-- Icons: use `@tabler/icons-react` exclusively. Never use `lucide-react`. Tabler icons use the `Icon` prefix (e.g., `IconPlus`, `IconCheck`, `IconChevronDown`).
-- Conventional Commits for git messages (`feat:`, `fix:`, `chore:`, etc.)
-- Every commit must include: `Co-authored-by: LAF Agent <274876363+laf-agent@users.noreply.github.com>`
+- Icons: `@tabler/icons-react` only, never `lucide-react`
+- **User-facing strings go through `t()`** from `@/lib/i18n`, with the English
+  text as the argument. Add the Korean entry in `i18n-ko.ts` in the same change.
+- Conventional Commits (`feat:`, `fix:`, `chore:`, …)
+- Every commit includes:
+  `Co-authored-by: LAF Agent <274876363+laf-agent@users.noreply.github.com>`
 
 ## Build validation
 
-A task is not done until both pass with zero errors:
+A task is not done until these pass with zero errors:
 
 ```bash
 bun run check:ts
-bun run build         # or: npx vite build
+bun run test:ui
+cargo test --lib --manifest-path src-tauri/Cargo.toml
 ```
 
-For frontend-only changes, also run:
-```bash
-bun run test:ui       # Vitest frontend tests
-```
+Run `bun run build` before shipping a release.
 
 ## Critical rules
 
-- Never revert, discard, or `git checkout --` changes without explicit user confirmation
+- Never revert, discard, or `git checkout --` changes without explicit user
+  confirmation
 - Never run destructive git operations without being told to
-- Always use Tailwind classes for styling; no inline CSS or `<style>` tags
+- Always use Tailwind classes; no inline CSS or `<style>` tags
 - Keep the activity log updated in `activity.md`
 
 ---
 
 ## Engineering learnings
 
-### Tauri + ACP concurrency model
+### The IPC surface must stay symmetric
 
-The `agent-client-protocol` crate produces `!Send` futures. You cannot run them on the default multi-threaded tokio runtime. The solution: spawn a `std::thread` per ACP connection, create a `tokio::runtime::Builder::new_current_thread()` runtime inside it, and use `tokio::task::LocalSet::block_on()`. Commands from the Tauri async runtime reach the connection thread via `mpsc::unbounded_channel`. This pattern is stable and avoids all `Send` bound issues.
+`lib/ipc.ts` and the `generate_handler!` list in `lib.rs` are two halves of one
+contract, and nothing type-checks across the boundary. A wrapper whose command
+is not registered fails only at runtime, and a module that is not declared in
+`commands/mod.rs` does not even compile. Both drifted before. To check:
+
+```bash
+grep -ohE "invoke(<[^>]*>)?\('[a-z_0-9]+'" src/renderer/lib/ipc.ts | sed "s/.*('//;s/'//" | sort -u
+```
+
+and compare against the handler list.
 
 ### Permission resolvers must use managed Tauri state
 
-Early versions cloned the `AgentState` into the permission handler closure. This created a second copy; when `task_allow_permission` / `task_deny_permission` commands looked up the resolver in the managed state, it wasn't there. Fix: the permission handler accesses state via `app.try_state::<AgentState>()` so it reads/writes the same instance the Tauri commands use.
+An early version cloned `AgentState` into the permission handler closure, so
+`task_allow_permission` looked up a resolver that lived in a different copy. The
+handler must reach state via `app.try_state::<AgentState>()`.
 
-### ACP notifications need method normalization
+### Notification methods need normalization
 
-The ACP SDK sometimes prefixes ext_notification methods with an underscore (e.g., `_agent.dev/commands/available`). Always strip the leading `_` before matching: `method.strip_prefix('_').unwrap_or(method)`.
+prime-agent sometimes prefixes ext_notification methods with an underscore.
+Strip it before matching: `method.strip_prefix('_').unwrap_or(method)`.
 
 ### Backend task updates wipe client-side messages
 
-The ACP backend sends `task_update` events with `messages: []` because it doesn't track message history; only the client does. If `upsertTask()` does a full object replacement, every status change wipes all locally-accumulated messages. Fix: preserve existing messages when the incoming task has an empty messages array.
+`task_update` events carry `messages: []` because the backend does not track
+history — only the client does. `upsertTask()` must preserve existing messages,
+the client-side `name`, and `parentTaskId` when the incoming task omits them.
 
 ### Zustand store performance patterns
 
-- **Bail-out guards**: Every setter should check if the value actually changed before calling `set()`. Without this, every ACP event triggers a React re-render even when nothing changed.
-- **Batch multi-field updates**: Use a single `setState` callback instead of multiple `getState()` + `set()` calls. Multiple `getState()` calls can read stale data between them.
-- **rAF batching for high-frequency events**: Debug log entries and streaming chunks arrive at hundreds per second. Buffer them and flush once per `requestAnimationFrame` using `concat + slice` instead of per-entry array copies.
-- **Extract streaming selectors**: The ChatPanel was re-rendering on every streaming token. Extracting a `StreamingMessageList` child component that owns the four streaming selectors (`streamingChunk`, `liveToolCalls`, `liveThinking`, `messages`) isolates re-renders to the child only.
+- **Bail-out guards**: every setter should check whether the value actually
+  changed before calling `set()`.
+- **Batch multi-field updates** in a single `setState` callback; separate
+  `getState()` calls can read stale data between them.
+- **rAF batching** for high-frequency events (debug entries, streaming chunks):
+  buffer and flush once per frame with `concat + slice`.
+- **Extract streaming selectors** into a child component so token streaming
+  re-renders only that child.
 
 ### Dead code traps in component wiring
 
-Adding logic to a component file that is never imported is a silent failure. The `DiffPanel.tsx` had `focusFile` logic but was dead code; the actual panel used `CodePanel` → `DiffViewer`. Always verify the import chain before adding features to a component.
+Adding logic to a file nothing imports is a silent failure. Verify the import
+chain before adding a feature to a component.
 
 ### Slash commands: client-side vs pass-through
 
-Some slash commands (`/clear`, `/model`, `/agent`) are handled entirely on the client. Others (`/plan`, `/chat`) need both a client-side action (mode switch, system message) and a backend sync (`ipc.setMode()`). The `useSlashAction` hook returns `{ handled: boolean }` so the caller knows whether to send the command to ACP.
+`useSlashAction` returns whether it handled the input. Session commands
+(`/goal`, `/autonomous`, `/compact`, `/refine`) must fall through untouched —
+`AgentSession` executes them on any transport, so a plain `prompt` reproduces
+the CLI exactly. The same is true of extension commands and `/skill:` expansion.
+An unrecognized `/foo`, by contrast, is sent to the model as literal text, so
+never list a command the app cannot actually run.
 
-### Forward all ACP notification data
+### Forward all notification data
 
-The `commands/available` notification includes `mcpServers` with live `toolCount` and `status`, but the Rust backend initially only forwarded the `commands` array. Always forward the full notification payload (or at least all fields the frontend needs) rather than cherry-picking.
+The `commands/available` notification carries `mcpServers` with live counts and
+status. Forward whole payloads rather than cherry-picking fields.
 
 ### Window cleanup on close
 
-Tauri's `on_window_event` with `CloseRequested` is the place to kill ACP connections and PTY sessions. Drain the connections map and send `AgentCommand::Kill` to each, then clear the PTY state. Without this, orphaned `prime-agent` processes survive after the app closes.
+`on_window_event` with `CloseRequested` is where agent connections and PTY
+sessions get killed. Drain the connections map, send `AgentCommand::Kill`, and
+clear PTY state — otherwise orphaned processes survive the app.
 
 ### probe_capabilities guard
 
-`probe_capabilities` (which calls `list_models`) can be triggered multiple times during startup. Without an `AtomicBool` guard (`probe_running`), concurrent calls spawn duplicate ACP connections. Use `compare_exchange` to ensure only one probe runs at a time.
+`probe_capabilities` can fire several times during startup. An `AtomicBool`
+(`probe_running`, via `compare_exchange`) keeps it from spawning duplicate
+connections.
 
 ### Vite watch ignores
 
-Add `README.md`, `activity.md`, and `src-tauri/**` to Vite's `server.watch.ignored` list. Otherwise, editing docs or Rust files triggers unnecessary frontend rebuilds.
-
-### Tauri v2 state management
-
-Always use `app.manage()` for shared state and access via `State<'_, T>` in commands. Never clone state into closures when the state needs to be shared across commands; use `app.try_state::<T>()` from the app handle instead.
+Keep `README.md`, `activity.md`, and `src-tauri/**` in `server.watch.ignored`,
+or editing docs or Rust triggers pointless frontend rebuilds.
 
 ### Rust error handling in Tauri commands
 
-Tauri commands return `Result<T, AppError>` where `AppError` is a `thiserror` enum in `commands/error.rs`. It has `From` impls for `git2::Error`, `io::Error`, `serde_json::Error`, `confy::ConfyError`, and `PoisonError`, so `?` works directly. `AppError` implements `Serialize` for Tauri IPC. Exception: `acp.rs` still uses `Result<T, String>` because the ACP SDK's own error types and `!Send` async constraints make conversion impractical.
+Commands return `Result<T, AppError>`; `AppError` is a `thiserror` enum in
+`commands/error.rs` with `From` impls for `git2::Error`, `io::Error`,
+`serde_json::Error`, `confy::ConfyError`, and `PoisonError`, so `?` works.
+The RPC module still uses `Result<T, String>` where errors come back as JSON.
 
 ### Prefer community crates over shelling out
 
-Use `git2` instead of `Command::new("git")` for git operations. Use `which::which()` instead of `Command::new("which")`. Use `confy` instead of hand-rolled JSON persistence. Use `serde_yaml` instead of string matching for YAML frontmatter. Shelling out is fragile (PATH dependency), slow (process spawn), and loses structured error info.
+`git2` over `Command::new("git")`, `which::which()` over `which`, `confy` over
+hand-rolled JSON. Shelling out is PATH-dependent, slow, and loses error detail.
 
 ### React 19 + Zustand selector discipline
 
-Always use selectors (`useStore(s => s.field)`) instead of `useStore()` to prevent full-store re-renders. For derived state, use `useMemo` over computing in render. Combine with `shallow` equality when selecting multiple fields.
+Always select (`useStore(s => s.field)`) rather than subscribing to the whole
+store. Use `useMemo` for derived state and `shallow` when selecting several
+fields.
 
-### localStorage in Zustand store init
+### localStorage throws
 
-`localStorage.getItem()` and `setItem()` throw in private browsing, incognito, or quota-exceeded contexts. Always wrap in try-catch. For store init, use an IIFE: `(() => { try { return localStorage.getItem(key) } catch { return null } })()`. For setters, wrap in try-catch with `console.warn` fallback so the in-memory state still updates even if persistence fails.
+`getItem`/`setItem` throw in private browsing and on quota errors. Wrap both.
+For store init use an IIFE with try/catch; for setters, warn and keep the
+in-memory update.
 
 ### Module-level mutable variables in React hooks
 
-A `let pendingUpdate` at module scope persists across component remounts and can reference a stale object from a previous mount. Use `useRef` instead to tie the mutable reference to the component instance lifecycle. This prevents version mismatches when the hook unmounts and remounts.
+A `let` at module scope survives remounts and can reference a stale object from
+a previous mount. Use `useRef` so the lifetime matches the component.
 
-### import type for dynamically-imported modules
+### `import type` for dynamically-imported modules
 
-When a module is dynamically imported at runtime (`await import('@tauri-apps/plugin-updater')`) but you need its types at compile time for a `useRef<Update | null>`, use `import type { Update }` to avoid bundling the module eagerly while still getting type safety.
+When a module is loaded at runtime (`await import('@tauri-apps/plugin-updater')`)
+but its types are needed at compile time, use `import type` so it is not
+bundled eagerly.
 
 ### IPC event cleanup
 
-Always return the unlisten function from `listen()` calls inside `useEffect` cleanup. Leaked listeners cause memory leaks and duplicate event handling. Pattern: `const unlisten = await listen(...); return () => { unlisten(); };`
+Return the unlisten function from `listen()` in the `useEffect` cleanup. Leaked
+listeners double-handle events.
 
 ### PTY process lifecycle
 
-Always kill PTY child processes on window close and on connection teardown. Check `child.try_wait()` before sending signals to avoid signaling already-dead processes. Clean up the reader thread when the PTY is destroyed.
+Kill PTY children on window close and connection teardown. Check
+`child.try_wait()` before signalling, and clean up the reader thread.
 
-### Git command injection prevention
+### Tauri CSP blocks inline scripts and remote hosts
 
-When building git commands from user input (branch names, commit messages), validate and sanitize inputs. Never interpolate raw user strings into shell commands. Use `Command::arg()` instead of shell string concatenation to avoid injection. With `git2`, this is no longer a concern since the library API handles escaping.
+`script-src 'self'` blocks inline `onclick` and `<script>` tags — attach
+listeners from bundled JS. `connect-src 'self' ipc: http://ipc.localhost` blocks
+every outbound request from the renderer, which is why any network work belongs
+in Rust or in the agent.
 
-### Tauri CSP blocks inline scripts
+### `oklch()` CSS colors fail in older WebKit
 
-Tauri's CSP (`script-src 'self'`) blocks inline `onclick` handlers and `<script>` tags in HTML. Attach event listeners via bundled JS (`addEventListener`) instead. The `index.html` error fallback reload button must use this pattern.
-
-### oklch() CSS colors fail in older WebKit
-
-Tauri's WebKit webview may not support `oklch()` color syntax. When it fails, the browser renders bright magenta/pink (the "invalid value" fallback). Use hex color values for CSS custom properties instead.
+Tauri's WebView may render `oklch()` as bright magenta. Use hex values for CSS
+custom properties.
 
 ### Dark theme class must be applied before React renders
 
-If the app uses a `.dark` CSS class for theme variables, add `class="dark"` to `<html>` in `index.html` AND set it in `main.tsx` before `ReactDOM.createRoot()`. Without both, there's a white flash or the app renders in light mode.
+Set `class="dark"` on `<html>` in `index.html` *and* in `main.tsx` before
+`createRoot()`, or the app flashes white.
 
-### Splash screen pattern for Tauri
+### Splash screen pattern
 
-Add a `#splash` div in `index.html` (pure HTML/CSS, no JS dependency) that shows immediately when the window opens. In `main.tsx`, after React renders, fade it out with `opacity: 0` transition and remove on `transitionend`. This gives instant visual feedback while the JS bundle loads.
+A `#splash` div in `index.html` (pure HTML/CSS) shows instantly; `main.tsx`
+fades it out after the first render.
 
 ### Cancel tasks before deleting them
 
-When deleting a thread or removing a project, call `ipc.cancelTask()` before `ipc.deleteTask()` to stop any running agent. The cancel is fire-and-forget with `.catch(() => {})` so it's a no-op for already-stopped tasks.
+Call `ipc.cancelTask()` before `ipc.deleteTask()` so a running agent stops. It
+is fire-and-forget with `.catch(() => {})`.
 
-### confy changes the config file location
+### confy owns the config file location
 
-`confy` stores config at its own XDG/macOS-standard path (e.g., `~/Library/Application Support/rs.laf-agent/default-config.toml` on macOS), not the previous custom path. If migrating from hand-rolled persistence, existing settings at the old path won't be found. Consider a one-time migration or document the new location.
+Config lives at confy's platform path
+(`~/Library/Application Support/rs.laf-agent/default-config.toml` on macOS),
+not a custom one.
 
-### upsertTask must preserve client-side name
+### Soft-deleted threads reappear after restart
 
-The ACP backend sends `task_update` events carrying the original creation-time name. If `upsertTask` spreads the backend object as the base, every status change overwrites user renames. Fix: when the task already exists locally, always keep the client-side `name`. This follows the same pattern used for `messages` and `parentTaskId` preservation.
+`loadTasks` rebuilds the task map from `listTasks()`. Populate `deletedTaskIds`
+from persisted storage *before* `upsertTask` runs, then filter.
 
-### Soft-deleted threads reappear after app restart
+### `bun test` vs `bun run test`
 
-`loadTasks` builds the task map from `listTasks()` ACP responses. If `deletedTaskIds` isn't populated from persisted soft-deleted thread IDs before `upsertTask` runs, deleted threads get re-added. Fix: populate `deletedTaskIds` from persisted storage first, then filter them out of the task map during `loadTasks`.
-
-### `bun test` vs `bun run test` runner mismatch
-
-`bun test` invokes Bun's native test runner, which doesn't provide jsdom. `bun run test` invokes Vitest (configured with jsdom). Running `bun test` causes all component tests to fail with `ReferenceError: document is not defined`. Fix: add `bunfig.toml` with `[test] root = ".bun-test-noop"` to redirect Bun's native runner away from Vitest test files.
+`bun test` uses Bun's native runner, which has no jsdom, and every component
+test fails with `document is not defined`. `bunfig.toml` redirects it; always
+use `bun run test`.
 
 ### Clean up orphaned worktrees on setup failure
 
-If `gitWorktreeSetup` fails after the worktree directory was partially created, the orphaned directory remains on disk. Any component that calls worktree setup must catch the error and call `gitWorktreeRemove` to clean up. This applies to both `PendingChat` and `WorktreePanel`.
+If `gitWorktreeSetup` fails after creating the directory, the caller must catch
+and call `gitWorktreeRemove`.
 
 ### Stamp context on debug entries at creation time
 
-Debug entries (JS console, network, Rust logs) should capture `threadName` and `projectName` from the active task at creation time, not look them up from the task store at render time. Tasks can be deleted or archived after the entry was created, making render-time lookups return nothing and breaking filter functionality.
+Capture `threadName` and `projectName` when the entry is created, not at render.
+Tasks can be deleted afterwards, which breaks render-time lookups.
 
-### tauri-plugin-log for Rust-to-WebView log forwarding
+### GitHub Markdown strips block elements inside `<p>`
 
-Use `tauri-plugin-log` with `LogTarget::Webview` to forward Rust `log::info!()` / `log::error!()` calls to the frontend JS context. Requires adding `log:default` to the Tauri capabilities file. The frontend listens via the plugin's `onEvent` API and can display Rust logs alongside JS console output.
-
-### GitHub Markdown strips block elements inside `<p>` tags
-
-Block-level HTML elements (`<table>`, `<div>`, `<pre>`) nested inside `<p>` tags are invalid HTML. GitHub's Markdown renderer strips them, hiding the content. Always place block-level elements outside `<p>` tags in README and other GitHub-rendered Markdown files.
+Keep `<table>`, `<div>`, and `<pre>` outside `<p>` in README and other
+GitHub-rendered files, or the content vanishes.
 
 ## Activity log
 
-After completing any task, update `activity.md` at the project root before finishing.
+After completing any task, prepend an entry to `activity.md`. The file is
+gitignored on purpose — it is a local working log, not repo history, so never
+try to commit it. Each entry has:
 
-Each entry must include:
-- A timestamp heading in Dubai time: `## YYYY-MM-DD HH:MM GST (Dubai)`
-- A short descriptive title: `### Component: What changed`
-- A one to three sentence summary of what was done
+- Timestamp heading in Dubai time: `## YYYY-MM-DD HH:MM GST (Dubai)`
+- Short title: `### Component: What changed`
+- One to three sentences on what was done
 - A `**Modified:**` line listing changed files
-
-Prepend new entries to the top of the file. Create the file if it doesn't exist.

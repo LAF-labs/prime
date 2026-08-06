@@ -1,5 +1,5 @@
 /**
- * Connection health monitoring for the ACP backend subprocess.
+ * Connection health monitoring for the agent backend subprocess.
  *
  * While Tauri IPC doesn't have network-level disconnections, the prime-agent
  * subprocess can crash or become unresponsive. This module provides:

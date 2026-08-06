@@ -34,7 +34,7 @@ export const EMPTY_QUEUE: QueuedMessage[] = []
  * fields individually and avoid re-rendering on every other task mutation.
  *
  * Archived (resumed-from-history) threads are NOT disabled. They use
- * stateless resumption: the user can type, and on send a fresh ACP
+ * stateless resumption: the user can type, and on send a fresh agent
  * connection is spawned with the historical transcript replayed as context.
  */
 export function deriveInputState(
@@ -146,7 +146,7 @@ export function buildUserMessage(content: string): TaskMessage {
  *
  * Archived threads always need a fresh connection: the prime-agent subprocess
  * died when the app closed, so the frontend must call `task_create` (with
- * `existingId` to preserve the thread id) to spawn a new ACP session.
+ * `existingId` to preserve the thread id) to spawn a new agent session.
  */
 export function needsNewConnection(task: AgentTask): boolean {
   const isDraft = task.messages.length === 0 && task.status === 'paused'

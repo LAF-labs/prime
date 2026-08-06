@@ -41,7 +41,7 @@ function extractFileStats(toolCalls: readonly ToolCall[]): FileStats[] {
     const filePath = tc.locations?.[0]?.path
     if (!filePath) continue
 
-    // Pre-computed by the Rust ACP client (see
+    // Pre-computed by the Rust RPC client (see
     // `commands::diff_stats::annotate_diff_content`). Equivalent to
     // `git diff --numstat` for the (oldText, newText) pair. No diff entry =
     // no per-line counts available — surface the file at +0/-0 rather than

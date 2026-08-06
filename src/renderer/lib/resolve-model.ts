@@ -1,7 +1,7 @@
 /**
  * Shared model resolution logic.
  *
- * The model to use for a new or resumed ACP session is resolved in this order:
+ * The model to use for a new or resumed agent session is resolved in this order:
  * 1. Per-task model pick (from the model picker while a thread is active)
  * 2. Project preference (persisted per-workspace)
  * 3. Global `defaultModel` setting (persisted across workspaces)

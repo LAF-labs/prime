@@ -509,7 +509,7 @@ describe('forkTask', () => {
 
   it('adds system error message on fork failure', async () => {
     const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.forkTask).mockRejectedValueOnce(new Error('ACP connection lost'))
+    vi.mocked(ipc.forkTask).mockRejectedValueOnce(new Error('Agent connection lost'))
     useTaskStore.getState().upsertTask(makeTask())
     useTaskStore.setState({ selectedTaskId: 'task-1' })
     await useTaskStore.getState().forkTask('task-1')
@@ -517,7 +517,7 @@ describe('forkTask', () => {
     const systemMsg = task.messages.find((m) => m.role === 'system')
     expect(systemMsg).toBeDefined()
     expect(systemMsg?.content).toContain('Fork failed')
-    expect(systemMsg?.content).toContain('ACP connection lost')
+    expect(systemMsg?.content).toContain('Agent connection lost')
   })
 })
 
@@ -596,7 +596,7 @@ describe('removeProject cleans up taskModes', () => {
 })
 
 describe('applyTurnEnd', () => {
-  // In production, the ACP task_update event sets the task to 'paused' before
+  // In production, the task_update event sets the task to 'paused' before
   // turn_end fires, so applyTurnEnd never sees status === 'running' (it has a
   // guard that returns {} for running tasks to avoid clobbering a new turn).
   const baseState = (overrides?: Partial<Parameters<typeof applyTurnEnd>[0]>) => ({

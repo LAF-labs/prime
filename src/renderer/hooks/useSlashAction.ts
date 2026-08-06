@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { ipc } from '@/lib/ipc'
-import { isPassthroughCommand, parseCommand, runRpcCommand, RPC_COMMANDS } from '@/lib/agent-commands'
-import { track } from '@/lib/analytics'
+import { isPassthroughCommand, parseCommand, runRpcCommand, GUI_COMMANDS, RPC_COMMANDS } from '@/lib/agent-commands'
+import { useDebugStore } from '@/stores/debugStore'
 import { record } from '@/lib/analytics-collector'
 
 export type SlashPanel = 'model' | 'agent' | 'branch' | 'worktree' | null
@@ -30,11 +30,10 @@ const addSystemMessage = (text: string): void => {
 }
 
 /** Switch mode optimistically, then confirm via IPC.
- *  Works even before ACP connects (availableModes may be empty). */
+ *  Works even before the agent connects (availableModes may be empty). */
 const switchMode = (modeId: string, label: string): void => {
   useSettingsStore.setState({ currentModeId: modeId })
   addSystemMessage(`Switched to ${label} mode`)
-  track('feature_used', { feature: 'mode_switch', detail: modeId })
   record('mode_switch', { detail: modeId })
   const taskId = useTaskStore.getState().selectedTaskId
   if (taskId) {
@@ -48,18 +47,14 @@ export const useSlashAction = (): SlashActionResult => {
 
   const execute = useCallback((commandName: string): boolean => {
     const name = bare(commandName)
-    // Track every recognized slash command. The switch below rejects unknown
-    // names by returning false, so we gate the track call on that path via
-    // the `default` case.
+    // Record every recognized slash command for the local usage dashboard.
     const KNOWN = new Set([
-      'clear', 'model', 'agent', 'settings', 'upload', 'plan', 'usage', 'data',
-      'close', 'exit', 'branch', 'worktree', 'btw', 'tangent', 'fork',
-      'goal', 'autonomous', 'compact', 'refine',
+      ...GUI_COMMANDS.map((c) => c.name),
       ...RPC_COMMANDS.map((c) => c.name),
+      'goal', 'autonomous', 'compact', 'refine',
     ])
     if (KNOWN.has(name)) {
       const mode = useSettingsStore.getState().currentModeId === 'plan' ? 'plan' : 'command'
-      track('feature_used', { feature: 'slash_command', detail: name })
       record('slash_cmd', { detail: `${name}:${mode}` })
     }
     switch (name) {
@@ -88,6 +83,41 @@ export const useSlashAction = (): SlashActionResult => {
         useTaskStore.getState().setSettingsOpen(true)
         setPanel(null)
         return true
+      // CLI names for places the app already has. prime-agent's own /login and
+      // /logout edit the same auth.json the provider settings write to.
+      case 'login':
+      case 'logout':
+        useTaskStore.getState().setSettingsOpen(true, 'account')
+        setPanel(null)
+        return true
+      case 'hotkeys':
+        useTaskStore.getState().setSettingsOpen(true, 'keymap')
+        setPanel(null)
+        return true
+      case 'logs':
+        useDebugStore.getState().setOpen(true)
+        setPanel(null)
+        return true
+      case 'changelog':
+        document.dispatchEvent(new CustomEvent('slash-changelog'))
+        setPanel(null)
+        return true
+      case 'mcp':
+        document.dispatchEvent(new CustomEvent('slash-mcp'))
+        setPanel(null)
+        return true
+      case 'new': {
+        // Same thing the "+" button does: drop back to the composer for this
+        // project so the next message opens a fresh thread.
+        const { selectedTaskId, tasks, setPendingWorkspace, setSelectedTask } = useTaskStore.getState()
+        const workspace = selectedTaskId ? tasks[selectedTaskId]?.workspace : null
+        if (workspace) {
+          setSelectedTask(null)
+          setPendingWorkspace(workspace)
+        }
+        setPanel(null)
+        return true
+      }
       case 'upload':
         // Trigger the hidden file input — dispatched as a custom event picked up by ChatInput
         document.dispatchEvent(new CustomEvent('slash-upload'))
@@ -181,7 +211,6 @@ export const useSlashAction = (): SlashActionResult => {
           addSystemMessage('Open a thread first.')
           return true
         }
-        track('feature_used', { feature: 'slash_command', detail: name })
         void runRpcCommand(taskId, name, rest)
           .then((r) => { if (r.message) addSystemMessage(r.message) })
           .catch((e) => addSystemMessage(`⚠️ /${name} failed: ${e instanceof Error ? e.message : String(e)}`))
@@ -193,7 +222,6 @@ export const useSlashAction = (): SlashActionResult => {
     if (!match) return false
     const arg = match[1].trim()
     const { selectedTaskId, btwCheckpoint, exitBtwMode, enterBtwMode } = useTaskStore.getState()
-    track('feature_used', { feature: 'slash_command', detail: 'btw' })
     // If already in btw mode, exit
     if (btwCheckpoint) {
       const keepTail = arg.toLowerCase() === 'tail'

@@ -56,7 +56,7 @@ export const WhatsNewDialog = ({ open, entry, onDismiss }: WhatsNewDialogProps) 
           {entry.highlights.map((highlight) => (
             <li key={highlight} className="flex items-start gap-3 text-[14px] leading-relaxed text-foreground/80">
               <span className="mt-1.5 size-2 shrink-0 rounded-full bg-foreground/30" aria-hidden />
-              {highlight}
+              {t(highlight)}
             </li>
           ))}
         </ul>

@@ -4,36 +4,20 @@ export interface ChangelogEntry {
 }
 
 /**
- * Changelog entries ordered newest-first.
- * The first entry is shown in the "What's New" dialog after an update.
+ * Changelog entries ordered newest-first, mirroring `CHANGELOG.md`.
+ *
+ * The first entry is shown in the "What's New" dialog after an update and by
+ * the `/changelog` command. Add a new entry here in the same commit that bumps
+ * the version, or the dialog silently shows nothing.
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
-    version: '0.38.0',
+    version: '0.1.0',
     highlights: [
-      'Per-panel state and performance improvements for split view',
-      'Slash command mode tracking with estimated token cost',
-      'Fixed z-index conflict with settings panel',
-      'Plus 3 more improvements across the app',
-    ],
-  },
-  {
-    version: '0.37.0',
-    highlights: [
-      'Light, dark, and system theme toggle',
-      'Thread pinning to keep important conversations at the top',
-      'Always-visible close button on the right split panel',
-      'Permission requests now appear inside /btw overlay',
-      'Plus 4 more improvements across the app',
-    ],
-  },
-  {
-    version: '0.36.0',
-    highlights: [
-      'Split-screen view — two threads side by side with Cmd+\\',
-      'Drag-to-reorder projects and Cmd+N project jumping',
-      'Git init support for non-git projects',
-      'Plus 6 more improvements across the app',
+      'First release of LAF Agent, powered by Prime Agent',
+      'The agent runtime ships inside the app — install the DMG and start working',
+      'Per-tool permission approval before anything touches your files',
+      'Korean and English, following your system language',
     ],
   },
 ] as const

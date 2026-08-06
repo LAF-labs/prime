@@ -85,6 +85,13 @@ export const ResourcePanel = memo(function ResourcePanel({
 
   useEffect(() => { void loadConfig(activeWorkspace ?? undefined) }, [loadConfig, activeWorkspace])
 
+  // `/mcp` from the chat input expands the MCP group here.
+  useEffect(() => {
+    const handleOpen = () => setMcpOpen(true)
+    document.addEventListener('slash-mcp', handleOpen)
+    return () => document.removeEventListener('slash-mcp', handleOpen)
+  }, [])
+
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => {})
   }, [])

@@ -1,19 +1,52 @@
 /**
- * CLI parity: every prime-agent slash command, available in the GUI.
+ * CLI parity: the slash commands LAF Agent answers to, and how each one runs.
  *
- * prime-agent classifies its commands three ways, and so do we:
+ * This module is the **only** registry of client-side commands. The slash
+ * palette, the autocomplete descriptions, and the dispatchers in
+ * `useSlashAction` all read from it, so adding an entry here is enough to make
+ * a command discoverable and executable.
+ *
+ * prime-agent reaches us three different ways, so commands fall into three
+ * kinds:
  *
  * - **session** (`/goal`, `/autonomous`, `/compact`, `/refine`) — the agent
  *   session executes these itself on any transport, so sending them verbatim
  *   through the RPC `prompt` command reproduces the CLI exactly. We never
  *   intercept them.
- * - **rpc** — a typed RPC command does the same work (`clone`, `export_html`,
- *   `set_session_name`, heartbeats, …). Routed through `ipc.agentRpcRequest`.
- * - **gui** — TUI chrome that a desktop app owns natively (settings, logs,
- *   changelog, keyboard shortcuts, analytics).
+ * - **rpc** — a typed prime-agent RPC command does the same work (`clone`,
+ *   `export_html`, `set_session_name`, heartbeats, …). Routed through
+ *   `ipc.agentRpcRequest`.
+ * - **gui** — TUI chrome a desktop app owns natively: settings, logs,
+ *   changelog, shortcuts, analytics, thread lifecycle. We keep the CLI's name
+ *   as the entry point so muscle memory carries over.
  *
- * `PASSTHROUGH` and `RPC_COMMANDS` are the source of truth for the slash
- * palette, so a command added here shows up in autocomplete automatically.
+ * A fourth group arrives at runtime rather than from here: `get_commands`
+ * returns the agent's **extensions, prompt templates, and skills** (never its
+ * built-ins — see `createAgentConnectionCommands` in prime-agent). Those merge
+ * into the palette in `useChatInput` and execute through a plain `prompt`,
+ * because `AgentSession` dispatches extension commands and `/skill:` expansion
+ * on every transport.
+ *
+ * ## Deliberately absent
+ *
+ * These CLI commands drive the terminal UI itself and have no RPC method
+ * behind them, so there is nothing for a desktop client to call. Listing them
+ * would send the literal text `/fast` to the model, which is worse than
+ * leaving them out:
+ *
+ * | Command | Why not |
+ * |---|---|
+ * | `/fullscreen` | Alternate-screen rendering — meaningless in a window |
+ * | `/scoped-models` | Scopes the TUI's Ctrl+P cycling; the model picker covers it |
+ * | `/fast` | Toggles OpenAI Fast mode through TUI state only |
+ * | `/share` | Uploads a secret GitHub gist; no RPC method |
+ * | `/traces` | Trace upload/config; no RPC method |
+ * | `/rlm-max-depth` | No RPC method |
+ * | `/heartbeats` | Cross-session heartbeat manager; only the per-session
+ *   `get`/`set`/`update_heartbeat` methods are exposed |
+ *
+ * Descriptions are English source strings translated at render time — see
+ * `t()` in `@/lib/i18n`. Keep them short enough to sit on one palette row.
  */
 
 import { ipc } from '@/lib/ipc'
@@ -47,9 +80,50 @@ export const RPC_COMMANDS: readonly AgentCommandSpec[] = [
   { name: 'name', description: 'Name this session', argumentHint: '<name>', kind: 'rpc' },
   { name: 'rename', description: 'Rename this session', argumentHint: '<name>', kind: 'rpc' },
   { name: 'session', description: 'Show session stats (tokens, cost, context)', kind: 'rpc' },
+  { name: 'context', description: 'Show token, cost, and context usage', kind: 'rpc' },
   { name: 'thinking', description: 'Set reasoning effort', argumentHint: 'off | minimal | low | medium | high | xhigh', kind: 'rpc' },
   { name: 'effort', description: 'Set reasoning effort (alias for /thinking)', argumentHint: 'off | minimal | low | medium | high | xhigh', kind: 'rpc' },
   { name: 'heartbeat', description: 'Schedule a recurring nudge for this session', argumentHint: 'status | clear | <schedule> -- <prompt>', kind: 'rpc' },
+] as const
+
+/**
+ * Commands the desktop app handles itself, dispatched by `useSlashAction`.
+ *
+ * The first group is native to a GUI; the second keeps the CLI's name for a
+ * place the app already had (`/logs` opens the debug panel, `/login` opens the
+ * provider settings) so someone coming from the terminal finds it by typing
+ * what they already know.
+ */
+export const GUI_COMMANDS: readonly AgentCommandSpec[] = [
+  { name: 'new', description: 'Start a new thread in this project', kind: 'gui' },
+  { name: 'clear', description: 'Clear the current conversation', kind: 'gui' },
+  { name: 'close', description: 'Close and archive the current thread', kind: 'gui' },
+  { name: 'exit', description: 'Close and archive the current thread', kind: 'gui' },
+  { name: 'fork', description: 'Fork this thread into a new conversation', kind: 'gui' },
+  { name: 'btw', description: 'Ask a side question without adding it to the session', argumentHint: '<question>', kind: 'gui' },
+  { name: 'tangent', description: 'Ask a side question (alias for /btw)', argumentHint: '<question>', kind: 'gui' },
+  { name: 'model', description: 'Switch the active model', kind: 'gui' },
+  { name: 'agent', description: 'Switch between agents or list available ones', kind: 'gui' },
+  { name: 'plan', description: 'Toggle plan mode on or off', kind: 'gui' },
+  { name: 'upload', description: 'Attach images or files', kind: 'gui' },
+  { name: 'branch', description: 'Create and check out a git branch', kind: 'gui' },
+  { name: 'worktree', description: 'Create a worktree and a thread inside it', kind: 'gui' },
+  { name: 'settings', description: 'Open settings', kind: 'gui' },
+  { name: 'login', description: 'Configure provider authentication', kind: 'gui' },
+  { name: 'logout', description: 'Remove provider authentication', kind: 'gui' },
+  { name: 'mcp', description: 'Manage MCP connections', kind: 'gui' },
+  { name: 'hotkeys', description: 'Show all keyboard shortcuts', kind: 'gui' },
+  { name: 'logs', description: 'Open the debug log panel', kind: 'gui' },
+  { name: 'changelog', description: 'Show what changed in this release', kind: 'gui' },
+  { name: 'usage', description: 'Open the analytics dashboard', kind: 'gui' },
+  { name: 'data', description: 'Open the analytics dashboard (alias for /usage)', kind: 'gui' },
+] as const
+
+/** Every command this client knows, in palette order. */
+export const CLIENT_COMMANDS: readonly AgentCommandSpec[] = [
+  ...PASSTHROUGH_COMMANDS,
+  ...RPC_COMMANDS,
+  ...GUI_COMMANDS,
 ] as const
 
 export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
@@ -127,7 +201,8 @@ export const runRpcCommand = async (
       await ipc.agentRpcRequest(taskId, 'set_session_name', { name: rest })
       return { handled: true, message: `Session renamed to "${rest}".` }
     }
-    case 'session': {
+    case 'session':
+    case 'context': {
       const data = (await ipc.agentRpcRequest(taskId, 'get_session_stats')) as Record<string, unknown>
       return { handled: true, message: formatStats(data) || 'No session stats available.' }
     }

@@ -4,33 +4,12 @@ import { cn } from '@/lib/utils'
 import { fuzzyScore } from '@/lib/fuzzy-search'
 import type { SlashCommand } from '@/stores/settingsStore'
 
-// Strip leading slash from command name (ACP sends "/agent", we display "/agent" ourselves)
+// The agent may send names with a leading slash; we render the slash ourselves.
 const displayName = (name: string): string => name.replace(/^\/+/, '')
 
-// ── Prime Agent-accurate descriptions (fallback when ACP description is generic) ──
-const COMMAND_DESCRIPTIONS: Record<string, string> = {
-  agent: 'Switch between agents or list available ones',
-  branch: 'Create and checkout a new branch',
-  btw: 'Ask a side question without polluting conversation history',
-  chat: 'Pass through to backend chat command',
-  clear: 'Clear the current conversation',
-  code: 'Initialize or manage code intelligence workspace',
-  compact: 'Summarize conversation to free up context',
-  context: 'Manage context files or view token usage',
-  data: 'Open the analytics dashboard with usage stats and charts',
-  feedback: 'Submit feedback, request features, or report issues',
-  fork: 'Fork current thread into a new conversation branch',
-  help: 'Get help with prime-agent CLI features and commands',
-  knowledge: 'Add, search, or manage your knowledge base',
-  model: 'Switch the active AI model',
-  plan: 'Toggle plan mode on or off',
-  prompts: 'Manage reusable prompt templates',
-  settings: 'Open application settings',
-  tangent: 'Ask a side question (alias for /btw)',
-  tools: 'View or configure available tools',
-  usage: 'Open the analytics dashboard with usage stats and charts',
-  worktree: 'Create a worktree and new thread for isolated work',
-}
+// Descriptions arrive ready to render: `useChatInput` translates our own
+// registry entries, and the agent supplies its own text for extension,
+// prompt-template, and skill commands. Nothing to override here.
 
 // ── Per-command SVG icons ───────────────────────────────────────────
 const icon = (d: string) => () => (
@@ -40,6 +19,20 @@ const icon = (d: string) => () => (
 )
 
 const COMMAND_ICONS: Record<string, () => React.ReactNode> = {
+  changelog: icon('M4 4h16v16H4zM8 9h8M8 13h5'),
+  clone: icon('M9 9h10v10H9zM5 15V5h10'),
+  copy: icon('M9 9h10v10H9zM5 15V5h10'),
+  export: icon('M12 3v12M8 11l4 4 4-4M4 19h16'),
+  goal: icon('M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0'),
+  heartbeat: icon('M3 12h4l2-6 4 12 2-6h6'),
+  hotkeys: icon('M4 6h16v12H4zM8 10h.01M12 10h.01M16 10h.01M8 14h8'),
+  login: icon('M15 3h4v18h-4M10 17l5-5-5-5M3 12h12'),
+  logout: icon('M9 3H5v18h4M14 17l5-5-5-5M21 12H9'),
+  logs: icon('M4 4h16v16H4zM8 8h8M8 12h8M8 16h4'),
+  mcp: icon('M12 3v6M5 9h14v6H5zM9 15v6M15 15v6'),
+  new: icon('M12 5v14M5 12h14'),
+  session: icon('M3 12h4l2-6 4 12 2-6h6'),
+  thinking: icon('M12 3a6 6 0 0 0-4 10.5V17h8v-3.5A6 6 0 0 0 12 3zM9 21h6'),
   agent: () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 0 0-16 0" />
@@ -55,15 +48,9 @@ const COMMAND_ICONS: Record<string, () => React.ReactNode> = {
       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
     </svg>
   ),
-  chat: icon('M7.9 20A9 9 0 1 0 4 16.1L2 22z'),
   clear: () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M5 6l1 14h12l1-14" />
-    </svg>
-  ),
-  code: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
     </svg>
   ),
   data: () => (
@@ -77,24 +64,9 @@ const COMMAND_ICONS: Record<string, () => React.ReactNode> = {
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
     </svg>
   ),
-  feedback: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  ),
   fork: () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" /><path d="M12 15V9" /><path d="M6 9v3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V9" />
-    </svg>
-  ),
-  help: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r=".5" fill="currentColor" />
-    </svg>
-  ),
-  knowledge: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
     </svg>
   ),
   model: () => (
@@ -107,11 +79,6 @@ const COMMAND_ICONS: Record<string, () => React.ReactNode> = {
       <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M8 7h8M8 12h8M8 17h4" />
     </svg>
   ),
-  prompts: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-    </svg>
-  ),
   settings: () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -122,11 +89,6 @@ const COMMAND_ICONS: Record<string, () => React.ReactNode> = {
       <path d="M15.02 19.52c-2.341 .736 -5 .606 -7.32 -.52l-4.7 1l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c1.649 1.407 2.575 3.253 2.742 5.152" />
       <path d="M19 22v.01" />
       <path d="M19 19a2.003 2.003 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483" />
-    </svg>
-  ),
-  tools: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
     </svg>
   ),
   usage: () => (
@@ -163,7 +125,7 @@ export const SlashCommandPicker = memo(function SlashCommandPicker({
     ? commands
         .map((c) => {
           const name = displayName(c.name)
-          const desc = COMMAND_DESCRIPTIONS[name] ?? c.description ?? ''
+          const desc = c.description ?? ''
           const nameScore = fuzzyScore(query, name)
           const descScore = fuzzyScore(query, desc)
           const best = nameScore !== null && descScore !== null
@@ -190,7 +152,7 @@ export const SlashCommandPicker = memo(function SlashCommandPicker({
         {filtered.map((cmd, i) => {
           const name = displayName(cmd.name)
           const Icon = COMMAND_ICONS[name] ?? DefaultIcon
-          const description = COMMAND_DESCRIPTIONS[name] ?? cmd.description ?? ''
+          const description = cmd.description ?? ''
           const isActive = i === activeIndex % filtered.length
           return (
             <li

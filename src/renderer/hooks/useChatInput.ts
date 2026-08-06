@@ -10,7 +10,8 @@ import { resolveMentions, buildFolderTree } from '@/lib/resolve-mentions'
 import { ipc } from '@/lib/ipc'
 import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { InlineCommandKind } from '@/components/chat/InlineCommandPicker'
-import { PASSTHROUGH_COMMANDS, RPC_COMMANDS } from '@/lib/agent-commands'
+import { CLIENT_COMMANDS } from '@/lib/agent-commands'
+import { t } from '@/lib/i18n'
 
 export interface PastedChunk {
   id: number
@@ -218,31 +219,22 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
   const historyIndexRef = useRef(-1)
   const draftRef = useRef('')  // save the user's in-progress text when entering history
 
+  // The agent's own commands (extensions, prompt templates, skills) come first
+  // because they are project-specific; ours fill in behind them. A name the
+  // agent already advertises wins, so a project can override a built-in.
+  //
+  // Descriptions are translated here rather than in the registry: `t()` reads
+  // the active locale at call time, and LocaleBoundary remounts this tree when
+  // the locale changes, so the memo recomputes with the new language.
   const commands = useMemo(() => {
-    const clientCommands: Array<{ name: string; description?: string }> = [
-      // prime-agent parity — session-executed and RPC-backed commands
-      ...PASSTHROUGH_COMMANDS.map((c) => ({ name: c.name, description: c.description })),
-      ...RPC_COMMANDS.map((c) => ({ name: c.name, description: c.description })),
-      { name: 'settings', description: 'Open application settings' },
-      { name: 'clear', description: 'Clear the current conversation' },
-      { name: 'model', description: 'Switch the active AI model' },
-      { name: 'agent', description: 'Switch between agents or list available ones' },
-      { name: 'plan', description: 'Toggle plan mode on or off' },
-      { name: 'upload', description: 'Upload images or files' },
-      { name: 'usage', description: 'Open the analytics dashboard' },
-      { name: 'data', description: 'Open the analytics dashboard' },
-      { name: 'branch', description: 'Create and checkout a new git branch' },
-      { name: 'worktree', description: 'Create a worktree and spawn a new thread in it' },
-      { name: 'close', description: 'Close and delete the current thread' },
-      { name: 'exit', description: 'Close and delete the current thread' },
-      { name: 'btw', description: 'Ask a side question without polluting conversation history' },
-      { name: 'tangent', description: 'Ask a side question (alias for /btw)' },
-    ]
     const HIDDEN_COMMANDS = new Set(['reply'])
-    const filtered = backendCommands.filter((c) => !HIDDEN_COMMANDS.has(c.name.replace(/^\/+/, '')))
-    const names = new Set(filtered.map((c) => c.name.replace(/^\/+/, '')))
-    const visibleClientCommands = clientCommands.filter((c) => !names.has(c.name) && !HIDDEN_COMMANDS.has(c.name))
-    return [...filtered, ...visibleClientCommands]
+    const bare = (name: string) => name.replace(/^\/+/, '')
+    const filtered = backendCommands.filter((c) => !HIDDEN_COMMANDS.has(bare(c.name)))
+    const advertised = new Set(filtered.map((c) => bare(c.name)))
+    const ours = CLIENT_COMMANDS
+      .filter((c) => !advertised.has(c.name) && !HIDDEN_COMMANDS.has(c.name))
+      .map((c) => ({ name: c.name, description: t(c.description) }))
+    return [...filtered, ...ours]
   }, [backendCommands])
 
   // ── Cursor-based slash trigger (mirrors mention detection) ───

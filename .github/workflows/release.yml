@@ -83,13 +83,26 @@ jobs:
             echo "No Apple signing secrets — building an unsigned rehearsal draft."
           fi
 
+      # The bundler wants the key as the base64 blob `tauri signer generate`
+      # writes to disk. A human pasting the *decoded* two-line minisign text
+      # into the secret is an easy mistake (it happened), and the failure is a
+      # cryptic "Invalid symbol 32" mid-build — so accept both encodings here.
+      - name: Normalize the updater signing key
+        run: |
+          KEY='${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}'
+          if [ -z "$KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set — the updater cannot sign, and unsigned manifests are refused by the app."
+            exit 1
+          fi
+          case "$KEY" in
+            untrusted*) KEY=$(printf '%s' "$KEY" | base64 | tr -d '\n') ;;
+          esac
+          echo "TAURI_SIGNING_PRIVATE_KEY=$KEY" >> "$GITHUB_ENV"
+
       - name: Build, sign updater artifacts, and publish draft
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # The updater signature is not optional: the app refuses unsigned
-          # manifests, so a draft without it could never be offered to anyone.
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}

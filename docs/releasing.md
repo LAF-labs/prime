@@ -63,3 +63,28 @@ published by hand. Check the DMG opens on a clean machine first.
 Releases target Apple Silicon only (`--target aarch64-apple-darwin`); the
 sidecar ships arm64 native modules. Windows is planned but not built or
 tested, and the Linux bundle targets are configured but unexercised.
+
+## Release QA checklist
+
+Run top to bottom for every release. Steps marked ⚙ are automatable and were
+machine-verified during the v0.1.x rehearsal; steps marked 👤 need a human.
+
+1. ⚙ CI green on the tag (typecheck, lint gate, 1.3k+ frontend tests, 320+
+   Rust tests, macOS `-D warnings`).
+2. ⚙ Draft release exists with: `.dmg`, `.app.tar.gz`, `.app.tar.gz.sig`,
+   `latest.json`.
+3. ⚙ `latest.json` sanity: `version` matches the tag, `platforms` has
+   `darwin-aarch64`, the download URL points at this release's asset.
+4. ⚙ Signature chain: the `.sig` verifies against the pubkey in
+   `tauri.conf.json` (minisign format — `tauri signer` produced it).
+5. ⚙ DMG mounts; the app inside contains the sidecar
+   (`Contents/Resources/prime-agent/` with `node`, `uv`, `dist/`).
+6. 👤 Fresh-account install: onboarding completes with a real API key, first
+   message round-trips, app restart restores the session.
+7. 👤 Update loop: with the previous version installed and this release
+   published, launching the old app shows the update dialog; accepting it
+   downloads, restarts, and reports the new version in About.
+8. 👤 Publish the draft. Nothing is offered to users before this step.
+
+Unsigned rehearsal drafts (no Apple secrets) will trip Gatekeeper on other
+machines — right-click → Open, or `xattr -dr com.apple.quarantine`.

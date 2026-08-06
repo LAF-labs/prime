@@ -386,9 +386,9 @@ export const ipc = {
     invoke('generate_pr_content', { cwd, baseBranch, workspace }),
 
   // ── Thread Database (SQLite persistence) ────────────────────────────────────
-  threadDbList: (): Promise<Array<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown }>> =>
+  threadDbList: (): Promise<Array<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown; messageCount: number }>> =>
     invoke('thread_db_list'),
-  threadDbLoad: (threadId: string): Promise<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown } | null> =>
+  threadDbLoad: (threadId: string): Promise<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown; messageCount?: number } | null> =>
     invoke('thread_db_load', { threadId }),
   threadDbSave: (thread: { id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown }): Promise<void> =>
     invoke('thread_db_save', { thread }),

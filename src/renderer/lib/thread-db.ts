@@ -13,6 +13,7 @@
  * - The JSON history-store is retained as a fallback/backup layer.
  */
 import type { AgentTask, TaskMessage, ToolCall, ToolCallSplit } from '@/types'
+import type { ArchivedThreadMeta } from '@/lib/history-store'
 import { ipc } from '@/lib/ipc'
 
 // ── Types matching the Rust backend ──────────────────────────────
@@ -27,6 +28,9 @@ interface DbThread {
   parentThreadId?: string
   autoApprove: boolean
   metadata?: unknown
+  /** Derived on read, so listing alone is enough to render a sidebar row.
+   *  Absent on the objects we construct for writing. */
+  messageCount?: number
 }
 
 interface DbMessage {
@@ -225,6 +229,33 @@ export async function loadFullThread(threadId: string): Promise<AgentTask | null
 /** List all threads (metadata only, no messages) */
 export async function listThreads(): Promise<DbThread[]> {
   return ipc.threadDbList()
+}
+
+/**
+ * Every thread SQLite knows about, shaped for the sidebar.
+ *
+ * The sidebar is otherwise built entirely from `history.json`, which means a
+ * damaged or truncated index makes conversations unreachable even though their
+ * messages are sitting right here. This is the path that turns that from
+ * permanent loss into a reload.
+ */
+export async function listThreadMeta(): Promise<ArchivedThreadMeta[]> {
+  const threads = await ipc.threadDbList()
+  return threads.map((t) => {
+    const metadata = t.metadata as Record<string, string> | undefined
+    return {
+      id: t.id,
+      name: t.name,
+      workspace: t.workspace,
+      createdAt: t.createdAt,
+      lastActivityAt: t.updatedAt,
+      messageCount: t.messageCount ?? 0,
+      ...(t.parentThreadId ? { parentTaskId: t.parentThreadId } : {}),
+      ...(metadata?.worktreePath ? { worktreePath: metadata.worktreePath } : {}),
+      ...(metadata?.originalWorkspace ? { originalWorkspace: metadata.originalWorkspace } : {}),
+      ...(metadata?.projectId ? { projectId: metadata.projectId } : {}),
+    }
+  })
 }
 
 /** Delete a thread and all its messages */

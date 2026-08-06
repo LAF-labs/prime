@@ -113,6 +113,10 @@ pub struct DbThread {
     pub parent_thread_id: Option<String>,
     pub auto_approve: bool,
     pub metadata: Option<serde_json::Value>,
+    /// How many messages this thread holds. Listing is the recovery path when
+    /// the JSON index is gone, and a sidebar row has to say how much is there.
+    #[serde(default)]
+    pub message_count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -576,7 +580,8 @@ impl ThreadDatabase {
         let id = id.to_string();
         self.read(move |conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, name, workspace, status, created_at, updated_at, parent_thread_id, auto_approve, metadata FROM threads WHERE id = ?1",
+                "SELECT id, name, workspace, status, created_at, updated_at, parent_thread_id, auto_approve, metadata, \
+                 (SELECT COUNT(*) FROM messages WHERE thread_id = threads.id) FROM threads WHERE id = ?1",
             )?;
 
             let result = stmt.query_row([&id], |row| {
@@ -591,6 +596,7 @@ impl ThreadDatabase {
                     parent_thread_id: row.get(6)?,
                     auto_approve: row.get::<_, i32>(7)? != 0,
                     metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+                    message_count: row.get(9)?,
                 })
             });
 
@@ -606,7 +612,8 @@ impl ThreadDatabase {
     pub async fn list_threads(&self) -> Result<Vec<DbThread>, ThreadDbError> {
         self.read(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, name, workspace, status, created_at, updated_at, parent_thread_id, auto_approve, metadata FROM threads ORDER BY updated_at DESC",
+                "SELECT id, name, workspace, status, created_at, updated_at, parent_thread_id, auto_approve, metadata, \
+                 (SELECT COUNT(*) FROM messages WHERE thread_id = threads.id) FROM threads ORDER BY updated_at DESC",
             )?;
 
             let threads = stmt
@@ -622,6 +629,7 @@ impl ThreadDatabase {
                         parent_thread_id: row.get(6)?,
                         auto_approve: row.get::<_, i32>(7)? != 0,
                         metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+                        message_count: row.get(9)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
@@ -638,7 +646,8 @@ impl ThreadDatabase {
         let workspace = workspace.to_string();
         self.read(move |conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, name, workspace, status, created_at, updated_at, parent_thread_id, auto_approve, metadata FROM threads WHERE workspace = ?1 ORDER BY updated_at DESC",
+                "SELECT id, name, workspace, status, created_at, updated_at, parent_thread_id, auto_approve, metadata, \
+                 (SELECT COUNT(*) FROM messages WHERE thread_id = threads.id) FROM threads WHERE workspace = ?1 ORDER BY updated_at DESC",
             )?;
 
             let threads = stmt
@@ -654,6 +663,7 @@ impl ThreadDatabase {
                         parent_thread_id: row.get(6)?,
                         auto_approve: row.get::<_, i32>(7)? != 0,
                         metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+                        message_count: row.get(9)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
@@ -902,25 +912,17 @@ impl ThreadDatabase {
             Ok(rows)
         })?;
 
-        if stale_threads.is_empty() {
-            return Ok(vec![]);
-        }
-
-        // Delete the stale threads from the database (write path).
-        let ids: Vec<String> = stale_threads.iter().map(|t| t.id.clone()).collect();
-        self.write(move |conn| {
-            let tx = conn.unchecked_transaction()?;
-            for id in &ids {
-                // Delete messages first so the AFTER DELETE trigger cleans up FTS
-                tx.execute("DELETE FROM messages WHERE thread_id = ?1", [id])?;
-                tx.execute("DELETE FROM thread_context WHERE thread_id = ?1", [id])?;
-                tx.execute("DELETE FROM threads WHERE id = ?1", [id])?;
-            }
-            tx.commit()?;
-            Ok(())
-        })
-        .await?;
-
+        // Deliberately a query and nothing more.
+        //
+        // This used to DELETE the messages of every thread past the retention
+        // window, leaving `history.json` as the only copy — the one file with
+        // no atomic write and no schema version. A setting labelled "archive"
+        // was destroying the durable copy, and the only recovery path we have
+        // reads from exactly the rows it removed.
+        //
+        // Archiving is a UI state: the caller moves these threads out of the
+        // sidebar's active list. The bytes stay until the user deletes the
+        // thread themselves, which now really does erase them.
         Ok(stale_threads)
     }
 
@@ -1047,6 +1049,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1105,6 +1108,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1135,6 +1139,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
 
         db.save_thread(&thread).await.unwrap();
@@ -1160,6 +1165,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1193,6 +1199,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1231,6 +1238,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1268,6 +1276,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1298,6 +1307,98 @@ mod tests {
         assert_eq!(results[0].thread_name, "Search Thread");
     }
 
+    /// Archiving is a sidebar state, not a deletion. If it removed the rows,
+    /// the only remaining copy would be the JSON index — the store with no
+    /// atomic write — and the recovery path would have nothing to read.
+    #[tokio::test]
+    async fn auto_archive_reports_stale_threads_without_destroying_them() {
+        let db = ThreadDatabase::open_memory().unwrap();
+
+        db.save_thread(&DbThread {
+            id: "ancient".into(),
+            name: "Ancient Thread".into(),
+            workspace: "/projects/alpha".into(),
+            status: "completed".into(),
+            created_at: "2020-01-01T00:00:00Z".into(),
+            updated_at: "2020-01-01T00:00:00Z".into(),
+            parent_thread_id: None,
+            auto_approve: false,
+            metadata: None,
+            message_count: 0,
+        })
+        .await
+        .unwrap();
+        db.save_message(&DbMessage {
+            id: 0,
+            thread_id: "ancient".into(),
+            role: "user".into(),
+            content: "something worth keeping".into(),
+            timestamp: "2020-01-01T00:00:01Z".into(),
+            thinking: None,
+            tool_calls: None,
+        })
+        .await
+        .unwrap();
+
+        let archived = db.auto_archive_stale(30).await.unwrap();
+        assert_eq!(archived.len(), 1, "the stale thread should be reported");
+        assert_eq!(archived[0].id, "ancient");
+
+        let still_there = db.load_thread("ancient").await.unwrap();
+        assert!(still_there.is_some(), "archiving must not delete the thread");
+        let messages = db.load_messages("ancient").await.unwrap();
+        assert_eq!(messages.len(), 1, "archiving must not delete the messages");
+        assert_eq!(messages[0].content, "something worth keeping");
+    }
+
+    /// Listing is the recovery path when the JSON index is lost, so it has to
+    /// carry enough to build a sidebar row — including how much is in there.
+    #[tokio::test]
+    async fn listing_reports_how_many_messages_each_thread_holds() {
+        let db = ThreadDatabase::open_memory().unwrap();
+
+        for (id, count) in [("busy", 3), ("empty", 0)] {
+            db.save_thread(&DbThread {
+                id: id.into(),
+                name: format!("Thread {id}"),
+                workspace: "/projects/alpha".into(),
+                status: "idle".into(),
+                created_at: "2024-01-01T00:00:00Z".into(),
+                updated_at: "2024-01-01T00:00:00Z".into(),
+                parent_thread_id: None,
+                auto_approve: false,
+                metadata: None,
+                message_count: 0, // ignored on write; derived on read
+            })
+            .await
+            .unwrap();
+
+            for i in 0..count {
+                db.save_message(&DbMessage {
+                    id: 0,
+                    thread_id: id.into(),
+                    role: "user".into(),
+                    content: format!("message {i}"),
+                    timestamp: "2024-01-01T00:00:01Z".into(),
+                    thinking: None,
+                    tool_calls: None,
+                })
+                .await
+                .unwrap();
+            }
+        }
+
+        let listed = db.list_threads().await.unwrap();
+        let busy = listed.iter().find(|t| t.id == "busy").expect("busy thread");
+        let empty = listed.iter().find(|t| t.id == "empty").expect("empty thread");
+        assert_eq!(busy.message_count, 3);
+        assert_eq!(empty.message_count, 0);
+
+        // The by-id path feeds hydration, so it needs the same figure.
+        let loaded = db.load_thread("busy").await.unwrap().expect("loaded");
+        assert_eq!(loaded.message_count, 3);
+    }
+
     #[tokio::test]
     async fn test_stats() {
         let db = ThreadDatabase::open_memory().unwrap();
@@ -1312,6 +1413,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 
@@ -1349,6 +1451,7 @@ mod tests {
             parent_thread_id: None,
             auto_approve: false,
             metadata: None,
+            message_count: 0,
         };
         db.save_thread(&thread).await.unwrap();
 

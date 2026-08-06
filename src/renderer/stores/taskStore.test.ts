@@ -39,6 +39,8 @@ vi.mock('@/lib/thread-db', () => ({
   loadMessages: vi.fn().mockResolvedValue([]),
   migrateFromJsonHistory: vi.fn().mockResolvedValue({ migrated: 0, skipped: 0, failed: 0 }),
   clearAll: vi.fn().mockResolvedValue(undefined),
+  listThreadMeta: vi.fn().mockResolvedValue([]),
+  deleteThread: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('./debugStore', () => ({
   useDebugStore: { getState: () => ({ addEntry: vi.fn() }) },
@@ -876,6 +878,168 @@ describe('autoArchiveStaleThreads', () => {
 
     expect(useTaskStore.getState().tasks['recent-1']).toBeDefined()
     ;(settingsMod.useSettingsStore as any).getState = originalGetState
+  })
+})
+
+describe('auto-archive does not resurrect deleted threads', () => {
+  it('skips threads the user has deleted', async () => {
+    // Archiving no longer removes the SQLite rows, so the backend reports the
+    // same stale threads on every startup. A thread the user deleted must not
+    // come back to the sidebar on the next launch.
+    const { ipc } = await import('@/lib/ipc')
+    const settingsMod = await import('./settingsStore')
+    const originalGetState = settingsMod.useSettingsStore.getState
+    ;(settingsMod.useSettingsStore as any).getState = () => ({
+      settings: { autoArchiveDays: 30 },
+      saveSettings: vi.fn().mockResolvedValue(undefined),
+      setActiveWorkspace: mockSetActiveWorkspace,
+    })
+    useTaskStore.setState({
+      historyLoaded: true,
+      tasks: {},
+      archivedMeta: {},
+      deletedTaskIds: new Set(['removed']),
+      softDeleted: { binned: { task: makeTask({ id: 'binned' }), deletedAt: new Date().toISOString() } },
+    })
+    vi.mocked(ipc.threadDbAutoArchive).mockResolvedValueOnce([
+      { id: 'removed', name: 'Removed', workspace: '/ws', createdAt: '', lastActivityAt: '', messageCount: 2 },
+      { id: 'binned', name: 'Binned', workspace: '/ws', createdAt: '', lastActivityAt: '', messageCount: 2 },
+      { id: 'stale', name: 'Stale', workspace: '/ws', createdAt: '', lastActivityAt: '', messageCount: 2 },
+    ])
+
+    useTaskStore.getState().autoArchiveStaleThreads()
+    await vi.waitFor(() => {
+      expect(useTaskStore.getState().archivedMeta['stale']).toBeDefined()
+    })
+
+    expect(useTaskStore.getState().archivedMeta['removed']).toBeUndefined()
+    expect(useTaskStore.getState().archivedMeta['binned']).toBeUndefined()
+    ;(settingsMod.useSettingsStore as any).getState = originalGetState
+  })
+})
+
+describe('permanent deletion reaches the database', () => {
+  const softDeleteOf = (id: string, deletedAt = new Date().toISOString()) => ({
+    task: makeTask({ id }),
+    deletedAt,
+  })
+
+  it('erases a permanently deleted thread from SQLite', async () => {
+    const { deleteThread } = await import('@/lib/thread-db')
+    vi.mocked(deleteThread).mockClear()
+    useTaskStore.setState({ historyLoaded: true, softDeleted: { secret: softDeleteOf('secret') } })
+
+    useTaskStore.getState().permanentlyDeleteTask('secret')
+
+    // Someone deletes a thread because they pasted a key into it. Dropping it
+    // from the sidebar alone leaves the messages and the FTS index intact.
+    expect(vi.mocked(deleteThread)).toHaveBeenCalledWith('secret')
+  })
+
+  it('erases threads that age out of the recovery window', async () => {
+    const { deleteThread } = await import('@/lib/thread-db')
+    vi.mocked(deleteThread).mockClear()
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+    useTaskStore.setState({
+      historyLoaded: true,
+      softDeleted: { old: softDeleteOf('old', threeDaysAgo), fresh: softDeleteOf('fresh') },
+    })
+
+    useTaskStore.getState().purgeExpiredSoftDeletes()
+
+    expect(vi.mocked(deleteThread)).toHaveBeenCalledWith('old')
+    expect(vi.mocked(deleteThread)).not.toHaveBeenCalledWith('fresh')
+  })
+
+  it('erases everything when the user empties the bin', async () => {
+    const { deleteThread } = await import('@/lib/thread-db')
+    vi.mocked(deleteThread).mockClear()
+    useTaskStore.setState({
+      historyLoaded: true,
+      softDeleted: { a: softDeleteOf('a'), b: softDeleteOf('b') },
+    })
+
+    useTaskStore.getState().purgeAllSoftDeletes()
+
+    expect(vi.mocked(deleteThread).mock.calls.map((c) => c[0]).sort()).toEqual(['a', 'b'])
+  })
+})
+
+describe('loadTasks — recovery from SQLite', () => {
+  const dbMeta = (id: string, messageCount = 4) => ({
+    id,
+    name: `Thread ${id}`,
+    workspace: '/ws-recovered',
+    createdAt: '2026-01-01T00:00:00Z',
+    lastActivityAt: '2026-01-02T00:00:00Z',
+    messageCount,
+  })
+
+  it('brings back threads the JSON index no longer lists', async () => {
+    // The exact aftermath of a truncated history.json: the index is empty, but
+    // the message bodies are still in SQLite. Without this the conversations
+    // are unreachable forever.
+    const { ipc } = await import('@/lib/ipc')
+    const { loadThreads, loadProjects } = await import('@/lib/history-store')
+    const { listThreadMeta } = await import('@/lib/thread-db')
+    vi.mocked(ipc.listTasks).mockResolvedValueOnce([])
+    vi.mocked(loadThreads).mockResolvedValueOnce([])
+    vi.mocked(loadProjects).mockResolvedValueOnce([])
+    vi.mocked(listThreadMeta).mockResolvedValueOnce([dbMeta('lost-1'), dbMeta('lost-2')])
+
+    await useTaskStore.getState().loadTasks()
+
+    const { archivedMeta, projects } = useTaskStore.getState()
+    expect(Object.keys(archivedMeta).sort()).toEqual(['lost-1', 'lost-2'])
+    expect(projects).toContain('/ws-recovered')
+  })
+
+  it('leaves deleted threads deleted', async () => {
+    const { ipc } = await import('@/lib/ipc')
+    const { loadThreads, loadProjects, loadSoftDeleted } = await import('@/lib/history-store')
+    const { listThreadMeta } = await import('@/lib/thread-db')
+    vi.mocked(ipc.listTasks).mockResolvedValueOnce([])
+    vi.mocked(loadThreads).mockResolvedValueOnce([])
+    vi.mocked(loadProjects).mockResolvedValueOnce([])
+    vi.mocked(loadSoftDeleted).mockResolvedValueOnce([
+      { task: makeTask({ id: 'gone' }), deletedAt: new Date().toISOString() },
+    ])
+    vi.mocked(listThreadMeta).mockResolvedValueOnce([dbMeta('gone')])
+
+    await useTaskStore.getState().loadTasks()
+
+    // Recovery must not resurrect what the user removed.
+    expect(useTaskStore.getState().archivedMeta['gone']).toBeUndefined()
+  })
+
+  it('ignores empty shells so the sidebar has no rows that open to nothing', async () => {
+    const { ipc } = await import('@/lib/ipc')
+    const { loadThreads, loadProjects } = await import('@/lib/history-store')
+    const { listThreadMeta } = await import('@/lib/thread-db')
+    vi.mocked(ipc.listTasks).mockResolvedValueOnce([])
+    vi.mocked(loadThreads).mockResolvedValueOnce([])
+    vi.mocked(loadProjects).mockResolvedValueOnce([])
+    vi.mocked(listThreadMeta).mockResolvedValueOnce([dbMeta('shell', 0)])
+
+    await useTaskStore.getState().loadTasks()
+
+    expect(useTaskStore.getState().archivedMeta['shell']).toBeUndefined()
+  })
+
+  it('still starts when SQLite cannot be reached', async () => {
+    const { ipc } = await import('@/lib/ipc')
+    const { loadThreads, loadProjects } = await import('@/lib/history-store')
+    const { listThreadMeta } = await import('@/lib/thread-db')
+    const liveTask = makeTask({ id: 'live-1', workspace: '/ws1' })
+    vi.mocked(ipc.listTasks).mockResolvedValueOnce([liveTask])
+    vi.mocked(loadThreads).mockResolvedValueOnce([])
+    vi.mocked(loadProjects).mockResolvedValueOnce([])
+    vi.mocked(listThreadMeta).mockRejectedValueOnce(new Error('db locked'))
+
+    await useTaskStore.getState().loadTasks()
+
+    expect(useTaskStore.getState().tasks['live-1']).toBeDefined()
+    expect(useTaskStore.getState().historyLoaded).toBe(true)
   })
 })
 

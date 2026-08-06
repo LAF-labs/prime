@@ -28,6 +28,60 @@ interface SavedThreadLike {
   projectId?: string
 }
 
+/**
+ * Really delete these threads, messages and search index included.
+ *
+ * Dropping a thread from the JS state only removes it from the sidebar; the
+ * messages stay in SQLite and in the FTS index indefinitely. When someone
+ * deletes a conversation because they pasted a key or a client's code into it,
+ * the app told them it was gone and it was not.
+ */
+const eraseFromDb = (ids: string[]): void => {
+  for (const id of ids) {
+    threadDb.deleteThread(id).catch((err) => {
+      console.warn(`[taskStore] could not erase thread ${id} from SQLite:`, err)
+    })
+  }
+}
+
+/**
+ * Add threads that only SQLite knows about to the sidebar.
+ *
+ * `history.json` is the index the sidebar is built from; SQLite holds the
+ * message bodies. When the index is lost — truncated by a crash, or emptied by
+ * an older build's write race — every conversation becomes unreachable even
+ * though its messages are intact. Consulting SQLite here is what makes that
+ * recoverable. Mutates `archivedMeta` and `projects` in place.
+ */
+const mergeThreadsFromDb = async (
+  archivedMeta: Record<string, ArchivedThreadMeta>,
+  tasks: Record<string, AgentTask>,
+  deletedTaskIds: Set<string>,
+  projects: string[],
+): Promise<void> => {
+  try {
+    const fromDb = await threadDb.listThreadMeta()
+    let recovered = 0
+    for (const meta of fromDb) {
+      // Empty shells are an artifact of metadata being saved before messages;
+      // surfacing them would put rows in the sidebar that open to nothing.
+      if (meta.messageCount === 0) continue
+      if (tasks[meta.id] || archivedMeta[meta.id] || deletedTaskIds.has(meta.id)) continue
+      archivedMeta[meta.id] = meta
+      recovered++
+      const ws = meta.originalWorkspace ?? meta.workspace
+      if (ws && !projects.includes(ws) && !isChatWorkspace(ws)) projects.push(ws)
+    }
+    if (recovered > 0) {
+      console.info(`[taskStore] recovered ${recovered} thread(s) the JSON index had lost`)
+    }
+  } catch (err) {
+    // Best-effort: SQLite being unavailable must not stop the app from
+    // starting with whatever the JSON index did give us.
+    console.warn('[taskStore] could not consult SQLite for missing threads:', err)
+  }
+}
+
 const projectMeta = (t: SavedThreadLike): ArchivedThreadMeta => {
   const last = t.messages.length > 0 ? t.messages[t.messages.length - 1].timestamp : t.createdAt
   return {
@@ -540,6 +594,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       deletedTaskIds.add(id)
       return { softDeleted: remaining, deletedTaskIds: capDeletedIds(deletedTaskIds) }
     })
+    eraseFromDb([id])
     get().persistHistory()
   },
 
@@ -560,6 +615,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
       return { softDeleted: next, deletedTaskIds: capDeletedIds(deletedTaskIds) }
     })
+    eraseFromDb(expiredIds)
     get().persistHistory()
   },
 
@@ -571,6 +627,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       for (const id of ids) deletedTaskIds.add(id)
       return { softDeleted: {}, deletedTaskIds }
     })
+    eraseFromDb(ids)
     get().persistHistory()
   },
 
@@ -588,9 +645,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const days = settings.autoArchiveDays
     if (!days || days <= 0) return
 
-    // Delegate to backend — it queries SQLite, identifies stale threads, and deletes them.
-    void ipc.threadDbAutoArchive(days).then((archivedThreads) => {
-      if (!archivedThreads || archivedThreads.length === 0) return
+    // Delegate to backend — it queries SQLite for threads past the retention
+    // window. It reports them and leaves them on disk; archiving is a sidebar
+    // state, and the rows are what makes a lost JSON index recoverable.
+    void ipc.threadDbAutoArchive(days).then((archived) => {
+      if (!archived || archived.length === 0) return
+
+      // Because the rows survive, the same threads are reported on every
+      // startup — including ones the user has since deleted. Without this
+      // filter, deleting a thread would only hide it until the next launch.
+      const { deletedTaskIds, softDeleted } = get()
+      const archivedThreads = archived.filter(
+        (t) => !deletedTaskIds.has(t.id) && !softDeleted[t.id],
+      )
+      if (archivedThreads.length === 0) return
 
       const staleIds = new Set(archivedThreads.map((t) => t.id))
 
@@ -1206,6 +1274,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             delete archivedMeta[id]
           }
         }
+        // SQLite holds the message bodies and is the only store that survives a
+        // damaged history.json. Fold in anything it knows about that the JSON
+        // index does not, so a lost index costs a reload rather than the
+        // conversations themselves.
+        await mergeThreadsFromDb(archivedMeta, tasks, deletedTaskIds, projects)
+
         // Restore per-project thread ordering
         const threadOrders: Record<string, string[]> = {}
         for (const sp of savedProjects) {
@@ -1291,6 +1365,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             delete archivedMeta[id]
           }
         }
+        await mergeThreadsFromDb(archivedMeta, tasks, deletedTaskIds, projects)
+
         // Restore per-project thread ordering
         const threadOrders: Record<string, string[]> = {}
         for (const sp of savedProjects) {
@@ -1317,9 +1393,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         // SQLite unavailable — fall through to JSON
       }
 
-      // Fall back to JSON history store
+      // Fall back to JSON history store, then to the backup. `loadTasks` can
+      // list a thread from the backup, so hydration has to be able to reach
+      // the same place — otherwise clicking a restored thread finds nothing
+      // and the row below deletes it from the sidebar.
       if (!task) {
-        const saved = await historyStore.loadThread(id)
+        let saved = await historyStore.loadThread(id)
+        if (!saved) {
+          const backup = await historyStore.loadBackup().catch(() => null)
+          saved = backup?.threads.find((t) => t.id === id) ?? null
+        }
         if (!saved) {
           // Stale meta: drop it so the sidebar stops showing this thread
           set((s) => {

@@ -80,15 +80,15 @@ const TurnChip = memo(function TurnChip({
         const cp = list.find((c) => c.turn === messageIndex)
         if (cp) {
           await ipc.checkpointRevert(taskId, cp.turn, true)
-          toast.success('Rolled back files + messages')
+          toast.success(t('Rolled back files + messages'))
         } else {
-          toast.success('Rolled back messages — no matching checkpoint to revert files')
+          toast.success(t('Rolled back messages — no matching checkpoint to revert files'))
         }
       } catch {
-        toast.error('Reverted messages, but file revert failed')
+        toast.error(t('Reverted messages, but file revert failed'))
       }
     } else {
-      toast.success('Rolled back messages')
+      toast.success(t('Rolled back messages'))
     }
   }, [taskId, messageIndex, confirm, fileRevertActive])
 

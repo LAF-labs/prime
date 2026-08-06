@@ -1,5 +1,7 @@
 import { memo, useCallback, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { t } from '@/lib/i18n'
+import { reportFailure } from '@/lib/ipc-report'
 import { useFileTreeStore, type TreeEntry } from '@/stores/fileTreeStore'
 import { useTaskStore } from '@/stores/taskStore'
 import type { ProjectFile } from '@/types'
@@ -153,7 +155,7 @@ export const TreeContextMenu = memo(function TreeContextMenu({
 
   const handleAddToGitignore = useCallback(() => {
     if (!entry) return
-    invoke('add_to_gitignore', { workspace, relPath: entry.path }).catch(console.error)
+    invoke('add_to_gitignore', { workspace, relPath: entry.path }).catch((e) => reportFailure(t('Could not update .gitignore'), e))
     onClose()
   }, [entry, workspace, onClose])
 
@@ -165,7 +167,7 @@ export const TreeContextMenu = memo(function TreeContextMenu({
 
   const handleTrash = useCallback(() => {
     if (!entry) return
-    store.getState().deleteEntry(entry.path, false).catch(console.error)
+    store.getState().deleteEntry(entry.path, false).catch((e) => reportFailure(t('Could not delete'), e))
     onClose()
   }, [entry, onClose])
 

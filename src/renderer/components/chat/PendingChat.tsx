@@ -119,7 +119,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
           await ipc.gitWorktreeSetup(workspace, wtResult.worktreePath, symlinkDirs)
         } catch {
           void ipc.gitWorktreeRemove(workspace, wtResult.worktreePath).catch(() => {})
-          throw new Error('Worktree setup failed')
+          throw new Error(t('Worktree setup failed'))
         }
         const created = await ipc.createTask({ name, workspace: wtResult.worktreePath, prompt: msg, autoApprove, modeId, modelId, attachments })
         upsertTask({
@@ -128,7 +128,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
           worktreePath: wtResult.worktreePath,
           originalWorkspace: workspace,
           messages: [
-            { role: 'system', content: `Working in worktree \`${wtResult.worktreePath}\` on branch \`${wtResult.branch}\``, timestamp: new Date().toISOString() },
+            { role: 'system', content: t('Working in worktree `{path}` on branch `{branch}`', { path: wtResult.worktreePath, branch: wtResult.branch }), timestamp: new Date().toISOString() },
             ...created.messages,
           ],
         })
@@ -159,7 +159,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
           ...created,
           projectId: getProjectId(workspace),
           messages: [
-            { role: 'system', content: `\u26a0\ufe0f Worktree creation failed: ${errMsg}. Running in the original workspace.`, timestamp: new Date().toISOString() },
+            { role: 'system', content: t('\u26a0\ufe0f Worktree creation failed: {error}. Running in the original workspace.', { error: errMsg }), timestamp: new Date().toISOString() },
             ...created.messages,
           ],
         })

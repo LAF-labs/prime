@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { AppSettings, ProjectPrefs } from '@/types'
 import { ipc } from '@/lib/ipc'
+import { t } from '@/lib/i18n'
+import { attempt } from '@/lib/ipc-report'
 
 
 
@@ -98,7 +100,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             // picker shows the right value before any session_init lands.
             const seedModel = restored.defaultModel ?? null
             set({ settings: restored, isLoaded: true, currentModelId: seedModel })
-            ipc.saveSettings(restored).catch(() => {})
+            attempt(t('Could not save settings'), ipc.saveSettings(restored))
             return
           }
         } catch { /* backup load is best-effort */ }
@@ -111,20 +113,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   saveSettings: async (settings) => {
-    const prev = get().settings
     await ipc.saveSettings(settings)
     set({ settings })
-    // Emit a settings_changed event per key that actually changed. We only
-    // send the key name, never the value — e.g. the default model id is a
-    // user-chosen string we don't need in analytics.
-    const keys: Array<keyof AppSettings> = [
-      'agentBin', 'defaultModel', 'autoApprove', 'respectGitignore',
-      'coAuthor', 'coAuthorJsonReport', 'notifications', 'fontSize',
-      'chatFontSize',
-      'sidebarPosition', 'theme', 'customAppIcon',
-    ]
-    for (const k of keys) {
-    }
   },
 
   fetchModels: async (agentBin?: string) => {
@@ -175,7 +165,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       settings: updated,
       ...(patch.modelId !== undefined ? { currentModelId: patch.modelId } : {}),
     })
-    ipc.saveSettings(updated).catch(() => {})
+    // The optimistic set() above already shows the change applied; if the
+    // write fails silently, the setting reverts on next launch with no
+    // explanation. Tell the user now instead.
+    attempt(t('Could not save settings'), ipc.saveSettings(updated))
   },
 
   checkAuth: async () => {

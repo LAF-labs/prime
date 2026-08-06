@@ -239,6 +239,12 @@ export interface AppSettings {
    */
   autoArchiveDays?: number | null
   /**
+   * Local usage statistics. Everything stays on this machine either way —
+   * there is no telemetry client — but off means nothing is recorded at all.
+   * Absent means enabled, matching the Rust default.
+   */
+  analyticsEnabled?: boolean
+  /**
    * How many agent processes may run at once. Each live thread is a Node
    * process with its own Python kernel. Undefined uses the backend default
    * (8); 0 removes the limit.

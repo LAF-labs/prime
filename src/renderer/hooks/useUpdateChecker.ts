@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useUpdateStore } from '@/stores/updateStore'
+import { t } from '@/lib/i18n'
 
 import type { Update } from '@tauri-apps/plugin-updater'
 
@@ -36,7 +37,7 @@ export const useUpdateChecker = () => {
     } catch (err) {
       console.warn('[updater] check failed:', err)
       useUpdateStore.getState().setError(
-        err instanceof Error ? err.message : 'Update check failed',
+        err instanceof Error ? err.message : t('Update check failed'),
       )
     }
   }, [])
@@ -71,7 +72,7 @@ export const useUpdateChecker = () => {
     } catch (err) {
       console.error('[updater] download failed:', err)
       useUpdateStore.getState().setError(
-        err instanceof Error ? err.message : 'Download failed',
+        err instanceof Error ? err.message : t('Download failed'),
       )
     }
   }, [])
@@ -85,7 +86,7 @@ export const useUpdateChecker = () => {
     } catch (err) {
       console.error('[updater] restart failed:', err)
       useUpdateStore.getState().setError(
-        err instanceof Error ? err.message : 'Restart failed',
+        err instanceof Error ? err.message : t('Restart failed'),
       )
     }
   }, [])

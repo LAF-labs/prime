@@ -8,7 +8,6 @@ import {
   connectionExhausted,
   connectionReset,
   deriveConnectionUiState,
-  getConnectionStatusLabel,
   shouldShowConnectionBanner,
   getTimeSinceConnected,
 } from './connection-state'
@@ -112,30 +111,6 @@ describe('deriveConnectionUiState', () => {
   it('disconnected without prior connection → offline', () => {
     const status = connectionLost(INITIAL_CONNECTION_STATUS)
     expect(deriveConnectionUiState(status)).toBe('offline')
-  })
-})
-
-describe('getConnectionStatusLabel', () => {
-  it('returns null for idle', () => {
-    expect(getConnectionStatusLabel(INITIAL_CONNECTION_STATUS)).toBeNull()
-  })
-
-  it('returns null for connected', () => {
-    expect(getConnectionStatusLabel(connectionEstablished(INITIAL_CONNECTION_STATUS))).toBeNull()
-  })
-
-  it('returns reconnecting message with counts', () => {
-    let status = connectionEstablished(INITIAL_CONNECTION_STATUS)
-    status = connectionLost(status)
-    status = connectionAttempted(status)
-    const label = getConnectionStatusLabel(status)
-    expect(label).toContain('Reconnecting')
-    expect(label).toContain('1/')
-  })
-
-  it('returns exhausted message', () => {
-    const status = connectionExhausted(connectionLost(connectionEstablished(INITIAL_CONNECTION_STATUS)))
-    expect(getConnectionStatusLabel(status)).toContain('Unable to connect')
   })
 })
 

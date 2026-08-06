@@ -8,6 +8,8 @@ import { useResourceStore } from '@/stores/resourceStore'
 import { useDiffStore } from '@/stores/diffStore'
 import { useTaskStore } from './taskStore'
 import type { TaskStore } from './task-store-types'
+import { t as msg } from '@/lib/i18n'
+import { attempt } from '@/lib/ipc-report'
 import { record } from '@/lib/analytics-collector'
 import { consumeTurnClaim } from '@/lib/turn-ownership'
 import {
@@ -149,19 +151,19 @@ export const applyTurnEnd = (
     })
   }
   if (stopReason === 'refusal') {
-    const msg = refusalRetry
-      ? '\u26a0\ufe0f The agent refused to continue. Retrying automatically\u2026'
-      : '\u26a0\ufe0f The agent refused to continue. You can try rephrasing your request or sending a new message.'
+    const refusalMsg = refusalRetry
+      ? msg('\u26a0\ufe0f The agent refused to continue. Retrying automatically\u2026')
+      : msg('\u26a0\ufe0f The agent refused to continue. You can try rephrasing your request or sending a new message.')
     newMessages.push({
       role: 'system' as const,
-      content: msg,
+      content: refusalMsg,
       timestamp: new Date().toISOString(),
     })
   }
   if (stopReason === 'connection_lost') {
     newMessages.push({
       role: 'system' as const,
-      content: '\u26a0\ufe0f Connection to the agent was lost. You can send a new message to continue.',
+      content: msg('\u26a0\ufe0f Connection to the agent was lost. You can send a new message to continue.'),
       timestamp: new Date().toISOString(),
     })
   }
@@ -544,7 +546,7 @@ export function initTaskListeners(): () => void {
       if (t && t.messages.length > 0) {
         const lastMsg = t.messages[t.messages.length - 1]
         if (lastMsg.role === 'assistant') {
-          threadDb.saveMessage(taskId, lastMsg).catch(() => {})
+          attempt(msg('Could not save the conversation'), threadDb.saveMessage(taskId, lastMsg))
         }
       }
     }

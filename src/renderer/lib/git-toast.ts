@@ -11,6 +11,7 @@
  * - Stacked action support (commit + push)
  */
 import { toast } from 'sonner'
+import { t } from '@/lib/i18n'
 
 export type GitToastId = string | number
 
@@ -20,7 +21,7 @@ export type GitToastId = string | number
  */
 export function gitProgressToast(label: string, description?: string): GitToastId {
   return toast.loading(label, {
-    description: description ?? `Running ${label.toLowerCase()}…`,
+    description: description ?? t('Running {label}…', { label: label.toLowerCase() }),
   })
 }
 
@@ -30,7 +31,7 @@ export function gitProgressToast(label: string, description?: string): GitToastI
 export function gitSuccessToast(toastId: GitToastId, label: string, description?: string): void {
   toast.success(label, {
     id: toastId,
-    description: description ?? 'Done',
+    description: description ?? t('Done'),
     duration: 3000,
   })
 }
@@ -45,7 +46,7 @@ export function gitErrorToast(toastId: GitToastId, label: string, error: unknown
     description: message,
     duration: 8000,
     action: {
-      label: 'Copy',
+      label: t('Copy'),
       onClick: () => void navigator.clipboard.writeText(message),
     },
   })
@@ -70,7 +71,7 @@ export function gitError(label: string, error: unknown): void {
     description: message,
     duration: 8000,
     action: {
-      label: 'Copy',
+      label: t('Copy'),
       onClick: () => void navigator.clipboard.writeText(message),
     },
   })
@@ -91,10 +92,10 @@ export function gitInfo(label: string, detail?: string): void {
  */
 export function formatElapsed(startedAtMs: number): string {
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000))
-  if (elapsedSeconds < 60) return `Running for ${elapsedSeconds}s`
+  if (elapsedSeconds < 60) return t('Running for {seconds}s', { seconds: elapsedSeconds })
   const minutes = Math.floor(elapsedSeconds / 60)
   const seconds = elapsedSeconds % 60
-  return `Running for ${minutes}m ${seconds}s`
+  return t('Running for {minutes}m {seconds}s', { minutes, seconds })
 }
 
 /**
@@ -126,11 +127,11 @@ export async function withGitToast<T>(
     const detail = typeof options?.successDetail === 'function'
       ? options.successDetail(result)
       : options?.successDetail
-    gitSuccessToast(toastId, label, detail ?? 'Done')
+    gitSuccessToast(toastId, label, detail ?? t('Done'))
     return result
   } catch (e) {
     clearInterval(interval)
-    gitErrorToast(toastId, `${label} failed`, e)
+    gitErrorToast(toastId, t('{label} failed', { label }), e)
     throw e
   }
 }
@@ -154,9 +155,9 @@ export async function withStackedGitToast(
       })
       await step.action()
     }
-    gitSuccessToast(toastId, overallLabel, `Completed in ${Math.ceil((Date.now() - startedAt) / 1000)}s`)
+    gitSuccessToast(toastId, overallLabel, t('Completed in {seconds}s', { seconds: Math.ceil((Date.now() - startedAt) / 1000) }))
   } catch (e) {
-    gitErrorToast(toastId, `${overallLabel} failed`, e)
+    gitErrorToast(toastId, t('{label} failed', { label: overallLabel }), e)
     throw e
   }
 }

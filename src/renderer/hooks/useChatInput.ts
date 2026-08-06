@@ -334,7 +334,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
         const { selectedTaskId, tasks, upsertTask } = useTaskStore.getState()
         if (selectedTaskId && tasks[selectedTaskId]) {
           const task = tasks[selectedTaskId]
-          upsertTask({ ...task, messages: [...task.messages, { role: 'system', content: `⚠️ /btw question exceeds ${btwMax} character limit (${question.length} chars). Shorten your question or adjust the limit in Settings > Advanced.`, timestamp: new Date().toISOString() }] })
+          upsertTask({ ...task, messages: [...task.messages, { role: 'system', content: t('⚠️ /btw question exceeds {max} character limit ({length} chars). Shorten your question or adjust the limit in Settings > Advanced.', { max: btwMax, length: question.length }), timestamp: new Date().toISOString() }] })
         }
         return
       }

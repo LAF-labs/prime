@@ -148,13 +148,13 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
   const handleAuthenticate = useCallback(() => {
     setCtxMenu(null)
     if (!server.oauthUrl) {
-      toast.info('No OAuth URL yet', {
-        description: 'Send a message in a thread to trigger the connection, then try again.',
+      toast.info(t('No OAuth URL yet'), {
+        description: t('Send a message in a thread to trigger the connection, then try again.'),
       })
       return
     }
     ipc.openUrl(server.oauthUrl).catch((e) => {
-      toast.error('Could not open browser', { description: e instanceof Error ? e.message : String(e) })
+      toast.error(t('Could not open browser'), { description: e instanceof Error ? e.message : String(e) })
     })
   }, [server.oauthUrl])
 
@@ -190,10 +190,10 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
         activeWorkspace ?? undefined,
         agentBin,
       )
-      toast.success(`Removed "${server.name}"`)
+      toast.success(t('Removed "{name}"', { name: server.name }))
       // The resource_watcher will refresh the panel automatically.
     } catch (e) {
-      toast.error('Could not remove server', { description: e instanceof Error ? e.message : String(e) })
+      toast.error(t('Could not remove server'), { description: e instanceof Error ? e.message : String(e) })
     } finally {
       setRemoving(false)
     }

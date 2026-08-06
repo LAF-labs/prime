@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { IconGitBranch, IconChevronDown } from '@tabler/icons-react'
+import { t } from '@/lib/i18n'
 import { cn, slugify, sanitizeBranchName } from '@/lib/utils'
 import { ipc } from '@/lib/ipc'
 import { useTaskStore } from '@/stores/taskStore'
@@ -154,7 +155,7 @@ export const BranchSelector = memo(function BranchSelector({ workspace, isWorktr
         worktreePath: wtResult.worktreePath,
         originalWorkspace: projectRoot,
         projectId: store.getProjectId(projectRoot),
-        messages: [{ role: 'system', content: `Working in worktree \`${wtResult.worktreePath}\` on branch \`${wtResult.branch}\``, timestamp: new Date().toISOString() }],
+        messages: [{ role: 'system', content: t('Working in worktree `{path}` on branch `{branch}`', { path: wtResult.worktreePath, branch: wtResult.branch }), timestamp: new Date().toISOString() }],
       })
       store.setSelectedTask(created.id)
       await fetchBranches()

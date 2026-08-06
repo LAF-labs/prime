@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { AgentTask, ActivityEntry, SoftDeletedThread, TaskMessage, ToolCall } from '@/types'
 import { ipc } from '@/lib/ipc'
+import { t } from '@/lib/i18n'
+import { attempt } from '@/lib/ipc-report'
 import { joinChunk } from '@/lib/utils'
 import * as historyStore from '@/lib/history-store'
 import * as threadDb from '@/lib/thread-db'
@@ -324,7 +326,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         delete tasks[id]
       })
       taskIds.forEach((id) => { void ipc.cancelTask(id).catch(() => {}) })
-      taskIds.forEach((id) => { void ipc.deleteTask(id) })
+      taskIds.forEach((id) => { attempt(t('Could not delete the thread'), ipc.deleteTask(id)) })
       const selectedTaskId = taskIds.includes(s.selectedTaskId ?? '') ? null : s.selectedTaskId
       const deletedTaskIds = new Set(s.deletedTaskIds)
       taskIds.forEach((id) => deletedTaskIds.add(id))
@@ -370,7 +372,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         delete tasks[id]
       })
       taskIds.forEach((id) => { void ipc.cancelTask(id).catch(() => {}) })
-      taskIds.forEach((id) => { void ipc.deleteTask(id) })
+      taskIds.forEach((id) => { attempt(t('Could not delete the thread'), ipc.deleteTask(id)) })
       const selectedTaskId = taskIds.includes(s.selectedTaskId ?? '') ? null : s.selectedTaskId
       const deletedTaskIds = new Set(s.deletedTaskIds)
       taskIds.forEach((id) => deletedTaskIds.add(id))
@@ -496,7 +498,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       liveToolSplits: { ...s.liveToolSplits, [id]: [] },
     }))
     void ipc.checkpointCleanup(id).catch(() => {})
-    void ipc.deleteTask(id)
+    attempt(t('Could not delete the thread'), ipc.deleteTask(id))
     get().persistHistory()
   },
 
@@ -529,7 +531,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
     // Non-worktree: proceed immediately
     void ipc.cancelTask(id).catch(() => {})
-    void ipc.deleteTask(id)
+    attempt(t('Could not delete the thread'), ipc.deleteTask(id))
     set((state) => {
       const { [id]: removed, ...rest } = state.tasks
       const { [id]: _c, ...chunks } = state.streamingChunks
@@ -817,13 +819,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           const planText = task.plan.map((s, i) => `${i + 1}. [${s.status}] ${s.content}`).join('\n')
           messages.push({
             role: 'system' as const,
-            content: `⏳ Compacting context...\n\n**Plan to preserve:**\n${planText}`,
+            content: `${t('⏳ Compacting context...')}\n\n**${t('Plan to preserve:')}**\n${planText}`,
             timestamp: new Date().toISOString(),
           })
         } else {
           messages.push({
             role: 'system' as const,
-            content: '⏳ Compacting context...',
+            content: t('⏳ Compacting context...'),
             timestamp: new Date().toISOString(),
           })
         }
@@ -831,13 +833,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const hasPlan = task.plan && task.plan.length > 0
         messages.push({
           role: 'system' as const,
-          content: hasPlan ? '✅ Context compacted — plan preserved' : '✅ Context compacted',
+          content: hasPlan ? t('✅ Context compacted — plan preserved') : t('✅ Context compacted'),
           timestamp: new Date().toISOString(),
         })
       } else if (status === 'failed') {
         messages.push({
           role: 'system' as const,
-          content: '⚠️ Context compaction failed',
+          content: t('⚠️ Context compaction failed'),
           timestamp: new Date().toISOString(),
         })
       }
@@ -985,7 +987,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       if (task) {
         upsertTask({
           ...task,
-          messages: [...task.messages, { role: 'system', content: `⚠️ Fork failed: ${msg}`, timestamp: new Date().toISOString() }],
+          messages: [...task.messages, { role: 'system', content: t('⚠️ Fork failed: {error}', { error: msg }), timestamp: new Date().toISOString() }],
         })
       }
       set({ isForking: false })
@@ -1645,10 +1647,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         liveToolCalls: { ...s.liveToolCalls, [taskId]: [] },
         liveToolSplits: { ...s.liveToolSplits, [taskId]: [] },
       }))
-      void ipc.deleteTask(taskId)
+      attempt(t('Could not delete the thread'), ipc.deleteTask(taskId))
     } else {
       void ipc.cancelTask(taskId).catch(() => {})
-      void ipc.deleteTask(taskId)
+      attempt(t('Could not delete the thread'), ipc.deleteTask(taskId))
       set((state) => {
         const { [taskId]: removed, ...rest } = state.tasks
         const { [taskId]: _c, ...chunks } = state.streamingChunks

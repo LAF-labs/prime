@@ -34,6 +34,7 @@ export const ko: Record<string, string> = {
   'Try again': '다시 시도',
   Clear: '지우기',
   Done: '완료',
+  Copy: '복사',
   Next: '다음',
   Continue: '계속',
   Apply: '적용',
@@ -241,6 +242,25 @@ export const ko: Record<string, string> = {
   'Expand agent summary': '에이전트 요약 펼치기',
   'Collapse agent summary': '에이전트 요약 접기',
   'Refresh agent summary': '에이전트 요약 새로고침',
+  'Rolled back files + messages': '파일과 메시지를 되돌렸습니다',
+  'Rolled back messages — no matching checkpoint to revert files':
+    '메시지를 되돌렸습니다 — 파일을 되돌릴 체크포인트가 없습니다',
+  'Reverted messages, but file revert failed': '메시지는 되돌렸지만 파일 되돌리기에 실패했습니다',
+  'Rolled back messages': '메시지를 되돌렸습니다',
+  '⏳ Compacting context...': '⏳ 컨텍스트 압축 중...',
+  'Plan to preserve:': '보존할 계획:',
+  '✅ Context compacted — plan preserved': '✅ 컨텍스트 압축 완료 — 계획 보존됨',
+  '✅ Context compacted': '✅ 컨텍스트 압축 완료',
+  '⚠️ Context compaction failed': '⚠️ 컨텍스트 압축 실패',
+  '⚠️ Fork failed: {error}': '⚠️ 분기 실패: {error}',
+  '⚠️ /btw question exceeds {max} character limit ({length} chars). Shorten your question or adjust the limit in Settings > Advanced.':
+    '⚠️ /btw 질문이 {max}자 제한을 초과했습니다 ({length}자). 질문을 줄이거나 설정 > 고급에서 제한을 조정하세요.',
+  '⚠️ The agent refused to continue. Retrying automatically…':
+    '⚠️ 에이전트가 계속하기를 거부했습니다. 자동으로 재시도합니다…',
+  '⚠️ The agent refused to continue. You can try rephrasing your request or sending a new message.':
+    '⚠️ 에이전트가 계속하기를 거부했습니다. 요청을 바꿔 말하거나 새 메시지를 보내 보세요.',
+  '⚠️ Connection to the agent was lost. You can send a new message to continue.':
+    '⚠️ 에이전트 연결이 끊어졌습니다. 새 메시지를 보내면 계속할 수 있습니다.',
 
   // ── Git ───────────────────────────────────────────────────────────
   'View diff': '차이 보기',
@@ -316,6 +336,27 @@ export const ko: Record<string, string> = {
   HEAD: 'HEAD',
   Checkpoints: '체크포인트',
   'Click to view turn diff': '클릭하여 턴 차이 보기',
+  Push: '푸시',
+  'Running {label}…': '{label} 실행 중…',
+  'Running for {seconds}s': '{seconds}초째 실행 중',
+  'Running for {minutes}m {seconds}s': '{minutes}분 {seconds}초째 실행 중',
+  '{label} failed': '{label} 실패',
+  'Completed in {seconds}s': '{seconds}초 만에 완료',
+  'Could not generate commit message': '커밋 메시지를 생성하지 못했습니다',
+  'Branch created': '브랜치가 생성되었습니다',
+  'Switched to {branch}': '{branch} 브랜치로 전환했습니다',
+  'Changes committed': '변경사항이 커밋되었습니다',
+  '1 file committed': '파일 1개를 커밋했습니다',
+  '1 file committed on {branch}': '{branch} 브랜치에 파일 1개를 커밋했습니다',
+  '{count} files committed': '파일 {count}개를 커밋했습니다',
+  '{count} files committed on {branch}': '{branch} 브랜치에 파일 {count}개를 커밋했습니다',
+  'Commit failed': '커밋 실패',
+  'Commit & Push failed': '커밋 및 푸시 실패',
+  'Working in worktree `{path}` on branch `{branch}`': '워크트리 `{path}`의 `{branch}` 브랜치에서 작업 중',
+  'Created and checked out branch `{branch}`': '`{branch}` 브랜치를 생성하고 체크아웃했습니다',
+  'Worktree setup failed': '워크트리 설정 실패',
+  '⚠️ Worktree creation failed: {error}. Running in the original workspace.':
+    '⚠️ 워크트리 생성 실패: {error}. 원래 작업 공간에서 실행합니다.',
 
   // ── Files & terminal ──────────────────────────────────────────────
   'File tree': '파일 트리',
@@ -448,6 +489,16 @@ export const ko: Record<string, string> = {
   'Disable All Tools': '모든 도구 비활성화',
   'Enable All Tools': '모든 도구 활성화',
   'Tool calls': '도구 호출',
+  'No OAuth URL yet': '아직 OAuth URL이 없습니다',
+  'Send a message in a thread to trigger the connection, then try again.':
+    '스레드에서 메시지를 보내 연결을 트리거한 뒤 다시 시도하세요.',
+  'Could not open browser': '브라우저를 열지 못했습니다',
+  'Removed "{name}"': '"{name}" 서버를 제거했습니다',
+  'Could not remove server': '서버를 제거하지 못했습니다',
+  'Added MCP server "{name}"': 'MCP 서버 "{name}"이(가) 추가되었습니다',
+  'Scope: {scope}. New chat threads will pick it up automatically.':
+    '범위: {scope}. 새 채팅 스레드에 자동으로 적용됩니다.',
+  'Could not add MCP server': 'MCP 서버를 추가하지 못했습니다',
 
   // ── Updates ───────────────────────────────────────────────────────
   'Update now': '지금 업데이트',
@@ -455,6 +506,15 @@ export const ko: Record<string, string> = {
   'Update in progress': '업데이트 진행 중',
   'Install update': '업데이트 설치',
   'Download and install update': '업데이트 다운로드 및 설치',
+  'Checking for updates...': '업데이트 확인 중...',
+  'v{version} available': 'v{version} 사용 가능',
+  'Downloading...': '다운로드 중...',
+  'Downloading... {pct}%': '다운로드 중... {pct}%',
+  'Update installed — restart to finish': '업데이트 설치 완료 — 재시작하면 적용됩니다',
+  'Update check failed': '업데이트 확인 실패',
+  'Download failed': '다운로드 실패',
+  'Restart failed': '재시작 실패',
+  'LAF Agent is up to date': 'LAF Agent는 최신 버전입니다',
 
   // ── Debug & analytics ─────────────────────────────────────────────
   'Debug panel': '디버그 패널',
@@ -477,6 +537,12 @@ export const ko: Record<string, string> = {
 
   // ── Errors ────────────────────────────────────────────────────────
   'Something went wrong': '문제가 발생했습니다',
+  'An unexpected error occurred.': '예기치 않은 오류가 발생했습니다.',
+  'Keybindings updated': '키바인딩이 업데이트되었습니다',
+  'Your keyboard shortcuts have been reloaded.': '키보드 단축키를 다시 불러왔습니다.',
+  'Keybindings config error': '키바인딩 설정 오류',
+  'Your keybindings file contains syntax errors. Some shortcuts may not work.':
+    '키바인딩 파일에 문법 오류가 있습니다. 일부 단축키가 작동하지 않을 수 있습니다.',
   'This component keeps crashing. Reload the window to recover.':
     '이 컴포넌트가 계속 오류를 일으킵니다. 창을 새로고침해 복구하세요.',
   'LAF Agent failed to start': 'LAF Agent를 시작하지 못했습니다',
@@ -677,4 +743,28 @@ export const ko: Record<string, string> = {
     '/compact로 대화를 줄이거나 새 스레드를 시작하세요.',
   'Send your message again to retry.': '메시지를 다시 보내면 재시도됩니다.',
   'Continue without setup': '설정 없이 계속하기',
+  'Could not rename': '이름을 바꾸지 못했습니다',
+  'Could not create the file': '파일을 만들지 못했습니다',
+  'Could not create the folder': '폴더를 만들지 못했습니다',
+  'Could not delete': '삭제하지 못했습니다',
+  'Could not update .gitignore': '.gitignore를 수정하지 못했습니다',
+  'Could not save settings': '설정을 저장하지 못했습니다',
+  'Could not delete the thread': '스레드를 삭제하지 못했습니다',
+  'Could not save the conversation': '대화를 저장하지 못했습니다',
+  'Could not stage the file': '파일을 스테이징하지 못했습니다',
+  'Could not revert the file': '파일을 되돌리지 못했습니다',
+  'Could not change the app icon': '앱 아이콘을 바꾸지 못했습니다',
+  // ── Connection banner / export / privacy ──────────────────────────
+  'Reconnecting to the agent ({attempt}/{max})…': '에이전트에 다시 연결하는 중 ({attempt}/{max})…',
+  'Cannot reach the agent. Send a message to try again, or restart the app.':
+    '에이전트에 연결할 수 없습니다. 메시지를 보내 다시 시도하거나 앱을 재시작하세요.',
+  'Connection to the agent was lost — reconnecting shortly.':
+    '에이전트 연결이 끊어졌습니다 — 곧 다시 연결합니다.',
+  'Export as Markdown': 'Markdown으로 내보내기',
+  'Could not export the thread': '스레드를 내보내지 못했습니다',
+  'Usage statistics': '사용 통계',
+  'Toggle usage statistics': '사용 통계 켜기/끄기',
+  'Local stats for the dashboard. Nothing ever leaves this machine either way; off records nothing at all.':
+    '대시보드용 로컬 통계입니다. 어느 쪽이든 이 기기 밖으로 나가지 않으며, 끄면 아무것도 기록하지 않습니다.',
+
 }

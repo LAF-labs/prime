@@ -136,6 +136,40 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Option<String> {
     rx.await.ok().flatten()
 }
 
+/// Save user-provided text where the user chooses.
+///
+/// This is the export path for conversations. Until it existed there was no
+/// way to get a conversation out of the app at all — the only copies lived in
+/// the app's own data directory, in formats nothing else reads. The renderer
+/// cannot write files itself (CSP confines it to IPC), so it builds the
+/// document and this command owns the dialog and the disk.
+///
+/// Returns the written path, or `None` if the user cancelled.
+#[tauri::command]
+pub async fn export_text_file(
+    app: tauri::AppHandle,
+    suggested_name: String,
+    contents: String,
+) -> Result<Option<String>, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        app.dialog()
+            .file()
+            .set_file_name(&suggested_name)
+            .save_file(move |path| {
+                let _ = tx.send(path.map(|p| p.to_string()));
+            });
+    }));
+    if result.is_err() {
+        return Err("The save dialog could not be opened.".to_string());
+    }
+    let Some(path) = rx.await.ok().flatten() else {
+        return Ok(None); // cancelled — not an error
+    };
+    std::fs::write(&path, contents).map_err(|e| format!("Could not write the file: {e}"))?;
+    Ok(Some(path))
+}
+
 #[tauri::command]
 pub async fn pick_image(app: tauri::AppHandle) -> Option<String> {
     let (tx, rx) = tokio::sync::oneshot::channel();

@@ -11,6 +11,7 @@ import { ipc } from '@/lib/ipc'
 import type { AppSettings } from '@/types'
 import { applyTheme, persistTheme } from '@/lib/theme'
 import { useT } from '@/lib/i18n'
+import { attempt, reportFailure } from '@/lib/ipc-report'
 import { AboutDialog } from './AboutDialog'
 import { NAV, NAV_GROUP_LABELS, SEARCHABLE_SETTINGS, type Section, type NavGroup } from './settings-shared'
 import { AccountSection } from './account-section'
@@ -70,17 +71,24 @@ export const SettingsPanel = () => {
     applyTheme(draft.theme ?? 'dark')
   }, [open, draft.theme])
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     const mode = draft.theme ?? 'dark'
     persistTheme(mode)
     applyTheme(mode)
-    saveSettings(draft)
+    // Awaited: closing the panel on a failed save shows the settings applied
+    // when they were not, and the user discovers the revert on next launch.
+    try {
+      await saveSettings(draft)
+    } catch (err) {
+      reportFailure(t('Could not save settings'), err)
+      return // stay open — the draft is still theirs to retry or discard
+    }
     // Apply or reset dock icon
     if (draft.customAppIcon) {
       const base64 = draft.customAppIcon.replace(/^data:[^;]+;base64,/, '')
-      ipc.setDockIcon(base64).catch(() => {})
+      attempt(t('Could not change the app icon'), ipc.setDockIcon(base64))
     } else {
-      ipc.resetDockIcon().catch(() => {})
+      attempt(t('Could not change the app icon'), ipc.resetDockIcon())
     }
     setIsUnsavedDialogOpen(false)
     setOpen(false)

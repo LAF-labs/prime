@@ -88,6 +88,9 @@ export const ipc = {
     invoke('pick_folder'),
   pickImage: (): Promise<string | null> =>
     invoke('pick_image'),
+  /** Native save dialog + write. Returns the path, or null on cancel. */
+  exportTextFile: (suggestedName: string, contents: string): Promise<string | null> =>
+    invoke('export_text_file', { suggestedName, contents }),
   detectAgentCli: (): Promise<string | null> =>
     invoke('detect_agent_cli'),
   harnessInfo: (): Promise<{ ref: string; commit: string; repo: string; builtAt: string } | null> =>

@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div>
             <p className="text-sm font-medium text-foreground">{t('Something went wrong')}</p>
             <p data-testid="error-boundary-message" className="mt-1 max-w-sm text-xs text-muted-foreground">
-              {this.state.error.message || 'An unexpected error occurred.'}
+              {this.state.error.message || t('An unexpected error occurred.')}
             </p>
           </div>
           {isLooping ? (

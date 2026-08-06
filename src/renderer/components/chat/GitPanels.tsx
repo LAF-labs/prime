@@ -25,7 +25,7 @@ export const BranchPanel = memo(function BranchPanel({ onDismiss }: { onDismiss:
       const { selectedTaskId, tasks, upsertTask } = useTaskStore.getState()
       if (selectedTaskId && tasks[selectedTaskId]) {
         const task = tasks[selectedTaskId]
-        upsertTask({ ...task, messages: [...task.messages, { role: 'system', content: `Created and checked out branch \`${branchName}\``, timestamp: new Date().toISOString() }] })
+        upsertTask({ ...task, messages: [...task.messages, { role: 'system', content: t('Created and checked out branch `{branch}`', { branch: branchName }), timestamp: new Date().toISOString() }] })
       }
       onDismiss()
     } catch (err) {
@@ -78,7 +78,7 @@ export const WorktreePanel = memo(function WorktreePanel({ onDismiss }: { onDism
       }
       const task = await ipc.createTask({ name: normalizedSlug, workspace: result.worktreePath, prompt: '', autoApprove: settings.autoApprove, deferSpawn: true })
       const store = useTaskStore.getState()
-      store.upsertTask({ ...task, worktreePath: result.worktreePath, originalWorkspace: workspace, messages: [{ role: 'system', content: `Working in worktree \`${result.worktreePath}\` on branch \`${result.branch}\``, timestamp: new Date().toISOString() }] })
+      store.upsertTask({ ...task, worktreePath: result.worktreePath, originalWorkspace: workspace, messages: [{ role: 'system', content: t('Working in worktree `{path}` on branch `{branch}`', { path: result.worktreePath, branch: result.branch }), timestamp: new Date().toISOString() }] })
       store.setSelectedTask(task.id)
       onDismiss()
     } catch (err) {

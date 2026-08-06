@@ -1,5 +1,6 @@
 import type { AnalyticsEvent, AnalyticsEventKind } from '@/types/analytics'
 import { ipc } from '@/lib/ipc'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 const FLUSH_INTERVAL_MS = 60_000
 
@@ -8,6 +9,11 @@ let flushTimer: ReturnType<typeof setInterval> | null = null
 
 /** Record an analytics event into the in-memory buffer. */
 export const record = (kind: AnalyticsEventKind, fields?: Omit<AnalyticsEvent, 'ts' | 'kind'>): void => {
+  // The one funnel every call site passes through, so the opt-out is checked
+  // here and nowhere else. The setting existed on the Rust side from the
+  // start; nothing in the renderer ever read it, so the toggle did nothing —
+  // project names, thread ids, and edited filenames were recorded regardless.
+  if (useSettingsStore.getState().settings.analyticsEnabled === false) return
   buffer.push({ ts: Date.now(), kind, ...fields })
 }
 

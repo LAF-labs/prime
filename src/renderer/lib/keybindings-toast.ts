@@ -5,6 +5,7 @@
  * or contain errors. Coalesces rapid consecutive updates.
  */
 import { toast } from 'sonner'
+import { t } from '@/lib/i18n'
 
 let lastToastTime = 0
 let pendingTimer: ReturnType<typeof setTimeout> | null = null
@@ -31,8 +32,8 @@ export function notifyKeybindingsUpdated(): void {
   }
 
   lastToastTime = now
-  toast.success('Keybindings updated', {
-    description: 'Your keyboard shortcuts have been reloaded.',
+  toast.success(t('Keybindings updated'), {
+    description: t('Your keyboard shortcuts have been reloaded.'),
     duration: 2000,
   })
 }
@@ -41,8 +42,8 @@ export function notifyKeybindingsUpdated(): void {
  * Show a warning toast for malformed keybindings config.
  */
 export function notifyKeybindingsError(detail?: string): void {
-  toast.error('Keybindings config error', {
-    description: detail ?? 'Your keybindings file contains syntax errors. Some shortcuts may not work.',
+  toast.error(t('Keybindings config error'), {
+    description: detail ?? t('Your keybindings file contains syntax errors. Some shortcuts may not work.'),
     duration: 5000,
   })
 }

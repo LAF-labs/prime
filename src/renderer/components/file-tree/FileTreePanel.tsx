@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { reportFailure } from '@/lib/ipc-report'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconX, IconRefresh, IconChevronRight, IconChevronDown,
@@ -170,7 +171,7 @@ const TreeItem = memo(function TreeItem({
   }, [entry, isDeleted, workspace])
 
   const handleRenameSubmit = useCallback((newName: string) => {
-    renameEntry(entry.path, newName).catch(console.error)
+    renameEntry(entry.path, newName).catch((e) => reportFailure(t('Could not rename'), e))
     setRenamingPath(null)
   }, [entry.path, renameEntry, setRenamingPath])
 
@@ -185,13 +186,13 @@ const TreeItem = memo(function TreeItem({
 
   const handleNewFileSubmit = useCallback((name: string) => {
     const parentDir = entry.isDir ? entry.path : ''
-    createFile(parentDir, name).catch(console.error)
+    createFile(parentDir, name).catch((e) => reportFailure(t('Could not create the file'), e))
     setRenamingPath(null)
   }, [entry, createFile, setRenamingPath])
 
   const handleNewFolderSubmit = useCallback((name: string) => {
     const parentDir = entry.isDir ? entry.path : ''
-    createDirectory(parentDir, name).catch(console.error)
+    createDirectory(parentDir, name).catch((e) => reportFailure(t('Could not create the folder'), e))
     setRenamingPath(null)
   }, [entry, createDirectory, setRenamingPath])
 
@@ -352,12 +353,12 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
   const isNewFolderAtRoot = renamingPath === '__new_folder__:'
 
   const handleNewFileAtRootSubmit = useCallback((name: string) => {
-    createFile('', name).catch(console.error)
+    createFile('', name).catch((e) => reportFailure(t('Could not create the file'), e))
     setRenamingPath(null)
   }, [createFile, setRenamingPath])
 
   const handleNewFolderAtRootSubmit = useCallback((name: string) => {
-    createDirectory('', name).catch(console.error)
+    createDirectory('', name).catch((e) => reportFailure(t('Could not create the folder'), e))
     setRenamingPath(null)
   }, [createDirectory, setRenamingPath])
 

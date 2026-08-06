@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { reportFailure } from '@/lib/ipc-report'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { parsePatchFiles } from '@pierre/diffs'
 import { FileDiff, Virtualizer } from '@pierre/diffs/react'
@@ -90,13 +91,13 @@ export function DiffViewer({ diff, taskId, workspace, onRefreshDiff }: DiffViewe
   const handleStage = useCallback(async (filePath: string) => {
     if (!taskId) return
     try { await ipc.gitStage(taskId, filePath); onRefreshDiff?.() }
-    catch (e) { console.error('Stage failed:', e) }
+    catch (e) { reportFailure(t('Could not stage the file'), e) }
   }, [taskId, onRefreshDiff])
 
   const handleRevert = useCallback(async (filePath: string) => {
     if (!taskId) return
     try { await ipc.gitRevert(taskId, filePath); setRevertIdx(null); onRefreshDiff?.() }
-    catch (e) { console.error('Revert failed:', e) }
+    catch (e) { reportFailure(t('Could not revert the file'), e) }
   }, [taskId, onRefreshDiff])
 
   const handleOpenInEditor = useCallback((filePath: string) => {

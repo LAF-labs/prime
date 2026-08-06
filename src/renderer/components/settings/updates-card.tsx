@@ -46,7 +46,7 @@ export const UpdatesCard = () => {
       await triggerRestart()
     } catch (err) {
       console.error('[updater] restart failed:', err)
-      useUpdateStore.getState().setError(err instanceof Error ? err.message : 'Restart failed')
+      useUpdateStore.getState().setError(err instanceof Error ? err.message : t('Restart failed'))
     }
   }
 
@@ -54,12 +54,12 @@ export const UpdatesCard = () => {
   const pct = progress?.total ? Math.round((progress.downloaded / progress.total) * 100) : null
 
   const statusText = (() => {
-    if (status === 'checking') return 'Checking for updates...'
-    if (status === 'available' && updateInfo) return `v${updateInfo.version} available`
-    if (status === 'downloading') return pct !== null ? `Downloading... ${pct}%` : 'Downloading...'
-    if (status === 'ready') return 'Update installed — restart to finish'
-    if (status === 'error') return error ?? 'Update check failed'
-    return 'LAF Agent is up to date'
+    if (status === 'checking') return t('Checking for updates...')
+    if (status === 'available' && updateInfo) return t('v{version} available', { version: updateInfo.version })
+    if (status === 'downloading') return pct !== null ? t('Downloading... {pct}%', { pct }) : t('Downloading...')
+    if (status === 'ready') return t('Update installed — restart to finish')
+    if (status === 'error') return error ?? t('Update check failed')
+    return t('LAF Agent is up to date')
   })()
 
   return (

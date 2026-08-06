@@ -1,5 +1,6 @@
 import { t } from '@/lib/i18n'
 import { toast } from 'sonner'
+import { attempt } from '@/lib/ipc-report'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { IconHistory } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -123,9 +124,12 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   state.upsertTask({ ...task, status: 'running', messages: [...task.messages, userMsg], isArchived: undefined, needsNewConnection: undefined })
   state.clearTurn(task.id)
 
-  // Persist user message to SQLite immediately (survives crashes)
-  threadDb.saveThread(task).catch(() => {})
-  threadDb.saveMessage(targetTaskId, userMsg).catch(() => {})
+  // Persist user message to SQLite immediately (survives crashes). A failure
+  // here means the conversation is not being kept — discovering that after a
+  // restart is far worse than a toast now. Dedup in reportFailure keeps a
+  // persistently broken database from toasting every turn.
+  attempt(t('Could not save the conversation'), threadDb.saveThread(task))
+  attempt(t('Could not save the conversation'), threadDb.saveMessage(targetTaskId, userMsg))
 
   const proj = extractProjectName(task)
   record('message_sent', { project: proj, thread: task.id, value: msg.split(/\s+/).filter(Boolean).length })

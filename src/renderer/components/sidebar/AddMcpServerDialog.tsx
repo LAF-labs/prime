@@ -111,8 +111,8 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
         workspace ?? undefined,
         agentBin,
       )
-      toast.success(`Added MCP server "${name.trim()}"`, {
-        description: `Scope: ${fullScope}. New chat threads will pick it up automatically.`,
+      toast.success(t('Added MCP server "{name}"', { name: name.trim() }), {
+        description: t('Scope: {scope}. New chat threads will pick it up automatically.', { scope: fullScope }),
       })
       // The resource_watcher will fire onAgentResourcesChanged → resourceStore reloads.
       // No need to invalidate here.
@@ -120,7 +120,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       // Surface the CLI's own message — it's the most accurate diagnosis.
-      toast.error('Could not add MCP server', { description: msg })
+      toast.error(t('Could not add MCP server'), { description: msg })
     } finally {
       setSubmitting(false)
     }

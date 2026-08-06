@@ -1,7 +1,9 @@
 import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
-import { IconPencil, IconTrash, IconHistory, IconGitBranch, IconLayoutColumns, IconArrowsSplit, IconPin, IconPinnedOff, IconArrowUp, IconArrowDown, IconCopy, IconGitFork, IconX } from '@tabler/icons-react'
+import { IconPencil, IconTrash, IconHistory, IconGitBranch, IconLayoutColumns, IconArrowsSplit, IconPin, IconPinnedOff, IconArrowUp, IconArrowDown, IconCopy, IconGitFork, IconX, IconFileExport } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { exportThread } from '@/lib/thread-export'
+import { reportFailure } from '@/lib/ipc-report'
 import { useTaskStore } from '@/stores/taskStore'
 import { SplitThreadPicker } from '@/components/chat/SplitThreadPicker'
 import { useMenuPosition } from '@/hooks/useMenuPosition'
@@ -179,6 +181,13 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
     if (sessionId) void navigator.clipboard.writeText(sessionId)
     setCtxMenu(null)
   }, [task.id])
+
+  const handleExport = useCallback(() => {
+    setCtxMenu(null)
+    // Fire-and-forget: the native save dialog takes over from here, and a
+    // failure surfaces as a toast rather than blocking the menu.
+    exportThread(task).catch((e) => reportFailure(t('Could not export the thread'), e))
+  }, [task])
 
   const handleFork = useCallback(() => {
     setCtxMenu(null)
@@ -364,6 +373,13 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                     onClick={handleCopySessionId}
                   >
                     <IconCopy className="size-3.5" /> {t('Copy Session ID')}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                    onClick={handleExport}
+                  >
+                    <IconFileExport className="size-3.5" /> {t('Export as Markdown')}
                   </button>
                   <div className="my-1 border-t border-border/50" />
                   {isInSplit ? (

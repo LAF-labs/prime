@@ -97,7 +97,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
         : result.subject
       setCommitMsg(next)
     } catch (e) {
-      toast.error('Could not generate commit message', {
+      toast.error(t('Could not generate commit message'), {
         description: e instanceof Error ? e.message : String(e),
       })
     } finally {
@@ -112,8 +112,8 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
       // If committing on a new branch, create and checkout first
       if (targetBranch) {
         await ipc.gitCreateAndCheckoutBranch(workspace, targetBranch)
-        toast.success('Branch created', {
-          description: `Switched to ${targetBranch}`,
+        toast.success(t('Branch created'), {
+          description: t('Switched to {branch}', { branch: targetBranch }),
         })
       }
 
@@ -133,8 +133,14 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
         await ipc.gitCommitFiles(workspace, autoMsg, filePaths)
       }
 
-      toast.success('Changes committed', {
-        description: `${filePaths.length} file${filePaths.length > 1 ? 's' : ''} committed${targetBranch ? ` on ${targetBranch}` : ''}`,
+      toast.success(t('Changes committed'), {
+        description: filePaths.length === 1
+          ? (targetBranch
+            ? t('1 file committed on {branch}', { branch: targetBranch })
+            : t('1 file committed'))
+          : (targetBranch
+            ? t('{count} files committed on {branch}', { count: filePaths.length, branch: targetBranch })
+            : t('{count} files committed', { count: filePaths.length })),
       })
 
       // Reset and close
@@ -145,7 +151,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
       setNewBranchName('')
       onOpenChange(false)
     } catch (e) {
-      toast.error('Commit failed', {
+      toast.error(t('Commit failed'), {
         description: e instanceof Error ? e.message : String(e),
       })
     } finally {
@@ -185,11 +191,11 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
 
       // Run stacked action with progress toast
       await withStackedGitToast([
-        { label: 'Commit', action: () => ipc.gitCommitFiles(workspace, finalMsg, filePaths) },
-        { label: 'Push', action: () => ipc.gitPush(workspace) },
+        { label: t('Commit'), action: () => ipc.gitCommitFiles(workspace, finalMsg, filePaths) },
+        { label: t('Push'), action: () => ipc.gitPush(workspace) },
       ])
     } catch (e) {
-      toast.error('Commit & Push failed', {
+      toast.error(t('Commit & Push failed'), {
         description: e instanceof Error ? e.message : String(e),
       })
     } finally {

@@ -151,28 +151,6 @@ export function deriveConnectionUiState(status: ConnectionStatus): ConnectionUiS
 }
 
 /**
- * Get a human-readable description of the connection state.
- */
-export function getConnectionStatusLabel(status: ConnectionStatus): string | null {
-  switch (status.phase) {
-    case 'idle':
-      return null
-    case 'connecting':
-      return 'Connecting to agent…'
-    case 'connected':
-      return null
-    case 'disconnected':
-      return status.lastError
-        ? `Disconnected: ${status.lastError}`
-        : 'Connection lost'
-    case 'reconnecting':
-      return `Reconnecting (${status.reconnectAttemptCount}/${status.reconnectMaxAttempts})…`
-    case 'exhausted':
-      return 'Unable to connect — check that prime-agent is running'
-  }
-}
-
-/**
  * Calculate time since last successful connection (for "Last connected X ago").
  */
 export function getTimeSinceConnected(status: ConnectionStatus): number | null {

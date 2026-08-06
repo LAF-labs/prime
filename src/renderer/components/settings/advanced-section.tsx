@@ -85,6 +85,10 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     updateDraft({ maxConcurrentAgents: clampConcurrentAgents(parsed) })
   }, [updateDraft])
 
+  const handleAnalyticsToggle = useCallback((checked: boolean) => {
+    updateDraft({ analyticsEnabled: checked })
+  }, [updateDraft])
+
   const handleReplayOnboarding = useCallback(async () => {
     const store = useSettingsStore.getState()
     await store.saveSettings({ ...store.settings, hasOnboardedV2: false })
@@ -170,6 +174,17 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
 
       <SettingsGrid label={t('Data')} description={t('Clear history and analytics')}>
         <SettingsCard>
+          <SettingRow
+            label={t('Usage statistics')}
+            description={t('Local stats for the dashboard. Nothing ever leaves this machine either way; off records nothing at all.')}
+          >
+            <Switch
+              checked={draft.analyticsEnabled !== false}
+              onCheckedChange={handleAnalyticsToggle}
+              aria-label={t('Toggle usage statistics')}
+            />
+          </SettingRow>
+          <Divider />
           <SettingRow label={t('Conversation history')} description={t('Clear all threads without resetting settings')}>
             <Tooltip>
               <TooltipTrigger asChild>

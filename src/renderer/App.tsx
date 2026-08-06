@@ -9,6 +9,7 @@ import { warmTerminalRuntime } from "@/components/chat/TerminalDrawer";
 import { startConnectionHealthMonitor } from "@/lib/connection-health";
 import { getReceiptBus } from "@/lib/typed-receipts";
 import { AppHeader } from "@/components/AppHeader";
+import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { TaskSidebar } from "@/components/sidebar/TaskSidebar";
 
 const IS_MAC = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('mac')
@@ -726,6 +727,12 @@ export function App() {
               onToggleSidebar={toggleSidebar}
               sidebarPosition={sidebarPosition}
             />
+          </ErrorBoundary>
+
+          {/* Connection trouble, where the user is actually looking. The
+              sidebar dot disappears with the sidebar; this does not. */}
+          <ErrorBoundary fallback={null}>
+            <ConnectionBanner />
           </ErrorBoundary>
 
           {/* Main area: content + side panel */}

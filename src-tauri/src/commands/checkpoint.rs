@@ -6,7 +6,6 @@
 
 use git2::{DiffOptions, Repository};
 use serde::Serialize;
-use std::path::Path;
 
 use super::rpc::AgentState;
 use super::error::AppError;

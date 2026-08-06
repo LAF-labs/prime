@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::commands::agent_launch::{agent_path_env, AgentLaunch};

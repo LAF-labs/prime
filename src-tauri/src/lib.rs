@@ -1,9 +1,3 @@
-#![allow(unexpected_cfgs, unused_imports)]
-
-#[cfg(target_os = "macos")]
-#[macro_use]
-extern crate objc;
-
 pub mod commands;
 
 use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
@@ -197,33 +191,48 @@ fn kill_window_ptys(app: &tauri::AppHandle, window_label: &str) {
 /// every focus change to prevent them from being clipped by the content view's
 /// corner radius mask.
 #[cfg(target_os = "macos")]
-fn reposition_traffic_lights(ns_window: cocoa::base::id) {
-    use cocoa::appkit::{NSView, NSWindow, NSWindowButton};
-    use cocoa::foundation::NSRect;
+fn reposition_traffic_lights(ns_window_ptr: *mut std::ffi::c_void) {
+    use objc2_app_kit::{NSWindow, NSWindowButton};
     const TRAFFIC_LIGHT_X: f64 = 13.0;
     const TRAFFIC_LIGHT_Y: f64 = 13.0;
-    unsafe {
-        let close = ns_window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
-        let miniaturize = ns_window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
-        let zoom = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
-        if close.is_null() {
-            return;
-        }
-        let title_bar_container = close.superview().superview();
-        if title_bar_container.is_null() {
-            return;
-        }
-        let title_bar_frame: NSRect = NSView::frame(title_bar_container);
-        let close_rect: NSRect = NSView::frame(close);
-        let button_height = close_rect.size.height;
-        let vertical_offset = TRAFFIC_LIGHT_Y - (title_bar_frame.size.height - button_height) / 2.0;
-        let space_between = 20.0_f64;
-        for (i, button) in [close, miniaturize, zoom].iter().enumerate() {
-            let mut rect: NSRect = NSView::frame(*button);
-            rect.origin.x = TRAFFIC_LIGHT_X + (i as f64 * space_between);
-            rect.origin.y = (title_bar_frame.size.height - button_height) / 2.0 - vertical_offset;
-            button.setFrameOrigin(rect.origin);
-        }
+    // SAFETY: the pointer comes from tauri's `ns_window()` for a live window,
+    // and we only touch it on the main thread (window events, setup).
+    let ns_window: &NSWindow = unsafe { &*(ns_window_ptr as *const NSWindow) };
+    let Some(close) = ns_window.standardWindowButton(NSWindowButton::CloseButton) else {
+        return;
+    };
+    let miniaturize = ns_window.standardWindowButton(NSWindowButton::MiniaturizeButton);
+    let zoom = ns_window.standardWindowButton(NSWindowButton::ZoomButton);
+    // SAFETY: main thread; the buttons and their ancestors are live views
+    // owned by the window we were just handed.
+    let Some(title_bar_container) = (unsafe { close.superview().and_then(|v| v.superview()) }) else {
+        return;
+    };
+    let title_bar_frame = title_bar_container.frame();
+    let button_height = close.frame().size.height;
+    let vertical_offset = TRAFFIC_LIGHT_Y - (title_bar_frame.size.height - button_height) / 2.0;
+    let space_between = 20.0_f64;
+    let buttons = [Some(close), miniaturize, zoom];
+    for (i, button) in buttons.iter().enumerate() {
+        let Some(button) = button else { continue };
+        let mut origin = button.frame().origin;
+        origin.x = TRAFFIC_LIGHT_X + (i as f64 * space_between);
+        origin.y = (title_bar_frame.size.height - button_height) / 2.0 - vertical_offset;
+        button.setFrameOrigin(origin);
+    }
+}
+
+/// Round the content view's corners to match the window chrome.
+#[cfg(target_os = "macos")]
+fn round_content_corners(ns_window_ptr: *mut std::ffi::c_void) {
+    use objc2_app_kit::NSWindow;
+    // SAFETY: same contract as reposition_traffic_lights.
+    let ns_window: &NSWindow = unsafe { &*(ns_window_ptr as *const NSWindow) };
+    let Some(content_view) = ns_window.contentView() else { return };
+    content_view.setWantsLayer(true);
+    if let Some(layer) = content_view.layer() {
+        layer.setCornerRadius(12.0);
+        layer.setMasksToBounds(true);
     }
 }
 
@@ -248,24 +257,9 @@ fn create_new_window(app: &tauri::AppHandle) {
         Ok(_new_window) => {
             log::info!("Created new window: {}", label);
             #[cfg(target_os = "macos")]
-            #[allow(deprecated)]
-            {
-                use cocoa::appkit::NSWindow;
-                use cocoa::base::id;
-                use objc::msg_send;
-                use objc::sel;
-                use objc::sel_impl;
-                if let Ok(ns_win) = _new_window.ns_window() {
-                    let ns_win = ns_win as id;
-                    unsafe {
-                        let content_view: id = ns_win.contentView();
-                        let _: () = msg_send![content_view, setWantsLayer: true];
-                        let layer: id = msg_send![content_view, layer];
-                        let _: () = msg_send![layer, setCornerRadius: 12.0_f64];
-                        let _: () = msg_send![layer, setMasksToBounds: true];
-                    }
-                    reposition_traffic_lights(ns_win);
-                }
+            if let Ok(ns_win) = _new_window.ns_window() {
+                round_content_corners(ns_win);
+                reposition_traffic_lights(ns_win);
             }
         }
         Err(e) => log::error!("Failed to create new window: {e}"),
@@ -495,31 +489,22 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
 
             #[cfg(target_os = "macos")]
-            #[allow(deprecated)]
             {
-                use cocoa::appkit::{NSApplication, NSApplicationActivationPolicy, NSWindow};
-                use cocoa::base::id;
-                use objc::msg_send;
-                use objc::sel;
-                use objc::sel_impl;
+                use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy};
 
-                // Ensure the app has Regular activation policy so NSOpenPanel works.
-                // Without this, objc2-app-kit 0.3+ panics with NULL from +[NSOpenPanel openPanel].
-                unsafe {
-                    let ns_app = cocoa::appkit::NSApp();
-                    ns_app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular);
+                // Ensure the app has Regular activation policy so NSOpenPanel
+                // works. Setup runs on the main thread, so the marker holds.
+                if let Some(mtm) = objc2::MainThreadMarker::new() {
+                    let ns_app = NSApplication::sharedApplication(mtm);
+                    ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
                 }
 
-                let ns_window = _window.ns_window().unwrap() as id;
-                unsafe {
-                    let content_view: id = ns_window.contentView();
-                    let _: () = msg_send![content_view, setWantsLayer: true];
-                    let layer: id = msg_send![content_view, layer];
-                    let _: () = msg_send![layer, setCornerRadius: 12.0_f64];
-                    let _: () = msg_send![layer, setMasksToBounds: true];
+                // Graceful, not unwrap: a missing NS handle should cost the
+                // rounded corners, not the whole launch.
+                if let Ok(ns_window) = _window.ns_window() {
+                    round_content_corners(ns_window);
+                    reposition_traffic_lights(ns_window);
                 }
-                // Initial positioning of traffic lights
-                reposition_traffic_lights(ns_window);
             }
             log::info!("LAF Agent started (pid={})", std::process::id());
             // Start watching the global agent dir for resource changes
@@ -592,9 +577,8 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 tauri::WindowEvent::Focused(_) => {
                     // Re-position traffic lights on every focus/blur event for all windows.
-                    #[allow(deprecated)]
                     if let Ok(ns_window) = window.ns_window() {
-                        reposition_traffic_lights(ns_window as cocoa::base::id);
+                        reposition_traffic_lights(ns_window);
                     }
                 }
                 _ => {}

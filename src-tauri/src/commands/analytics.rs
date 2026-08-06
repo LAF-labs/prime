@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
-use redb::{Database, ReadableTable, TableDefinition};
+use redb::{Database, TableDefinition};
 use serde::{Deserialize, Serialize};
 
 use super::error::AppError;

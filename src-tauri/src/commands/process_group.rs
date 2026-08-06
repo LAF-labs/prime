@@ -18,7 +18,6 @@
 pub fn lead_new_group(cmd: &mut tokio::process::Command) {
     #[cfg(unix)]
     {
-        use std::os::unix::process::CommandExt;
         // SAFETY: runs in the forked child between fork and exec, where only
         // async-signal-safe calls are allowed. `setpgid` is on that list.
         unsafe {

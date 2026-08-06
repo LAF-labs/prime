@@ -25,7 +25,6 @@ portable-pty = "0.8"
 log = "0.4"
 open = "5"
 ignore = "0.4"
-window-vibrancy = "0.6"
 tauri-plugin-log = "2"
 git2 = { version = "0.20", default-features = false }
 thiserror = "2"
@@ -83,5 +82,12 @@ opt-level = 2
 
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26.1"
-objc = "0.2"
+# Maintained AppKit bindings (the deprecated `cocoa`/`objc` pair was the source
+# of every remaining Rust warning). Versions match what tauri itself pulls.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = [
+    "NSApplication", "NSResponder", "NSWindow", "NSView", "NSButton",
+    "NSControl", "NSImage", "NSRunningApplication", "objc2-quartz-core",
+] }
+objc2-foundation = { version = "0.3", features = ["NSData", "NSGeometry"] }
+objc2-quartz-core = { version = "0.3", features = ["CALayer"] }

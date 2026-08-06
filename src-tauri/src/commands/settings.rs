@@ -336,51 +336,53 @@ pub fn clear_recent_projects(state: tauri::State<'_, SettingsState>) -> Result<(
 /// Set the macOS dock / app icon at runtime from a base64-encoded PNG.
 /// On non-macOS platforms this is a no-op.
 #[tauri::command]
-pub fn set_dock_icon(icon_base64: String) -> Result<(), String> {
+pub fn set_dock_icon(app: tauri::AppHandle, icon_base64: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         use base64::Engine;
-        use cocoa::base::{id, nil};
-        use objc::{msg_send, sel, sel_impl, class};
 
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(&icon_base64)
             .map_err(|e| format!("Invalid base64: {e}"))?;
 
-        unsafe {
-            let ns_data: id = msg_send![class!(NSData), alloc];
-            let ns_data: id = msg_send![ns_data, initWithBytes:bytes.as_ptr() length:bytes.len()];
-            if ns_data == nil {
-                return Err("Failed to create NSData".into());
-            }
-            let ns_image: id = msg_send![class!(NSImage), alloc];
-            let ns_image: id = msg_send![ns_image, initWithData:ns_data];
-            if ns_image == nil {
-                let _: () = msg_send![ns_data, release];
-                return Err("Failed to create NSImage from data".into());
-            }
-            let app: id = msg_send![class!(NSApplication), sharedApplication];
-            let _: () = msg_send![app, setApplicationIconImage:ns_image];
-        }
+        // AppKit is main-thread-only; the old msg_send version called it from
+        // the command thread and merely got away with it. objc2 makes the
+        // requirement explicit, so hop over properly.
+        app.run_on_main_thread(move || {
+            use objc2::AnyThread;
+            use objc2_app_kit::{NSApplication, NSImage};
+            use objc2_foundation::NSData;
+
+            let Some(mtm) = objc2::MainThreadMarker::new() else { return };
+            let data = NSData::with_bytes(&bytes);
+            let Some(image) = NSImage::initWithData(NSImage::alloc(), &data) else {
+                log::warn!("[settings] dock icon bytes did not decode to an image");
+                return;
+            };
+            let ns_app = NSApplication::sharedApplication(mtm);
+            // SAFETY: main thread (run_on_main_thread), valid image reference.
+            unsafe { ns_app.setApplicationIconImage(Some(&image)) };
+        })
+        .map_err(|e| format!("Could not reach the main thread: {e}"))?;
     }
     #[cfg(not(target_os = "macos"))]
-    let _ = icon_base64;
+    let _ = (app, icon_base64);
     Ok(())
 }
 
 /// Reset the macOS dock / app icon to the default bundle icon.
 #[tauri::command]
-pub fn reset_dock_icon() -> Result<(), String> {
+pub fn reset_dock_icon(app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
-    {
-        use cocoa::base::{id, nil};
-        use objc::{msg_send, sel, sel_impl, class};
-
-        unsafe {
-            let app: id = msg_send![class!(NSApplication), sharedApplication];
-            let _: () = msg_send![app, setApplicationIconImage:nil];
-        }
-    }
+    app.run_on_main_thread(|| {
+        use objc2_app_kit::NSApplication;
+        let Some(mtm) = objc2::MainThreadMarker::new() else { return };
+        // SAFETY: main thread; None restores the bundle icon.
+        unsafe { NSApplication::sharedApplication(mtm).setApplicationIconImage(None) };
+    })
+    .map_err(|e| format!("Could not reach the main thread: {e}"))?;
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
     Ok(())
 }
 

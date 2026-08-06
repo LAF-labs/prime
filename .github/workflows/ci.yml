@@ -81,9 +81,16 @@ jobs:
         with:
           workspaces: src-tauri
       - name: Cargo check
+        # -D warnings only here: macOS is the shipping platform and the tree
+        # is warning-free on it. The Linux job stays advisory until that
+        # platform is actually exercised.
         run: cargo check --manifest-path src-tauri/Cargo.toml
+        env:
+          RUSTFLAGS: -D warnings
       - name: Cargo test
         run: cargo test --lib --manifest-path src-tauri/Cargo.toml
+        env:
+          RUSTFLAGS: -D warnings
 
   # ── Step 4: PR comment (PRs only) ─────────────────────────────
   pr-comment:

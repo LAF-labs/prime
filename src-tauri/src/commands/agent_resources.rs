@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
 use super::error::AppError;
 
@@ -437,7 +436,6 @@ pub async fn mcp_remove_server(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn source_str_global() {

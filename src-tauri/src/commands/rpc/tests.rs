@@ -1,4 +1,5 @@
 use super::*;
+use super::connection::{build_prompt_payload, strip_image_tags};
 
 // ── is_within_workspace: allowed paths ──────────────────────────
 

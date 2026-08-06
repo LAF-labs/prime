@@ -120,7 +120,6 @@ fn start_watcher(
     });
     match debouncer {
         Ok(mut watcher) => {
-            use notify::Watcher;
             let mut watched = 0;
             // Watch the .agent root itself (for root-level .md steering files)
             if watcher.watcher().watch(agent_dir, notify::RecursiveMode::NonRecursive).is_ok() {

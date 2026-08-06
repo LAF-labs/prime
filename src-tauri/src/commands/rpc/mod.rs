@@ -10,7 +10,6 @@ pub use commands::*;
 pub use types::*;
 
 // Re-export connection helpers for testing
-pub(crate) use connection::{strip_image_tags, build_prompt_payload};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

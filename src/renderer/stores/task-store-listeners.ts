@@ -4,7 +4,7 @@ import { joinChunk } from '@/lib/utils'
 import { sendTaskNotification } from '@/lib/notifications'
 import { useDebugStore } from '@/stores/debugStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { useDiffStore } from '@/stores/diffStore'
 import { useTaskStore } from './taskStore'
 import type { TaskStore } from './task-store-types'
@@ -316,10 +316,6 @@ export function initTaskListeners(): () => void {
     }
   })
 
-  const unsub6 = ipc.onPlanUpdate(({ taskId, plan }) => {
-    touchActivity(taskId)
-    useTaskStore.getState().updatePlan(taskId, plan)
-  })
 
   const unsub7 = ipc.onUsageUpdate(({ taskId, used, size }) => {
     useTaskStore.getState().updateUsage(taskId, used, size)
@@ -550,18 +546,28 @@ export function initTaskListeners(): () => void {
         const serverName = entry.mcpServerName
           ?? knownServers.find((s) => text.toLowerCase().includes(s))
           ?? 'unknown'
-        useKiroStore.getState().setMcpError(serverName, 'OAuth setup needed — add http://127.0.0.1 as a redirect URI in your OAuth app, or disable in ~/.kiro/settings/mcp.json')
+        useResourceStore.getState().setMcpError(serverName, 'OAuth setup needed — add http://127.0.0.1 as a redirect URI in your OAuth app, or disable it in ~/.prime/agent/settings.json')
       }
     }
   })
 
-  const unsub10 = ipc.onSessionInit(({ taskId, sessionId, models, modes }) => {
+  const unsub10 = ipc.onSessionInit(({ taskId, sessionId, sessionFile, models, modes }) => {
     console.log('[session_init] received', { taskId, sessionId, models, modes })
-    // Store the kiro CLI session ID for this task
+    // Store the agent CLI session ID for this task
     if (sessionId && taskId && taskId !== '__probe__') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const s = useTaskStore.getState() as any
       useTaskStore.setState({ sessionIds: { ...s.sessionIds, [taskId]: sessionId } } as any)
+    }
+    // Remember the agent's session file so the thread can be resumed/forked
+    // natively (full model context) after a reconnect or app restart.
+    if (sessionFile && taskId && taskId !== '__probe__') {
+      const state = useTaskStore.getState()
+      const task = state.tasks[taskId]
+      if (task && task.sessionFile !== sessionFile) {
+        useTaskStore.setState({ tasks: { ...state.tasks, [taskId]: { ...task, sessionFile } } })
+        state.persistHistory()
+      }
     }
     if (models && typeof models === 'object') {
       const m = models as { availableModels?: Array<{ modelId: string; name: string; description?: string | null }>; currentModelId?: string }
@@ -673,8 +679,7 @@ export function initTaskListeners(): () => void {
 
   return () => {
     clearInterval(watchdogInterval)
-    unsub1(); unsub2(); unsub3(); unsub4(); unsub5()
-    unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12()
+    unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12()
     unsub13()
   }
 }

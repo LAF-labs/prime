@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Kirodex</title>
+        <title>LAF Agent</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet" />
@@ -12,10 +12,10 @@
         <script>
             // Apply theme before first paint to prevent flash
             (function(){
-                var t='dark';try{t=localStorage.getItem('kirodex-theme')||'dark'}catch(e){}
+                var t='dark';try{t=localStorage.getItem('laf-agent-theme')||'dark'}catch(e){}
                 if(t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}
                 if(t==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}
-                window.__kirodex_resolved_theme=t;
+                window.__laf-agent_resolved_theme=t;
             })();
         </script>
     </head>
@@ -42,7 +42,7 @@
                     0 0 30px rgba(124, 106, 239, 0.4),
                     0 0 60px rgba(124, 106, 239, 0.2);
                 animation: glow 2s ease-in-out infinite alternate;
-            ">KIRODEX</span>
+            ">LAF_AGENT</span>
             <style>
                 @keyframes glow {
                     from { text-shadow: 0 0 10px rgba(124,106,239,0.6), 0 0 30px rgba(124,106,239,0.4), 0 0 60px rgba(124,106,239,0.2); }
@@ -73,7 +73,7 @@
                 color: #888; font-size: 18px; cursor: pointer; line-height: 1;
             ">✕</button>
             <div style="font-size: 32px">⚠️</div>
-            <h2 style="font-size: 16px; font-weight: 600; margin: 0">Kirodex failed to load</h2>
+            <h2 style="font-size: 16px; font-weight: 600; margin: 0">LAF Agent failed to load</h2>
             <p style="font-size: 13px; color: #888; max-width: 360px; margin: 0; line-height: 1.5">
                 The app could not start. Try reloading, or reset app data if the problem persists.
             </p>

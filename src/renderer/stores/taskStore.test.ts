@@ -8,6 +8,7 @@ vi.mock('@/lib/ipc', () => ({
   ipc: {
     cancelTask: vi.fn().mockResolvedValue(undefined),
     deleteTask: vi.fn().mockResolvedValue(undefined),
+  checkpointCleanup: vi.fn().mockResolvedValue(0),
     listTasks: vi.fn().mockResolvedValue([]),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     forkTask: vi.fn().mockResolvedValue({ id: 'fork-1', name: 'Fork', workspace: '/ws', status: 'paused', createdAt: '', messages: [] }),
@@ -51,8 +52,8 @@ vi.mock('./settingsStore', () => ({
 vi.mock('./diffStore', () => ({
   useDiffStore: { getState: () => ({ fetchDiff: vi.fn() }) },
 }))
-vi.mock('./kiroStore', () => ({
-  useKiroStore: { getState: () => ({ setMcpError: vi.fn() }) },
+vi.mock('./resourceStore', () => ({
+  useResourceStore: { getState: () => ({ setMcpError: vi.fn() }) },
 }))
 
 import { useTaskStore, applyTurnEnd } from './taskStore'
@@ -114,32 +115,32 @@ describe('upsertTask', () => {
 
   it('preserves worktreePath when backend update lacks it', () => {
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
     }))
     // Backend task_update arrives without worktree fields
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
     }))
     const task = useTaskStore.getState().tasks['task-1']
-    expect(task.worktreePath).toBe('/project/.kiro/worktrees/feat')
+    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/feat')
     expect(task.originalWorkspace).toBe('/project')
   })
 
   it('allows overwriting worktree fields when explicitly provided', () => {
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/old',
+      worktreePath: '/project/.laf-agent/worktrees/old',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      worktreePath: '/project/.kiro/worktrees/new',
+      worktreePath: '/project/.laf-agent/worktrees/new',
       originalWorkspace: '/project',
     }))
     const task = useTaskStore.getState().tasks['task-1']
-    expect(task.worktreePath).toBe('/project/.kiro/worktrees/new')
+    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/new')
   })
 })
 
@@ -335,7 +336,7 @@ describe('projects', () => {
   })
 
   it('addProject rejects worktree paths', () => {
-    useTaskStore.getState().addProject('/project/.kiro/worktrees/feat')
+    useTaskStore.getState().addProject('/project/.laf-agent/worktrees/feat')
     expect(useTaskStore.getState().projects).toHaveLength(0)
   })
 
@@ -522,23 +523,23 @@ describe('forkTask', () => {
 
 describe('taskModes', () => {
   it('setTaskMode stores mode for task', () => {
-    useTaskStore.getState().setTaskMode('task-1', 'kiro_planner')
-    expect(useTaskStore.getState().taskModes['task-1']).toBe('kiro_planner')
+    useTaskStore.getState().setTaskMode('task-1', 'plan')
+    expect(useTaskStore.getState().taskModes['task-1']).toBe('plan')
   })
 
   it('setTaskMode no-ops when mode unchanged', () => {
-    useTaskStore.setState({ taskModes: { 'task-1': 'kiro_planner' } })
+    useTaskStore.setState({ taskModes: { 'task-1': 'plan' } })
     const before = useTaskStore.getState().taskModes
-    useTaskStore.getState().setTaskMode('task-1', 'kiro_planner')
+    useTaskStore.getState().setTaskMode('task-1', 'plan')
     expect(useTaskStore.getState().taskModes).toBe(before)
   })
 
   it('removeTask clears taskMode for that task', () => {
-    useTaskStore.setState({ taskModes: { 'task-1': 'kiro_planner', 'task-2': 'kiro_default' } })
+    useTaskStore.setState({ taskModes: { 'task-1': 'plan', 'task-2': 'code' } })
     useTaskStore.getState().upsertTask(makeTask())
     useTaskStore.getState().removeTask('task-1')
     expect(useTaskStore.getState().taskModes['task-1']).toBeUndefined()
-    expect(useTaskStore.getState().taskModes['task-2']).toBe('kiro_default')
+    expect(useTaskStore.getState().taskModes['task-2']).toBe('code')
   })
 })
 
@@ -586,11 +587,11 @@ describe('removeProject cleans up taskModes', () => {
     useTaskStore.getState().upsertTask(makeTask({ id: 't1', workspace: '/ws' }))
     useTaskStore.getState().upsertTask(makeTask({ id: 't2', workspace: '/ws' }))
     useTaskStore.getState().upsertTask(makeTask({ id: 't3', workspace: '/other' }))
-    useTaskStore.setState({ taskModes: { t1: 'kiro_planner', t2: 'kiro_default', t3: 'kiro_planner' } })
+    useTaskStore.setState({ taskModes: { t1: 'plan', t2: 'code', t3: 'plan' } })
     useTaskStore.getState().removeProject('/ws')
     expect(useTaskStore.getState().taskModes['t1']).toBeUndefined()
     expect(useTaskStore.getState().taskModes['t2']).toBeUndefined()
-    expect(useTaskStore.getState().taskModes['t3']).toBe('kiro_planner')
+    expect(useTaskStore.getState().taskModes['t3']).toBe('plan')
   })
 })
 
@@ -998,15 +999,15 @@ describe('loadTasks', () => {
   it('merges worktree metadata from archived onto live tasks', async () => {
     const { ipc } = await import('@/lib/ipc')
     const { loadThreads, loadProjects } = await import('@/lib/history-store')
-    const liveTask = makeTask({ id: 'wt-1', workspace: '/project/.kiro/worktrees/feat', status: 'running' })
+    const liveTask = makeTask({ id: 'wt-1', workspace: '/project/.laf-agent/worktrees/feat', status: 'running' })
     vi.mocked(ipc.listTasks).mockResolvedValueOnce([liveTask])
     vi.mocked(loadThreads).mockResolvedValueOnce([{
       id: 'wt-1',
       name: 'Test Task',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [],
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       projectId: 'uuid-123',
       parentTaskId: 'parent-1',
@@ -1015,7 +1016,7 @@ describe('loadTasks', () => {
     await useTaskStore.getState().loadTasks()
     const task = useTaskStore.getState().tasks['wt-1']
     expect(task.status).toBe('running')
-    expect(task.worktreePath).toBe('/project/.kiro/worktrees/feat')
+    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/feat')
     expect(task.originalWorkspace).toBe('/project')
     expect(task.projectId).toBe('uuid-123')
     expect(task.parentTaskId).toBe('parent-1')
@@ -1026,16 +1027,16 @@ describe('loadTasks', () => {
     const { loadThreads, loadProjects, toArchivedTasks } = await import('@/lib/history-store')
     const liveTask = makeTask({
       id: 'wt-2',
-      workspace: '/project/.kiro/worktrees/feat',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       projectId: 'live-uuid',
     })
     const archivedTask = makeTask({
       id: 'wt-2',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       isArchived: true,
-      worktreePath: '/project/.kiro/worktrees/old',
+      worktreePath: '/project/.laf-agent/worktrees/old',
       originalWorkspace: '/old-project',
       projectId: 'archived-uuid',
     })
@@ -1045,7 +1046,7 @@ describe('loadTasks', () => {
     vi.mocked(toArchivedTasks).mockReturnValueOnce([archivedTask])
     await useTaskStore.getState().loadTasks()
     const task = useTaskStore.getState().tasks['wt-2']
-    expect(task.worktreePath).toBe('/project/.kiro/worktrees/feat')
+    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/feat')
     expect(task.originalWorkspace).toBe('/project')
     expect(task.projectId).toBe('live-uuid')
   })
@@ -1053,22 +1054,22 @@ describe('loadTasks', () => {
   it('excludes worktree paths from projects array after merge', async () => {
     const { ipc } = await import('@/lib/ipc')
     const { loadThreads, loadProjects } = await import('@/lib/history-store')
-    const liveTask = makeTask({ id: 'wt-3', workspace: '/project/.kiro/worktrees/feat', status: 'running' })
+    const liveTask = makeTask({ id: 'wt-3', workspace: '/project/.laf-agent/worktrees/feat', status: 'running' })
     vi.mocked(ipc.listTasks).mockResolvedValueOnce([liveTask])
     vi.mocked(loadThreads).mockResolvedValueOnce([{
       id: 'wt-3',
       name: 'Test Task',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [],
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       projectId: 'uuid-456',
     }])
     vi.mocked(loadProjects).mockResolvedValueOnce([{ workspace: '/project', projectId: 'uuid-456', threadIds: ['wt-3'] }])
     await useTaskStore.getState().loadTasks()
     expect(useTaskStore.getState().projects).toContain('/project')
-    expect(useTaskStore.getState().projects).not.toContain('/project/.kiro/worktrees/feat')
+    expect(useTaskStore.getState().projects).not.toContain('/project/.laf-agent/worktrees/feat')
   })
 
   it('restores missing threads from backup', async () => {
@@ -1084,7 +1085,7 @@ describe('loadTasks', () => {
         workspace: '/ws',
         createdAt: '',
         messages: [],
-        worktreePath: '/ws/.kiro/worktrees/feat',
+        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
         parentTaskId: 'parent-1',
         projectId: '/ws',
@@ -1096,7 +1097,7 @@ describe('loadTasks', () => {
     // Backup threads are restored as archived metadata (not inflated until opened).
     expect(useTaskStore.getState().archivedMeta['backup-1']).toBeDefined()
     expect(useTaskStore.getState().archivedMeta['backup-1'].name).toBe('Restored Thread')
-    expect(useTaskStore.getState().archivedMeta['backup-1'].worktreePath).toBe('/ws/.kiro/worktrees/feat')
+    expect(useTaskStore.getState().archivedMeta['backup-1'].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(useTaskStore.getState().projectNames['/ws']).toBe('My Project')
   })
 
@@ -1470,13 +1471,13 @@ describe('worktree cleanup in archiveTask', () => {
     const { ipc } = await import('@/lib/ipc')
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().archiveTask('task-1')
     // Wait for the async check to fire
     await vi.waitFor(() => {
-      expect(ipc.gitWorktreeHasChanges).toHaveBeenCalledWith('/project/.kiro/worktrees/feat')
+      expect(ipc.gitWorktreeHasChanges).toHaveBeenCalledWith('/project/.laf-agent/worktrees/feat')
     })
   })
 
@@ -1485,7 +1486,7 @@ describe('worktree cleanup in archiveTask', () => {
     vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(false)
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().archiveTask('task-1')
@@ -1503,7 +1504,7 @@ describe('worktree cleanup in archiveTask', () => {
     vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(true)
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      worktreePath: '/project/.kiro/worktrees/dirty',
+      worktreePath: '/project/.laf-agent/worktrees/dirty',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().archiveTask('task-1')
@@ -1511,7 +1512,7 @@ describe('worktree cleanup in archiveTask', () => {
       const pending = useTaskStore.getState().worktreeCleanupPending
       expect(pending).toEqual({
         taskId: 'task-1',
-        worktreePath: '/project/.kiro/worktrees/dirty',
+        worktreePath: '/project/.laf-agent/worktrees/dirty',
         branch: 'dirty',
         originalWorkspace: '/project',
         action: 'archive',
@@ -1536,7 +1537,7 @@ describe('worktree cleanup in archiveTask', () => {
 describe('worktree cleanup in softDeleteTask', () => {
   it('sets worktreeCleanupPending for worktree tasks', async () => {
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().softDeleteTask('task-1')
@@ -1552,7 +1553,7 @@ describe('worktree cleanup in softDeleteTask', () => {
     const { ipc } = await import('@/lib/ipc')
     vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(false)
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().softDeleteTask('task-1')
@@ -1565,7 +1566,7 @@ describe('worktree cleanup in softDeleteTask', () => {
     const { ipc } = await import('@/lib/ipc')
     vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(true)
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/dirty',
+      worktreePath: '/project/.laf-agent/worktrees/dirty',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().softDeleteTask('task-1')
@@ -1573,7 +1574,7 @@ describe('worktree cleanup in softDeleteTask', () => {
       const pending = useTaskStore.getState().worktreeCleanupPending
       expect(pending).toEqual({
         taskId: 'task-1',
-        worktreePath: '/project/.kiro/worktrees/dirty',
+        worktreePath: '/project/.laf-agent/worktrees/dirty',
         branch: 'dirty',
         originalWorkspace: '/project',
         action: 'delete',
@@ -1587,13 +1588,13 @@ describe('resolveWorktreeCleanup', () => {
   it('removes worktree and deletes task when resolve(true) with delete action', async () => {
     const { ipc } = await import('@/lib/ipc')
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.setState({
       worktreeCleanupPending: {
         taskId: 'task-1',
-        worktreePath: '/project/.kiro/worktrees/feat',
+        worktreePath: '/project/.laf-agent/worktrees/feat',
         branch: 'feat',
         originalWorkspace: '/project',
         action: 'delete',
@@ -1601,7 +1602,7 @@ describe('resolveWorktreeCleanup', () => {
       },
     })
     useTaskStore.getState().resolveWorktreeCleanup(true)
-    expect(ipc.gitWorktreeRemove).toHaveBeenCalledWith('/project', '/project/.kiro/worktrees/feat')
+    expect(ipc.gitWorktreeRemove).toHaveBeenCalledWith('/project', '/project/.laf-agent/worktrees/feat')
     expect(useTaskStore.getState().worktreeCleanupPending).toBeNull()
     // Task should be soft-deleted
     expect(useTaskStore.getState().tasks['task-1']).toBeUndefined()
@@ -1612,13 +1613,13 @@ describe('resolveWorktreeCleanup', () => {
     const { ipc } = await import('@/lib/ipc')
     vi.mocked(ipc.gitWorktreeRemove).mockClear()
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.setState({
       worktreeCleanupPending: {
         taskId: 'task-1',
-        worktreePath: '/project/.kiro/worktrees/feat',
+        worktreePath: '/project/.laf-agent/worktrees/feat',
         branch: 'feat',
         originalWorkspace: '/project',
         action: 'archive',
@@ -1643,13 +1644,13 @@ describe('projectId', () => {
   it('upsertTask preserves projectId when backend update lacks it', () => {
     useTaskStore.getState().upsertTask(makeTask({
       projectId: '/project',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
     }))
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
     }))
     expect(useTaskStore.getState().tasks['task-1'].projectId).toBe('/project')
   })
@@ -1669,13 +1670,13 @@ describe('projectId', () => {
 
   it('forkTask inherits projectId from parent', async () => {
     const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.kiro/worktrees/feat' })
+    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
     vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
     useTaskStore.getState().upsertTask(makeTask({
       projectId: '/project',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
     }))
     await useTaskStore.getState().forkTask('task-1')
     expect(useTaskStore.getState().tasks['fork-1'].projectId).toBe('/project')
@@ -1683,11 +1684,11 @@ describe('projectId', () => {
 
   it('forkTask falls back to UUID via getProjectId when parent has no projectId', async () => {
     const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.kiro/worktrees/feat' })
+    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
     vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
     useTaskStore.getState().upsertTask(makeTask({
       originalWorkspace: '/project',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
     }))
     await useTaskStore.getState().forkTask('task-1')
     const pid = useTaskStore.getState().tasks['fork-1'].projectId
@@ -1698,16 +1699,16 @@ describe('projectId', () => {
 
   it('forkTask adds real workspace to projects list, not worktree path', async () => {
     const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.kiro/worktrees/feat' })
+    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
     vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
     useTaskStore.getState().upsertTask(makeTask({
       projectId: useTaskStore.getState().getProjectId('/project'),
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     await useTaskStore.getState().forkTask('task-1')
     expect(useTaskStore.getState().projects).toContain('/project')
-    expect(useTaskStore.getState().projects).not.toContain('/project/.kiro/worktrees/feat')
+    expect(useTaskStore.getState().projects).not.toContain('/project/.laf-agent/worktrees/feat')
   })
 
   it('removeProject matches worktree threads by originalWorkspace', () => {
@@ -1719,9 +1720,9 @@ describe('projectId', () => {
     }))
     useTaskStore.getState().upsertTask(makeTask({
       id: 'worktree',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       projectId: useTaskStore.getState().projectIds['/project'],
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().removeProject('/project')
@@ -1732,7 +1733,7 @@ describe('projectId', () => {
   it('archiveThreads matches worktree threads by originalWorkspace', () => {
     useTaskStore.getState().upsertTask(makeTask({
       id: 'wt1',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().upsertTask(makeTask({
@@ -1746,14 +1747,14 @@ describe('projectId', () => {
 
   it('restoreTask uses originalWorkspace for projects list', () => {
     useTaskStore.getState().upsertTask(makeTask({
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().softDeleteTask('task-1')
     useTaskStore.setState({ projects: [] })
     useTaskStore.getState().restoreTask('task-1')
     expect(useTaskStore.getState().projects).toContain('/project')
-    expect(useTaskStore.getState().projects).not.toContain('/project/.kiro/worktrees/feat')
+    expect(useTaskStore.getState().projects).not.toContain('/project/.laf-agent/worktrees/feat')
   })
 
   it('loadTasks derives projects from workspace paths, not UUIDs', async () => {
@@ -1761,7 +1762,7 @@ describe('projectId', () => {
     const { loadThreads, loadProjects, toArchivedTasks } = await import('@/lib/history-store')
     vi.mocked(ipc.listTasks).mockResolvedValueOnce([
       makeTask({ id: 't1', workspace: '/project' }),
-      makeTask({ id: 't2', workspace: '/project/.kiro/worktrees/feat', originalWorkspace: '/project' }),
+      makeTask({ id: 't2', workspace: '/project/.laf-agent/worktrees/feat', originalWorkspace: '/project' }),
     ])
     vi.mocked(loadThreads).mockResolvedValueOnce([])
     vi.mocked(loadProjects).mockResolvedValueOnce([])
@@ -1785,12 +1786,12 @@ describe('workspace scoping', () => {
   it('setSelectedTask resolves worktree thread to originalWorkspace', () => {
     useTaskStore.getState().upsertTask(makeTask({
       id: 't1',
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
     }))
     useTaskStore.getState().setSelectedTask('t1')
-    expect(mockSetActiveWorkspace).toHaveBeenCalledWith('/project', '/project/.kiro/worktrees/feat')
+    expect(mockSetActiveWorkspace).toHaveBeenCalledWith('/project', '/project/.laf-agent/worktrees/feat')
   })
 
   it('setSelectedTask sets activeWorkspace to null when deselecting', () => {
@@ -1812,7 +1813,7 @@ describe('workspace scoping', () => {
   })
 
   it('addProject rejects worktree paths', () => {
-    useTaskStore.getState().addProject('/project/.kiro/worktrees/feat')
+    useTaskStore.getState().addProject('/project/.laf-agent/worktrees/feat')
     expect(useTaskStore.getState().projects).toHaveLength(0)
     expect(useTaskStore.getState().projectIds).toEqual({})
   })
@@ -1828,41 +1829,41 @@ describe('workspace scoping', () => {
     const { loadThreads, loadProjects, toArchivedTasks } = await import('@/lib/history-store')
     vi.mocked(ipc.listTasks).mockResolvedValueOnce([
       makeTask({ id: 't1', workspace: '/project' }),
-      makeTask({ id: 't2', workspace: '/project/.kiro/worktrees/feat', originalWorkspace: '/project' }),
-      makeTask({ id: 't3', workspace: '/project/.kiro/worktrees/fix', originalWorkspace: '/project' }),
+      makeTask({ id: 't2', workspace: '/project/.laf-agent/worktrees/feat', originalWorkspace: '/project' }),
+      makeTask({ id: 't3', workspace: '/project/.laf-agent/worktrees/fix', originalWorkspace: '/project' }),
     ])
     vi.mocked(loadThreads).mockResolvedValueOnce([])
     vi.mocked(loadProjects).mockResolvedValueOnce([])
     vi.mocked(toArchivedTasks).mockReturnValueOnce([])
     await useTaskStore.getState().loadTasks()
     expect(useTaskStore.getState().projects).toEqual(['/project'])
-    expect(useTaskStore.getState().projects.some((p) => p.includes('.kiro/worktrees'))).toBe(false)
+    expect(useTaskStore.getState().projects.some((p) => p.includes('.laf-agent/worktrees'))).toBe(false)
   })
 
   it('forkTask of worktree thread adds project root to projects, not worktree path', async () => {
     const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.kiro/worktrees/feat' })
+    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
     vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
     useTaskStore.getState().upsertTask(makeTask({
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
-      worktreePath: '/project/.kiro/worktrees/feat',
+      worktreePath: '/project/.laf-agent/worktrees/feat',
     }))
     await useTaskStore.getState().forkTask('task-1')
     expect(useTaskStore.getState().projects).toContain('/project')
-    expect(useTaskStore.getState().projects.some((p) => p.includes('.kiro/worktrees'))).toBe(false)
+    expect(useTaskStore.getState().projects.some((p) => p.includes('.laf-agent/worktrees'))).toBe(false)
   })
 
   it('restoreTask of worktree thread adds project root to projects', () => {
     useTaskStore.getState().upsertTask(makeTask({
-      workspace: '/project/.kiro/worktrees/feat',
+      workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().softDeleteTask('task-1')
     useTaskStore.setState({ projects: [] })
     useTaskStore.getState().restoreTask('task-1')
     expect(useTaskStore.getState().projects).toContain('/project')
-    expect(useTaskStore.getState().projects.some((p) => p.includes('.kiro/worktrees'))).toBe(false)
+    expect(useTaskStore.getState().projects.some((p) => p.includes('.laf-agent/worktrees'))).toBe(false)
   })
 })
 

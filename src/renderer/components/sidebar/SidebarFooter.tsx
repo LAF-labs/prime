@@ -1,7 +1,7 @@
 import { memo, useState, useCallback } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useResizeHandle } from '@/hooks/useResizeHandle'
-import { KiroConfigPanel } from './KiroConfigPanel'
+import { ResourcePanel } from './ResourcePanel'
 
 export const SidebarFooter = memo(function SidebarFooter() {
   const [collapsed, setCollapsed] = useState(true)
@@ -20,12 +20,12 @@ export const SidebarFooter = memo(function SidebarFooter() {
       </div>
       {collapsed ? (
         <div className="px-1 py-1">
-          <KiroConfigPanel collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+          <ResourcePanel collapsed={collapsed} onToggleCollapse={toggleCollapse} />
         </div>
       ) : (
         <ScrollArea style={{ height, maxHeight: '100%' }} className="min-h-0">
           <div className="px-1 py-1">
-            <KiroConfigPanel collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+            <ResourcePanel collapsed={collapsed} onToggleCollapse={toggleCollapse} />
           </div>
         </ScrollArea>
       )}

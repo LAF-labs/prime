@@ -17,12 +17,12 @@ import { useSlashAction } from './useSlashAction'
 beforeEach(() => {
   vi.clearAllMocks()
   useSettingsStore.setState({
-    settings: { kiroBin: 'kiro-cli', agentProfiles: [], fontSize: 13 },
+    settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13 },
     availableModes: [
-      { id: 'kiro_default', name: 'Default' },
-      { id: 'kiro_planner', name: 'Planner' },
+      { id: 'code', name: 'Default' },
+      { id: 'plan', name: 'Planner' },
     ],
-    currentModeId: 'kiro_default',
+    currentModeId: 'code',
     currentModelId: null,
     availableModels: [],
     modelsLoading: false,
@@ -31,8 +31,8 @@ beforeEach(() => {
     activeWorkspace: null,
     availableCommands: [],
     liveMcpServers: [],
-    kiroAuth: null,
-    kiroAuthChecked: false,
+    agentAuth: null,
+    authChecked: false,
   })
   useTaskStore.setState({
     tasks: { 'task-1': { id: 'task-1', name: 'Test', workspace: '/ws', status: 'paused', createdAt: '', messages: [] } },
@@ -61,34 +61,21 @@ describe('useSlashAction /plan toggle', () => {
   it('/plan enables plan mode from default', () => {
     const { result } = renderHook(() => useSlashAction())
     act(() => { result.current.execute('/plan') })
-    expect(useSettingsStore.getState().currentModeId).toBe('kiro_planner')
+    expect(useSettingsStore.getState().currentModeId).toBe('plan')
   })
 
   it('/plan disables plan mode when already in plan mode', () => {
-    useSettingsStore.setState({ currentModeId: 'kiro_planner' })
+    useSettingsStore.setState({ currentModeId: 'plan' })
     const { result } = renderHook(() => useSlashAction())
     act(() => { result.current.execute('/plan') })
-    expect(useSettingsStore.getState().currentModeId).toBe('kiro_default')
-  })
-
-  it('/plan calls ipc.setMode with kiro_planner when enabling', () => {
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/plan') })
-    expect(ipc.setMode).toHaveBeenCalledWith('task-1', 'kiro_planner')
-  })
-
-  it('/plan calls ipc.setMode with kiro_default when disabling', () => {
-    useSettingsStore.setState({ currentModeId: 'kiro_planner' })
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/plan') })
-    expect(ipc.setMode).toHaveBeenCalledWith('task-1', 'kiro_default')
+    expect(useSettingsStore.getState().currentModeId).toBe('code')
   })
 
   it('/plan does not call ipc.setMode when no task is selected', () => {
     useTaskStore.setState({ selectedTaskId: null })
     const { result } = renderHook(() => useSlashAction())
     act(() => { result.current.execute('/plan') })
-    expect(useSettingsStore.getState().currentModeId).toBe('kiro_planner')
+    expect(useSettingsStore.getState().currentModeId).toBe('plan')
     expect(ipc.setMode).not.toHaveBeenCalled()
   })
 
@@ -172,20 +159,20 @@ describe('useSlashAction /fork', () => {
 })
 
 describe('createTask passes modeId', () => {
-  it('includes modeId when currentModeId is kiro_planner', async () => {
-    useSettingsStore.setState({ currentModeId: 'kiro_planner', activeWorkspace: '/ws' })
+  it('includes modeId when currentModeId is plan', async () => {
+    useSettingsStore.setState({ currentModeId: 'plan', activeWorkspace: '/ws' })
     const { currentModeId } = useSettingsStore.getState()
-    const modeId = currentModeId && currentModeId !== 'kiro_default' ? currentModeId : undefined
+    const modeId = currentModeId && currentModeId !== 'code' ? currentModeId : undefined
     await ipc.createTask({ name: 'Test', workspace: '/ws', prompt: 'hello', modeId })
     expect(ipc.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({ modeId: 'kiro_planner' }),
+      expect.objectContaining({ modeId: 'plan' }),
     )
   })
 
-  it('omits modeId when currentModeId is kiro_default', async () => {
-    useSettingsStore.setState({ currentModeId: 'kiro_default' })
+  it('omits modeId when currentModeId is code', async () => {
+    useSettingsStore.setState({ currentModeId: 'code' })
     const { currentModeId } = useSettingsStore.getState()
-    const modeId = currentModeId && currentModeId !== 'kiro_default' ? currentModeId : undefined
+    const modeId = currentModeId && currentModeId !== 'code' ? currentModeId : undefined
     await ipc.createTask({ name: 'Test', workspace: '/ws', prompt: 'hello', modeId })
     expect(ipc.createTask).toHaveBeenCalledWith(
       expect.objectContaining({ modeId: undefined }),
@@ -195,7 +182,7 @@ describe('createTask passes modeId', () => {
   it('omits modeId when currentModeId is null', async () => {
     useSettingsStore.setState({ currentModeId: null })
     const { currentModeId } = useSettingsStore.getState()
-    const modeId = currentModeId && currentModeId !== 'kiro_default' ? currentModeId : undefined
+    const modeId = currentModeId && currentModeId !== 'code' ? currentModeId : undefined
     await ipc.createTask({ name: 'Test', workspace: '/ws', prompt: 'hello', modeId })
     expect(ipc.createTask).toHaveBeenCalledWith(
       expect.objectContaining({ modeId: undefined }),

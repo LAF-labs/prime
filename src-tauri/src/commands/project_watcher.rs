@@ -1064,11 +1064,11 @@ pub fn open_terminal_at(workspace: String, rel_path: String) -> Result<(), Strin
     #[cfg(target_os = "macos")]
     {
         // Use environment variable to pass the path safely (avoids AppleScript injection)
-        let script = "tell application \"Terminal\"\nactivate\ndo script (\"cd \" & quoted form of (system attribute \"KIRODEX_CD_PATH\"))\nend tell";
+        let script = "tell application \"Terminal\"\nactivate\ndo script (\"cd \" & quoted form of (system attribute \"LAF_AGENT_CD_PATH\"))\nend tell";
         std::process::Command::new("osascript")
             .arg("-e")
             .arg(script)
-            .env("KIRODEX_CD_PATH", dir.to_string_lossy().as_ref())
+            .env("LAF_AGENT_CD_PATH", dir.to_string_lossy().as_ref())
             .spawn()
             .map_err(|e| format!("Failed to open terminal: {}", e))?;
     }

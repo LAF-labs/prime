@@ -76,16 +76,19 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
         <div className="flex flex-col items-center px-6 pt-8 pb-6">
           <img
             src={displayIcon}
-            alt="Kirodex"
+            alt="LAF Agent"
             className="size-20 rounded-2xl shadow-lg"
             draggable={false}
           />
           <DialogTitle className="mt-4 text-center text-lg font-semibold">
-            Kirodex
+            LAF Agent
           </DialogTitle>
           <DialogDescription className="mt-1 text-center text-[13px] text-muted-foreground">
             {appVersion ? `Version ${appVersion}` : 'Loading…'}
           </DialogDescription>
+          <p className="mt-1 text-center text-[10px] text-muted-foreground/60">
+            Powered by Prime Agent (PrimeIntellect-ai/prime-agent)
+          </p>
 
           {/* Update status */}
           <div className="mt-4 flex flex-col items-center gap-2">
@@ -140,13 +143,13 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border/40 px-6 py-3">
           <span className="text-[11px] text-muted-foreground">
-            © 2026 Thabti
+            © 2026 LAF
           </span>
           <a
-            href="https://github.com/thabti/kirodex"
+            href="https://laf-co.com/"
             onClick={handleExternalLinkClick}
             onKeyDown={handleExternalLinkKeyDown}
-            aria-label="Kirodex on GitHub"
+            aria-label="LAF Agent on GitHub"
             tabIndex={0}
             className={cn(
               'inline-flex size-6 items-center justify-center rounded-md',

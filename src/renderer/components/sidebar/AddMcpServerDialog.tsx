@@ -15,16 +15,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from 'sonner'
 import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { cn } from '@/lib/utils'
 
 /**
- * Add a new MCP server through the kiro-cli's own `mcp add` subcommand.
+ * Add a new MCP server through the prime-agent's own `mcp add` subcommand.
  *
  * We deliberately shell out to the CLI rather than rewriting `mcp.json`
  * directly so the user gets the CLI's validation, registry-mode enforcement,
  * and any future side effects for free. Behavior mirrors the docs at
- * https://kiro.dev/docs/cli/mcp/configuration/
+ * https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/docs/mcp-integrations.md
  */
 
 type Transport = 'stdio' | 'http'
@@ -33,13 +33,13 @@ type Scope = 'global' | 'workspace' | 'agent'
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Optional workspace path so workspace-scope adds end up in the right .kiro/. */
+  /** Optional workspace path so workspace-scope adds end up in the right .agent/. */
   workspace: string | null
 }
 
 export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
-  const kiroBin = useSettingsStore((s) => s.settings.kiroBin)
-  const agents = useKiroStore((s) => s.config.agents)
+  const agentBin = useSettingsStore((s) => s.settings.agentBin)
+  const agents = useResourceStore((s) => s.config.agents)
 
   const [transport, setTransport] = useState<Transport>('stdio')
   const [scope, setScope] = useState<Scope>(workspace ? 'workspace' : 'global')
@@ -108,12 +108,12 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
           force: false,
         },
         workspace ?? undefined,
-        kiroBin,
+        agentBin,
       )
       toast.success(`Added MCP server "${name.trim()}"`, {
         description: `Scope: ${fullScope}. New chat threads will pick it up automatically.`,
       })
-      // The kiro_watcher will fire onKiroConfigChanged → kiroStore reloads.
+      // The resource_watcher will fire onAgentResourcesChanged → resourceStore reloads.
       // No need to invalidate here.
       onOpenChange(false)
     } catch (e) {
@@ -123,7 +123,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
     } finally {
       setSubmitting(false)
     }
-  }, [canSubmit, scope, agentName, name, transport, command, parsedArgs, url, parsedEnv, workspace, kiroBin, onOpenChange])
+  }, [canSubmit, scope, agentName, name, transport, command, parsedArgs, url, parsedEnv, workspace, agentBin, onOpenChange])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
@@ -143,7 +143,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
         <DialogHeader>
           <DialogTitle>Add MCP server</DialogTitle>
           <DialogDescription>
-            Runs <code className="rounded bg-muted px-1 font-mono text-[11px]">kiro-cli mcp add</code>. Validation,
+            Runs <code className="rounded bg-muted px-1 font-mono text-[11px]">prime-agent mcp add</code>. Validation,
             registry checks, and config writes are handled by the CLI.
           </DialogDescription>
         </DialogHeader>
@@ -197,12 +197,12 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-medium text-muted-foreground">Scope</label>
             <div className="flex items-center rounded-md border border-border overflow-hidden">
-              <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.kiro/settings/mcp.json" />
+              <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.agent/settings/mcp.json" />
               <ScopeButton
                 active={scope === 'workspace'}
                 onClick={() => setScope('workspace')}
                 label="Workspace"
-                hint=".kiro/settings/mcp.json"
+                hint=".agent/settings/mcp.json"
                 disabled={!workspace}
                 divider
               />
@@ -217,9 +217,9 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
             </div>
             <p className="font-mono text-[10px] text-muted-foreground/70">
               {scope === 'global'
-                ? '~/.kiro/settings/mcp.json'
+                ? '~/.agent/settings/mcp.json'
                 : scope === 'workspace'
-                  ? '.kiro/settings/mcp.json'
+                  ? '.agent/settings/mcp.json'
                   : 'Custom agent file'}
             </p>
             {scope === 'agent' && (

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { ipc } from '@/lib/ipc'
+import { isPassthroughCommand, parseCommand, runRpcCommand, RPC_COMMANDS } from '@/lib/agent-commands'
 import { track } from '@/lib/analytics'
 import { record } from '@/lib/analytics-collector'
 
@@ -37,11 +38,8 @@ const switchMode = (modeId: string, label: string): void => {
   record('mode_switch', { detail: modeId })
   const taskId = useTaskStore.getState().selectedTaskId
   if (taskId) {
+    // Plan mode is applied client-side per message; nothing to sync.
     useTaskStore.getState().setTaskMode(taskId, modeId)
-    ipc.setMode(taskId, modeId).catch(() => {
-      addSystemMessage(`⚠️ Failed to sync ${label} mode with backend`)
-    })
-    ipc.sendMessage(taskId, `/agent ${modeId}`).catch(() => {})
   }
 }
 
@@ -53,9 +51,14 @@ export const useSlashAction = (): SlashActionResult => {
     // Track every recognized slash command. The switch below rejects unknown
     // names by returning false, so we gate the track call on that path via
     // the `default` case.
-    const KNOWN = new Set(['clear', 'model', 'agent', 'settings', 'upload', 'plan', 'usage', 'data', 'close', 'exit', 'branch', 'worktree', 'btw', 'tangent', 'fork'])
+    const KNOWN = new Set([
+      'clear', 'model', 'agent', 'settings', 'upload', 'plan', 'usage', 'data',
+      'close', 'exit', 'branch', 'worktree', 'btw', 'tangent', 'fork',
+      'goal', 'autonomous', 'compact', 'refine',
+      ...RPC_COMMANDS.map((c) => c.name),
+    ])
     if (KNOWN.has(name)) {
-      const mode = useSettingsStore.getState().currentModeId === 'kiro_planner' ? 'plan' : 'command'
+      const mode = useSettingsStore.getState().currentModeId === 'plan' ? 'plan' : 'command'
       track('feature_used', { feature: 'slash_command', detail: name })
       record('slash_cmd', { detail: `${name}:${mode}` })
     }
@@ -97,10 +100,10 @@ export const useSlashAction = (): SlashActionResult => {
         return true
       case 'plan': {
         const current = useSettingsStore.getState().currentModeId
-        if (current === 'kiro_planner') {
-          switchMode('kiro_default', 'Default')
+        if (current === 'plan') {
+          switchMode('code', 'Default')
         } else {
-          switchMode('kiro_planner', 'Plan')
+          switchMode('plan', 'Plan')
         }
         setPanel(null)
         return true
@@ -141,14 +144,50 @@ export const useSlashAction = (): SlashActionResult => {
         setPanel(null)
         return true
       }
-      default:
+      default: {
         setPanel(null)
+        // Session commands (/goal, /autonomous, /compact, /refine) are executed
+        // by the agent itself — returning false lets the picker insert the
+        // command so the user can add arguments, then it ships as a prompt.
+        if (isPassthroughCommand(name)) return false
+        // RPC-backed commands with no arguments run immediately; the ones that
+        // take arguments fall through so the user can type them.
+        if (RPC_COMMANDS.some((c) => c.name === name)) {
+          const spec = RPC_COMMANDS.find((c) => c.name === name)
+          if (spec?.argumentHint) return false
+          const taskId = useTaskStore.getState().selectedTaskId
+          if (!taskId) {
+            addSystemMessage('Open a thread first.')
+            return true
+          }
+          void runRpcCommand(taskId, name, '')
+            .then((r) => { if (r.message) addSystemMessage(r.message) })
+            .catch((e) => addSystemMessage(`⚠️ /${name} failed: ${e instanceof Error ? e.message : String(e)}`))
+          return true
+        }
         return false
+      }
     }
   }, [])
 
   const executeFullInput = useCallback((input: string): boolean => {
     const trimmed = input.trim()
+    // RPC-backed commands that take arguments (e.g. "/name my session").
+    if (trimmed.startsWith('/')) {
+      const { name, rest } = parseCommand(trimmed)
+      if (RPC_COMMANDS.some((c) => c.name === name)) {
+        const taskId = useTaskStore.getState().selectedTaskId
+        if (!taskId) {
+          addSystemMessage('Open a thread first.')
+          return true
+        }
+        track('feature_used', { feature: 'slash_command', detail: name })
+        void runRpcCommand(taskId, name, rest)
+          .then((r) => { if (r.message) addSystemMessage(r.message) })
+          .catch((e) => addSystemMessage(`⚠️ /${name} failed: ${e instanceof Error ? e.message : String(e)}`))
+        return true
+      }
+    }
     // Match /btw or /tangent at the start
     const match = trimmed.match(/^\/(?:btw|tangent)\b(.*)$/i)
     if (!match) return false

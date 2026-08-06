@@ -4,7 +4,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import ChatMarkdown from './ChatMarkdown'
 import { ThinkingDisplay } from './ThinkingDisplay'
-import { isPlanHandoff, PlanHandoffCard } from './PlanHandoffCard'
 import { TaskCompletionCard, parseReport, stripReport, shouldRenderReportCard } from './TaskCompletionCard'
 import { CompletionDivider } from './CompletionDivider'
 import { useTaskStore } from '@/stores/taskStore'
@@ -126,7 +125,6 @@ export const AssistantTextRow = memo(function AssistantTextRow({ row }: { row: A
   // Inline-mode middle segments must not parse the content for report/handoff —
   // they hold a slice of prose, not the full message body.
   const isInline = row.isInlineSegment === true
-  const showHandoff = !row.isStreaming && !isInline && isPlanHandoff(row.content)
   const report = useMemo(
     () => (!row.isStreaming && !isInline ? parseReport(row.content) : null),
     [row.isStreaming, row.content, isInline],
@@ -197,7 +195,6 @@ export const AssistantTextRow = memo(function AssistantTextRow({ row }: { row: A
         )
       ) : null}
       {showReportCard && <TaskCompletionCard report={report} />}
-      {showHandoff && <PlanHandoffCard />}
       {!row.isStreaming && !isInline && displayContent && (
         <div className="mt-1 flex items-center gap-1 opacity-50 transition-opacity group-hover/assistant:opacity-100 focus-within:opacity-100">
           <Tooltip>

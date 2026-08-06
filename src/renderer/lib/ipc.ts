@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { AgentTask, AppSettings, KiroConfig, ToolCall, PlanStep, DebugLogEntry, ProjectFile, IpcAttachment } from '@/types'
+import type { AgentTask, AppSettings, AgentResources, ToolCall, PlanStep, DebugLogEntry, ProjectFile, IpcAttachment } from '@/types'
 
 type UnsubscribeFn = () => void
 
@@ -33,7 +33,7 @@ const tauriListen = <T>(event: string, cb: (payload: T) => void): UnsubscribeFn 
 }
 
 export const ipc = {
-  createTask: (params: { name: string; workspace: string; prompt: string; autoApprove?: boolean; modeId?: string; modelId?: string; attachments?: IpcAttachment[]; existingId?: string; existingMessages?: Array<{ role: string; content: string; timestamp: string; thinking?: string; toolCalls?: ToolCall[] }>; deferSpawn?: boolean }): Promise<AgentTask> =>
+  createTask: (params: { name: string; workspace: string; prompt: string; autoApprove?: boolean; modeId?: string; modelId?: string; attachments?: IpcAttachment[]; existingId?: string; existingMessages?: Array<{ role: string; content: string; timestamp: string; thinking?: string; toolCalls?: ToolCall[] }>; deferSpawn?: boolean; sessionFile?: string }): Promise<AgentTask> =>
     invoke('task_create', { params }),
   listTasks: (): Promise<AgentTask[]> =>
     invoke('task_list'),
@@ -47,8 +47,8 @@ export const ipc = {
     invoke('task_cancel', { taskId }),
   deleteTask: (taskId: string): Promise<void> =>
     invoke('task_delete', { taskId }),
-  forkTask: (taskId: string, workspace?: string, parentName?: string): Promise<AgentTask> =>
-    invoke('task_fork', { params: { taskId, workspace, parentName } }),
+  forkTask: (taskId: string, workspace?: string, parentName?: string, sessionFile?: string): Promise<AgentTask> =>
+    invoke('task_fork', { params: { taskId, workspace, parentName, sessionFile } }),
   allowPermission: (taskId: string, requestId: string, optionId?: string): Promise<void> =>
     invoke('task_allow_permission', { taskId, requestId, optionId }),
   denyPermission: (taskId: string, requestId: string, optionId?: string): Promise<void> =>
@@ -61,10 +61,10 @@ export const ipc = {
     invoke('pick_folder'),
   pickImage: (): Promise<string | null> =>
     invoke('pick_image'),
-  detectKiroCli: (): Promise<string | null> =>
-    invoke('detect_kiro_cli'),
-  listModels: (kiroBin?: string): Promise<{ availableModels: Array<{ modelId: string; name: string; description?: string | null }>; currentModelId: string | null }> =>
-    invoke('list_models', { kiroBin }),
+  detectAgentCli: (): Promise<string | null> =>
+    invoke('detect_agent_cli'),
+  listModels: (agentBin?: string): Promise<{ availableModels: Array<{ modelId: string; name: string; description?: string | null }>; currentModelId: string | null }> =>
+    invoke('list_models', { agentBin }),
   probeCapabilities: (): Promise<{ ok: boolean }> =>
     invoke('probe_capabilities'),
   getSettings: (): Promise<AppSettings> =>
@@ -135,6 +135,13 @@ export const ipc = {
     invoke('git_stage', { taskId, filePath }),
   gitRevert: (taskId: string, filePath: string): Promise<void> =>
     invoke('git_revert', { taskId, filePath }),
+  /** Send any prime-agent RPC command to a live thread and await its data. */
+  agentRpcRequest: (taskId: string, command: string, params?: Record<string, unknown>): Promise<unknown> =>
+    invoke('agent_rpc_request', { taskId, command, params: params ?? null }),
+  setThinkingLevel: (taskId: string, level: string): Promise<void> =>
+    invoke('set_thinking_level', { taskId, level }),
+  compactContext: (taskId: string): Promise<void> =>
+    invoke('compact_context', { taskId }),
   setMode: (taskId: string, modeId: string): Promise<void> =>
     invoke('set_mode', { taskId, modeId }),
   ptyCreate: (id: string, cwd: string): Promise<void> =>
@@ -147,12 +154,12 @@ export const ipc = {
     invoke('pty_kill', { id }),
   ptyCount: (): Promise<number> =>
     invoke('pty_count'),
-  getKiroConfig: (projectPath?: string): Promise<KiroConfig> =>
-    invoke('get_kiro_config', { projectPath }),
+  getAgentResources: (projectPath?: string): Promise<AgentResources> =>
+    invoke('get_agent_resources', { projectPath }),
   saveMcpServerConfig: (filePath: string, serverName: string, patch: { disabled?: boolean; disabledTools?: string[] }): Promise<void> =>
     invoke('save_mcp_server_config', { filePath, serverName, patch }),
   /**
-   * Run `kiro-cli mcp add` as a subprocess.
+   * Run `prime-agent mcp add` as a subprocess.
    *
    * Prefer this over a raw mcp.json edit so the CLI's validation, registry-mode
    * enforcement, and any side effects (caching, telemetry) all run.
@@ -170,15 +177,15 @@ export const ipc = {
     url?: string
     env: string[]
     force: boolean
-  }, workspace?: string, kiroBin?: string): Promise<string> =>
-    invoke('mcp_add_server', { request, workspace, kiroBin }),
-  /** Run `kiro-cli mcp remove` for the given scope. */
-  mcpRemoveServer: (request: { name: string; scope: string }, workspace?: string, kiroBin?: string): Promise<string> =>
-    invoke('mcp_remove_server', { request, workspace, kiroBin }),
-  watchKiroPath: (path: string): Promise<void> =>
-    invoke('watch_kiro_path', { path }),
-  unwatchKiroPath: (path: string): Promise<void> =>
-    invoke('unwatch_kiro_path', { path }),
+  }, workspace?: string, agentBin?: string): Promise<string> =>
+    invoke('mcp_add_server', { request, workspace, agentBin }),
+  /** Run `prime-agent mcp remove` for the given scope. */
+  mcpRemoveServer: (request: { name: string; scope: string }, workspace?: string, agentBin?: string): Promise<string> =>
+    invoke('mcp_remove_server', { request, workspace, agentBin }),
+  watchResourcePath: (path: string): Promise<void> =>
+    invoke('watch_resource_path', { path }),
+  unwatchResourcePath: (path: string): Promise<void> =>
+    invoke('unwatch_resource_path', { path }),
   readFile: (filePath: string): Promise<string | null> =>
     invoke('read_text_file', { path: filePath }),
   readFileBase64: (filePath: string): Promise<string | null> =>
@@ -225,10 +232,26 @@ export const ipc = {
   listSmallImages: (cwd: string, maxSize: number): Promise<Array<{ path: string; width: number; height: number }>> =>
     invoke('list_small_images', { cwd, maxSize }),
   // Auth
-  kiroWhoami: (kiroBin?: string): Promise<{ email?: string | null; accountType?: string; region?: string; startUrl?: string }> =>
-    invoke('kiro_whoami', { kiroBin }),
-  kiroLogout: (kiroBin?: string): Promise<void> =>
-    invoke('kiro_logout', { kiroBin }),
+  authStatus: (agentBin?: string): Promise<{ email?: string | null; accountType?: string; region?: string; startUrl?: string }> =>
+    invoke('auth_status', { agentBin }),
+  authLogout: (agentBin?: string): Promise<void> =>
+    invoke('auth_logout', { agentBin }),
+  ensureChatsDir: (): Promise<string> =>
+    invoke('ensure_chats_dir'),
+  authSetApiKey: (provider: string, key: string): Promise<void> =>
+    invoke('auth_set_api_key', { provider, key }),
+  authListProviders: (): Promise<Array<{ name: string; kind: string; isCustom: boolean; baseUrl?: string | null; modelCount: number }>> =>
+    invoke('auth_list_providers'),
+  disableSerperWebsearch: (): Promise<boolean> =>
+    invoke('disable_serper_websearch'),
+  repairCustomProviders: (): Promise<number> =>
+    invoke('repair_custom_providers'),
+  authSetCustomProvider: (name: string, baseUrl: string, apiKey: string, modelIds: string[]): Promise<void> =>
+    invoke('auth_set_custom_provider', { name, baseUrl, apiKey, modelIds }),
+  providerDiscoverModels: (args: { provider?: string; baseUrl?: string; apiKey: string }): Promise<Array<{ id: string; name: string }>> =>
+    invoke('provider_discover_models', { provider: args.provider ?? null, baseUrl: args.baseUrl ?? null, apiKey: args.apiKey }),
+  authRemoveProvider: (provider: string): Promise<void> =>
+    invoke('auth_remove_provider', { provider }),
   openTerminalWithCommand: (command: string): Promise<void> =>
     invoke('open_terminal_with_command', { command }),
   // Relaunch
@@ -267,15 +290,13 @@ export const ipc = {
     tauriListen('tool_call_update', cb),
   onThinkingChunk: (cb: (data: { taskId: string; chunk: string }) => void): UnsubscribeFn =>
     tauriListen('thinking_chunk', cb),
-  onPlanUpdate: (cb: (data: { taskId: string; plan: PlanStep[] }) => void): UnsubscribeFn =>
-    tauriListen('plan_update', cb),
   onUsageUpdate: (cb: (data: { taskId: string; used: number; size: number }) => void): UnsubscribeFn =>
     tauriListen('usage_update', cb),
   onTurnEnd: (cb: (data: { taskId: string; stopReason?: string }) => void): UnsubscribeFn =>
     tauriListen('turn_end', cb),
   onDebugLog: (cb: (entry: DebugLogEntry) => void): UnsubscribeFn =>
     tauriListen('debug_log', cb),
-  onSessionInit: (cb: (data: { taskId: string; sessionId?: string; models: unknown; modes: unknown; configOptions: unknown }) => void): UnsubscribeFn =>
+  onSessionInit: (cb: (data: { taskId: string; sessionId?: string; sessionFile?: string | null; models: unknown; modes: unknown; configOptions: unknown }) => void): UnsubscribeFn =>
     tauriListen('session_init', cb),
   onMcpUpdate: (cb: (data: { serverName: string; status: string; error?: string; oauthUrl?: string }) => void): UnsubscribeFn =>
     tauriListen('mcp_update', cb),
@@ -291,8 +312,8 @@ export const ipc = {
     tauriListen('compaction_status', cb),
   onEditorsUpdated: (cb: (bins: string[]) => void): UnsubscribeFn =>
     tauriListen('editors-updated', cb),
-  onKiroConfigChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>
-    tauriListen('kiro-config-changed', cb),
+  onAgentResourcesChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>
+    tauriListen('agent-resources-changed', cb),
 
   // ── Streaming Diff (Rust-powered) ──────────────────────────────────────────
   computeDiff: (oldText: string, newText: string): Promise<Array<{ type: 'insert'; text: string } | { type: 'delete'; bytes: number } | { type: 'keep'; bytes: number }>> =>

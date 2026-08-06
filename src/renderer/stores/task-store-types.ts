@@ -92,11 +92,11 @@ export interface TaskStore {
   _suppressDraftSave: string | null
   /** Task IDs from desktop notifications pending click-to-navigate */
   notifiedTaskIds: string[]
-  /** Per-thread mode (e.g. 'kiro_planner') so toggling plan mode in one thread doesn't affect others */
+  /** Per-thread mode (e.g. 'plan') so toggling plan mode in one thread doesn't affect others */
   taskModes: Record<string, string>
   /** Per-thread model ID so switching model in one thread doesn't affect others */
   taskModels: Record<string, string>
-  /** Per-thread kiro CLI session ID (from ACP new_session) for debugging */
+  /** Per-thread prime-agent session id for debugging */
   sessionIds: Record<string, string>
   /** Whether a fork operation is in progress */
   isForking: boolean

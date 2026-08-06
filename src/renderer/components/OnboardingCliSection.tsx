@@ -28,7 +28,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
   const detect = useCallback(async () => {
     setDetectState('detecting')
     try {
-      const path = await ipc.detectKiroCli()
+      const path = await ipc.detectAgentCli()
       if (path) { setCliPath(path); setDetectState('found') }
       else { setDetectState('not-found') }
     } catch { setDetectState('not-found') }
@@ -37,7 +37,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
   useEffect(() => { detect() }, [detect])
 
   useEffect(() => {
-    if (isCliReady) onCliReady(cliPath || manualPath || 'kiro-cli')
+    if (isCliReady) onCliReady(cliPath || manualPath || 'prime-agent')
   }, [isCliReady, cliPath, manualPath, onCliReady])
 
   const handleBrowse = useCallback(async () => {
@@ -58,9 +58,9 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           )}
         </div>
         <div className="flex-1 text-left">
-          <p className="text-[13px] font-medium text-foreground/90">Kiro CLI</p>
+          <p className="text-[13px] font-medium text-foreground/90">prime-agent CLI</p>
           <p className="text-[11px] text-muted-foreground">
-            {detectState === 'detecting' && 'Searching for kiro-cli...'}
+            {detectState === 'detecting' && 'Searching for prime-agent...'}
             {detectState === 'found' && cliPath}
             {detectState === 'not-found' && !manualPath && 'Not found — install or set path below'}
             {detectState === 'not-found' && manualPath && manualPath}
@@ -99,14 +99,14 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
             <div className="relative flex justify-center"><span className="bg-card px-2 text-[10px] text-muted-foreground">or set path manually</span></div>
           </div>
           <div className="flex gap-1.5">
-            <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/kiro-cli"
+            <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/prime-agent"
               className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/40" />
-            <button type="button" onClick={handleBrowse} aria-label="Browse for kiro-cli" tabIndex={0}
+            <button type="button" onClick={handleBrowse} aria-label="Browse for prime-agent" tabIndex={0}
               className="rounded-lg border border-border px-2.5 py-2 text-muted-foreground transition-colors hover:text-foreground/70">
               <IconFolderOpen size={16} />
             </button>
           </div>
-          <a href="https://kiro.dev/docs/cli/installation/" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
+          <a href="https://github.com/PrimeIntellect-ai/prime-agent#readme" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
             className="flex items-center justify-center gap-1.5 text-[12px] text-primary transition-colors hover:text-primary">
             Full installation guide <IconExternalLink size={12} />
           </a>

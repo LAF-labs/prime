@@ -58,7 +58,7 @@ export const UpdateAvailableDialog = () => {
             {isReady
               ? <IconRefresh className="size-5 text-primary" aria-hidden />
               : <IconSparkles className="size-5 text-primary" aria-hidden />}
-            {isReady ? 'Update ready' : `Kirodex v${updateInfo?.version ?? ''} available`}
+            {isReady ? 'Update ready' : `LAF Agent v${updateInfo?.version ?? ''} available`}
           </DialogTitle>
           <DialogDescription>
             {isReady

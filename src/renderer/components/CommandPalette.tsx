@@ -55,7 +55,7 @@ const sectionTitle: Record<Exclude<SectionKey, null>, string> = {
 
 // ── Frecency tracking ────────────────────────────────────────────
 
-const FRECENCY_KEY = 'kirodex:command-frecency'
+const FRECENCY_KEY = 'laf-agent:command-frecency'
 const MAX_FRECENCY_ENTRIES = 50
 
 interface FrecencyEntry {
@@ -106,7 +106,7 @@ function getFrecencyOrder(): Map<string, number> {
 
 // ── Recent slash command ring ────────────────────────────────────
 
-const RECENT_SLASH_KEY = 'kirodex:recent-slash-commands'
+const RECENT_SLASH_KEY = 'laf-agent:recent-slash-commands'
 const MAX_RECENT_SLASH = 5
 
 function loadRecentSlashCommands(): string[] {
@@ -194,7 +194,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
           description: 'Slash command',
           icon: <IconSlash className="size-3.5" />,
           action: () => {
-            window.dispatchEvent(new CustomEvent('kirodex:prefill-chat-input', { detail: cmd }))
+            window.dispatchEvent(new CustomEvent('laf-agent:prefill-chat-input', { detail: cmd }))
             onClose()
           },
           category: 'recent-command',
@@ -285,7 +285,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         icon: <IconGitCommit className="size-3.5" />,
         action: () => {
           // Emit event to open commit dialog
-          window.dispatchEvent(new CustomEvent('kirodex:open-commit-dialog'))
+          window.dispatchEvent(new CustomEvent('laf-agent:open-commit-dialog'))
           onClose()
         },
         category: 'git',
@@ -296,7 +296,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'Push current branch to remote',
         icon: <IconArrowUp className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:git-push'))
+          window.dispatchEvent(new CustomEvent('laf-agent:git-push'))
           onClose()
         },
         category: 'git',
@@ -307,7 +307,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'Pull latest from remote',
         icon: <IconArrowDown className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:git-pull'))
+          window.dispatchEvent(new CustomEvent('laf-agent:git-pull'))
           onClose()
         },
         category: 'git',
@@ -318,7 +318,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'Fetch remote refs',
         icon: <IconRefresh className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:git-fetch'))
+          window.dispatchEvent(new CustomEvent('laf-agent:git-fetch'))
           onClose()
         },
         category: 'git',
@@ -329,7 +329,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'Stash uncommitted changes',
         icon: <IconArchive className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:git-stash'))
+          window.dispatchEvent(new CustomEvent('laf-agent:git-stash'))
           onClose()
         },
         category: 'git',
@@ -340,7 +340,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'View commit history',
         icon: <IconHistory className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:show-git-history'))
+          window.dispatchEvent(new CustomEvent('laf-agent:show-git-history'))
           onClose()
         },
         category: 'git',
@@ -389,7 +389,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'Change the AI model',
         icon: <IconBrain className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:open-model-picker'))
+          window.dispatchEvent(new CustomEvent('laf-agent:open-model-picker'))
           onClose()
         },
         category: 'action',
@@ -400,7 +400,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'View all keyboard shortcuts',
         icon: <IconKeyboard className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:show-shortcuts'))
+          window.dispatchEvent(new CustomEvent('laf-agent:show-shortcuts'))
           onClose()
         },
         category: 'action',
@@ -411,7 +411,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         description: 'Fork current thread into a new conversation',
         icon: <IconCopy className="size-3.5" />,
         action: () => {
-          window.dispatchEvent(new CustomEvent('kirodex:fork-thread'))
+          window.dispatchEvent(new CustomEvent('laf-agent:fork-thread'))
           onClose()
         },
         category: 'action',

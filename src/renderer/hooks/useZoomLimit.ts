@@ -4,9 +4,9 @@ import { useSettingsStore } from '@/stores/settingsStore'
 
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 2.0
-const ZOOM_DEFAULT = 0.9
+const ZOOM_DEFAULT = 1.1
 const ZOOM_STEP = 0.1
-const ZOOM_STORAGE_KEY = 'kirodex-zoom-level'
+const ZOOM_STORAGE_KEY = 'laf-agent-zoom-level'
 
 // Font size limits (must match appearance-section.tsx)
 const FONT_SIZE_UI_MIN = 10

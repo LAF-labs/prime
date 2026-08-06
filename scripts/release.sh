@@ -8,7 +8,7 @@ set -euo pipefail
 
 BUMP="${1:-patch}"
 SCRIPTS_DIR="$(dirname "$0")"
-CO_AUTHOR="Co-authored-by: Kirodex <274876363+kirodex@users.noreply.github.com>"
+CO_AUTHOR="Co-authored-by: LAF Agent <274876363+laf-agent@users.noreply.github.com>"
 
 # 1. Bump version
 bash "$SCRIPTS_DIR/bump-version.sh" "$BUMP"

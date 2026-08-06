@@ -67,15 +67,15 @@ pub fn count_diff_lines(old_text: &str, new_text: &str) -> (u32, u32) {
 /// `content` array), not the outer ACP envelope. In `client.rs` this is
 /// `update.clone()` — the value obtained via `val.get("update")`.
 ///
-/// We mutate the JSON value the ACP client received from kiro-cli rather
-/// than introducing a typed struct: kiro-cli is free to add fields and
+/// We mutate the JSON value the ACP client received from prime-agent rather
+/// than introducing a typed struct: prime-agent is free to add fields and
 /// touching the JSON in place keeps every other field byte-identical for
 /// the renderer.
 ///
 /// # Line-ending note
 /// Lines are interned as raw byte slices by imara-diff, so `\r\n` and `\n`
 /// endings are treated as distinct. This matches git's behaviour when
-/// `core.autocrlf` is off. kiro-cli normalises to `\n` before sending diffs,
+/// `core.autocrlf` is off. prime-agent normalises to `\n` before sending diffs,
 /// so in practice this is not an issue.
 pub fn annotate_diff_content(value: &mut serde_json::Value) {
     let Some(content) = value.get_mut("content").and_then(|c| c.as_array_mut()) else {

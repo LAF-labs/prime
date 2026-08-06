@@ -28,7 +28,7 @@ const FileBadge = memo(function FileBadge({ path, isDir = false }: { path: strin
   )
 })
 
-/** Circular progress spinner for in-progress tool calls — mimics Kiro IDE style */
+/** Circular progress spinner for in-progress tool calls — mimics Prime Agent IDE style */
 const ToolProgressRing = memo(function ToolProgressRing() {
   const gradId = useId()
   const r = 6

@@ -3,21 +3,21 @@ import { IconX, IconGripHorizontal } from '@tabler/icons-react'
 import { useDebugStore } from '@/stores/debugStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { KiroDebugTab } from './KiroDebugTab'
+import { AgentDebugTab } from './AgentDebugTab'
 import { JsDebugTab } from './JsDebugTab'
 
-type DebugTab = 'kiro' | 'js'
+type DebugTab = 'agent' | 'js'
 
 const TAB_LABELS: Record<DebugTab, string> = {
-  kiro: 'Kiro Debug',
+  agent: 'Prime Agent Debug',
   js: 'JS Debug',
 } as const
 
-const TABS: DebugTab[] = ['kiro', 'js']
+const TABS: DebugTab[] = ['agent', 'js']
 
 export const DebugPanel = memo(function DebugPanel() {
   const setOpen = useDebugStore((s) => s.setOpen)
-  const [activeTab, setActiveTab] = useState<DebugTab>('kiro')
+  const [activeTab, setActiveTab] = useState<DebugTab>('agent')
   const [height, setHeight] = useState(320)
   const dragStartY = useRef<number | null>(null)
   const dragStartH = useRef(320)
@@ -92,7 +92,7 @@ export const DebugPanel = memo(function DebugPanel() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'kiro' ? <KiroDebugTab /> : <JsDebugTab />}
+      {activeTab === 'agent' ? <AgentDebugTab /> : <JsDebugTab />}
     </aside>
   )
 })

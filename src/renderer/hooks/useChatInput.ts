@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useCallback, useEffect, type KeyboardEvent, type ChangeEvent, type ClipboardEvent } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { useSlashAction } from '@/hooks/useSlashAction'
 import { useAttachments } from '@/hooks/useAttachments'
 import { useFileMention } from '@/hooks/useFileMention'
@@ -10,6 +10,7 @@ import { resolveMentions, buildFolderTree } from '@/lib/resolve-mentions'
 import { ipc } from '@/lib/ipc'
 import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { InlineCommandKind } from '@/components/chat/InlineCommandPicker'
+import { PASSTHROUGH_COMMANDS, RPC_COMMANDS } from '@/lib/agent-commands'
 
 export interface PastedChunk {
   id: number
@@ -219,6 +220,9 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
 
   const commands = useMemo(() => {
     const clientCommands: Array<{ name: string; description?: string }> = [
+      // prime-agent parity — session-executed and RPC-backed commands
+      ...PASSTHROUGH_COMMANDS.map((c) => ({ name: c.name, description: c.description })),
+      ...RPC_COMMANDS.map((c) => ({ name: c.name, description: c.description })),
       { name: 'settings', description: 'Open application settings' },
       { name: 'clear', description: 'Clear the current conversation' },
       { name: 'model', description: 'Switch the active AI model' },
@@ -342,11 +346,11 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
         }
         return
       }
-      message = `<kirodex_tangent>${question.replace(/<\/?kirodex_tangent>/gi, '')}</kirodex_tangent>`
+      message = `<laf-agent_tangent>${question.replace(/<\/?laf-agent_tangent>/gi, '')}</laf-agent_tangent>`
     }
 
     // Resolve @file/@folder mentions inline before sending
-    const prompts = useKiroStore.getState().config.prompts
+    const prompts = useResourceStore.getState().config.prompts
     const resolvedWorkspace = workspace ?? null
 
     // Build the final message asynchronously, then send
@@ -478,9 +482,9 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
           ipc.setMode(taskId, id).catch(() => {})
           ipc.sendMessage(taskId, `/agent ${id}`).catch(() => {})
 
-          // Show welcomeMessage for .kiro custom agents
-          const kiroAgent = useKiroStore.getState().config.agents.find((a) => a.name === id)
-          if (kiroAgent?.welcomeMessage) {
+          // Show welcomeMessage for .agent custom agents
+          const resourceAgent = useResourceStore.getState().config.agents.find((a) => a.name === id)
+          if (resourceAgent?.welcomeMessage) {
             const { tasks, upsertTask } = useTaskStore.getState()
             const task = tasks[taskId]
             if (task) {
@@ -490,7 +494,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
                   ...task.messages,
                   {
                     role: 'system',
-                    content: `🤖 **${kiroAgent.name}**: ${kiroAgent.welcomeMessage}`,
+                    content: `🤖 **${resourceAgent.name}**: ${resourceAgent.welcomeMessage}`,
                     timestamp: new Date().toISOString(),
                   },
                 ],

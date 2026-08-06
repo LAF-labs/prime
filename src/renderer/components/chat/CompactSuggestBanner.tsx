@@ -24,9 +24,9 @@ export const CompactSuggestBanner = memo(function CompactSuggestBanner({
     const taskId = resolvedTaskId
     if (!taskId || isSwitching) return
     setIsSwitching(true)
-    useSettingsStore.setState({ currentModeId: 'kiro_default' })
-    useTaskStore.getState().setTaskMode(taskId, 'kiro_default')
-    ipc.setMode(taskId, 'kiro_default').then(() => {
+    useSettingsStore.setState({ currentModeId: 'code' })
+    useTaskStore.getState().setTaskMode(taskId, 'code')
+    ipc.setMode(taskId, 'code').then(() => {
       const state = useTaskStore.getState()
       const task = state.tasks[taskId]
       if (!task) return

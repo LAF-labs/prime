@@ -2,7 +2,7 @@ import { memo, useMemo, useCallback } from 'react'
 import { IconFile, IconPlus, IconMinus } from '@tabler/icons-react'
 import { useDiffStore } from '@/stores/diffStore'
 
-interface KirodexReport {
+interface LafAgentReport {
   status: 'done' | 'partial' | 'blocked'
   summary: string
   filesChanged?: string[]
@@ -10,31 +10,31 @@ interface KirodexReport {
   linesRemoved?: number
 }
 
-const REPORT_REGEX = /```kirodex-report\s*\n([\s\S]*?)\n```/
+const REPORT_REGEX = /```laf-agent-report\s*\n([\s\S]*?)\n```/
 const JSON_FENCE_REGEX = /```json\s*\n([\s\S]*?)\n```/
 const BARE_JSON_REGEX = /\{[\s\S]*"status"\s*:\s*"(?:done|partial|blocked)"[\s\S]*"summary"\s*:\s*"[^"]+?"[\s\S]*\}/
-const KIRO_SUMMARY_REGEX = /<kiro_summary>[\s\S]*?<\/kiro_summary>/g
+const AGENT_SUMMARY_REGEX = /<agent_summary>[\s\S]*?<\/agent_summary>/g
 
 const VALID_STATUSES = new Set(['done', 'partial', 'blocked'])
 
-/** Validate that a parsed object is a KirodexReport. */
-const isValidReport = (obj: unknown): obj is KirodexReport => {
+/** Validate that a parsed object is a LafAgentReport. */
+const isValidReport = (obj: unknown): obj is LafAgentReport => {
   if (typeof obj !== 'object' || obj === null) return false
   const r = obj as Record<string, unknown>
   return typeof r.status === 'string' && VALID_STATUSES.has(r.status) && typeof r.summary === 'string' && r.summary.length > 0
 }
 
-/** Extract a completion report from message text. Checks kirodex-report fences, json fences, and bare JSON. */
-export const parseReport = (text: string): KirodexReport | null => {
-  // 0. <kiro_summary> tag
-  const summaryMatch = /<kiro_summary>\s*([\s\S]*?)\s*<\/kiro_summary>/.exec(text)
+/** Extract a completion report from message text. Checks laf-agent-report fences, json fences, and bare JSON. */
+export const parseReport = (text: string): LafAgentReport | null => {
+  // 0. <agent_summary> tag
+  const summaryMatch = /<agent_summary>\s*([\s\S]*?)\s*<\/agent_summary>/.exec(text)
   if (summaryMatch) {
     try {
       const parsed = JSON.parse(summaryMatch[1])
       if (isValidReport(parsed)) return parsed
     } catch { /* fall through */ }
   }
-  // 1. kirodex-report fence (highest priority)
+  // 1. laf-agent-report fence (highest priority)
   const fencedMatch = REPORT_REGEX.exec(text)
   if (fencedMatch) {
     try {
@@ -62,14 +62,14 @@ export const parseReport = (text: string): KirodexReport | null => {
 }
 
 /** Whether a parsed report should render as a rich component (vs raw markdown). */
-export const shouldRenderReportCard = (report: KirodexReport): boolean =>
+export const shouldRenderReportCard = (report: LafAgentReport): boolean =>
   VALID_STATUSES.has(report.status) && report.summary.length > 0
 
 /** Strip the report block from message text so ChatMarkdown doesn't render it.
  *  Strips any report-like JSON regardless of whether it parses into a valid report. */
 export const stripReport = (text: string): string => {
-  // Always strip <kiro_summary> tags
-  let cleaned = text.replace(KIRO_SUMMARY_REGEX, '').trimEnd()
+  // Always strip <agent_summary> tags
+  let cleaned = text.replace(AGENT_SUMMARY_REGEX, '').trimEnd()
   if (REPORT_REGEX.test(cleaned)) return cleaned.replace(REPORT_REGEX, '').trimEnd()
   const jsonFenceMatch = JSON_FENCE_REGEX.exec(cleaned)
   if (jsonFenceMatch) {
@@ -89,7 +89,7 @@ const STATUS_LABEL: Record<string, string> = {
   blocked: 'Blocked',
 } as const
 
-export const TaskCompletionCard = memo(function TaskCompletionCard({ report }: { report: KirodexReport }) {
+export const TaskCompletionCard = memo(function TaskCompletionCard({ report }: { report: LafAgentReport }) {
   const label = STATUS_LABEL[report.status] ?? 'Done'
   const hasStats = (report.linesAdded ?? 0) > 0 || (report.linesRemoved ?? 0) > 0
   const files = useMemo(() => report.filesChanged?.slice(0, 10) ?? [], [report.filesChanged])

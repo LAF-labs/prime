@@ -4,5 +4,5 @@
 fn main() {
     // The panic hook installed inside run() handles logging for all threads.
     // If run() itself panics (e.g. Tauri init failure), stderr is the last resort.
-    kirodex_lib::run()
+    laf_agent_lib::run()
 }

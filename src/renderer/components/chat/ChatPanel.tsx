@@ -7,7 +7,6 @@ import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/u
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { PermissionBanner } from './PermissionBanner'
-import { ExecutionPlan } from './ExecutionPlan'
 import { CompactSuggestBanner } from './CompactSuggestBanner'
 import { TerminalDrawer } from './TerminalDrawer'
 import { QueuedMessages } from './QueuedMessages'
@@ -40,6 +39,14 @@ import {
 } from './ChatPanel.logic'
 import type { IpcAttachment } from '@/types'
 import type { TimelineRow } from '@/lib/timeline'
+
+/** Plan mode is a client-side behavior: prime-agent has no session modes, so
+ *  we steer the model per message instead of pretending to switch agents. */
+const PLAN_MODE_PREFIX =
+  '[Plan mode] Research and present a concrete plan first. ' +
+  'Do not edit files, run mutating commands, or commit anything until the user explicitly approves the plan.\n\n'
+const applyPlanMode = (msg: string, modeId?: string | null): string =>
+  modeId === 'plan' ? `${PLAN_MODE_PREFIX}${msg}` : msg
 
 /**
  * Owns the streaming selectors so ChatPanel doesn't re-render on every token.
@@ -96,7 +103,7 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   if (!task) return
   const shouldCreateNew = needsNewConnection(task)
   // Resumed-from-history: keep the original thread id and replay the prior
-  // transcript so the fresh kiro-cli subprocess has context.
+  // transcript so the fresh prime-agent subprocess has context.
   const isResumed = shouldCreateNew && (task.isArchived === true || task.needsNewConnection === true) && task.messages.length > 0
 
   // Capture the dispatch snapshot BEFORE we mutate the task. The snapshot
@@ -117,6 +124,10 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   const proj = extractProjectName(task)
   record('message_sent', { project: proj, thread: task.id, value: msg.split(/\s+/).filter(Boolean).length })
 
+  // Snapshot HEAD before the agent touches the tree so a turn can be rolled
+  // back from the timeline. Best-effort: no-op outside git repositories.
+  ipc.checkpointCreate(targetTaskId, task.messages.length).catch(() => {})
+
   if (shouldCreateNew) {
     const { settings, currentModeId, currentModelId } = useSettingsStore.getState()
     const taskState = useTaskStore.getState()
@@ -124,19 +135,20 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
     const projectPrefs = projectRoot ? settings.projectPrefs?.[projectRoot] : undefined
     const autoApprove = projectPrefs?.autoApprove !== undefined ? projectPrefs.autoApprove : settings.autoApprove
     const modeId = taskState.taskModes[targetTaskId] ?? currentModeId
-    const effectiveModeId = modeId && modeId !== 'kiro_default' ? modeId : undefined
+    const effectiveModeId = modeId && modeId !== 'code' ? modeId : undefined
     const taskModelId = taskState.taskModels[targetTaskId]
     const modelId = resolveModelId({ taskModelId, projectPrefs, settings, currentModelId })
     const created = await ipc.createTask({
       name: task.name,
       workspace: task.workspace,
-      prompt: msg,
+      prompt: applyPlanMode(msg, effectiveModeId),
       autoApprove,
       modeId: effectiveModeId,
       attachments,
       ...(isResumed
         ? {
             existingId: task.id,
+            ...(task.sessionFile ? { sessionFile: task.sessionFile } : {}),
             existingMessages: task.messages.map((m) => ({
               role: m.role,
               content: m.content,
@@ -161,7 +173,7 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
     state.upsertTask({ ...created, messages, needsNewConnection: undefined, isArchived: undefined })
     record('thread_created', { project: proj, thread: created.id })
     const resolvedMode = taskState.taskModes[targetTaskId] ?? currentModeId
-    if (resolvedMode && resolvedMode !== 'kiro_default') {
+    if (resolvedMode && resolvedMode !== 'code') {
       useTaskStore.getState().setTaskMode(created.id, resolvedMode)
     }
     // Re-key the dispatch snapshot from the draft id to the backend-assigned
@@ -172,7 +184,8 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
     }
     state.setSelectedTask(created.id)
   } else {
-    ipc.sendMessage(task.id, msg, attachments)
+    const liveMode = useTaskStore.getState().taskModes[task.id] ?? useSettingsStore.getState().currentModeId
+    ipc.sendMessage(task.id, applyPlanMode(msg, liveMode), attachments)
   }
 }
 
@@ -206,12 +219,11 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
   const resolvedTaskId = taskIdProp ?? storeSelectedId
   const taskStatus = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.status : null)
   const isArchived = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.isArchived === true : false)
-  const taskPlan = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.plan : null)
   const pendingPermission = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.pendingPermission : null)
   const contextUsage = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.contextUsage : null)
   const taskModeId = useTaskStore((s) => resolvedTaskId ? s.taskModes[resolvedTaskId] ?? null : null)
   const globalModeId = useSettingsStore((s) => s.currentModeId)
-  const isPlanMode = (taskModeId ?? globalModeId) === 'kiro_planner'
+  const isPlanMode = (taskModeId ?? globalModeId) === 'plan'
   const taskWorkspace = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.workspace : null)
   const isWorktree = useTaskStore((s) => resolvedTaskId ? !!s.tasks[resolvedTaskId]?.worktreePath : false)
   const messageCount = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.messages?.length ?? 0 : 0)
@@ -322,7 +334,7 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>Kirodex</EmptyTitle>
+          <EmptyTitle>LAF Agent</EmptyTitle>
           <EmptyDescription>Select a task or create a new one to get started.</EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -340,12 +352,6 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
     <div data-testid="chat-panel" className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col" style={{ fontSize: 'var(--chat-font-size, 15px)' }}>
       {isBtwMode && <BtwOverlay taskId={resolvedTaskId} />}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {taskPlan && taskPlan.length > 0 && (
-          <div className="shrink-0 px-4 pt-2">
-            <ExecutionPlan steps={taskPlan} />
-          </div>
-        )}
-
         {search.isOpen && (
           <div className="shrink-0">
             <SearchBar

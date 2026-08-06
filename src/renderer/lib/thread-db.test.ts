@@ -66,7 +66,7 @@ describe('saveThread', () => {
     vi.mocked(ipc.threadDbSave).mockResolvedValueOnce(undefined)
     const task = makeTask({
       parentTaskId: 'parent-1',
-      worktreePath: '/ws/.kiro/worktrees/feat',
+      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
       projectId: 'proj-1',
     })
@@ -82,7 +82,7 @@ describe('saveThread', () => {
       parentThreadId: 'parent-1',
       autoApprove: false,
       metadata: {
-        worktreePath: '/ws/.kiro/worktrees/feat',
+        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
         projectId: 'proj-1',
       },
@@ -266,7 +266,7 @@ describe('loadFullThread', () => {
       updatedAt: '2026-01-01T00:01:00Z',
       parentThreadId: 'parent-1',
       autoApprove: false,
-      metadata: { worktreePath: '/ws/.kiro/wt', originalWorkspace: '/ws', projectId: 'p1' },
+      metadata: { worktreePath: '/ws/.agent/wt', originalWorkspace: '/ws', projectId: 'p1' },
     })
     vi.mocked(ipc.threadDbMessages).mockResolvedValueOnce([
       { id: 1, threadId: 't1', role: 'user', content: 'hi', timestamp: '2026-01-01T00:00:01Z', thinking: undefined, toolCalls: undefined },
@@ -283,7 +283,7 @@ describe('loadFullThread', () => {
       messages: [{ role: 'user', content: 'hi', timestamp: '2026-01-01T00:00:01Z' }],
       isArchived: true,
       parentTaskId: 'parent-1',
-      worktreePath: '/ws/.kiro/wt',
+      worktreePath: '/ws/.agent/wt',
       originalWorkspace: '/ws',
       projectId: 'p1',
     })

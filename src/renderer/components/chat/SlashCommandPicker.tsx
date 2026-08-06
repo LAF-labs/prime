@@ -6,7 +6,7 @@ import type { SlashCommand } from '@/stores/settingsStore'
 // Strip leading slash from command name (ACP sends "/agent", we display "/agent" ourselves)
 const displayName = (name: string): string => name.replace(/^\/+/, '')
 
-// ── Kiro-accurate descriptions (fallback when ACP description is generic) ──
+// ── Prime Agent-accurate descriptions (fallback when ACP description is generic) ──
 const COMMAND_DESCRIPTIONS: Record<string, string> = {
   agent: 'Switch between agents or list available ones',
   branch: 'Create and checkout a new branch',
@@ -19,7 +19,7 @@ const COMMAND_DESCRIPTIONS: Record<string, string> = {
   data: 'Open the analytics dashboard with usage stats and charts',
   feedback: 'Submit feedback, request features, or report issues',
   fork: 'Fork current thread into a new conversation branch',
-  help: 'Get help with Kiro CLI features and commands',
+  help: 'Get help with prime-agent CLI features and commands',
   knowledge: 'Add, search, or manage your knowledge base',
   model: 'Switch the active AI model',
   plan: 'Toggle plan mode on or off',

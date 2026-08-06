@@ -94,7 +94,7 @@ lcov.info
 # -----------------------------------------------------------
 .claude/
 .codex/
-.kiro/
+.prime/
 .gemini/
 .factory/
 .opencode/

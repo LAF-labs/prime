@@ -1,6 +1,6 @@
 //! Per-turn checkpointing via hidden git refs.
 //!
-//! Creates lightweight refs at `refs/kirodex/cp/{task_id}/{turn}` before each
+//! Creates lightweight refs at `refs/laf-agent/cp/{task_id}/{turn}` before each
 //! agent turn starts. After the turn completes, the frontend can diff between
 //! any two checkpoints to see exactly what changed in that turn.
 
@@ -8,7 +8,7 @@ use git2::{DiffOptions, Repository};
 use serde::Serialize;
 use std::path::Path;
 
-use super::acp::AcpState;
+use super::rpc::AgentState;
 use super::error::AppError;
 
 /// A single checkpoint entry returned to the frontend.
@@ -17,7 +17,7 @@ use super::error::AppError;
 pub struct Checkpoint {
     /// The turn number (monotonically increasing per task).
     pub turn: u32,
-    /// The full ref name (e.g. `refs/kirodex/cp/task-abc/3`).
+    /// The full ref name (e.g. `refs/laf-agent/cp/task-abc/3`).
     pub ref_name: String,
     /// The commit OID this ref points to.
     pub oid: String,
@@ -51,7 +51,7 @@ pub struct CheckpointFileStat {
     pub status: String,
 }
 
-fn resolve_workspace(state: &AcpState, task_id: &str) -> Result<String, AppError> {
+fn resolve_workspace(state: &AgentState, task_id: &str) -> Result<String, AppError> {
     let tasks = state.tasks.lock();
     tasks
         .get(task_id)
@@ -59,8 +59,8 @@ fn resolve_workspace(state: &AcpState, task_id: &str) -> Result<String, AppError
         .ok_or_else(|| AppError::TaskNotFound(task_id.to_string()))
 }
 
-/// Ref prefix for all kirodex checkpoints.
-const REF_PREFIX: &str = "refs/kirodex/cp/";
+/// Ref prefix for all laf-agent checkpoints.
+const REF_PREFIX: &str = "refs/laf-agent/cp/";
 
 /// Create a checkpoint for the current HEAD at the given turn number.
 /// If the workspace has uncommitted changes, we snapshot the current index
@@ -68,7 +68,7 @@ const REF_PREFIX: &str = "refs/kirodex/cp/";
 /// This is non-destructive — it never modifies the working tree or index.
 #[tauri::command]
 pub fn checkpoint_create(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     turn: u32,
 ) -> Result<Checkpoint, AppError> {
@@ -80,7 +80,7 @@ pub fn checkpoint_create(
     let ref_name = format!("{REF_PREFIX}{task_id}/{turn}");
 
     // Create or update the ref to point at the current HEAD commit
-    repo.reference(&ref_name, oid, true, &format!("kirodex checkpoint turn {turn}"))?;
+    repo.reference(&ref_name, oid, true, &format!("laf-agent checkpoint turn {turn}"))?;
 
     let message = commit.message().unwrap_or("").lines().next().unwrap_or("").to_string();
     let timestamp = commit.time().seconds();
@@ -97,7 +97,7 @@ pub fn checkpoint_create(
 /// List all checkpoints for a given task, sorted by turn number ascending.
 #[tauri::command]
 pub fn checkpoint_list(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<Vec<Checkpoint>, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
@@ -146,7 +146,7 @@ pub fn checkpoint_list(
 /// If `to_turn` is 0, diffs against the current working tree state.
 #[tauri::command]
 pub fn checkpoint_diff(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     from_turn: u32,
     to_turn: u32,
@@ -233,7 +233,7 @@ pub fn checkpoint_diff(
 /// `force` is true — prevents accidental data loss.
 #[tauri::command]
 pub fn checkpoint_revert(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     turn: u32,
     force: Option<bool>,
@@ -266,7 +266,7 @@ pub fn checkpoint_revert(
 /// Delete all checkpoints for a task (cleanup on thread delete).
 #[tauri::command]
 pub fn checkpoint_cleanup(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<u32, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
@@ -298,7 +298,7 @@ mod tests {
     fn checkpoint_serializes_camel_case() {
         let cp = Checkpoint {
             turn: 3,
-            ref_name: "refs/kirodex/cp/task-1/3".to_string(),
+            ref_name: "refs/laf-agent/cp/task-1/3".to_string(),
             oid: "abc123".to_string(),
             message: "fix bug".to_string(),
             timestamp: 1700000000,

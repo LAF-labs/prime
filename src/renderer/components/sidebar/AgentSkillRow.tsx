@@ -2,11 +2,11 @@ import { memo, useCallback } from 'react'
 import { IconBolt } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import type { KiroSkill, ProjectFile } from '@/types'
+import type { AgentSkill, ProjectFile } from '@/types'
 import { setInAppDragActive, setInAppDragData } from '@/hooks/useAttachments'
-import { type ViewerState, formatName, SourceDot } from './kiro-config-helpers'
+import { type ViewerState, formatName, SourceDot } from './resource-helpers'
 
-export const SkillRow = memo(function SkillRow({ skill, onOpen }: { skill: KiroSkill; onOpen: (v: ViewerState) => void }) {
+export const SkillRow = memo(function SkillRow({ skill, onOpen }: { skill: AgentSkill; onOpen: (v: ViewerState) => void }) {
   const handleDragStart = useCallback((e: React.DragEvent) => {
     // Drag a synthetic ProjectFile with a `skill:` prefix so the chat input's
     // useAttachments hook routes it through the same droppedFiles → mention pill
@@ -23,7 +23,7 @@ export const SkillRow = memo(function SkillRow({ skill, onOpen }: { skill: KiroS
     e.dataTransfer.effectAllowed = 'copy'
     setInAppDragActive(true)
     setInAppDragData({ type: 'file', data: projectFile })
-    e.dataTransfer.setData('application/x-kirodex-file', JSON.stringify(projectFile))
+    e.dataTransfer.setData('application/x-laf-agent-file', JSON.stringify(projectFile))
     e.dataTransfer.setData('text/plain', `@skill:${skill.name}`)
   }, [skill.name])
 

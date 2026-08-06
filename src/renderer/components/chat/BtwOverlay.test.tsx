@@ -28,8 +28,8 @@ vi.mock('@/stores/settingsStore', () => ({
 vi.mock('@/stores/diffStore', () => ({
   useDiffStore: { getState: () => ({ fetchDiff: vi.fn() }) },
 }))
-vi.mock('@/stores/kiroStore', () => ({
-  useKiroStore: { getState: () => ({ setMcpError: vi.fn() }) },
+vi.mock('@/stores/resourceStore', () => ({
+  useResourceStore: { getState: () => ({ setMcpError: vi.fn() }) },
 }))
 vi.mock('./ChatMarkdown', () => ({
   default: ({ text }: { text: string }) => <div data-testid="chat-markdown">{text}</div>,

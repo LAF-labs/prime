@@ -151,7 +151,7 @@ const TreeItem = memo(function TreeItem({
     e.dataTransfer.effectAllowed = 'copy'
     setInAppDragActive(true)
     if (entry.isDir) {
-      e.dataTransfer.setData('application/x-kirodex-folder', entry.path)
+      e.dataTransfer.setData('application/x-laf-agent-folder', entry.path)
       setInAppDragData({ type: 'folder', path: `${workspace}/${entry.path}` })
     } else {
       const projectFile = {
@@ -162,7 +162,7 @@ const TreeItem = memo(function TreeItem({
         ext: entry.ext,
         modifiedAt: entry.modifiedAt,
       }
-      e.dataTransfer.setData('application/x-kirodex-file', JSON.stringify(projectFile))
+      e.dataTransfer.setData('application/x-laf-agent-file', JSON.stringify(projectFile))
       setInAppDragData({ type: 'file', data: projectFile as any })
     }
     e.dataTransfer.setData('text/plain', `${workspace}/${entry.path}`)

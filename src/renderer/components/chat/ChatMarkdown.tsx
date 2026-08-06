@@ -87,7 +87,7 @@ function extractCodeBlock(
 
 /**
  * Pull the language name out of a `language-foo` className.
- * Shiki has no `gitignore` grammar (kirodex GH#685) — `ini` is a close match
+ * Shiki has no `gitignore` grammar (laf-agent GH#685) — `ini` is a close match
  * and produces useful colors without a console warning.
  */
 function extractFenceLanguage(className: string | undefined): string {
@@ -120,13 +120,13 @@ function estimateHighlightedSize(html: string, code: string): number {
 //
 // File paths: extensions like .tsx/.ts/.rs/.md and friends, with optional
 // leading `./` `../` `/`. Allows segments with dashes, dots, @, and word chars.
-// Branch names: `feat/foo`, `fix/bar-123`, `release/v1.2`, `kirodex/g7`.
+// Branch names: `feat/foo`, `fix/bar-123`, `release/v1.2`, `laf-agent/g7`.
 // To avoid catching arbitrary prose like `src/foo` that isn't really a branch,
 // we require a known branch-prefix (feat, fix, chore, etc.) as the first
 // segment. Branches render as styled non-interactive tokens.
 
 const FILE_PATH_TOKEN_RE = /(?:\.{0,2}\/)?(?:[\w.@-]+\/)*[\w.@-]+\.(?:tsx?|jsx?|mjs|cjs|css|scss|html|json|ya?ml|toml|md|mdx|rs|go|py|rb|java|kt|swift|c|cc|cpp|h|hpp|sh|bash|zsh|fish|sql|xml|svg|png|jpg|jpeg|gif|webp|env|lock|gitignore|gitkeep|dockerfile|makefile|cargo|conf|ini|prisma|graphql|astro|vue|svelte)\b/g
-const BRANCH_TOKEN_RE = /\b(?:feat|fix|chore|refactor|docs|test|perf|build|ci|style|revert|release|hotfix|kirodex)\/[\w./-]{1,80}\b/g
+const BRANCH_TOKEN_RE = /\b(?:feat|fix|chore|refactor|docs|test|perf|build|ci|style|revert|release|hotfix|laf-agent)\/[\w./-]{1,80}\b/g
 
 interface InlineToken {
   start: number

@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconRobot, IconBolt, IconCompass, IconChevronRight, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconSettings, IconBug, IconDownload, IconDots } from '@tabler/icons-react'
 import { getVersion } from '@tauri-apps/api/app'
-import { KiroGhostIcon } from '@/components/icons/KiroGhostIcon'
-import { useKiroStore } from '@/stores/kiroStore'
+import { AgentGhostIcon } from '@/components/icons/AgentGhostIcon'
+import { useResourceStore } from '@/stores/resourceStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useDebugStore } from '@/stores/debugStore'
 import { useJsDebugStore } from '@/stores/jsDebugStore'
@@ -10,12 +10,10 @@ import { useUpdateStore, type UpdateStatus } from '@/stores/updateStore'
 import { ipc } from '@/lib/ipc'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { KiroFileViewer } from './KiroFileViewer'
-import { type ViewerState, EMPTY_ARRAY, getAgentStack, SectionToggle, InlineSearch } from './kiro-config-helpers'
-import { AgentRow, AgentStackGroup } from './KiroAgentSection'
-import { SkillRow } from './KiroSkillRow'
-import { SteeringRow } from './KiroSteeringRow'
-import { McpRow } from './KiroMcpRow'
+import { ResourceFileViewer } from './ResourceFileViewer'
+import { type ViewerState, EMPTY_ARRAY, getAgentStack, SectionToggle, InlineSearch } from './resource-helpers'
+import { SkillRow } from './AgentSkillRow'
+import { McpRow } from './McpServerRow'
 import { AddMcpServerDialog } from './AddMcpServerDialog'
 import { HeaderUserMenu } from '@/components/header-user-menu'
 import { useMenuPosition } from '@/hooks/useMenuPosition'
@@ -36,21 +34,19 @@ const CONNECTION_DOT: Record<ConnectionUiState, { color: string; label: string; 
   offline: { color: '#9a9a9a', label: 'Offline', pulse: false },
 }
 
-export const KiroConfigPanel = memo(function KiroConfigPanel({
+export const ResourcePanel = memo(function ResourcePanel({
   collapsed,
   onToggleCollapse,
 }: {
   collapsed?: boolean
   onToggleCollapse?: () => void
 }) {
-  const agents = useKiroStore((s) => s.config.agents)
-  const skills = useKiroStore((s) => s.config.skills)
-  const steeringRules = useKiroStore((s) => s.config.steeringRules)
-  const mcpServersRaw = useKiroStore((s) => s.config.mcpServers)
+  const skills = useResourceStore((s) => s.config.skills)
+  const mcpServersRaw = useResourceStore((s) => s.config.mcpServers)
   const mcpServers = mcpServersRaw ?? EMPTY_ARRAY
-  const prompts = useKiroStore((s) => s.config.prompts)
-  const loaded = useKiroStore((s) => s.loaded)
-  const loadConfig = useKiroStore((s) => s.loadConfig)
+  const prompts = useResourceStore((s) => s.config.prompts)
+  const loaded = useResourceStore((s) => s.loaded)
+  const loadConfig = useResourceStore((s) => s.loadConfig)
   const activeWorkspace = useTaskStore((s) => {
     const id = s.selectedTaskId
     if (id) {
@@ -60,9 +56,7 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
     return s.pendingWorkspace
   }) ?? null
 
-  const [agentsOpen, setAgentsOpen] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(false)
-  const [rulesOpen, setRulesOpen] = useState(false)
   const [mcpOpen, setMcpOpen] = useState(false)
   const [promptsOpen, setPromptsOpen] = useState(false)
   const [searching, setSearching] = useState(false)
@@ -135,22 +129,22 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
     triggerDownload?.()
   }, [triggerDownload])
 
-  // Start/stop watching the project's .kiro directory
+  // Start/stop watching the project's .agent directory
   const prevWatchedRef = useRef<string | null>(null)
   useEffect(() => {
     const prev = prevWatchedRef.current
     if (prev && prev !== activeWorkspace) {
-      ipc.unwatchKiroPath(prev).catch(() => {})
+      ipc.unwatchResourcePath(prev).catch(() => {})
     }
     if (activeWorkspace) {
-      ipc.watchKiroPath(activeWorkspace).catch(() => {})
+      ipc.watchResourcePath(activeWorkspace).catch(() => {})
       prevWatchedRef.current = activeWorkspace
     } else {
       prevWatchedRef.current = null
     }
     return () => {
       if (prevWatchedRef.current) {
-        ipc.unwatchKiroPath(prevWatchedRef.current).catch(() => {})
+        ipc.unwatchResourcePath(prevWatchedRef.current).catch(() => {})
         prevWatchedRef.current = null
       }
     }
@@ -158,28 +152,14 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
 
   const lowerSearch = search.toLowerCase()
 
-  const agentGroups = useMemo(() => {
-    const filtered = agents.filter((a) =>
-      !lowerSearch || a.name.toLowerCase().includes(lowerSearch) || a.description.toLowerCase().includes(lowerSearch))
-    const map = new Map<string, typeof agents>()
-    for (const agent of filtered) {
-      const stack = getAgentStack(agent.name)
-      if (!map.has(stack)) map.set(stack, [])
-      map.get(stack)!.push(agent)
-    }
-    return Array.from(map.entries()).sort((a, b) => a[0] === 'custom' ? 1 : b[0] === 'custom' ? -1 : a[0].localeCompare(b[0]))
-  }, [agents, lowerSearch])
 
   const filteredSkills = useMemo(() =>
     skills.filter((s) => !lowerSearch || s.name.toLowerCase().includes(lowerSearch)), [skills, lowerSearch])
-  const filteredRules = useMemo(() =>
-    steeringRules.filter((r) => !lowerSearch || r.name.toLowerCase().includes(lowerSearch) || r.excerpt.toLowerCase().includes(lowerSearch)), [steeringRules, lowerSearch])
   const filteredMcp = useMemo(() =>
     mcpServers.filter((m) => !lowerSearch || m.name.toLowerCase().includes(lowerSearch)), [mcpServers, lowerSearch])
   const filteredPrompts = useMemo(() =>
     prompts.filter((p) => !lowerSearch || p.name.toLowerCase().includes(lowerSearch) || p.content.toLowerCase().includes(lowerSearch)), [prompts, lowerSearch])
 
-  const totalAgents = agentGroups.reduce((n, [, a]) => n + a.length, 0)
   const mcpErrorCount = filteredMcp.filter((m) => m.status === 'error' || m.status === 'needs-auth').length
   const openViewer = useCallback((v: ViewerState) => setViewer(v), [])
   const closeViewer = useCallback(() => setViewer(null), [])
@@ -194,8 +174,8 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
 
   // Always render the panel once loaded — even with no items, the user needs
   // the "Add MCP server" button. The panel is hidden by the parent sidebar
-  // when the workspace has no .kiro directory at all.
-  if (agents.length === 0 && skills.length === 0 && steeringRules.length === 0 && mcpServers.length === 0 && prompts.length === 0) {
+  // when the workspace has no .agent directory at all.
+  if (skills.length === 0 && mcpServers.length === 0 && prompts.length === 0) {
     // Nothing configured yet — show just the "Add MCP server" affordance
     // so a fresh install isn't a dead end.
     return (
@@ -204,8 +184,8 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
           <div className="mb-0.5 flex items-center justify-between pr-1.5">
             <button type="button" onClick={onToggleCollapse}
               className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
-              <KiroGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-              Kirodex
+              <AgentGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+              LAF Agent
             </button>
             <div className="flex items-center gap-0.5">
               {connectionUi !== 'connected' && (
@@ -306,7 +286,7 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
     )
   }
 
-  const noResults = !!search && totalAgents === 0 && filteredSkills.length === 0 && filteredRules.length === 0 && filteredMcp.length === 0 && filteredPrompts.length === 0
+  const noResults = !!search && filteredSkills.length === 0 && filteredMcp.length === 0 && filteredPrompts.length === 0
 
   return (
     <>
@@ -314,8 +294,8 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
         <div className="mb-0.5 flex items-center justify-between pr-1.5">
           <button type="button" onClick={onToggleCollapse}
             className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
-            <KiroGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-            Kirodex
+            <AgentGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+            LAF Agent
           </button>
           <div className="flex items-center gap-0.5">
             {!collapsed && (
@@ -331,7 +311,7 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
                     <p className="mt-0.5 text-[10px] text-muted-foreground leading-relaxed">Drop any agent, skill, or steering rule into the message box to attach it as context.</p>
                   </TooltipContent>
                 </Tooltip>
-                {(agents.length + skills.length + steeringRules.length + mcpServers.length) > 10 && (
+                {(skills.length + mcpServers.length) > 10 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" onClick={() => setSearching((v) => !v)}
@@ -402,14 +382,6 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
           <>
             {searching && <InlineSearch value={search} onChange={setSearch} onClose={() => setSearching(false)} />}
 
-            {steeringRules.length > 0 && (filteredRules.length > 0 || !search) && (
-              <SectionToggle icon={IconCompass} iconColor="text-emerald-600 dark:text-emerald-400" label="Steering" count={filteredRules.length} expanded={rulesOpen} onToggle={() => setRulesOpen((v) => !v)} />
-            )}
-            {rulesOpen && filteredRules.length > 0 && (
-              <ul className="flex min-w-0 flex-col gap-px border-l border-border/30 mx-1 px-1.5 py-px">
-                {filteredRules.map((rule) => <SteeringRow key={`${rule.source}-${rule.name}`} rule={rule} onOpen={openViewer} />)}
-              </ul>
-            )}
 
             {skills.length > 0 && (filteredSkills.length > 0 || !search) && (
               <SectionToggle icon={IconBolt} iconColor="text-amber-600 dark:text-amber-400" label="Skills" count={filteredSkills.length} expanded={skillsOpen} onToggle={() => setSkillsOpen((v) => !v)} />
@@ -420,18 +392,6 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
               </ul>
             )}
 
-            {agents.length > 0 && (totalAgents > 0 || !search) && (
-              <SectionToggle icon={IconRobot} iconColor="text-violet-600 dark:text-violet-400" label="Agents" count={totalAgents} expanded={agentsOpen} onToggle={() => setAgentsOpen((v) => !v)} />
-            )}
-            {agentsOpen && totalAgents > 0 && (
-              <ul className="flex min-w-0 flex-col gap-px border-l border-border/30 mx-1 px-1.5 py-px">
-                {agentGroups.map(([stack, agentList]) =>
-                  agentList.length === 1
-                    ? <AgentRow key={`${agentList[0].source}-${agentList[0].name}`} agent={agentList[0]} onOpen={openViewer} />
-                    : <AgentStackGroup key={stack} stack={stack} agents={agentList} onOpen={openViewer} />
-                )}
-              </ul>
-            )}
 
             {mcpServers.length > 0 && (filteredMcp.length > 0 || !search) && (
               <div className="flex items-center">
@@ -509,7 +469,7 @@ export const KiroConfigPanel = memo(function KiroConfigPanel({
         )}
       </div>
 
-      {viewer && <KiroFileViewer filePath={viewer.filePath} title={viewer.title} onClose={closeViewer} />}
+      {viewer && <ResourceFileViewer filePath={viewer.filePath} title={viewer.title} onClose={closeViewer} />}
       <AddMcpServerDialog open={addMcpOpen} onOpenChange={setAddMcpOpen} workspace={activeWorkspace} />
       {menuOpen && (
         <>

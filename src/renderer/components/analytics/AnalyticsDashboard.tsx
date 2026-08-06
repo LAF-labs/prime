@@ -89,7 +89,7 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <IconChartBar size={40} stroke={1} className="mb-3 text-muted-foreground/40" />
               <p className="text-sm font-medium text-muted-foreground">No analytics data yet</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">Start using Kirodex and your usage stats will appear here</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">Start using LAF Agent and your usage stats will appear here</p>
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">

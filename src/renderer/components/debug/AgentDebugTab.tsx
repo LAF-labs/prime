@@ -175,7 +175,7 @@ const CopyAllButton = memo(function CopyAllButton({ entries }: { entries: DebugL
 
 // ── Main tab ─────────────────────────────────────────────────────
 
-export const KiroDebugTab = memo(function KiroDebugTab() {
+export const AgentDebugTab = memo(function AgentDebugTab() {
   const entries = useDebugStore((s) => s.entries)
   const filter = useDebugStore((s) => s.filter)
   const setFilter = useDebugStore((s) => s.setFilter)

@@ -3,24 +3,25 @@ import { IconChevronDown, IconCode, IconListCheck } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
-import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 
-const MODE_CODE = 'kiro_default' as const
-const MODE_PLAN = 'kiro_planner' as const
+const MODE_CODE = 'code' as const
+const MODE_PLAN = 'plan' as const
 
 interface ModeEntry {
   readonly id: string
-  readonly label: string
+  readonly labelKey: 'chat.mode.code' | 'chat.mode.plan'
   readonly icon: typeof IconCode
 }
 
 const MODES: readonly ModeEntry[] = [
-  { id: MODE_CODE, label: 'Code', icon: IconCode },
-  { id: MODE_PLAN, label: 'Plan', icon: IconListCheck },
+  { id: MODE_CODE, labelKey: 'chat.mode.code' as const, icon: IconCode },
+  { id: MODE_PLAN, labelKey: 'chat.mode.plan' as const, icon: IconListCheck },
 ] as const
 
 export const PlanToggle = memo(function PlanToggle() {
+  const t = useT()
   const resolvedTaskId = usePanelResolvedTaskId()
   const globalModeId = useSettingsStore((s) => s.currentModeId)
   const taskModeId = useTaskStore((s) => resolvedTaskId ? s.taskModes[resolvedTaskId] ?? null : null)
@@ -45,9 +46,9 @@ export const PlanToggle = memo(function PlanToggle() {
     useSettingsStore.setState({ currentModeId: modeId })
     const taskId = resolvedTaskId
     if (taskId) {
+      // Plan mode is applied client-side per message (see ChatPanel's
+      // applyPlanMode) — prime-agent has no session modes to switch.
       useTaskStore.getState().setTaskMode(taskId, modeId)
-      ipc.setMode(taskId, modeId).catch(() => {})
-      ipc.sendMessage(taskId, `/agent ${modeId}`).catch(() => {})
     }
     setIsOpen(false)
   }, [currentModeId, resolvedTaskId])
@@ -61,7 +62,7 @@ export const PlanToggle = memo(function PlanToggle() {
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        aria-label={`Current mode: ${current.label}`}
+        aria-label={`Current mode: ${t(current.labelKey)}`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
@@ -72,7 +73,7 @@ export const PlanToggle = memo(function PlanToggle() {
         )}
       >
         <CurrentIcon className="size-3.5" aria-hidden />
-        <span className="hidden @[480px]/toolbar:inline">{current.label}</span>
+        <span className="hidden @[480px]/toolbar:inline">{t(current.labelKey)}</span>
         <IconChevronDown className="hidden size-3 shrink-0 opacity-50 @[480px]/toolbar:block" aria-hidden />
       </button>
 
@@ -102,7 +103,7 @@ export const PlanToggle = memo(function PlanToggle() {
                 )}
               >
                 <Icon className="size-3.5 shrink-0" aria-hidden />
-                {m.label}
+                {t(m.labelKey)}
               </button>
             )
           })}

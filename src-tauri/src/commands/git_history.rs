@@ -304,7 +304,7 @@ pub fn git_stash_save(cwd: String, message: Option<String>) -> Result<String, Ap
     let mut repo = Repository::discover(&cwd)?;
     let sig = repo.signature()?;
     let msg = message.as_deref();
-    let oid = repo.stash_save(&sig, msg.unwrap_or("kirodex stash"), None)?;
+    let oid = repo.stash_save(&sig, msg.unwrap_or("laf-agent stash"), None)?;
     Ok(oid.to_string())
 }
 

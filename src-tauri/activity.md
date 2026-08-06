@@ -6,9 +6,9 @@
 
 **Files created:**
 - `src-tauri/src/commands/acp/mod.rs` — Module root with re-exports and utility functions (now_millis, now_rfc3339, days_to_ymd)
-- `src-tauri/src/commands/acp/types.rs` — All frontend-facing types (Task, AcpState, ConnectionHandle, etc.)
+- `src-tauri/src/commands/acp/types.rs` — All frontend-facing types (Task, AgentState, ConnectionHandle, etc.)
 - `src-tauri/src/commands/acp/sandbox.rs` — Path checking and extraction functions (is_within_workspace, is_path_allowed, etc.)
-- `src-tauri/src/commands/acp/client.rs` — KirodexClient struct and acp::Client impl
+- `src-tauri/src/commands/acp/client.rs` — LAF AgentClient struct and rpc::Client impl
 - `src-tauri/src/commands/acp/connection.rs` — spawn_connection and run_acp_connection
 - `src-tauri/src/commands/acp/commands.rs` — All #[tauri::command] functions (14 commands)
 - `src-tauri/src/commands/acp/tests.rs` — All 169 tests (previously in #[cfg(test)] mod tests)
@@ -17,7 +17,7 @@
 - `src-tauri/src/commands/acp.rs` — Original monolithic file
 
 **Files unchanged:**
-- `src-tauri/src/commands/mod.rs` — Already had `pub mod acp;` which now resolves to `acp/mod.rs`
+- `src-tauri/src/commands/mod.rs` — Already had `pub mod rpc;` which now resolves to `acp/mod.rs`
 
 **Verification:**
 - `cargo check` — passes (only pre-existing cocoa deprecation warnings)
@@ -25,7 +25,7 @@
 
 ## 2026-04-17 16:15 (Dubai) — parking_lot::Mutex migration
 
-Replaced `std::sync::Mutex` with `parking_lot::Mutex` across the entire Kirodex Rust codebase and tuned the Cargo release profile.
+Replaced `std::sync::Mutex` with `parking_lot::Mutex` across the entire LAF Agent Rust codebase and tuned the Cargo release profile.
 
 ### Files modified:
 - `Cargo.toml` — added `parking_lot = "0.12"`, changed `opt-level = "s"` → `opt-level = 2`, added `[profile.dev.package."*"]` with `opt-level = 2`

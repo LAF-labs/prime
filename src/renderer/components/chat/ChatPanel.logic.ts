@@ -144,7 +144,7 @@ export function buildUserMessage(content: string): TaskMessage {
  * Determine if a task needs a new connection (draft, resumed-from-history,
  * or explicit reconnect signal).
  *
- * Archived threads always need a fresh connection: the kiro-cli subprocess
+ * Archived threads always need a fresh connection: the prime-agent subprocess
  * died when the app closed, so the frontend must call `task_create` (with
  * `existingId` to preserve the thread id) to spawn a new ACP session.
  */

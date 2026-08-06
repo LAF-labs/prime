@@ -39,7 +39,7 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
   const resolvedTaskId = usePanelResolvedTaskId()
   const globalModeId = useSettingsStore((s) => s.currentModeId)
   const taskModeId = useTaskStore((s) => resolvedTaskId ? s.taskModes[resolvedTaskId] ?? null : null)
-  const isPlan = (taskModeId ?? globalModeId) === 'kiro_planner'
+  const isPlan = (taskModeId ?? globalModeId) === 'plan'
   const [idx, setIdx] = useState(() =>
     Math.floor(Math.random() * LOADING_WORDS.length),
   )

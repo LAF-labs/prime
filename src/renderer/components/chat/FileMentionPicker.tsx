@@ -3,14 +3,14 @@ import { IconRobot, IconBolt, IconCode, IconListCheck, IconX, IconAlignLeft } fr
 import { cn } from '@/lib/utils'
 import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ProjectFile } from '@/types'
 
 // ── Built-in agents for @ mention ────────────────────────────────────
 const BUILT_IN_MENTION_AGENTS = [
-  { name: 'Default', id: 'kiro_default', description: 'Code, edit, and execute', icon: IconCode, color: 'text-blue-600 dark:text-blue-400', bgCls: 'bg-blue-500/20' },
-  { name: 'Planner', id: 'kiro_planner', description: 'Plan before coding', icon: IconListCheck, color: 'text-teal-600 dark:text-teal-400', bgCls: 'bg-teal-500/20' },
+  { name: 'Default', id: 'code', description: 'Code, edit, and execute', icon: IconCode, color: 'text-blue-600 dark:text-blue-400', bgCls: 'bg-blue-500/20' },
+  { name: 'Planner', id: 'plan', description: 'Plan before coding', icon: IconListCheck, color: 'text-teal-600 dark:text-teal-400', bgCls: 'bg-teal-500/20' },
 ] as const
 
 /** Resolve the icon + color for an agent mention pill by path */
@@ -248,14 +248,14 @@ export const FileMentionPicker = memo(function FileMentionPicker({
   const [loading, setLoading] = useState(false)
   const filesRef = useRef<ProjectFile[]>([])
   const respectGitignore = useSettingsStore((s) => s.settings.respectGitignore ?? true)
-  const agents = useKiroStore((s) => s.config.agents)
-  const skills = useKiroStore((s) => s.config.skills)
-  const prompts = useKiroStore((s) => s.config.prompts)
+  const agents = useResourceStore((s) => s.config.agents)
+  const skills = useResourceStore((s) => s.config.skills)
+  const prompts = useResourceStore((s) => s.config.prompts)
 
-  // Ensure kiro config is loaded
+  // Ensure agent config is loaded
   useEffect(() => {
-    if (!useKiroStore.getState().loaded) {
-      useKiroStore.getState().loadConfig(workspace ?? undefined)
+    if (!useResourceStore.getState().loaded) {
+      useResourceStore.getState().loadConfig(workspace ?? undefined)
     }
   }, [workspace])
 
@@ -275,12 +275,12 @@ export const FileMentionPicker = memo(function FileMentionPicker({
     return () => { cancelled = true }
   }, [workspace, respectGitignore])
 
-  // Build kiro items filtered by query — built-in agents first, then .kiro agents, then skills, then prompts
+  // Build agent items filtered by query — built-in agents first, then .agent agents, then skills, then prompts
   const q = (query ?? '').replace(/^[@./]+/, '').trim()
-  type KiroItem = { type: 'agent' | 'skill' | 'prompt'; name: string; description?: string; builtinIcon?: typeof IconRobot; builtinColor?: string; builtinBgCls?: string }
+  type AgentItem = { type: 'agent' | 'skill' | 'prompt'; name: string; description?: string; builtinIcon?: typeof IconRobot; builtinColor?: string; builtinBgCls?: string }
 
-  const kiroItems = useMemo((): KiroItem[] => {
-    const scored: Array<{ item: KiroItem; score: number }> = []
+  const resourceItems = useMemo((): AgentItem[] => {
+    const scored: Array<{ item: AgentItem; score: number }> = []
     for (const b of BUILT_IN_MENTION_AGENTS) {
       if (!q) {
         scored.push({ item: { type: 'agent', name: b.id, description: b.description, builtinIcon: b.icon, builtinColor: b.color, builtinBgCls: b.bgCls }, score: 0 })
@@ -335,7 +335,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
 
   // Update filtered results when query changes
   const filtered = query ? searchFiles(filesRef.current, query) : filesRef.current.slice(0, 50)
-  const totalItems = kiroItems.length + filtered.length
+  const totalItems = resourceItems.length + filtered.length
 
   useEffect(() => {
     const el = listRef.current?.children[activeIndex] as HTMLElement | undefined
@@ -347,20 +347,20 @@ export const FileMentionPicker = memo(function FileMentionPicker({
     const handler = (e: Event) => {
       const idx = (e as CustomEvent).detail?.index ?? 0
       const normalizedIdx = idx % totalItems
-      if (normalizedIdx < kiroItems.length) {
-        const item = kiroItems[normalizedIdx]
+      if (normalizedIdx < resourceItems.length) {
+        const item = resourceItems[normalizedIdx]
         const prefix = item.type === 'agent' ? 'agent' : item.type === 'skill' ? 'skill' : 'prompt'
         // Prompts use their name directly (no prefix) — they resolve by name in resolveMentions
         const path = item.type === 'prompt' ? item.name : `${prefix}:${item.name}`
         onSelect({ path, name: item.name, dir: '', isDir: false, ext: '', gitStatus: '', linesAdded: 0, linesDeleted: 0, modifiedAt: 0 })
       } else {
-        const file = filtered[(normalizedIdx - kiroItems.length) % filtered.length]
+        const file = filtered[(normalizedIdx - resourceItems.length) % filtered.length]
         if (file) onSelect(file)
       }
     }
     document.addEventListener('file-mention-select', handler)
     return () => document.removeEventListener('file-mention-select', handler)
-  }, [filtered, kiroItems, totalItems, onSelect])
+  }, [filtered, resourceItems, totalItems, onSelect])
 
   if (loading) {
     return (
@@ -402,7 +402,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
         </button>
       </div>
       <ul ref={listRef} className="max-h-[280px] overflow-y-auto py-1">
-        {kiroItems.map((item, i) => {
+        {resourceItems.map((item, i) => {
           const isActive = i === activeIndex % totalItems
           const formatName = (name: string): string =>
             name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -439,11 +439,11 @@ export const FileMentionPicker = memo(function FileMentionPicker({
             </li>
           )
         })}
-        {kiroItems.length > 0 && filtered.length > 0 && (
+        {resourceItems.length > 0 && filtered.length > 0 && (
           <li className="mx-3 my-1 border-t border-border/50" role="separator" />
         )}
         {filtered.map((file, i) => {
-          const globalIdx = kiroItems.length + i
+          const globalIdx = resourceItems.length + i
           const isActive = globalIdx === activeIndex % totalItems
           return (
             <li

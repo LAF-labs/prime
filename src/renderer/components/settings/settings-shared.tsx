@@ -20,9 +20,9 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 }
 
 export const NAV: { id: Section; label: string; icon: typeof IconSettings2; description: string; sectionDescription: string; group: NavGroup }[] = [
-  { id: 'account', label: 'Account', icon: IconUser, description: 'Auth status, login', sectionDescription: 'Manage your authentication and account preferences.', group: 'account' },
+  { id: 'account', label: 'Providers', icon: IconUser, description: 'API keys, endpoints', sectionDescription: 'Add API keys for the AI providers you use. Custom OpenAI-compatible endpoints are supported.', group: 'account' },
   { id: 'general', label: 'General', icon: IconSettings2, description: 'CLI path, model, permissions', sectionDescription: 'Configure the CLI, default model, and permission behavior.', group: 'settings' },
-  { id: 'appearance', label: 'Appearance', icon: IconPaint, description: 'Theme, font size', sectionDescription: 'Customize the look and feel of Kirodex.', group: 'settings' },
+  { id: 'appearance', label: 'Appearance', icon: IconPaint, description: 'Theme, font size', sectionDescription: 'Customize the look and feel of LAF Agent.', group: 'settings' },
   { id: 'keymap', label: 'Keyboard', icon: IconKeyboard, description: 'Shortcuts reference', sectionDescription: 'View all available keyboard shortcuts.', group: 'settings' },
   { id: 'advanced', label: 'Advanced', icon: IconTool, description: 'Privacy, git, data', sectionDescription: 'Privacy, git integration, and data management.', group: 'settings' },
   { id: 'memory', label: 'Memory', icon: IconActivity, description: 'Per-thread memory usage', sectionDescription: 'Inspect and reclaim memory held by threads, drafts, and debug buffers.', group: 'data' },
@@ -39,7 +39,7 @@ export interface SearchableItem {
 }
 
 export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
-  { label: 'kiro-cli path', description: 'Path to the kiro-cli binary', section: 'general', keywords: 'cli binary connection detect' },
+  { label: 'prime-agent path', description: 'Path to the prime-agent binary', section: 'general', keywords: 'cli binary connection detect' },
   { label: 'Default model', description: 'Choose the default AI model', section: 'general', keywords: 'model ai llm' },
   { label: 'Auto-approve', description: 'Skip permission prompts for tool calls', section: 'general', keywords: 'permissions approve tools' },
   { label: 'Respect .gitignore', description: 'Hide gitignored files from @ mentions', section: 'general', keywords: 'gitignore files mentions' },
@@ -56,7 +56,7 @@ export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'Keyboard shortcuts', description: 'View all available keyboard shortcuts', section: 'keymap', keywords: 'keyboard shortcuts hotkeys keybindings' },
   { label: 'Anonymous analytics', description: 'Share anonymous usage data', section: 'advanced', keywords: 'analytics privacy telemetry' },
   { label: 'AI commit messages', description: 'Draft a commit message from the diff using your agent', section: 'advanced', keywords: 'ai commit message generate sparkle diff' },
-  { label: 'Co-authored-by', description: 'Append Kirodex trailer to every commit', section: 'advanced', keywords: 'git commit co-author trailer' },
+  { label: 'Co-authored-by', description: 'Append LAF Agent trailer to every commit', section: 'advanced', keywords: 'git commit co-author trailer' },
   { label: 'Task completion report', description: 'Summary card when a task finishes', section: 'advanced', keywords: 'report summary task completion' },
   { label: 'Max question length', description: 'Character limit for /btw and /tangent questions', section: 'advanced', keywords: 'btw tangent question limit characters' },
   { label: 'Clear history', description: 'Clear all threads without resetting settings', section: 'advanced', keywords: 'clear history delete conversations data threads' },

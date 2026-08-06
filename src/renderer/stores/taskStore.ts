@@ -71,6 +71,12 @@ const capSoftDeleted = (sd: Record<string, SoftDeletedThread>): Record<string, S
 export type { TaskStore, BtwCheckpoint } from './task-store-types'
 export { initTaskListeners, applyTurnEnd } from './task-store-listeners'
 
+/** Project-independent chats live here; they must never appear as a project. */
+export const CHATS_DIR_MARKER = '/.laf-agent/chats'
+export const isChatWorkspace = (ws: string | null | undefined): boolean =>
+  !!ws && ws.includes(CHATS_DIR_MARKER)
+const withoutChatDirs = (list: string[]): string[] => list.filter((w) => !isChatWorkspace(w))
+
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: {},
   archivedMeta: {},
@@ -190,7 +196,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         if (focusedPanel !== panel) updates.focusedPanel = panel
         set(updates)
         const task = get().tasks[id]
-        const modeId = get().taskModes[id] ?? 'kiro_default'
+        const modeId = get().taskModes[id] ?? 'code'
         const workspace = task ? (task.originalWorkspace ?? task.workspace) : null
         const operationalWs = task ? task.workspace : null
         useSettingsStore.getState().setActiveWorkspace(workspace, operationalWs)
@@ -208,7 +214,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
     set(updates)
     const task = id ? get().tasks[id] : null
-    const modeId = id ? (get().taskModes[id] ?? 'kiro_default') : 'kiro_default'
+    const modeId = id ? (get().taskModes[id] ?? 'code') : 'code'
     const workspace = task ? (task.originalWorkspace ?? task.workspace) : null
     const operationalWs = task ? task.workspace : null
     useSettingsStore.getState().setActiveWorkspace(workspace, operationalWs)
@@ -227,7 +233,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   setSettingsOpen: (open, section) => set({ isSettingsOpen: open, settingsInitialSection: section ?? null }),
   addProject: (workspace) => {
     if (get().projects.includes(workspace)) return
-    if (workspace.includes('/.kiro/worktrees/')) return
+    if (workspace.includes('/.laf-agent/worktrees/')) return
+    if (isChatWorkspace(workspace)) return
     const id = crypto.randomUUID()
     set((s) => ({
       projects: [...s.projects, workspace],
@@ -435,6 +442,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       liveToolCalls: { ...s.liveToolCalls, [id]: [] },
       liveToolSplits: { ...s.liveToolSplits, [id]: [] },
     }))
+    void ipc.checkpointCleanup(id).catch(() => {})
     void ipc.deleteTask(id)
     get().persistHistory()
   },
@@ -512,7 +520,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const deletedTaskIds = new Set(state.deletedTaskIds)
       deletedTaskIds.delete(id)
       const projectWorkspace = entry.task.originalWorkspace ?? entry.task.workspace
-      const projects = state.projects.includes(projectWorkspace)
+      const projects = state.projects.includes(projectWorkspace) || isChatWorkspace(projectWorkspace)
         ? state.projects
         : [...state.projects, projectWorkspace]
       return {
@@ -862,7 +870,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       view: 'chat' as const,
     })
     useSettingsStore.getState().setActiveWorkspace(workspace, workspace)
-    useSettingsStore.setState({ currentModeId: 'kiro_default' })
+    useSettingsStore.setState({ currentModeId: 'code' })
     // Track in native Recent Projects menu
     if (workspace) {
       ipc.addRecentProject(workspace).then(() => ipc.rebuildRecentMenu()).catch(() => {})
@@ -883,7 +891,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set({ isForking: true })
     try {
       const task = get().tasks[taskId]
-      const forked = await ipc.forkTask(taskId, task?.workspace, task?.name)
+      const forked = await ipc.forkTask(taskId, task?.workspace, task?.name, task?.sessionFile)
       // Backend sets parent_task_id; preserve worktree fields from parent so
       // the forked thread nests under the same project in the sidebar.
       if (task?.worktreePath) forked.worktreePath = task.worktreePath
@@ -891,7 +899,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       forked.projectId = task?.projectId ?? get().getProjectId(task?.originalWorkspace ?? forked.workspace)
       set((state) => {
         const realWorkspace = forked.originalWorkspace ?? forked.workspace
-        const projects = realWorkspace && !state.projects.includes(realWorkspace)
+        const projects = realWorkspace && !state.projects.includes(realWorkspace) && !isChatWorkspace(realWorkspace)
           ? [...state.projects, realWorkspace]
           : state.projects
         return {
@@ -1173,7 +1181,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             for (const bp of backup.projects) {
               if (bp.displayName && !projectNames[bp.workspace]) projectNames[bp.workspace] = bp.displayName
               if (bp.projectId && !projectIds[bp.workspace]) projectIds[bp.workspace] = bp.projectId
-              if (!projects.includes(bp.workspace)) projects.push(bp.workspace)
+              if (!projects.includes(bp.workspace) && !isChatWorkspace(bp.workspace)) projects.push(bp.workspace)
             }
             for (const sd of backup.softDeleted) {
               if (!softDeleted[sd.task.id] && !tasks[sd.task.id]) {
@@ -1205,7 +1213,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const sp of savedProjects) {
           if (sp.threadOrder?.length) threadOrders[sp.workspace] = sp.threadOrder
         }
-        set({ tasks, archivedMeta, projects, projectIds, projectNames, softDeleted, deletedTaskIds: capDeletedIds(deletedTaskIds), threadOrders, connected: true })
+        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds: capDeletedIds(deletedTaskIds), threadOrders, connected: true })
         // One-time migration: sync JSON history threads into SQLite (background, best-effort).
         // This ensures all historical threads are available via the SQLite store going forward.
         threadDb.migrateFromJsonHistory(historyStore.loadThreads).then((result) => {
@@ -1216,7 +1224,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       } catch {
         // History load failed — derive projects from live tasks, filtering worktree paths
         const projects = [...new Set(list.map((t) => t.originalWorkspace ?? t.workspace))]
-        set({ tasks, projects, connected: true })
+        set({ tasks, projects: withoutChatDirs(projects), connected: true })
       }
     } catch {
       // Backend not available — try loading from history only.
@@ -1263,7 +1271,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             for (const bp of backup.projects) {
               if (bp.displayName && !projectNames[bp.workspace]) projectNames[bp.workspace] = bp.displayName
               if (bp.projectId && !projectIds[bp.workspace]) projectIds[bp.workspace] = bp.projectId
-              if (!projects.includes(bp.workspace)) projects.push(bp.workspace)
+              if (!projects.includes(bp.workspace) && !isChatWorkspace(bp.workspace)) projects.push(bp.workspace)
             }
             for (const sd of backup.softDeleted) {
               if (!softDeleted[sd.task.id]) {
@@ -1287,7 +1295,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const sp of savedProjects) {
           if (sp.threadOrder?.length) threadOrders[sp.workspace] = sp.threadOrder
         }
-        set({ tasks, archivedMeta, projects, projectIds, projectNames, softDeleted, deletedTaskIds, threadOrders, connected: false })
+        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds, threadOrders, connected: false })
       } catch {
         set({ connected: false })
       }

@@ -88,7 +88,7 @@ export const Dashboard = memo(function Dashboard() {
                 <IconRobot className="mb-4 h-10 w-10 text-muted-foreground/70" />
                 <EmptyTitle>No threads yet</EmptyTitle>
                 <EmptyDescription>
-                  Import a project folder to start a new thread with Kiro.
+                  Import a project folder to start a new thread with Prime Agent.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>

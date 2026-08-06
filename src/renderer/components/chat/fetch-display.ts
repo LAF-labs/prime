@@ -7,7 +7,7 @@ import type { ToolCall } from '@/types'
  * `web_fetch`, `WebFetch`, `Fetching web content`, MCP `fetch_url`, …) so we
  * detect by `kind === 'fetch'` first and fall back to title heuristics.
  *
- * The extracted metadata mirrors what the Kiro IDE shows: a clickable URL,
+ * The extracted metadata mirrors what the Prime Agent IDE shows: a clickable URL,
  * the response payload size, and the elapsed duration from invocation to
  * completion.
  */
@@ -95,7 +95,7 @@ const byteLength = (s: string): number => {
   return s.length
 }
 
-/** Format a byte count the way Kiro IDE does: "1.4 KB", "11.2 KB", "2.3 MB". */
+/** Format a byte count the way Prime Agent IDE does: "1.4 KB", "11.2 KB", "2.3 MB". */
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return ''
   if (bytes < 1024) return `${bytes} B`

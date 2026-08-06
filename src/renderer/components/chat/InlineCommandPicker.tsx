@@ -5,7 +5,7 @@ import { fuzzyScore } from '@/lib/fuzzy-search'
 import { getModelIcon } from '@/lib/model-icons'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { usePanelResolvedTaskId } from './PanelContext'
 
 export type InlineCommandKind = 'model' | 'agent'
@@ -18,8 +18,8 @@ interface InlinePickerItem {
 }
 
 const BUILT_IN_AGENTS = [
-  { id: 'kiro_default', name: 'Default', description: 'Code, edit, and execute', icon: IconCode },
-  { id: 'kiro_planner', name: 'Planner', description: 'Plan before coding', icon: IconListCheck },
+  { id: 'code', name: 'Default', description: 'Code, edit, and execute', icon: IconCode },
+  { id: 'plan', name: 'Planner', description: 'Plan before coding', icon: IconListCheck },
 ] as const
 
 const formatAgentName = (name: string): string =>
@@ -51,7 +51,7 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
   const globalModeId = useSettingsStore((s) => s.currentModeId)
   const taskModeId = useTaskStore((s) => resolvedTaskId ? s.taskModes[resolvedTaskId] ?? null : null)
   const currentModeId = taskModeId ?? globalModeId
-  const kiroAgents = useKiroStore((s) => s.config.agents)
+  const resourceAgents = useResourceStore((s) => s.config.agents)
 
   const items = useMemo<InlinePickerItem[]>(() => {
     if (kind === 'model') {
@@ -86,13 +86,13 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
         iconNode: <Icon className="size-3.5 shrink-0 text-muted-foreground" />,
       }
     })
-    const kiro = kiroAgents.map<InlinePickerItem>((a) => ({
+    const agent = resourceAgents.map<InlinePickerItem>((a) => ({
       id: a.name,
       label: formatAgentName(a.name),
       hint: a.description?.slice(0, 60),
       iconNode: <IconRobot className="size-3.5 shrink-0 text-muted-foreground" />,
     }))
-    const merged = [...builtIn, ...kiro]
+    const merged = [...builtIn, ...agent]
     if (!query.trim()) return merged
     return merged
       .map((it) => {
@@ -107,7 +107,7 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
       .filter((r): r is { it: InlinePickerItem; score: number } => r.score !== null)
       .sort((a, b) => a.score - b.score)
       .map((r) => r.it)
-  }, [kind, query, models, kiroAgents])
+  }, [kind, query, models, resourceAgents])
 
   // Report visible item count to parent so it can clamp activeIndex.
   useEffect(() => { onItemsChange(items.length) }, [items.length, onItemsChange])

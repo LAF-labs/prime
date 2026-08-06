@@ -10,7 +10,7 @@ interface ThreadIdCaptionProps {
 /**
  * Small, selectable thread-id strip rendered above the message list.
  *
- * Surfaces the canonical `Task.id` (UUIDv4) and the kiro CLI session ID
+ * Surfaces the canonical `Task.id` (UUIDv4) and the agent CLI session ID
  * so a user reporting an issue can copy either directly out of the chat
  * surface. The task id is stored in `threads.id` (SQLite) and
  * `SavedThread.id` (history.json). The session id maps to the ACP

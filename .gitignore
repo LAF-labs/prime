@@ -12,9 +12,10 @@ coverage
 *.cer
 .claude/
 .codex/
-.kiro/worktrees/
+.laf-agent/worktrees/
 activity.md
 website/node_modules
 website/dist
 website/.browse/
-/diff/
+/diff/.claude/
+src-tauri/resources/prime-agent/

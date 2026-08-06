@@ -42,7 +42,7 @@ export const RestartPromptDialog = () => {
           </DialogTitle>
           <DialogDescription>
             {updateInfo?.version
-              ? `Kirodex v${updateInfo.version} has been downloaded. Restart to apply the update.`
+              ? `LAF Agent v${updateInfo.version} has been downloaded. Restart to apply the update.`
               : 'A new version has been downloaded. Restart to apply the update.'}
           </DialogDescription>
         </DialogHeader>

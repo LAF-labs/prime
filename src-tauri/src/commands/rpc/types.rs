@@ -85,6 +85,51 @@ pub struct Task {
     pub user_paused: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_task_id: Option<String>,
+    /// prime-agent session JSONL path (from get_state.sessionFile). Lets the
+    /// app resume/fork natively with `-r` / `--fork` instead of replaying a
+    /// transcript into a fresh context.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_file: Option<String>,
+    /// Spawn-time options (goal / autonomous) kept so reconnects preserve them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub launch_options: Option<LaunchOptions>,
+}
+
+/// Session-level options that only exist as CLI flags at spawn time
+/// (prime-agent has no RPC to switch them mid-session).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchOptions {
+    /// `--goal <objective>`: a persistent objective the harness re-prompts
+    /// until complete.
+    pub goal: Option<String>,
+    /// `--goal-token-budget <n>`
+    pub goal_token_budget: Option<u64>,
+    /// `--autonomous`: keep working through gates/limits without asking.
+    #[serde(default)]
+    pub autonomous: bool,
+    /// `--autonomous-gate <cmd>` (repeatable): shell commands that must pass.
+    #[serde(default)]
+    pub autonomous_gates: Vec<String>,
+    pub autonomous_max_turns: Option<u64>,
+    pub autonomous_max_tokens: Option<u64>,
+}
+
+impl LaunchOptions {
+    pub fn is_empty(&self) -> bool {
+        self.goal.is_none() && !self.autonomous && self.autonomous_gates.is_empty()
+    }
+}
+
+/// How to boot the prime-agent subprocess relative to prior history.
+#[derive(Clone, Debug)]
+pub enum SessionMode {
+    /// Fresh session.
+    New,
+    /// `-r <file>`: resume an existing session file with full native context.
+    Resume(String),
+    /// `--fork <file>`: branch a new session off an existing one.
+    Fork(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -106,25 +151,39 @@ pub struct AttachmentData {
 
 // ── Commands sent to the ACP connection thread ─────────────────────────
 
-pub enum AcpCommand {
+pub enum AgentCommand {
     Prompt(String, Vec<AttachmentData>),
+    /// Raw RPC request already carrying its `id`; the reader routes the
+    /// response back through `ConnectionHandle::pending`.
+    Raw(Value),
     Cancel,
     SetMode(String),
     SetModel(String),
+    /// prime-agent reasoning effort: off|minimal|low|medium|high|xhigh
+    SetThinkingLevel(String),
+    /// Manual context compaction.
+    Compact,
     Kill,
 }
 
 // ── Per-task connection handle ─────────────────────────────────────────
 
 pub struct ConnectionHandle {
-    pub cmd_tx: mpsc::UnboundedSender<AcpCommand>,
+    pub cmd_tx: mpsc::UnboundedSender<AgentCommand>,
     pub alive: Arc<std::sync::atomic::AtomicBool>,
     pub auto_approve: Arc<std::sync::atomic::AtomicBool>,
+    /// In-flight generic RPC requests, keyed by the correlation id we put on
+    /// the wire. The reader resolves them when the matching `response` line
+    /// arrives, which is what lets the UI call *any* prime-agent RPC command.
+    pub pending: PendingRequests,
 }
+
+/// Correlation-id → responder for generic RPC requests.
+pub type PendingRequests = Arc<Mutex<HashMap<String, oneshot::Sender<Value>>>>;
 
 // ── Global ACP state ───────────────────────────────────────────────────
 
-pub struct AcpState {
+pub struct AgentState {
     pub tasks: Mutex<HashMap<String, Task>>,
     pub connections: Mutex<HashMap<String, ConnectionHandle>>,
     pub permission_resolvers: Mutex<HashMap<String, oneshot::Sender<PermissionReply>>>,
@@ -136,7 +195,7 @@ pub struct PermissionReply {
     pub option_id: String,
 }
 
-impl Default for AcpState {
+impl Default for AgentState {
     fn default() -> Self {
         Self {
             tasks: Mutex::new(HashMap::new()),
@@ -163,12 +222,18 @@ pub struct CreateTaskParams {
     /// When provided, the backend reuses this id and seeds the task with the
     /// supplied historical messages instead of generating a new uuid. Used for
     /// stateless resumption: the frontend keeps the original thread
-    /// id while spawning a fresh kiro-cli connection.
+    /// id while spawning a fresh prime-agent connection.
     pub existing_id: Option<String>,
     /// Prior messages to seed the task with (resumed threads pass their full
     /// history so it shows up in the timeline before the user's new prompt).
     pub existing_messages: Option<Vec<TaskMessage>>,
-    /// When true, register the task in state but do not spawn a kiro-cli
+    /// prime-agent session file of the original thread. When present and the
+    /// file still exists, resumption is native (`-r`) and no transcript
+    /// preamble is injected.
+    pub session_file: Option<String>,
+    /// Goal / autonomous flags for this spawn.
+    pub launch_options: Option<LaunchOptions>,
+    /// When true, register the task in state but do not spawn a prime-agent
     /// subprocess and do not push an empty user message. The connection is
     /// spawned lazily on the first call to `task_send_message`. Used by the
     /// worktree creation flow which pre-creates a thread before the user has
@@ -183,4 +248,6 @@ pub struct ForkTaskParams {
     pub task_id: String,
     pub workspace: Option<String>,
     pub parent_name: Option<String>,
+    /// Parent thread's prime-agent session file for native `--fork`.
+    pub session_file: Option<String>,
 }

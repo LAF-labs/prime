@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::error::AppError;
-use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_kiro_oneshot};
+use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_agent_oneshot};
 use super::settings::SettingsState;
 
 /// Maximum branch name length.
@@ -31,18 +31,19 @@ struct BranchModelOutput {
 /// Tauri command — generate a branch name from the user's first message.
 #[tauri::command]
 pub async fn generate_branch_name(
+    app: tauri::AppHandle,
     settings_state: tauri::State<'_, SettingsState>,
     message: String,
     workspace: String,
 ) -> Result<GeneratedBranchName, AppError> {
-    let (kiro_bin, custom_instructions) = {
+    let (agent_bin, custom_instructions) = {
         let settings = settings_state.0.lock();
         let instructions = settings.settings.project_prefs
             .as_ref()
             .and_then(|p| p.get(&workspace))
             .and_then(|pp| pp.text_generation_policy.as_ref())
             .and_then(|pol| pol.branch_instructions.clone());
-        (settings.settings.kiro_bin.clone(), instructions)
+        (settings.settings.agent_bin.clone(), instructions)
     };
 
     if message.trim().is_empty() {
@@ -52,7 +53,8 @@ pub async fn generate_branch_name(
     }
 
     let prompt = build_branch_prompt(&message, custom_instructions.as_deref());
-    let raw_output = run_kiro_oneshot(&kiro_bin, &workspace, &prompt).await?;
+    let launch = crate::commands::agent_launch::resolve(&app, &agent_bin);
+    let raw_output = run_agent_oneshot(&launch, &workspace, &prompt).await?;
     let parsed = parse_branch_response(&raw_output)?;
     Ok(sanitize_branch(parsed))
 }
@@ -127,7 +129,7 @@ fn build_branch_prompt(message: &str, custom_instructions: Option<&str>) -> Stri
 // ── Output parsing ───────────────────────────────────────────────────────
 
 fn parse_branch_response(raw: &str) -> Result<BranchModelOutput, AppError> {
-    // Prefer a JSON object that contains `"branch"` so a kiro-cli warning
+    // Prefer a JSON object that contains `"branch"` so a prime-agent warning
     // such as `@{MCPSERVERNAME}/` doesn't get parsed as the answer.
     let block = extract_json_object_with_key(raw, "branch")
         .or_else(|| extract_first_json_object(raw))
@@ -240,8 +242,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_branch_response_skips_kiro_cli_warning_brace_block() {
-        // Regression: kiro-cli's `--trust-tools` warning prints a
+    fn parse_branch_response_skips_agent_cli_warning_brace_block() {
+        // Regression: prime-agent's `--trust-tools` warning prints a
         // `{MCPSERVERNAME}` token before the answer. Make sure the parser
         // walks past it.
         let raw = "WARNING: --trust-tools arg for custom tool needs to be \

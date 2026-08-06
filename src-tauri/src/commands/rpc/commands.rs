@@ -1,12 +1,10 @@
 use serde_json::Value;
 use uuid::Uuid;
 
-use agent_client_protocol as acp;
-use acp::Agent as _;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-
-use super::connection::spawn_connection;
+use crate::commands::agent_launch::{resolve as resolve_launch, AgentLaunch};
+use super::connection::{composite_model_id, map_model, spawn_connection};
 use super::types::*;
+use super::types::{LaunchOptions, SessionMode};
 use super::now_rfc3339;
 
 /// Resolve the model id that should be applied to a freshly spawned ACP
@@ -34,20 +32,20 @@ pub(crate) fn resolve_initial_model(
 #[tauri::command]
 pub fn task_create(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
     params: CreateTaskParams,
 ) -> Result<Task, String> {
     // Stateless resumption: when the frontend supplies an
     // `existing_id`, reuse that id and replay the historical messages into the
-    // backend's in-memory task map. The fresh kiro-cli subprocess provides a
+    // backend's in-memory task map. The fresh prime-agent subprocess provides a
     // brand-new ACP session; the message history travels to the model via the
     // user's next prompt rather than via any session-level resume capability.
     let id = params.existing_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = now_rfc3339();
     let settings = settings_state.0.lock();
     let auto_approve = params.auto_approve.unwrap_or(settings.settings.auto_approve);
-    let kiro_bin = settings.settings.kiro_bin.clone();
+    let agent_bin = settings.settings.agent_bin.clone();
     let co_author = settings.settings.co_author;
     let co_author_json_report = settings.settings.co_author_json_report;
     let tight_sandbox = settings.settings.project_prefs.as_ref()
@@ -75,11 +73,18 @@ pub fn task_create(
     }
 
     // Empty prompt or explicit defer => deferred-spawn. The task is registered
-    // but the kiro-cli subprocess is not started until the user sends a real
+    // but the prime-agent subprocess is not started until the user sends a real
     // message via `task_send_message`. Avoids spawning a process that would
     // immediately receive only the system prefix and confuse the model.
     let defer_spawn = params.defer_spawn || prompt_is_empty;
     let initial_status = if defer_spawn { "paused" } else { "running" };
+
+    // A resumed thread with a still-existing prime-agent session file gets a
+    // native `-r` resume: full model-side context, no transcript replay.
+    let native_session_file = params
+        .session_file
+        .clone()
+        .filter(|f| std::path::Path::new(f).exists());
 
     let task = Task {
         id: id.clone(),
@@ -94,6 +99,8 @@ pub fn task_create(
         auto_approve: Some(auto_approve),
         user_paused: None,
         parent_task_id: None,
+        session_file: native_session_file.clone(),
+        launch_options: params.launch_options.clone(),
     };
 
     // If a stale connection somehow lingers for this id, terminate it before
@@ -101,32 +108,44 @@ pub fn task_create(
     // We drop the sender after Kill so the old thread's recv loop exits, then
     // yield briefly to let the OS reclaim the subprocess resources.
     if let Some(stale) = state.connections.lock().remove(&id) {
-        let _ = stale.cmd_tx.send(AcpCommand::Kill);
+        let _ = stale.cmd_tx.send(AgentCommand::Kill);
         drop(stale);
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
     state.tasks.lock().insert(id.clone(), task.clone());
 
-    let _is_plan_mode = params.mode_id.as_deref() == Some("kiro_planner");
+    let _is_plan_mode = params.mode_id.as_deref() == Some("plan");
 
-    // Deferred-spawn: register the task and return without launching kiro-cli.
+    // Deferred-spawn: register the task and return without launching prime-agent.
     // The first call to `task_send_message` will detect there is no connection
     // and spawn one on demand via the existing reconnect path.
     if defer_spawn {
         return Ok(task);
     }
 
+    let launch = resolve_launch(&app, &agent_bin);
+    let session_mode = match native_session_file.clone() {
+        Some(f) => SessionMode::Resume(f),
+        None => SessionMode::New,
+    };
     let handle = spawn_connection(
         id.clone(),
         params.workspace,
-        kiro_bin,
+        launch,
         auto_approve,
         app.clone(),
         params.mode_id,
         initial_model_id,
         tight_sandbox,
+        session_mode,
+        params.launch_options.clone().unwrap_or_default(),
     )?;
+
+    // Project-independent chats (workspace under ~/.laf-agent/chats) skip the
+    // question-format prefix and commit/report suffixes: no repo, no commits,
+    // and every skipped token keeps casual chats cheap.
+    let is_chat_workspace = task.workspace.contains("/.laf-agent/chats");
 
     // Send initial prompt with UI formatting rules prepended (not shown in UI)
     let mut system_prefix = String::from(concat!(
@@ -165,12 +184,12 @@ pub fn task_create(
         system_prefix.push_str(concat!(
             "## Commits\n\n",
             "Every git commit must include the co-author trailer:\n\n",
-            "```\nCo-authored-by: Kirodex <274876363+kirodex@users.noreply.github.com>\n```\n\n",
+            "```\nCo-authored-by: LAF Agent <laf-agent@users.noreply.github.com>\n```\n\n",
             "Use conventional commit format: `type(scope): description`.\n\n",
             "---\n\n",
         ));
     }
-    // Resumption preamble: when a thread is being resumed, the fresh kiro-cli
+    // Resumption preamble: when a thread is being resumed, the fresh prime-agent
     // subprocess has no memory of the prior conversation. Replay the transcript
     // as context so the agent can follow up coherently. The messages live in
     // the user's first prompt instead of an in-process model session.
@@ -178,11 +197,14 @@ pub fn task_create(
     // The transcript is capped to keep the resumption preamble well under any
     // model's input window. Logic lives in `build_resumption_preamble` so
     // `task_fork` can share the same cap/format.
-    let prior_messages: &[TaskMessage] = task
-        .messages
-        .split_last()
-        .map(|(_new, prior)| prior)
-        .unwrap_or(&[]);
+    let prior_messages: &[TaskMessage] = if native_session_file.is_some() {
+        &[] // native resume carries the full context — no replay needed
+    } else {
+        task.messages
+            .split_last()
+            .map(|(_new, prior)| prior)
+            .unwrap_or(&[])
+    };
     let resumption_preamble = super::build_resumption_preamble(
         prior_messages,
         "Resumed conversation",
@@ -196,7 +218,7 @@ pub fn task_create(
             "\n\n## Completion report\n\n",
             "When you finish the task, append a JSON block at the very end of your final message.\n",
             "Use this exact format:\n\n",
-            "```kirodex-report\n",
+            "```laf-agent-report\n",
             "{\n",
             "  \"status\": \"done\" | \"partial\" | \"blocked\",\n",
             "  \"summary\": \"one-line description of what was done\",\n",
@@ -210,8 +232,12 @@ pub fn task_create(
     } else {
         ""
     };
-    let full_prompt = format!("{system_prefix}{resumption_preamble}{}{json_report_suffix}", params.prompt);
-    let _ = handle.cmd_tx.send(AcpCommand::Prompt(full_prompt, params.attachments.unwrap_or_default()));
+    let full_prompt = if is_chat_workspace {
+        format!("{resumption_preamble}{}", params.prompt)
+    } else {
+        format!("{system_prefix}{resumption_preamble}{}{json_report_suffix}", params.prompt)
+    };
+    let _ = handle.cmd_tx.send(AgentCommand::Prompt(full_prompt, params.attachments.unwrap_or_default()));
 
     state.connections.lock().insert(id, handle);
 
@@ -219,7 +245,7 @@ pub fn task_create(
 }
 
 #[tauri::command]
-pub fn task_list(state: tauri::State<'_, AcpState>) -> Result<Vec<Task>, String> {
+pub fn task_list(state: tauri::State<'_, AgentState>) -> Result<Vec<Task>, String> {
     let tasks = state.tasks.lock();
     Ok(tasks.values().cloned().collect())
 }
@@ -227,7 +253,7 @@ pub fn task_list(state: tauri::State<'_, AcpState>) -> Result<Vec<Task>, String>
 #[tauri::command]
 pub fn task_send_message(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
     task_id: String,
     message: String,
@@ -260,13 +286,18 @@ pub fn task_send_message(
 
     if need_reconnect {
         let settings = settings_state.0.lock();
-        let kiro_bin = settings.settings.kiro_bin.clone();
+        let agent_bin = settings.settings.agent_bin.clone();
         let global_auto_approve = settings.settings.auto_approve;
 
-        let (workspace, task_auto_approve) = {
+        let (workspace, task_auto_approve, task_session_file, stored_options) = {
             let tasks = state.tasks.lock();
             let t = tasks.get(&task_id).ok_or("Task not found")?;
-            (t.workspace.clone(), t.auto_approve.unwrap_or(global_auto_approve))
+            (
+                t.workspace.clone(),
+                t.auto_approve.unwrap_or(global_auto_approve),
+                t.session_file.clone(),
+                t.launch_options.clone().unwrap_or_default(),
+            )
         };
 
         let tight_sandbox = settings.settings.project_prefs.as_ref()
@@ -278,19 +309,25 @@ pub fn task_send_message(
 
         // Destroy old connection
         if let Some(old) = state.connections.lock().remove(&task_id) {
-            let _ = old.cmd_tx.send(AcpCommand::Kill);
+            let _ = old.cmd_tx.send(AgentCommand::Kill);
         }
 
+        let launch = resolve_launch(&app, &agent_bin);
+        let session_mode = match task_session_file.filter(|f| std::path::Path::new(f).exists()) {
+            Some(f) => SessionMode::Resume(f),
+            None => SessionMode::New,
+        };
         let handle = spawn_connection(
-            task_id.clone(), workspace, kiro_bin, task_auto_approve,
-            app.clone(), None, initial_model_id, tight_sandbox,
+            task_id.clone(), workspace, launch, task_auto_approve,
+            app.clone(), None, initial_model_id, tight_sandbox, session_mode,
+            stored_options,
         )?;
-        let _ = handle.cmd_tx.send(AcpCommand::Prompt(message, attachments.unwrap_or_default()));
+        let _ = handle.cmd_tx.send(AgentCommand::Prompt(message, attachments.unwrap_or_default()));
         state.connections.lock().insert(task_id.clone(), handle);
     } else {
         let conns = state.connections.lock();
         if let Some(h) = conns.get(&task_id) {
-            let _ = h.cmd_tx.send(AcpCommand::Prompt(message, attachments.unwrap_or_default()));
+            let _ = h.cmd_tx.send(AgentCommand::Prompt(message, attachments.unwrap_or_default()));
         }
     }
 
@@ -301,11 +338,11 @@ pub fn task_send_message(
 #[tauri::command]
 pub fn task_pause(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<Task, String> {
     if let Some(h) = state.connections.lock().get(&task_id) {
-        let _ = h.cmd_tx.send(AcpCommand::Cancel);
+        let _ = h.cmd_tx.send(AgentCommand::Cancel);
     }
     let mut tasks = state.tasks.lock();
     let task = tasks.get_mut(&task_id).ok_or("Task not found")?;
@@ -319,11 +356,11 @@ pub fn task_pause(
 #[tauri::command]
 pub fn task_resume(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<Task, String> {
     if let Some(h) = state.connections.lock().get(&task_id) {
-        let _ = h.cmd_tx.send(AcpCommand::Prompt("continue".to_string(), vec![]));
+        let _ = h.cmd_tx.send(AgentCommand::Prompt("continue".to_string(), vec![]));
     }
     let mut tasks = state.tasks.lock();
     let task = tasks.get_mut(&task_id).ok_or("Task not found")?;
@@ -337,7 +374,7 @@ pub fn task_resume(
 #[tauri::command]
 pub fn task_set_auto_approve(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     auto_approve: bool,
 ) -> Result<(), String> {
@@ -356,11 +393,11 @@ pub fn task_set_auto_approve(
 #[tauri::command]
 pub fn task_cancel(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<(), String> {
     if let Some(h) = state.connections.lock().remove(&task_id) {
-        let _ = h.cmd_tx.send(AcpCommand::Kill);
+        let _ = h.cmd_tx.send(AgentCommand::Kill);
     }
     let mut tasks = state.tasks.lock();
     if let Some(task) = tasks.get_mut(&task_id) {
@@ -375,9 +412,9 @@ pub fn task_cancel(
 }
 
 #[tauri::command]
-pub fn task_delete(state: tauri::State<'_, AcpState>, task_id: String) -> Result<(), String> {
+pub fn task_delete(state: tauri::State<'_, AgentState>, task_id: String) -> Result<(), String> {
     if let Some(h) = state.connections.lock().remove(&task_id) {
-        let _ = h.cmd_tx.send(AcpCommand::Kill);
+        let _ = h.cmd_tx.send(AgentCommand::Kill);
     }
     state.tasks.lock().remove(&task_id);
     Ok(())
@@ -386,7 +423,7 @@ pub fn task_delete(state: tauri::State<'_, AcpState>, task_id: String) -> Result
 #[tauri::command]
 pub async fn task_fork(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
     params: ForkTaskParams,
 ) -> Result<Task, String> {
@@ -401,6 +438,11 @@ pub async fn task_fork(
     let parent_name = parent.as_ref().map(|p| p.name.clone())
         .or(params.parent_name)
         .unwrap_or_else(|| "thread".to_string());
+    let parent_session_file = parent
+        .as_ref()
+        .and_then(|p| p.session_file.clone())
+        .or(params.session_file)
+        .filter(|f| std::path::Path::new(f).exists());
     let mut parent_messages = parent.as_ref().map(|p| p.messages.clone()).unwrap_or_default();
     let parent_auto_approve = parent.as_ref().and_then(|p| p.auto_approve);
 
@@ -418,7 +460,7 @@ pub async fn task_fork(
     let now = now_rfc3339();
     let settings = settings_state.0.lock();
     let auto_approve = parent_auto_approve.unwrap_or(settings.settings.auto_approve);
-    let kiro_bin = settings.settings.kiro_bin.clone();
+    let agent_bin = settings.settings.agent_bin.clone();
     let tight_sandbox = settings.settings.project_prefs.as_ref()
         .and_then(|p| p.get(&workspace))
         .and_then(|pp| pp.tight_sandbox)
@@ -427,18 +469,22 @@ pub async fn task_fork(
     drop(settings);
 
     // Build the transcript-replay preamble from the parent's messages. The
-    // freshly spawned kiro-cli subprocess has no memory of the parent's
+    // freshly spawned prime-agent subprocess has no memory of the parent's
     // conversation, so we ship the transcript on the user's *next* prompt.
     // Stored on the connection handle and consumed on the first Prompt — the
     // fork lands in `paused` state with no model traffic until the user sends.
-    let pending_preamble = super::build_resumption_preamble(
+    let pending_preamble = if parent_session_file.is_some() {
+        String::new() // native --fork carries the full context
+    } else {
+        super::build_resumption_preamble(
         &parent_messages,
         "Forked conversation",
         "This thread was forked from an earlier conversation. The transcript \
          below is for context only — do not repeat prior work or re-execute \
          completed tool calls. The user's new message follows after the \
          transcript and may diverge from the original direction.",
-    );
+    )
+    };
 
     let fork_task = Task {
         id: new_id.clone(),
@@ -463,18 +509,27 @@ pub async fn task_fork(
         auto_approve: Some(auto_approve),
         user_paused: None,
         parent_task_id: Some(task_id.clone()),
+        session_file: None,
+        launch_options: None,
     };
     state.tasks.lock().insert(new_id.clone(), fork_task.clone());
     let preamble_opt = if pending_preamble.is_empty() { None } else { Some(pending_preamble) };
+    let launch = resolve_launch(&app, &agent_bin);
+    let session_mode = match parent_session_file {
+        Some(f) => SessionMode::Fork(f),
+        None => SessionMode::New,
+    };
     let handle = super::connection::spawn_connection_with_preamble(
         new_id.clone(),
         workspace,
-        kiro_bin,
+        launch,
         auto_approve,
         app,
         None,
         initial_model_id,
         tight_sandbox,
+        session_mode,
+        LaunchOptions::default(),
         preamble_opt,
     )?;
     state.connections.lock().insert(new_id, handle);
@@ -484,7 +539,7 @@ pub async fn task_fork(
 #[tauri::command]
 pub fn task_allow_permission(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     request_id: String,
     option_id: Option<String>,
@@ -521,7 +576,7 @@ pub fn task_allow_permission(
 #[tauri::command]
 pub fn task_deny_permission(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     request_id: String,
     option_id: Option<String>,
@@ -557,122 +612,241 @@ pub fn task_deny_permission(
 
 #[tauri::command]
 pub fn set_mode(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     mode_id: String,
 ) -> Result<(), String> {
     let conns = state.connections.lock();
     let h = conns.get(&task_id).ok_or("No connection for task")?;
-    h.cmd_tx.send(AcpCommand::SetMode(mode_id)).map_err(|e| e.to_string())
+    h.cmd_tx.send(AgentCommand::SetMode(mode_id)).map_err(|e| e.to_string())
 }
 
 /// Apply a model selection to the live ACP session for `task_id`. The change
-/// is delivered as an `AcpCommand::SetModel`, which the connection loop
-/// translates into a `session/set_model` request to kiro-cli. Returns
+/// is delivered as an `AgentCommand::SetModel`, which the connection loop
+/// translates into a `session/set_model` request to prime-agent. Returns
 /// `Ok(())` even when the task has no live connection (e.g. deferred-spawn
 /// thread) — the model preference is still persisted in `projectPrefs`/
 /// `defaultModel` by the frontend, and the next spawn will pick it up via
 /// `resolve_initial_model`.
 #[tauri::command]
 pub fn set_model(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     model_id: String,
 ) -> Result<(), String> {
     let conns = state.connections.lock();
     if let Some(h) = conns.get(&task_id) {
-        h.cmd_tx.send(AcpCommand::SetModel(model_id)).map_err(|e| e.to_string())?;
+        h.cmd_tx.send(AgentCommand::SetModel(model_id)).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// Spawn a short-lived `prime-agent --mode rpc --no-session` subprocess and
+/// query the model catalog plus current state. Used by `list_models` and
+/// `probe_capabilities`. Blocks up to 30 seconds; a watchdog kills the
+/// subprocess if it never answers.
+pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>, Option<String>), String> {
+    use std::io::{BufRead, BufReader, Write};
+
+    let mut child = std::process::Command::new(&launch.program)
+        .args(&launch.prefix_args)
+        .args(["--mode", "rpc", "--no-session"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .env("PATH", format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{}", std::env::var("PATH").unwrap_or_default()))
+        .spawn()
+        .map_err(|e| format!("Failed to spawn prime-agent: {e}"))?;
+
+    let mut stdin = child.stdin.take().ok_or("No stdin")?;
+    let stdout = child.stdout.take().ok_or("No stdout")?;
+
+    // Watchdog: kill the subprocess if it hasn't answered within 30s so the
+    // blocking reader below can't hang forever.
+    let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let done_wd = done.clone();
+    let pid = child.id();
+    std::thread::spawn(move || {
+        for _ in 0..300 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            if done_wd.load(std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
+        }
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(pid as i32, libc::SIGKILL);
+        }
+    });
+
+    stdin
+        .write_all(b"{\"id\":\"m\",\"type\":\"get_available_models\"}\n{\"id\":\"s\",\"type\":\"get_state\"}\n")
+        .and_then(|_| stdin.flush())
+        .map_err(|e| format!("Failed to write to prime-agent: {e}"))?;
+
+    let mut models: Option<Value> = None;
+    let mut state: Option<Value> = None;
+    for line in BufReader::new(stdout).lines() {
+        let Ok(line) = line else { break };
+        let Ok(val) = serde_json::from_str::<Value>(line.trim_end_matches('\r')) else { continue };
+        if val.get("type").and_then(|t| t.as_str()) != Some("response") {
+            continue;
+        }
+        match val.get("id").and_then(|i| i.as_str()) {
+            Some("m") => models = val.get("data").cloned(),
+            Some("s") => state = val.get("data").cloned(),
+            _ => {}
+        }
+        if models.is_some() && state.is_some() {
+            break;
+        }
+    }
+    done.store(true, std::sync::atomic::Ordering::SeqCst);
+    let _ = child.kill();
+    let _ = child.wait();
+
+    let models = models.ok_or("prime-agent did not answer get_available_models")?;
+    let available: Vec<Value> = models
+        .get("models")
+        .and_then(|m| m.as_array())
+        .map(|arr| arr.iter().filter_map(map_model).collect())
+        .unwrap_or_default();
+    let current = state
+        .as_ref()
+        .and_then(|s| s.get("model"))
+        .and_then(composite_model_id);
+    Ok((available, current))
+}
+
+/// Send an arbitrary prime-agent RPC command to a live session and await its
+/// response. This is the bridge that gives the GUI the *whole* CLI surface —
+/// `compact`, `refine`, `clone`, `export_html`, `set_session_name`,
+/// `get_session_stats`, heartbeats, schedules, and anything prime-agent adds
+/// later — without a bespoke Tauri command per feature.
+///
+/// `command` is the RPC `type` (e.g. "export_html"); `params` are merged into
+/// the request object. Returns the response's `data` on success.
+#[tauri::command]
+pub async fn agent_rpc_request(
+    state: tauri::State<'_, AgentState>,
+    task_id: String,
+    command: String,
+    params: Option<Value>,
+) -> Result<Value, String> {
+    // Never let a UI call impersonate the connection's internal bookkeeping ids.
+    if command.trim().is_empty() {
+        return Err("RPC command must not be empty".to_string());
+    }
+    let request_id = format!("ui-{}", Uuid::new_v4());
+
+    let mut payload = serde_json::Map::new();
+    if let Some(Value::Object(extra)) = params {
+        for (k, v) in extra {
+            if k != "type" && k != "id" {
+                payload.insert(k, v);
+            }
+        }
+    }
+    payload.insert("type".into(), Value::String(command.clone()));
+    payload.insert("id".into(), Value::String(request_id.clone()));
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Value>();
+    {
+        let conns = state.connections.lock();
+        let handle = conns
+            .get(&task_id)
+            .ok_or_else(|| "This thread has no live agent connection yet.".to_string())?;
+        handle.pending.lock().insert(request_id.clone(), tx);
+        handle
+            .cmd_tx
+            .send(AgentCommand::Raw(Value::Object(payload)))
+            .map_err(|e| format!("Failed to reach the agent: {e}"))?;
+    }
+
+    let response = match tokio::time::timeout(std::time::Duration::from_secs(120), rx).await {
+        Ok(Ok(v)) => v,
+        Ok(Err(_)) => {
+            return Err("The agent connection closed before responding.".to_string());
+        }
+        Err(_) => {
+            // Drop the reservation so a late response doesn't leak the entry.
+            if let Some(h) = state.connections.lock().get(&task_id) {
+                h.pending.lock().remove(&request_id);
+            }
+            return Err(format!("'{command}' timed out after 120s."));
+        }
+    };
+
+    if response.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+        Ok(response.get("data").cloned().unwrap_or(Value::Null))
+    } else {
+        Err(response
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("The agent rejected the command.")
+            .to_string())
+    }
+}
+
+/// Set the reasoning effort for a live session.
+#[tauri::command]
+pub fn set_thinking_level(
+    state: tauri::State<'_, AgentState>,
+    task_id: String,
+    level: String,
+) -> Result<(), String> {
+    const LEVELS: &[&str] = &["off", "minimal", "low", "medium", "high", "xhigh"];
+    if !LEVELS.contains(&level.as_str()) {
+        return Err(format!("Unknown thinking level '{level}'"));
+    }
+    let conns = state.connections.lock();
+    if let Some(h) = conns.get(&task_id) {
+        h.cmd_tx.send(AgentCommand::SetThinkingLevel(level)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Ask the agent to compact its context now.
+#[tauri::command]
+pub fn compact_context(
+    state: tauri::State<'_, AgentState>,
+    task_id: String,
+) -> Result<(), String> {
+    let conns = state.connections.lock();
+    let h = conns.get(&task_id).ok_or("No connection for task")?;
+    h.cmd_tx.send(AgentCommand::Compact).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn list_models(
     app: tauri::AppHandle,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
-    kiro_bin: Option<String>,
+    agent_bin: Option<String>,
 ) -> Result<Value, String> {
-    let bin = match kiro_bin {
+    let bin = match agent_bin {
         Some(b) => b,
-        None => settings_state.0.lock().settings.kiro_bin.clone(),
+        None => settings_state.0.lock().settings.agent_bin.clone(),
     };
+    let launch = resolve_launch(&app, &bin);
 
     let (tx, rx) = std::sync::mpsc::channel();
-    let _app_clone = app.clone();
-
     std::thread::spawn(move || {
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("Failed to create tokio runtime for list_models");
-            let local = tokio::task::LocalSet::new();
-            local.block_on(&rt, async {
-                let mut child = tokio::process::Command::new(&bin)
-                    .arg("acp")
-                    .stdin(std::process::Stdio::piped())
-                    .stdout(std::process::Stdio::piped())
-                    .stderr(std::process::Stdio::null())
-                    .env("PATH", format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{}", std::env::var("PATH").unwrap_or_default()))
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn: {e}"))?;
-
-                let stdin = child.stdin.take().ok_or("No stdin")?;
-                let stdout = child.stdout.take().ok_or("No stdout")?;
-
-                struct MinimalClient;
-                #[async_trait::async_trait(?Send)]
-                impl acp::Client for MinimalClient {
-                    async fn session_notification(&self, _: acp::SessionNotification) -> acp::Result<()> { Ok(()) }
-                    async fn request_permission(&self, _: acp::RequestPermissionRequest) -> acp::Result<acp::RequestPermissionResponse> {
-                        Ok(acp::RequestPermissionResponse::new(acp::RequestPermissionOutcome::Cancelled))
-                    }
-                    async fn ext_notification(&self, _: acp::ExtNotification) -> acp::Result<()> { Ok(()) }
-                }
-
-                let (conn, io_future) = acp::ClientSideConnection::new(
-                    MinimalClient, stdin.compat_write(), stdout.compat(),
-                    |fut| { tokio::task::spawn_local(fut); },
-                );
-                tokio::task::spawn_local(async { let _ = io_future.await; });
-
-                conn.initialize(
-                    acp::InitializeRequest::new(acp::ProtocolVersion::V1)
-                        .client_info(acp::Implementation::new("kirodex", "0.1.0"))
-                ).await.map_err(|e| format!("Init failed: {e}"))?;
-
-                let session = conn.new_session(
-                    acp::NewSessionRequest::new(std::path::PathBuf::from(
-                        std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())
-                    ))
-                ).await.map_err(|e| format!("Session failed: {e}"))?;
-
-                let session_val = serde_json::to_value(&session).unwrap_or_default();
-                let models = session_val.get("models").cloned().unwrap_or(Value::Null);
-
-                let _ = child.kill().await;
-                Ok::<Value, String>(models)
-            })
-        }));
-        match result {
-            Ok(inner) => { let _ = tx.send(inner); }
-            Err(_) => { let _ = tx.send(Err("list_models thread panicked".to_string())); }
-        }
+        let _ = tx.send(query_models_blocking(&launch));
     });
 
-    rx.recv_timeout(std::time::Duration::from_secs(30))
-        .map_err(|e| format!("list_models timed out or channel closed: {e}"))?.map(|models| {
-        serde_json::json!({
-            "availableModels": models.get("availableModels").unwrap_or(&Value::Array(vec![])),
-            "currentModelId": models.get("currentModelId")
-        })
-    })
+    let (available, current) = rx
+        .recv_timeout(std::time::Duration::from_secs(35))
+        .map_err(|e| format!("list_models timed out or channel closed: {e}"))??;
+    Ok(serde_json::json!({
+        "availableModels": available,
+        "currentModelId": current,
+    }))
 }
 
 #[tauri::command]
 pub fn probe_capabilities(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
 ) -> Result<Value, String> {
     // Prevent concurrent probes (React StrictMode, HMR reloads)
@@ -681,94 +855,35 @@ pub fn probe_capabilities(
         return Ok(serde_json::json!({ "ok": true, "skipped": true }));
     }
 
-    let bin = settings_state.0.lock().settings.kiro_bin.clone();
-    log::info!("[ACP] probe_capabilities starting with bin={}", bin);
+    let bin = settings_state.0.lock().settings.agent_bin.clone();
+    log::info!("[RPC] probe_capabilities starting with bin={}", bin);
+    let launch = resolve_launch(&app, &bin);
 
     let app_for_flag = app.clone();
     let app_clone = app.clone();
 
     std::thread::spawn(move || {
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("Failed to create tokio runtime for probe");
-            let local = tokio::task::LocalSet::new();
-            local.block_on(&rt, async {
-                let mut child = tokio::process::Command::new(&bin)
-                    .arg("acp")
-                    .stdin(std::process::Stdio::piped())
-                    .stdout(std::process::Stdio::piped())
-                    .stderr(std::process::Stdio::null())
-                    .env("PATH", format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{}", std::env::var("PATH").unwrap_or_default()))
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn: {e}"))?;
+        let result = query_models_blocking(&launch);
 
-                let stdin = child.stdin.take().ok_or("No stdin")?;
-                let stdout = child.stdout.take().ok_or("No stdout")?;
-
-                struct ProbeClient;
-                #[async_trait::async_trait(?Send)]
-                impl acp::Client for ProbeClient {
-                    async fn session_notification(&self, _: acp::SessionNotification) -> acp::Result<()> { Ok(()) }
-                    async fn request_permission(&self, _: acp::RequestPermissionRequest) -> acp::Result<acp::RequestPermissionResponse> {
-                        Ok(acp::RequestPermissionResponse::new(acp::RequestPermissionOutcome::Cancelled))
-                    }
-                    async fn ext_notification(&self, _: acp::ExtNotification) -> acp::Result<()> { Ok(()) }
-                }
-
-                let (conn, io_future) = acp::ClientSideConnection::new(
-                    ProbeClient, stdin.compat_write(), stdout.compat(),
-                    |fut| { tokio::task::spawn_local(fut); },
-                );
-                tokio::task::spawn_local(async { let _ = io_future.await; });
-
-                conn.initialize(
-                    acp::InitializeRequest::new(acp::ProtocolVersion::V1)
-                        .client_info(acp::Implementation::new("kirodex", "0.1.0"))
-                ).await.map_err(|e| format!("Init failed: {e}"))?;
-
-                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-                let session = conn.new_session(
-                    acp::NewSessionRequest::new(std::path::PathBuf::from(&home))
-                ).await.map_err(|e| format!("Session failed: {e}"))?;
-
-                let session_val = serde_json::to_value(&session).unwrap_or_default();
-
-                let model_count = session_val.get("models")
-                    .and_then(|m| m.get("availableModels"))
-                    .and_then(|a| a.as_array())
-                    .map(|a| a.len())
-                    .unwrap_or(0);
-                let current_model = session_val.get("models")
-                    .and_then(|m| m.get("currentModelId"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("none");
-                log::info!("[ACP] probe session_init: {} models (current={})", model_count, current_model);
-
-                use tauri::Emitter;
-                let _ = app_clone.emit("session_init", serde_json::json!({
-                    "taskId": "__probe__",
-                    "models": session_val.get("models"),
-                    "modes": session_val.get("modes"),
-                    "configOptions": session_val.get("configOptions"),
-                }));
-
-                let _ = child.kill().await;
-                Ok::<(), String>(())
-            })
-        }));
-
-        // ALWAYS reset the probe guard when the thread exits (even on panic)
+        // ALWAYS reset the probe guard when the thread exits
         use tauri::Manager;
-        if let Some(acp_state) = app_for_flag.try_state::<AcpState>() {
+        if let Some(acp_state) = app_for_flag.try_state::<AgentState>() {
             acp_state.probe_running.store(false, std::sync::atomic::Ordering::SeqCst);
         }
 
         match result {
-            Ok(Ok(())) => log::info!("[ACP] probe_capabilities succeeded"),
-            Ok(Err(e)) => log::warn!("[ACP] probe_capabilities failed: {}", e),
-            Err(_) => log::error!("[ACP] probe_capabilities thread panicked"),
+            Ok((available, current)) => {
+                log::info!("[RPC] probe session_init: {} models (current={})",
+                    available.len(), current.as_deref().unwrap_or("none"));
+                use tauri::Emitter;
+                let _ = app_clone.emit("session_init", serde_json::json!({
+                    "taskId": "__probe__",
+                    "models": { "availableModels": available, "currentModelId": current },
+                    "modes": { "availableModes": [], "currentModeId": Value::Null },
+                    "configOptions": Value::Null,
+                }));
+            }
+            Err(e) => log::warn!("[RPC] probe_capabilities failed: {}", e),
         }
     });
 

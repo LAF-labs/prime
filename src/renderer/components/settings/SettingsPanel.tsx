@@ -10,6 +10,7 @@ import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-e
 import { ipc } from '@/lib/ipc'
 import type { AppSettings } from '@/types'
 import { applyTheme, persistTheme } from '@/lib/theme'
+import { useT } from '@/lib/i18n'
 import { AboutDialog } from './AboutDialog'
 import { NAV, NAV_GROUP_LABELS, SEARCHABLE_SETTINGS, type Section, type NavGroup } from './settings-shared'
 import { AccountSection } from './account-section'
@@ -21,7 +22,7 @@ import { MemorySection } from './memory-section'
 import { ArchivesSection } from './archives-section'
 
 const defaultSettings: AppSettings = {
-  kiroBin: 'kiro-cli',
+  agentBin: 'prime-agent',
   agentProfiles: [],
   fontSize: 14,
   chatFontSize: 14,
@@ -34,10 +35,11 @@ const isDirty = (draft: AppSettings, saved: AppSettings): boolean =>
   JSON.stringify(draft) !== JSON.stringify(saved)
 
 export const SettingsPanel = () => {
+  const t = useT()
   const open = useTaskStore((s) => s.isSettingsOpen)
   const setOpen = useTaskStore((s) => s.setSettingsOpen)
   const settingsInitialSection = useTaskStore((s) => s.settingsInitialSection)
-  const { settings, saveSettings, kiroAuthChecked, checkAuth } = useSettingsStore()
+  const { settings, saveSettings, authChecked, checkAuth } = useSettingsStore()
 
   const [section, setSection] = useState<Section>('general')
   const [draft, setDraft] = useState<AppSettings>(settings)
@@ -49,7 +51,7 @@ export const SettingsPanel = () => {
   const hasDirtyState = useMemo(() => isDirty(draft, settings), [draft, settings])
 
   useEffect(() => { getVersion().then(setAppVersion).catch(() => {}) }, [])
-  useEffect(() => { if (open && !kiroAuthChecked) checkAuth() }, [open, kiroAuthChecked, checkAuth])
+  useEffect(() => { if (open && !authChecked) checkAuth() }, [open, authChecked, checkAuth])
   useEffect(() => { setDraft(settings) }, [settings])
 
   useEffect(() => {
@@ -149,8 +151,8 @@ export const SettingsPanel = () => {
         {/* Sidebar */}
         <nav data-testid="settings-nav" className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar px-2 pt-12 pb-3">
           <div className="mb-4 px-2">
-            <h2 className="text-[15px] font-semibold text-foreground">Settings</h2>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">Configure Kirodex</p>
+            <h2 className="text-[15px] font-semibold text-foreground">{t('settings.title')}</h2>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{t('settings.configure')}</p>
           </div>
 
           {/* Search */}
@@ -159,7 +161,7 @@ export const SettingsPanel = () => {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search settings…"
+              placeholder={t('settings.search')}
               aria-label="Search settings"
               className="flex h-7 w-full rounded-lg border border-input bg-background/50 pl-8 pr-3 text-[12px] placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
@@ -225,12 +227,21 @@ export const SettingsPanel = () => {
             </button>
             <div className="flex items-center justify-between px-2 py-1">
               <button type="button" onClick={() => setIsAboutOpen(true)} className="text-left transition-colors hover:text-foreground">
-                <p className="text-[10px] text-muted-foreground">Kirodex {appVersion ? `v${appVersion}` : ''}</p>
+                <p className="text-[10px] text-muted-foreground">LAF Agent {appVersion ? `v${appVersion}` : ''}</p>
               </button>
-              <a href="https://github.com/thabti/kirodex" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown} aria-label="Kirodex on GitHub" tabIndex={0} className="text-muted-foreground transition-colors hover:text-foreground">
+              <a href="https://laf-co.com/" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown} aria-label="LAF Agent website" tabIndex={0} className="text-muted-foreground transition-colors hover:text-foreground">
                 <IconBrandGithub className="size-3.5" />
               </a>
             </div>
+            <a
+              href="https://github.com/PrimeIntellect-ai/prime-agent"
+              onClick={handleExternalLinkClick}
+              onKeyDown={handleExternalLinkKeyDown}
+              tabIndex={0}
+              className="block px-2 pb-1 text-[9px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+            >
+              Powered by Prime Agent (PrimeIntellect-ai/prime-agent)
+            </a>
           </div>
         </nav>
 

@@ -206,7 +206,7 @@ describe('parseQuestions', () => {
     expect(blocks[0].options).toHaveLength(2)
   })
 
-  it('parses the real-world kiro format', () => {
+  it('parses the real-world agent format', () => {
     const input = [
       'Here are my questions before I build the plan:',
       '',

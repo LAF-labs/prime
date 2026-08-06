@@ -49,8 +49,8 @@ export type MarkdownBlock =
     }
   | { readonly type: 'html'; readonly text: string }
   | { readonly type: 'mermaid'; readonly text: string }
-  | { readonly type: 'kiroSummary'; readonly json: string }
-  | { readonly type: 'kirodexReport'; readonly json: string }
+  | { readonly type: 'agentSummary'; readonly json: string }
+  | { readonly type: 'laf-agentReport'; readonly json: string }
 
 export interface ParsedMarkdown {
   readonly blocks: readonly MarkdownBlock[]

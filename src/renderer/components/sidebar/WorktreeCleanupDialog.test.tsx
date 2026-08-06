@@ -29,15 +29,15 @@ vi.mock('@/stores/settingsStore', () => ({
 vi.mock('@/stores/diffStore', () => ({
   useDiffStore: { getState: () => ({ fetchDiff: vi.fn() }) },
 }))
-vi.mock('@/stores/kiroStore', () => ({
-  useKiroStore: { getState: () => ({ setMcpError: vi.fn() }) },
+vi.mock('@/stores/resourceStore', () => ({
+  useResourceStore: { getState: () => ({ setMcpError: vi.fn() }) },
 }))
 
 import { WorktreeCleanupDialog } from './WorktreeCleanupDialog'
 
 const makePending = (overrides = {}) => ({
   taskId: 'task-1',
-  worktreePath: '/project/.kiro/worktrees/my-feature',
+  worktreePath: '/project/.laf-agent/worktrees/my-feature',
   branch: 'my-feature',
   originalWorkspace: '/project',
   action: 'delete' as const,
@@ -108,7 +108,7 @@ describe('WorktreeCleanupDialog', () => {
   it('Cancel dismisses without deleting', () => {
     useTaskStore.setState({
       worktreeCleanupPending: makePending(),
-      tasks: { 'task-1': { id: 'task-1', name: 'test', workspace: '/project/.kiro/worktrees/my-feature', status: 'paused', createdAt: '', messages: [] } },
+      tasks: { 'task-1': { id: 'task-1', name: 'test', workspace: '/project/.laf-agent/worktrees/my-feature', status: 'paused', createdAt: '', messages: [] } },
     })
     render(<WorktreeCleanupDialog />)
     fireEvent.click(screen.getByText('Cancel'))
@@ -121,12 +121,12 @@ describe('WorktreeCleanupDialog', () => {
     const { ipc } = await import('@/lib/ipc')
     useTaskStore.setState({
       worktreeCleanupPending: makePending(),
-      tasks: { 'task-1': { id: 'task-1', name: 'test', workspace: '/project/.kiro/worktrees/my-feature', status: 'paused', createdAt: '', messages: [] } },
+      tasks: { 'task-1': { id: 'task-1', name: 'test', workspace: '/project/.laf-agent/worktrees/my-feature', status: 'paused', createdAt: '', messages: [] } },
     })
     render(<WorktreeCleanupDialog />)
     fireEvent.click(screen.getByText(/Delete & remove worktree/))
     expect(useTaskStore.getState().worktreeCleanupPending).toBeNull()
-    expect(ipc.gitWorktreeRemove).toHaveBeenCalledWith('/project', '/project/.kiro/worktrees/my-feature')
+    expect(ipc.gitWorktreeRemove).toHaveBeenCalledWith('/project', '/project/.laf-agent/worktrees/my-feature')
   })
 
   it('"Delete thread, keep worktree" calls resolveWorktreeCleanup(false)', async () => {
@@ -134,7 +134,7 @@ describe('WorktreeCleanupDialog', () => {
     vi.mocked(ipc.gitWorktreeRemove).mockClear()
     useTaskStore.setState({
       worktreeCleanupPending: makePending(),
-      tasks: { 'task-1': { id: 'task-1', name: 'test', workspace: '/project/.kiro/worktrees/my-feature', status: 'paused', createdAt: '', messages: [] } },
+      tasks: { 'task-1': { id: 'task-1', name: 'test', workspace: '/project/.laf-agent/worktrees/my-feature', status: 'paused', createdAt: '', messages: [] } },
     })
     render(<WorktreeCleanupDialog />)
     fireEvent.click(screen.getByText(/keep worktree on disk/))

@@ -177,7 +177,7 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
 
     const handleDragOver = (e: Event) => {
       const de = e as DragEvent
-      if (inAppDragActive || de.dataTransfer?.types.some((t) => t.startsWith('application/x-kirodex'))) {
+      if (inAppDragActive || de.dataTransfer?.types.some((t) => t.startsWith('application/x-laf-agent'))) {
         de.preventDefault()
         if (de.dataTransfer) de.dataTransfer.dropEffect = 'copy'
         setIsDragOver(true)
@@ -185,14 +185,14 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
     }
     const handleDragEnter = (e: Event) => {
       const de = e as DragEvent
-      if (inAppDragActive || de.dataTransfer?.types.some((t) => t.startsWith('application/x-kirodex'))) {
+      if (inAppDragActive || de.dataTransfer?.types.some((t) => t.startsWith('application/x-laf-agent'))) {
         setIsDragOver(true)
       }
     }
     const handleDragLeave = (e: Event) => {
       const de = e as DragEvent
       if (containerRef?.current && de.relatedTarget && containerRef.current.contains(de.relatedTarget as Node)) return
-      if (inAppDragActive || de.dataTransfer?.types.some((t) => t.startsWith('application/x-kirodex'))) {
+      if (inAppDragActive || de.dataTransfer?.types.some((t) => t.startsWith('application/x-laf-agent'))) {
         setIsDragOver(false)
       }
     }
@@ -203,8 +203,8 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
 
       // Try HTML5 dataTransfer first (works on Linux/Windows)
       const dt = de.dataTransfer
-      let folderData = dt?.getData('application/x-kirodex-folder') ?? ''
-      let fileData = dt?.getData('application/x-kirodex-file') ?? ''
+      let folderData = dt?.getData('application/x-laf-agent-folder') ?? ''
+      let fileData = dt?.getData('application/x-laf-agent-file') ?? ''
 
       // Fallback to module-level drag data
       if (!folderData && !fileData && inAppDragData) {

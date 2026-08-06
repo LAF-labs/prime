@@ -1,7 +1,7 @@
 //! Structured tracing — NDJSON trace file for debugging.
 //!
 //! Writes completed spans as NDJSON records to
-//! `~/Library/Application Support/rs.kirodex/traces.ndjson`.
+//! `~/Library/Application Support/rs.laf-agent/traces.ndjson`.
 //!
 //! Each record contains:
 //! - `name`: span name (e.g. "acp.send_message", "git.commit")
@@ -110,7 +110,7 @@ fn write_ndjson_line(file: &mut std::fs::File, record: &TraceRecord) -> std::io:
 fn trace_file_path() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("rs.kirodex")
+        .join("rs.laf-agent")
         .join("traces.ndjson")
 }
 
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn trace_file_path_is_reasonable() {
         let path = trace_file_path();
-        assert!(path.to_string_lossy().contains("rs.kirodex"));
+        assert!(path.to_string_lossy().contains("rs.laf-agent"));
         assert!(path.to_string_lossy().ends_with("traces.ndjson"));
     }
 }

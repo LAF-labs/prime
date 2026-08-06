@@ -55,7 +55,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
     }
     if (resolvedTaskId) {
       useTaskStore.getState().setTaskModel(resolvedTaskId, modelId)
-      // Push the selection to the live ACP session so kiro-cli actually
+      // Push the selection to the live ACP session so prime-agent actually
       // starts using the new model on the next prompt.
       ipc.setModel(resolvedTaskId, modelId).catch(() => {})
     }

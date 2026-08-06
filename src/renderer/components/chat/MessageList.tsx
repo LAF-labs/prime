@@ -31,7 +31,7 @@ interface MessageListProps {
   liveToolSplits?: ToolCallSplit[]
   liveThinking?: string
   isRunning?: boolean
-  /** When true, render tool calls inline within prose (Cursor / Kiro IDE style). */
+  /** When true, render tool calls inline within prose (Cursor / Prime Agent IDE style). */
   inlineToolCalls?: boolean
   /** IDs of timeline rows that match the current search query */
   searchMatchIds?: string[]

@@ -1,7 +1,7 @@
 /**
  * Connection health monitoring for the ACP backend subprocess.
  *
- * While Tauri IPC doesn't have network-level disconnections, the kiro-cli
+ * While Tauri IPC doesn't have network-level disconnections, the prime-agent
  * subprocess can crash or become unresponsive. This module provides:
  *
  * - Periodic health checks via a lightweight IPC probe
@@ -182,7 +182,7 @@ export function startConnectionHealthMonitor(
   }
 
   // Don't optimistically declare "connected" — the backend probe may not
-  // have run yet, or kiro-cli may be down at startup. Mark `connecting`
+  // have run yet, or prime-agent may be down at startup. Mark `connecting`
   // instead and let the first probe flip the state to `connected`.
   updateConnectionStatus(connectionAttempted(connectionStatus))
 

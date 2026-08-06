@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Disable sandbox: required because Kirodex spawns kiro-cli subprocesses,
+    <!-- Disable sandbox: required because LAF Agent spawns prime-agent subprocesses,
          uses portable-pty, and needs unrestricted file access to project folders. -->
     <key>com.apple.security.app-sandbox</key>
     <false/>

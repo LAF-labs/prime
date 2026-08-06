@@ -23,23 +23,23 @@ export interface InstallCommand {
 
 export const INSTALL_COMMANDS: Record<Platform, { primary: InstallCommand; alternatives: InstallCommand[] }> = {
   macos: {
-    primary: { label: 'Homebrew', command: 'brew install kiro-cli' },
+    primary: { label: 'curl', command: 'curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh' },
     alternatives: [
-      { label: 'curl', command: 'curl -fsSL https://kiro.dev/install.sh | sh' },
-      { label: 'Manual', command: 'Download from https://kiro.dev/docs/cli/installation/' },
+      { label: 'npm', command: 'npm install -g @earendil-works/pi-coding-agent' },
+      { label: 'Manual', command: 'Download from https://github.com/PrimeIntellect-ai/prime-agent' },
     ],
   },
   linux: {
-    primary: { label: 'curl', command: 'curl -fsSL https://kiro.dev/install.sh | sh' },
+    primary: { label: 'curl', command: 'curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh' },
     alternatives: [
-      { label: 'apt', command: 'sudo apt install kiro-cli' },
-      { label: 'Manual', command: 'Download from https://kiro.dev/docs/cli/installation/' },
+      { label: 'npm', command: 'npm install -g @earendil-works/pi-coding-agent' },
+      { label: 'Manual', command: 'Download from https://github.com/PrimeIntellect-ai/prime-agent' },
     ],
   },
   windows: {
-    primary: { label: 'PowerShell', command: 'irm https://kiro.dev/install.ps1 | iex' },
+    primary: { label: 'npm', command: 'npm install -g @earendil-works/pi-coding-agent' },
     alternatives: [
-      { label: 'Manual', command: 'Download from https://kiro.dev/docs/cli/installation/' },
+      { label: 'Manual', command: 'Download from https://github.com/PrimeIntellect-ai/prime-agent' },
     ],
   },
 }

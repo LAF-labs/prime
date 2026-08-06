@@ -1,6 +1,6 @@
 //! AI-powered git text generation (commit messages, etc.).
 //!
-//! Spawns the user's configured agent CLI (`kiro-cli chat --no-interactive`)
+//! Spawns the user's configured agent CLI (`prime-agent chat --no-interactive`)
 //! as a one-shot subprocess, hands it a prompt + the staged diff, and parses
 //! a JSON response of the shape `{ "subject": "...", "body": "..." }`.
 //!
@@ -8,7 +8,7 @@
 //!
 //! * The subprocess runs **outside** the user's chat thread so we never touch
 //!   the active ACP session or pollute `turn_end`.
-//! * No new credential surface — reuses whatever auth `kiro-cli` already has.
+//! * No new credential surface — reuses whatever auth `prime-agent` already has.
 //! * The diff is compressed (per-line truncation + iterative shrink) to fit a
 //!   conservative byte budget.
 //! * The CLI prints a few decorative status lines (`📷 Checkpoints…`,
@@ -63,20 +63,21 @@ struct ModelOutput {
 /// (HEAD ↔ workdir) when nothing is staged.
 #[tauri::command]
 pub async fn git_generate_commit_message(
+    app: tauri::AppHandle,
     settings_state: tauri::State<'_, SettingsState>,
     cwd: String,
 ) -> Result<GeneratedCommitMessage, AppError> {
-    let (kiro_bin, current_branch, diff_text, custom_instructions) = {
+    let (agent_bin, current_branch, diff_text, custom_instructions) = {
         // Lock + repo work happens synchronously; release before the await.
         let settings = settings_state.0.lock();
-        let kiro_bin = settings.settings.kiro_bin.clone();
+        let agent_bin = settings.settings.agent_bin.clone();
         let instructions = settings.settings.project_prefs
             .as_ref()
             .and_then(|p| p.get(&cwd))
             .and_then(|pp| pp.text_generation_policy.as_ref())
             .and_then(|pol| pol.commit_instructions.clone());
         let (branch, diff) = collect_diff_for_prompt(&cwd)?;
-        (kiro_bin, branch, diff, instructions)
+        (agent_bin, branch, diff, instructions)
     };
 
     if diff_text.trim().is_empty() {
@@ -88,7 +89,8 @@ pub async fn git_generate_commit_message(
     let compressed = compress_commit_diff(&diff_text, MAX_DIFF_BYTES);
     let prompt = build_commit_prompt(current_branch.as_deref(), &compressed, custom_instructions.as_deref());
 
-    let raw_output = run_kiro_oneshot(&kiro_bin, &cwd, &prompt).await?;
+    let launch = crate::commands::agent_launch::resolve(&app, &agent_bin);
+    let raw_output = run_agent_oneshot(&launch, &cwd, &prompt).await?;
     let parsed = parse_commit_response(&raw_output)?;
     Ok(sanitize(parsed))
 }
@@ -240,7 +242,7 @@ pub(crate) fn build_commit_prompt(branch: Option<&str>, diff_text: &str, custom_
 
 // ── Subprocess invocation (shared by branch_ai, thread_title, pr_ai) ────
 
-pub(crate) async fn run_kiro_oneshot(kiro_bin: &str, cwd: &str, prompt: &str) -> Result<String, AppError> {
+pub(crate) async fn run_agent_oneshot(launch: &crate::commands::agent_launch::AgentLaunch, cwd: &str, prompt: &str) -> Result<String, AppError> {
     // `--trust-tools=` (empty list) prevents the model from spawning tools we
     // don't want it to touch in a one-shot text generation context.
     // `--no-interactive` makes it exit after the response.
@@ -249,10 +251,12 @@ pub(crate) async fn run_kiro_oneshot(kiro_bin: &str, cwd: &str, prompt: &str) ->
         std::env::var("PATH").unwrap_or_default()
     );
 
-    let child = Command::new(kiro_bin)
-        .arg("chat")
-        .arg("--no-interactive")
-        .arg("--trust-tools=")
+    let mut cmd = Command::new(&launch.program);
+    cmd.args(&launch.prefix_args);
+    let child = cmd
+        .arg("--print")
+        .arg("--no-tools")
+        .arg("--no-session")
         .arg(prompt)
         .current_dir(cwd)
         .env("PATH", path_env)
@@ -260,7 +264,7 @@ pub(crate) async fn run_kiro_oneshot(kiro_bin: &str, cwd: &str, prompt: &str) ->
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| AppError::Other(format!("Failed to spawn '{kiro_bin}': {e}")))?;
+        .map_err(|e| AppError::Other(format!("Failed to spawn '{}': {e}", launch.program)))?;
 
     let output = match timeout(
         Duration::from_secs(SUBPROCESS_TIMEOUT_SECS),
@@ -280,7 +284,7 @@ pub(crate) async fn run_kiro_oneshot(kiro_bin: &str, cwd: &str, prompt: &str) ->
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Other(format!(
-            "kiro-cli exited with status {}: {}",
+            "prime-agent exited with status {}: {}",
             output.status,
             stderr.trim()
         )));
@@ -291,9 +295,9 @@ pub(crate) async fn run_kiro_oneshot(kiro_bin: &str, cwd: &str, prompt: &str) ->
 
 // ── Output parsing ───────────────────────────────────────────────────────
 
-/// Strip kiro-cli decoration and extract the JSON `{ subject, body }` payload.
+/// Strip prime-agent decoration and extract the JSON `{ subject, body }` payload.
 ///
-/// `kiro-cli chat --no-interactive` emits something like:
+/// `prime-agent chat --no-interactive` emits something like:
 ///
 /// ```text
 /// 📷 Checkpoints are enabled! (took 0.15s)
@@ -308,7 +312,7 @@ pub(crate) async fn run_kiro_oneshot(kiro_bin: &str, cwd: &str, prompt: &str) ->
 pub(crate) fn parse_commit_response(raw: &str) -> Result<ModelOutput, AppError> {
     // Prefer a JSON object that actually has `subject` (or `body`) so we
     // don't latch onto an unrelated brace block (e.g. `{MCPSERVERNAME}` in
-    // a kiro-cli warning). Falls back to any valid JSON, then to the first
+    // a prime-agent warning). Falls back to any valid JSON, then to the first
     // balanced block for diagnostic purposes.
     let block = extract_json_object_with_key(raw, "subject")
         .or_else(|| extract_json_object_with_key(raw, "body"))
@@ -332,7 +336,7 @@ pub(crate) fn parse_commit_response(raw: &str) -> Result<ModelOutput, AppError> 
 /// objects are returned as part of their parent, not separately). Tolerates
 /// braces inside string literals (handles `\"` escapes).
 ///
-/// kiro-cli sometimes prints brace-bracketed text in pre-amble warnings (e.g.
+/// prime-agent sometimes prints brace-bracketed text in pre-amble warnings (e.g.
 /// `--trust-tools arg ... needs to be prepended with @{MCPSERVERNAME}/`),
 /// which the previous "first balanced block" heuristic captured instead of the
 /// real JSON answer that came afterwards. Iterating all candidates lets the
@@ -487,8 +491,9 @@ fn sanitize(parsed: ModelOutput) -> GeneratedCommitMessage {
 // ── Smoke test helper (used by examples/git_ai_smoke.rs) ─────────────────
 
 /// Standalone commit message generation for the smoke-test example binary.
-/// Bypasses Tauri state by accepting kiro_bin and cwd directly.
-pub async fn generate_for_smoke(kiro_bin: &str, cwd: &str) -> Result<GeneratedCommitMessage, AppError> {
+/// Bypasses Tauri state by accepting agent_bin and cwd directly.
+pub async fn generate_for_smoke(agent_bin: &str, cwd: &str) -> Result<GeneratedCommitMessage, AppError> {
+    let launch = crate::commands::agent_launch::AgentLaunch { program: agent_bin.to_string(), prefix_args: vec![] };
     let (_, diff_text) = collect_diff_for_prompt(cwd)?;
     if diff_text.trim().is_empty() {
         return Err(AppError::Other("No changes to summarize".to_string()));
@@ -497,7 +502,7 @@ pub async fn generate_for_smoke(kiro_bin: &str, cwd: &str) -> Result<GeneratedCo
     let branch = git2::Repository::open(cwd).ok()
         .and_then(|r| r.head().ok().and_then(|h| h.shorthand().map(String::from)));
     let prompt = build_commit_prompt(branch.as_deref(), &compressed, None);
-    let raw_output = run_kiro_oneshot(kiro_bin, cwd, &prompt).await?;
+    let raw_output = run_agent_oneshot(&launch, cwd, &prompt).await?;
     let parsed = parse_commit_response(&raw_output)?;
     Ok(sanitize(parsed))
 }
@@ -588,7 +593,7 @@ mod tests {
 
     #[test]
     fn extract_json_skips_invalid_block_before_real_answer() {
-        // Mirrors real kiro-cli output: a warning containing `{MCPSERVERNAME}`
+        // Mirrors real prime-agent output: a warning containing `{MCPSERVERNAME}`
         // (not valid JSON) followed by the actual answer.
         let raw = "WARNING: --trust-tools arg ... prepended with @{MCPSERVERNAME}/\n\
                    > {\"subject\":\"Fix login\",\"body\":\"\"}\n";
@@ -643,7 +648,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_commit_response_extracts_from_kiro_cli_chrome() {
+    fn parse_commit_response_extracts_from_agent_cli_chrome() {
         let raw = "📷 Checkpoints are enabled! (took 0.15s)\n\n> json\n{\"subject\":\"add foo\",\"body\":\"\"}\n\n ▸ Credits: 0.03 • Time: 2s\n";
         let parsed = parse_commit_response(raw).unwrap();
         assert_eq!(parsed.subject, "add foo");
@@ -651,8 +656,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_commit_response_skips_kiro_cli_warning_brace_block() {
-        // Regression: `{MCPSERVERNAME}` from kiro-cli's `--trust-tools`
+    fn parse_commit_response_skips_agent_cli_warning_brace_block() {
+        // Regression: `{MCPSERVERNAME}` from prime-agent's `--trust-tools`
         // warning was being parsed as the answer, breaking commit message
         // generation alongside thread titles, branch names, and PR content.
         let raw = "WARNING: --trust-tools arg for custom tool needs to be \
@@ -666,7 +671,7 @@ mod tests {
 
     #[test]
     fn parse_commit_response_errors_when_no_json() {
-        let raw = "kiro-cli error: not authenticated\n";
+        let raw = "prime-agent error: not authenticated\n";
         let err = parse_commit_response(raw).unwrap_err();
         assert!(err.to_string().contains("Could not find JSON"));
     }
@@ -719,18 +724,18 @@ mod tests {
         assert!(json.contains("\"body\":\"y\""));
     }
 
-    /// End-to-end smoke test against a real `kiro-cli` install.
+    /// End-to-end smoke test against a real `prime-agent` install.
     ///
     /// Ignored by default — run explicitly with:
     ///
     /// ```sh
-    /// cargo test --manifest-path kirodex/src-tauri/Cargo.toml \
-    ///   --lib commands::git_ai::tests::end_to_end_against_real_kiro_cli \
+    /// cargo test --manifest-path laf-agent/src-tauri/Cargo.toml \
+    ///   --lib commands::git_ai::tests::end_to_end_against_real_agent_cli \
     ///   -- --ignored --nocapture
     /// ```
     #[tokio::test]
-    #[ignore = "requires a working kiro-cli on PATH and network"]
-    async fn end_to_end_against_real_kiro_cli() {
+    #[ignore = "requires a working prime-agent on PATH and network"]
+    async fn end_to_end_against_real_agent_cli() {
         use std::process::Command as StdCommand;
 
         let dir = tempfile::tempdir().unwrap();
@@ -753,9 +758,10 @@ mod tests {
         let (branch, diff) = collect_diff_for_prompt(path.to_str().unwrap()).unwrap();
         assert!(!diff.is_empty());
         let prompt = build_commit_prompt(branch.as_deref(), &diff, None);
-        let raw = run_kiro_oneshot("kiro-cli", path.to_str().unwrap(), &prompt)
+        let launch = crate::commands::agent_launch::AgentLaunch { program: "prime-agent".to_string(), prefix_args: vec![] };
+        let raw = run_agent_oneshot(&launch, path.to_str().unwrap(), &prompt)
             .await
-            .expect("kiro-cli oneshot failed");
+            .expect("prime-agent oneshot failed");
         let parsed = parse_commit_response(&raw).expect("failed to parse model output");
         let result = sanitize(parsed);
         assert!(!result.subject.is_empty());

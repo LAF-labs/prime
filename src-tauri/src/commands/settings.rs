@@ -57,8 +57,8 @@ pub struct ProjectPrefs {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
-    #[serde(default = "default_kiro_bin")]
-    pub kiro_bin: String,
+    #[serde(default = "default_agent_bin")]
+    pub agent_bin: String,
     #[serde(default)]
     pub agent_profiles: Vec<AgentProfile>,
     #[serde(default = "default_font_size")]
@@ -94,6 +94,10 @@ pub struct AppSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub analytics_anon_id: Option<String>,
     /// Theme mode: "dark", "light", or "system". Default: "dark".
+    /// App display language: "system" (default) follows the OS locale;
+    /// "en" / "ko" force a language.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     #[serde(default = "default_theme")]
     pub theme: String,
     /// Sidebar placement: "left" or "right". Default: "left".
@@ -129,11 +133,11 @@ pub struct AppSettings {
     pub auto_archive_days: Option<u32>,
 }
 
-fn default_kiro_bin() -> String {
-    "kiro-cli".to_string()
+fn default_agent_bin() -> String {
+    "prime-agent".to_string()
 }
 fn default_font_size() -> u32 {
-    13
+    14
 }
 fn default_theme() -> String {
     "dark".to_string()
@@ -145,7 +149,7 @@ fn default_true() -> bool {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            kiro_bin: default_kiro_bin(),
+            agent_bin: default_agent_bin(),
             agent_profiles: vec![],
             font_size: default_font_size(),
             chat_font_size: None,
@@ -160,6 +164,7 @@ impl Default for AppSettings {
             has_onboarded_v2: false,
             analytics_enabled: true,
             analytics_anon_id: None,
+            language: None,
             theme: default_theme(),
             sidebar_position: None,
             custom_app_icon: None,
@@ -187,7 +192,7 @@ const MAX_RECENT_PROJECTS: usize = 10;
 
 pub struct SettingsState(pub Mutex<StoreData>);
 
-const APP_NAME: &str = "kirodex";
+const APP_NAME: &str = "laf-agent";
 
 impl Default for SettingsState {
     fn default() -> Self {
@@ -303,8 +308,8 @@ mod tests {
     #[test]
     fn default_settings_values() {
         let s = AppSettings::default();
-        assert_eq!(s.kiro_bin, "kiro-cli");
-        assert_eq!(s.font_size, 13);
+        assert_eq!(s.agent_bin, "prime-agent");
+        assert_eq!(s.font_size, 14);
         assert!(!s.auto_approve);
         assert!(s.respect_gitignore);
         assert!(s.co_author);
@@ -331,7 +336,7 @@ mod tests {
             },
         );
         let settings = AppSettings {
-            kiro_bin: "/usr/local/bin/kiro-cli".to_string(),
+            agent_bin: "/usr/local/bin/prime-agent".to_string(),
             font_size: 16,
             auto_approve: true,
             has_onboarded_v2: true,
@@ -342,7 +347,7 @@ mod tests {
         };
         let json = serde_json::to_string(&settings).unwrap();
         let restored: AppSettings = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored.kiro_bin, "/usr/local/bin/kiro-cli");
+        assert_eq!(restored.agent_bin, "/usr/local/bin/prime-agent");
         assert_eq!(restored.font_size, 16);
         assert!(restored.auto_approve);
         assert!(restored.has_onboarded_v2);
@@ -380,10 +385,10 @@ mod tests {
 
     #[test]
     fn deserialize_with_missing_fields_uses_defaults() {
-        let json = r#"{"kiroBin": "/bin/kiro"}"#;
+        let json = r#"{"agentBin": "/bin/agent"}"#;
         let settings: AppSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(settings.kiro_bin, "/bin/kiro");
-        assert_eq!(settings.font_size, 13);
+        assert_eq!(settings.agent_bin, "/bin/agent");
+        assert_eq!(settings.font_size, 14);
         assert!(settings.respect_gitignore);
         assert!(settings.co_author);
         assert!(!settings.has_onboarded_v2);
@@ -393,10 +398,10 @@ mod tests {
     fn camel_case_serialization() {
         let settings = AppSettings::default();
         let json = serde_json::to_string(&settings).unwrap();
-        assert!(json.contains("kiroBin"));
+        assert!(json.contains("agentBin"));
         assert!(json.contains("fontSize"));
         assert!(json.contains("autoApprove"));
         assert!(json.contains("hasOnboardedV2"));
-        assert!(!json.contains("kiro_bin"));
+        assert!(!json.contains("agent_bin"));
     }
 }

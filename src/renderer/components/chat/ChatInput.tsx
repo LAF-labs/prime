@@ -9,6 +9,7 @@ import { useChatInput } from '@/hooks/useChatInput'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useModifierKeys } from '@/hooks/useModifierKeys'
+import { useT } from '@/lib/i18n'
 
 import type { Attachment, ProjectFile } from '@/types'
 import type { PastedChunk } from '@/hooks/useChatInput'
@@ -45,6 +46,7 @@ interface ChatInputProps {
 }
 
 export const ChatInput = memo(function ChatInput({ disabled, disabledReason, contextUsage, messageCount = 0, isRunning, isActive, taskId, initialValue, initialAttachments, initialFolderPaths, initialPastedChunks, initialMentionedFiles, autoFocus, hasQueuedMessages, onSendMessage, onPause, onDraftChange, onAttachmentsChange, onFolderPathsChange, onPastedChunksChange, onMentionedFilesChange, workspace, isCollapsed, onToggleCollapse, isWorktree }: ChatInputProps) {
+  const t = useT()
   const {
     value, setValue, textareaRef, containerRef, canSend,
     slashIndex, slashQuery, commands, filteredCmds, showPicker,
@@ -162,7 +164,7 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
   }, [textareaRef])
 
-  const isPlanMode = currentModeId === 'kiro_planner'
+  const isPlanMode = currentModeId === 'plan'
   const borderFocus = isPlanMode ? 'focus-within:border-teal-500/60' : 'focus-within:border-blue-500/60'
   const borderIdle = isPlanMode ? 'border-teal-500/25' : 'border-border'
 
@@ -173,8 +175,8 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
       : null
 
   const placeholderText = disabled
-    ? (disabledReason ?? 'Task ended')
-    : 'Ask anything, @ to mention files, / for commands — Shift+Enter for newline'
+    ? (disabledReason ?? t('chat.taskEnded'))
+    : t('chat.inputPlaceholder')
 
   if (isCollapsed) {
     return (

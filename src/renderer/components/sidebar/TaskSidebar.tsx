@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { IconPlus, IconArrowsUpDown, IconCheck, IconLayoutSidebarLeftCollapse, IconLayoutSidebarRightCollapse, IconFolderOpen, IconLayoutColumns, IconX, IconReplace, IconArrowsExchange, IconGitBranch, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { ipc } from '@/lib/ipc'
 import { useSidebarTasks, type SortKey, type SidebarTask } from '@/hooks/useSidebarTasks'
 import { ThreadItem } from './ThreadItem'
+import { useT } from '@/lib/i18n'
 import { useResizeHandle } from '@/hooks/useResizeHandle'
 import { useModifierKeys } from '@/hooks/useModifierKeys'
 import { useMenuPosition } from '@/hooks/useMenuPosition'
@@ -400,7 +401,7 @@ const SidebarDivider = memo(function SidebarDivider() {
   )
 })
 
-const SORT_STORAGE_KEY = 'kirodex-sidebar-sort'
+const SORT_STORAGE_KEY = 'laf-agent-sidebar-sort'
 
 const loadSortPreference = (): SortKey => {
   try {
@@ -521,6 +522,36 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
   }, [removeTask])
   const handleNewThread = useCallback((workspace: string) => { useTaskStore.getState().setPendingWorkspace(workspace) }, [])
 
+  const t = useT()
+
+  // Project-independent chats live in ~/.laf-agent/chats — a neutral
+  // workspace with no repository context, so casual conversations stay
+  // token-lean. Conversations persist locally like any other thread.
+  const allTasks = useTaskStore((s) => s.tasks)
+  const chatTasks = useMemo<SidebarTask[]>(() => {
+    return Object.values(allTasks)
+      .filter((task) => task.workspace.includes('/.laf-agent/chats') && !task.isArchived)
+      .map((task) => ({
+        id: task.id,
+        name: task.name,
+        workspace: task.workspace,
+        projectId: task.workspace,
+        createdAt: task.createdAt,
+        lastActivityAt: task.createdAt,
+        lastUserMessageAt: task.createdAt,
+        status: task.status,
+        isArchived: task.isArchived,
+        hasPendingQuestion: false,
+      }))
+      .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+  }, [allTasks])
+
+  const handleNewChat = useCallback(() => {
+    ipc.ensureChatsDir()
+      .then((dir) => { useTaskStore.getState().setPendingWorkspace(dir) })
+      .catch((err) => { console.error('[chats] ensure_chats_dir failed:', err) })
+  }, [])
+
   // Sidebar edge resize
   const handleResizeStart = useResizeHandle({
     axis: 'horizontal', size: width, onResize, min: 180, max: Math.round(window.innerWidth * 0.2), reverse: isRight,
@@ -568,8 +599,43 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
         onDeleteTask={handleDeleteTask}
         onRenameTask={renameTask}
       />
+      {/* Project-independent chats: run in a neutral workspace, stored locally */}
       <div className="flex items-center justify-between px-3 pt-0 pb-2">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Projects</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('sidebar.chats')}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleNewChat}
+              aria-label={t('sidebar.newChat')}
+              tabIndex={0}
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <IconPlus size={13} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t('sidebar.newChat')}</TooltipContent>
+        </Tooltip>
+      </div>
+      {chatTasks.length > 0 && (
+        <div className="max-h-[30%] overflow-y-auto px-2 pb-1">
+          <ul className="flex min-w-0 flex-col gap-0.5">
+            {chatTasks.map((chat) => (
+              <ThreadItem
+                key={chat.id}
+                task={chat}
+                isActive={selectedTaskId === chat.id}
+                onSelect={() => handleSelectTask(chat.id)}
+                onDelete={() => handleDeleteTask(chat.id)}
+                onRename={(name) => renameTask(chat.id, name)}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+      <SidebarDivider />
+      <div className="flex items-center justify-between px-3 pt-2 pb-2">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('sidebar.projects')}</span>
         <div className="flex shrink-0 items-center gap-1">
           <SortDropdown sort={sort} onChange={handleSortChange} />
           <AddProjectDropdown onCloneFromGitHub={onCloneFromGitHub} />
@@ -586,8 +652,8 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
                     <IconFolderOpen size={20} stroke={1.5} className="text-muted-foreground/70" />
                   </div>
                   <div>
-                    <p className="text-[12px] font-medium text-muted-foreground">No projects yet</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">Import a folder to start working with Kiro</p>
+                    <p className="text-[12px] font-medium text-muted-foreground">{t('sidebar.noProjects')}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{t('sidebar.importHint')}</p>
                   </div>
                   <button
                     type="button"
@@ -596,7 +662,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
                     tabIndex={0}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    <IconPlus size={12} /> Import Project
+                    <IconPlus size={12} /> {t('sidebar.importProject')}
                   </button>
                 </li>
               )}

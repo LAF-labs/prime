@@ -14,7 +14,7 @@ type Provider =
   | 'glm'
   | 'qwen'
   | 'minimax'
-  | 'kiro'
+  | 'agent'
   | 'unknown'
 
 interface IconProps {
@@ -25,7 +25,7 @@ interface IconProps {
 /* ── Provider detection ─────────────────────────────────────────────── */
 
 const PROVIDER_PATTERNS: readonly [Provider, RegExp][] = [
-  ['kiro', /\b(kiro|auto)\b/i],
+  ['agent', /\b(agent|auto)\b/i],
   ['anthropic', /\bclaude\b/i],
   ['openai', /\b(gpt|o[134]-|chatgpt)\b/i],
   ['amazon', /\b(amazon|nova|titan)\b/i],
@@ -145,7 +145,7 @@ const MinimaxIcon = ({ size = 14, className }: IconProps): JSX.Element => (
   </svg>
 )
 
-const KiroIcon = ({ size = 14, className }: IconProps): JSX.Element => (
+const AgentIcon = ({ size = 14, className }: IconProps): JSX.Element => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
     <path d="M12 2L2 7v10l10 5 10-5V7L12 2Z" fill="#6366F1" />
     <path d="M12 2L2 7l10 5 10-5L12 2Z" fill="#818CF8" />
@@ -172,7 +172,7 @@ const ICON_MAP: Record<Provider, (props: IconProps) => JSX.Element> = {
   glm: GlmIcon,
   qwen: QwenIcon,
   minimax: MinimaxIcon,
-  kiro: KiroIcon,
+  agent: AgentIcon,
   unknown: DefaultIcon,
 }
 

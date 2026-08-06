@@ -172,7 +172,7 @@ export const makeAnonId = (): string => {
 }
 
 /** Remember the last version we ran so `app_version_seen` can compute a delta. */
-const LAST_VERSION_KEY = 'kirodex-last-version'
+const LAST_VERSION_KEY = 'laf-agent-last-version'
 
 export const readLastVersion = (): string | null => {
   try { return localStorage.getItem(LAST_VERSION_KEY) } catch { return null }

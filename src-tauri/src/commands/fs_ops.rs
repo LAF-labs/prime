@@ -7,20 +7,30 @@ use tauri_plugin_dialog::DialogExt;
 
 use super::error::AppError;
 
+/// Locate the prime-agent CLI binary. The command keeps its historical name
+/// (`detect_agent_cli`) because the frontend IPC wrapper calls it by name.
+///
+/// When the app ships the bundled sidecar, this returns the default name
+/// `prime-agent` — the launch resolver maps that to the bundled runtime, and
+/// settings stay portable across app updates (no baked-in absolute path).
 #[tauri::command]
-pub fn detect_kiro_cli() -> Option<String> {
+pub fn detect_agent_cli(app: tauri::AppHandle) -> Option<String> {
+    if crate::commands::agent_launch::bundled_sidecar_dir(&app).is_some() {
+        return Some("prime-agent".to_string());
+    }
     let candidates = [
-        dirs::home_dir().map(|h| h.join(".local/bin/kiro-cli")),
-        Some(PathBuf::from("/usr/local/bin/kiro-cli")),
-        dirs::home_dir().map(|h| h.join(".kiro/bin/kiro-cli")),
-        Some(PathBuf::from("/opt/homebrew/bin/kiro-cli")),
+        dirs::home_dir().map(|h| h.join(".local/bin/prime-agent")),
+        Some(PathBuf::from("/usr/local/bin/prime-agent")),
+        Some(PathBuf::from("/opt/homebrew/bin/prime-agent")),
+        dirs::home_dir().map(|h| h.join(".npm-global/bin/prime-agent")),
+        dirs::home_dir().map(|h| h.join(".prime/bin/prime-agent")),
     ];
     for candidate in candidates.into_iter().flatten() {
         if candidate.exists() {
             return Some(candidate.to_string_lossy().to_string());
         }
     }
-    which::which("kiro-cli")
+    which::which("prime-agent")
         .ok()
         .map(|p| p.to_string_lossy().to_string())
 }
@@ -141,11 +151,11 @@ pub fn open_in_editor(path: String, editor: String) -> Result<(), AppError> {
         {
             // Use AppleScript's `system attribute` to read the env var set on the osascript process,
             // then `quoted form of` to safely escape it for shell use.
-            let script = "tell application \"Terminal\"\n  activate\n  do script (\"cd \" & quoted form of (system attribute \"KIRODEX_CD_PATH\"))\nend tell";
+            let script = "tell application \"Terminal\"\n  activate\n  do script (\"cd \" & quoted form of (system attribute \"LAF_AGENT_CD_PATH\"))\nend tell";
             std::process::Command::new("osascript")
                 .arg("-e")
                 .arg(script)
-                .env("KIRODEX_CD_PATH", &path)
+                .env("LAF_AGENT_CD_PATH", &path)
                 .output()
                 .map_err(|e| AppError::Other(format!("Failed to open Terminal: {e}")))?;
         }
@@ -218,7 +228,7 @@ pub fn open_in_editor(path: String, editor: String) -> Result<(), AppError> {
         }
         "tmux" => {
             // Create a detached session named after the directory, then attach in default terminal
-            let slug = path.split('/').last().unwrap_or("kirodex")
+            let slug = path.split('/').last().unwrap_or("laf-agent")
                 .replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
             let session = format!("kdx-{slug}");
             // Try to create session; if it already exists, that's fine
@@ -230,11 +240,11 @@ pub fn open_in_editor(path: String, editor: String) -> Result<(), AppError> {
             #[cfg(target_os = "macos")]
             {
                 // Use environment variable to pass the command safely
-                let script = "tell application \"Terminal\"\n  activate\n  do script (system attribute \"KIRODEX_CMD\")\nend tell";
+                let script = "tell application \"Terminal\"\n  activate\n  do script (system attribute \"LAF_AGENT_CMD\")\nend tell";
                 std::process::Command::new("osascript")
                     .arg("-e")
                     .arg(script)
-                    .env("KIRODEX_CMD", &attach_cmd)
+                    .env("LAF_AGENT_CMD", &attach_cmd)
                     .output()
                     .map_err(|e| AppError::Other(format!("Failed to open tmux: {e}")))?;
             }
@@ -265,7 +275,7 @@ pub fn open_in_editor(path: String, editor: String) -> Result<(), AppError> {
     {
         const APP_MAP: &[(&str, &str)] = &[
             ("zed", "Zed"), ("cursor", "Cursor"), ("code", "Visual Studio Code"),
-            ("kiro", "Kiro"), ("trae", "Trae"),
+            ("agent", "Agent"), ("trae", "Trae"),
             ("idea", "IntelliJ IDEA"),
         ];
         if let Some((_, app_name)) = APP_MAP.iter().find(|(bin, _)| *bin == editor) {
@@ -300,7 +310,7 @@ pub fn detect_editors() -> Vec<String> {
     };
 
     // ── GUI editors: CLI in PATH ──────────────────────────────────
-    for bin in ["cursor", "kiro", "trae", "code", "zed", "idea"] {
+    for bin in ["cursor", "agent", "trae", "code", "zed", "idea"] {
         if which::which(bin).is_ok() {
             push_unique(bin, &mut found);
         }
@@ -329,7 +339,7 @@ pub fn detect_editors() -> Vec<String> {
             ("zed", &["Zed.app", "Zed Preview.app"]),
             ("cursor", &["Cursor.app"]),
             ("code", &["Visual Studio Code.app"]),
-            ("kiro", &["Kiro.app"]),
+            ("agent", &["Agent.app"]),
             ("trae", &["Trae.app"]),
             ("idea", &["IntelliJ IDEA.app", "IntelliJ IDEA CE.app"]),
             // Terminals
@@ -401,7 +411,7 @@ fn discover_apps_slow(known: &[String]) -> Vec<String> {
             ("cursor", "com.todesktop.230313mzl4w4u92"),
             ("code", "com.microsoft.VSCode"),
             ("zed", "dev.zed.Zed"),
-            ("kiro", "com.amazon.kiro"),
+            ("agent", "com.amazon.agent"),
             ("idea", "com.jetbrains.intellij"),
             ("ghostty", "com.mitchellh.ghostty"),
             ("cmux", "ai.manaflow.cmux"),
@@ -835,11 +845,11 @@ pub fn list_project_files(root: String, respect_gitignore: bool) -> Result<Vec<P
     Ok(files)
 }
 
-// ── Kiro CLI authentication ──────────────────────────────────────
+// ── prime-agent CLI authentication ──────────────────────────────────────
 
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct KiroIdentity {
+pub struct AuthIdentity {
     pub email: Option<String>,
     #[serde(default)]
     pub account_type: Option<String>,
@@ -850,86 +860,454 @@ pub struct KiroIdentity {
 }
 
 #[tauri::command]
-pub fn kiro_whoami(kiro_bin: Option<String>) -> Result<KiroIdentity, AppError> {
-    let bin = kiro_bin.unwrap_or_else(|| "kiro-cli".to_string());
-    log::info!("[auth] kiro_whoami called with bin: {}", bin);
-    let output = match std::process::Command::new(&bin)
-        .args(["whoami", "--format", "json"])
-        .output()
-    {
-        Ok(o) => o,
-        Err(e) => {
-            log::warn!("[auth] Failed to spawn '{}': {} — trying detect_kiro_cli fallback", bin, e);
-            let resolved = detect_kiro_cli()
-                .ok_or_else(|| AppError::Other(format!("kiro-cli not found (tried '{}' and known paths)", bin)))?;
-            log::info!("[auth] Fallback resolved to: {}", resolved);
-            std::process::Command::new(&resolved)
-                .args(["whoami", "--format", "json"])
-                .output()
-                .map_err(|e2| {
-                    log::error!("[auth] Fallback also failed: {}", e2);
-                    AppError::Other(format!("Failed to run {}: {}", resolved, e2))
-                })?
-        }
-    };
-    log::info!("[auth] whoami exit code: {}", output.status);
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        log::warn!("[auth] whoami failed: {}", stderr.trim());
-        return Err(AppError::Other(format!("Not authenticated: {}", stderr.trim())));
+pub fn auth_status(agent_bin: Option<String>) -> Result<AuthIdentity, AppError> {
+    // prime-agent has no `whoami`. Credentials are provider API keys / OAuth
+    // tokens stored in ~/.prime/agent/auth.json, or environment variables.
+    let _ = agent_bin;
+    let auth_path = dirs::home_dir()
+        .map(|h| h.join(".prime/agent/auth.json"))
+        .filter(|p| p.exists());
+
+    if let Some(path) = auth_path {
+        // Report the configured providers as the "account".
+        let providers = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+            .and_then(|v| v.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()))
+            .unwrap_or_default();
+        return Ok(AuthIdentity {
+            email: None,
+            account_type: Some(if providers.is_empty() {
+                "prime-agent".to_string()
+            } else {
+                providers.join(", ")
+            }),
+            region: None,
+            start_url: None,
+        });
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    log::info!("[auth] whoami stdout: {}", stdout.trim());
-    // kiro-cli whoami --format json outputs JSON on the first line, then extra profile info on subsequent lines
-    let json_line = stdout.lines().next().unwrap_or("{}");
-    log::info!("[auth] parsing JSON line: {}", json_line);
-    let identity: KiroIdentity = serde_json::from_str(json_line)
-        .map_err(|e| {
-            log::error!("[auth] Failed to parse whoami JSON: {} — raw: {}", e, json_line);
-            AppError::Other(format!("Failed to parse whoami output: {}", e))
-        })?;
-    log::info!("[auth] parsed identity: {:?}", identity);
-    Ok(identity)
+
+    const KEY_VARS: &[&str] = &[
+        "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+        "PRIME_API_KEY", "OPENROUTER_API_KEY", "MISTRAL_API_KEY",
+    ];
+    let env_providers: Vec<&str> = KEY_VARS
+        .iter()
+        .copied()
+        .filter(|k| std::env::var(k).map(|v| !v.is_empty()).unwrap_or(false))
+        .collect();
+    if !env_providers.is_empty() {
+        return Ok(AuthIdentity {
+            email: None,
+            account_type: Some(format!("env: {}", env_providers.join(", "))),
+            region: None,
+            start_url: None,
+        });
+    }
+
+    Err(AppError::Other(
+        "Not authenticated: no ~/.prime/agent/auth.json and no provider API key env vars. Run `prime-agent` in a terminal and use /login.".to_string(),
+    ))
+}
+
+/// Directory that hosts project-independent chat sessions. Chats run the
+/// agent in this neutral workspace so no repository context is scanned or
+/// injected — token-lean, like a plain chat app. Conversations themselves are
+/// persisted locally by the existing thread store.
+#[tauri::command]
+pub fn ensure_chats_dir() -> Result<String, AppError> {
+    let dir = dirs::home_dir()
+        .map(|h| h.join(".laf-agent").join("chats"))
+        .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir.to_string_lossy().to_string())
+}
+
+/// Store a provider API key in prime-agent's auth.json so the bundled agent
+/// can authenticate without the user ever opening a terminal. The file is a
+/// `Record<provider, {type:"api_key", key} | {type:"oauth", ...}>` map; we
+/// read-modify-write so OAuth credentials from other providers survive.
+#[tauri::command]
+pub fn auth_set_api_key(provider: String, key: String) -> Result<(), AppError> {
+    let provider = provider.trim().to_lowercase();
+    let key = key.trim().to_string();
+    // Provider ids are written as object keys in auth.json; keep them to a
+    // conservative charset rather than an allow-list so new providers work
+    // without an app update.
+    if provider.len() > 40
+        || !provider
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+    {
+        return Err(AppError::Other(format!(
+            "Invalid provider id '{provider}' (use a-z, 0-9, '-' or '_')"
+        )));
+    }
+    if key.is_empty() {
+        return Err(AppError::Other("API key must not be empty".to_string()));
+    }
+
+    let dir = dirs::home_dir()
+        .map(|h| h.join(".prime/agent"))
+        .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
+    std::fs::create_dir_all(&dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+    }
+
+    let auth_path = dir.join("auth.json");
+    let mut root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&auth_path) {
+        Ok(content) if !content.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&content)
+            .ok()
+            .and_then(|v| v.as_object().cloned())
+            .unwrap_or_default(),
+        _ => serde_json::Map::new(),
+    };
+    root.insert(
+        provider,
+        serde_json::json!({ "type": "api_key", "key": key }),
+    );
+    std::fs::write(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&auth_path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+/// A provider the user has configured, for the settings UI.
+#[derive(serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfiguredProvider {
+    pub name: String,
+    /// "api_key" | "oauth"
+    pub kind: String,
+    /// True when this provider also has a models.json entry (custom endpoint).
+    pub is_custom: bool,
+    /// Custom endpoint base URL, when applicable.
+    pub base_url: Option<String>,
+    pub model_count: u32,
+}
+
+/// List every provider with stored credentials, merged with models.json so the
+/// UI can show custom endpoints alongside the built-in ones.
+#[tauri::command]
+pub fn auth_list_providers() -> Result<Vec<ConfiguredProvider>, AppError> {
+    let home = dirs::home_dir().ok_or_else(|| AppError::Other("No home directory".into()))?;
+    let agent_dir = home.join(".prime/agent");
+
+    let read_json = |path: std::path::PathBuf| -> Option<serde_json::Map<String, serde_json::Value>> {
+        std::fs::read_to_string(path)
+            .ok()
+            .filter(|c| !c.trim().is_empty())
+            .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+            .and_then(|v| v.as_object().cloned())
+    };
+
+    let auth = read_json(agent_dir.join("auth.json")).unwrap_or_default();
+    let models = read_json(agent_dir.join("models.json"))
+        .and_then(|m| m.get("providers").and_then(|p| p.as_object().cloned()))
+        .unwrap_or_default();
+
+    let mut out: Vec<ConfiguredProvider> = auth
+        .iter()
+        // `mcp:<name>` entries are MCP integrations, not model providers.
+        .filter(|(name, _)| !name.starts_with("mcp:"))
+        .map(|(name, cred)| {
+            let custom = models.get(name);
+            ConfiguredProvider {
+                name: name.clone(),
+                kind: cred
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("api_key")
+                    .to_string(),
+                is_custom: custom.is_some(),
+                base_url: custom
+                    .and_then(|c| c.get("baseUrl"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                model_count: custom
+                    .and_then(|c| c.get("models"))
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.len() as u32)
+                    .unwrap_or(0),
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// Compatibility flags for third-party OpenAI-compatible endpoints.
+///
+/// prime-agent assumes an unknown base URL speaks full OpenAI-platform dialect
+/// and sends extras like `store`, the `developer` role, `reasoning_effort`, and
+/// strict function schemas. Most compatible servers (Upstage, DeepSeek-style
+/// gateways, vLLM, Ollama, …) reject those with `400 Unrecognized request
+/// arguments`. Starting from the plain chat-completions subset makes any such
+/// endpoint work; users can widen it by editing models.json.
+fn conservative_compat() -> serde_json::Value {
+    serde_json::json!({
+        "supportsStore": false,
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsStrictMode": false,
+    })
+}
+
+/// Turn off prime-agent's bundled Serper-based `websearch` skill.
+///
+/// LAF Agent supplies web access the way Claude and Codex do — server-side
+/// search on Anthropic/OpenAI plus a keyless `web_fetch` tool — so the Serper
+/// skill only ever surfaced as "configure a SERPER_API_KEY" noise. Written
+/// once into the agent's settings; users who want it back can flip the key.
+#[tauri::command]
+pub fn disable_serper_websearch() -> Result<bool, AppError> {
+    let dir = dirs::home_dir()
+        .map(|h| h.join(".prime/agent"))
+        .ok_or_else(|| AppError::Other("No home directory".into()))?;
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join("settings.json");
+
+    let mut root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&path) {
+        Ok(c) if !c.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&c)
+            .ok()
+            .and_then(|v| v.as_object().cloned())
+            .unwrap_or_default(),
+        _ => serde_json::Map::new(),
+    };
+
+    let bundled = root
+        .entry("bundledSkills".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    let Some(bundled) = bundled.as_object_mut() else {
+        return Err(AppError::Other("bundledSkills in settings.json is not an object".into()));
+    };
+    if bundled.get("websearch").and_then(|v| v.as_bool()) == Some(false) {
+        return Ok(false);
+    }
+    bundled.insert("websearch".to_string(), serde_json::Value::Bool(false));
+    std::fs::write(&path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?)?;
+    log::info!("[websearch] disabled the bundled Serper skill; native search + web_fetch are used instead");
+    Ok(true)
+}
+
+/// Backfill compat flags on providers registered before this defaulting
+/// existed. Returns the number of providers repaired.
+#[tauri::command]
+pub fn repair_custom_providers() -> Result<u32, AppError> {
+    let path = match dirs::home_dir().map(|h| h.join(".prime/agent/models.json")) {
+        Some(p) if p.exists() => p,
+        _ => return Ok(0),
+    };
+    let content = std::fs::read_to_string(&path)?;
+    if content.trim().is_empty() {
+        return Ok(0);
+    }
+    let mut root: serde_json::Value = serde_json::from_str(&content)?;
+    let mut repaired = 0u32;
+    if let Some(providers) = root.get_mut("providers").and_then(|v| v.as_object_mut()) {
+        for (_name, cfg) in providers.iter_mut() {
+            let Some(obj) = cfg.as_object_mut() else { continue };
+            // Only OpenAI-compatible entries need the conservative subset.
+            if obj.get("api").and_then(|v| v.as_str()) != Some("openai-completions") {
+                continue;
+            }
+            if obj.contains_key("compat") {
+                continue;
+            }
+            obj.insert("compat".to_string(), conservative_compat());
+            repaired += 1;
+        }
+    }
+    if repaired > 0 {
+        std::fs::write(&path, serde_json::to_string_pretty(&root)?)?;
+        log::info!("[providers] backfilled compat flags on {repaired} custom provider(s)");
+    }
+    Ok(repaired)
+}
+
+/// Register a custom OpenAI-compatible provider (e.g. Upstage Solar, vLLM,
+/// a proxy) in prime-agent's `~/.prime/agent/models.json`, and mirror the key
+/// into auth.json so the app's auth status reflects it. models.json schema:
+/// `{providers: {<name>: {baseUrl, api: "openai-completions", apiKey, models: [{id}]}}}`.
+#[tauri::command]
+pub fn auth_set_custom_provider(
+    name: String,
+    base_url: String,
+    api_key: String,
+    model_ids: Vec<String>,
+) -> Result<(), AppError> {
+    let name = name.trim().to_lowercase();
+    if name.is_empty()
+        || name.len() > 32
+        || !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+    {
+        return Err(AppError::Other(
+            "Provider name must be 1-32 chars of a-z, 0-9, '-' or '_'".to_string(),
+        ));
+    }
+    let base_url = base_url.trim().trim_end_matches('/').to_string();
+    if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
+        return Err(AppError::Other("Base URL must start with http(s)://".to_string()));
+    }
+    let api_key = api_key.trim().to_string();
+    if api_key.is_empty() {
+        return Err(AppError::Other("API key must not be empty".to_string()));
+    }
+    let models: Vec<String> = model_ids
+        .iter()
+        .map(|m| m.trim().to_string())
+        .filter(|m| !m.is_empty())
+        .collect();
+    if models.is_empty() {
+        return Err(AppError::Other(
+            "At least one model id is required (e.g. solar-pro2)".to_string(),
+        ));
+    }
+
+    let dir = dirs::home_dir()
+        .map(|h| h.join(".prime/agent"))
+        .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
+    std::fs::create_dir_all(&dir)?;
+
+    // models.json: read-modify-write, preserving other providers.
+    let models_path = dir.join("models.json");
+    let mut root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&models_path) {
+        Ok(content) if !content.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&content)
+            .ok()
+            .and_then(|v| v.as_object().cloned())
+            .unwrap_or_default(),
+        _ => serde_json::Map::new(),
+    };
+    let providers = root
+        .entry("providers".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    let providers = providers
+        .as_object_mut()
+        .ok_or_else(|| AppError::Other("models.json providers is not an object".to_string()))?;
+    providers.insert(
+        name.clone(),
+        serde_json::json!({
+            "baseUrl": base_url,
+            "api": "openai-completions",
+            "apiKey": api_key,
+            "compat": conservative_compat(),
+            "models": models.iter().map(|id| serde_json::json!({ "id": id })).collect::<Vec<_>>(),
+        }),
+    );
+    std::fs::write(&models_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&models_path, std::fs::Permissions::from_mode(0o600));
+    }
+
+    // Mirror into auth.json so the connected-status check picks it up.
+    let auth_path = dir.join("auth.json");
+    let mut auth_root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&auth_path) {
+        Ok(content) if !content.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&content)
+            .ok()
+            .and_then(|v| v.as_object().cloned())
+            .unwrap_or_default(),
+        _ => serde_json::Map::new(),
+    };
+    auth_root.insert(name, serde_json::json!({ "type": "api_key", "key": api_key }));
+    std::fs::write(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(auth_root))?)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&auth_path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+/// Remove a single provider credential from auth.json.
+#[tauri::command]
+pub fn auth_remove_provider(provider: String) -> Result<(), AppError> {
+    let auth_path = dirs::home_dir()
+        .map(|h| h.join(".prime/agent/auth.json"))
+        .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
+    if !auth_path.exists() {
+        return Ok(());
+    }
+    let content = std::fs::read_to_string(&auth_path)?;
+    let mut root: serde_json::Value = serde_json::from_str(&content)?;
+    if let Some(obj) = root.as_object_mut() {
+        obj.remove(provider.trim());
+    }
+    std::fs::write(&auth_path, serde_json::to_string_pretty(&root)?)?;
+
+    // Custom endpoints also live in models.json — drop them together so a
+    // removed provider doesn't linger in the model picker without a key.
+    if let Some(models_path) = dirs::home_dir().map(|h| h.join(".prime/agent/models.json")) {
+        if models_path.exists() {
+            if let Ok(text) = std::fs::read_to_string(&models_path) {
+                if let Ok(mut models) = serde_json::from_str::<serde_json::Value>(&text) {
+                    let removed = models
+                        .get_mut("providers")
+                        .and_then(|v| v.as_object_mut())
+                        .map(|p| p.remove(provider.trim()).is_some())
+                        .unwrap_or(false);
+                    if removed {
+                        let _ = std::fs::write(&models_path, serde_json::to_string_pretty(&models)?);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub fn kiro_logout(kiro_bin: Option<String>) -> Result<(), AppError> {
-    let bin = kiro_bin.unwrap_or_else(|| "kiro-cli".to_string());
-    let output = std::process::Command::new(&bin)
-        .arg("logout")
-        .output()
-        .map_err(|e| AppError::Other(format!("Failed to run {} logout: {}", bin, e)))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AppError::Other(format!("Logout failed: {}", stderr.trim())));
+pub fn auth_logout(agent_bin: Option<String>) -> Result<(), AppError> {
+    // Logging out means removing prime-agent's stored credentials.
+    let _ = agent_bin;
+    let auth_path = dirs::home_dir()
+        .map(|h| h.join(".prime/agent/auth.json"))
+        .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
+    if auth_path.exists() {
+        std::fs::remove_file(&auth_path)
+            .map_err(|e| AppError::Other(format!("Failed to remove auth.json: {e}")))?;
     }
     Ok(())
 }
 
 #[tauri::command]
 pub fn open_terminal_with_command(command: String) -> Result<(), AppError> {
-    // Only allow kiro-cli with known safe subcommands to prevent arbitrary command injection.
-    // The binary may be a bare name ("kiro-cli") or a full path ("/opt/homebrew/bin/kiro-cli").
+    // Only allow the prime-agent binary (bare, or with a known-safe pseudo
+    // subcommand) to prevent arbitrary command injection. The binary may be a
+    // bare name ("prime-agent") or a full path ("/usr/local/bin/prime-agent").
     const ALLOWED_SUBCOMMANDS: &[&str] = &["login", "logout", "whoami"];
     let parts: Vec<&str> = command.splitn(2, ' ').collect();
-    let is_allowed = if parts.len() == 2 {
-        let bin = std::path::Path::new(parts[0]);
-        let bin_name = bin.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        bin_name == "kiro-cli" && ALLOWED_SUBCOMMANDS.contains(&parts[1])
-    } else {
-        false
-    };
+    let bin_name = std::path::Path::new(parts[0])
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    let is_allowed = bin_name == "prime-agent"
+        && (parts.len() == 1 || ALLOWED_SUBCOMMANDS.contains(&parts[1]));
     if !is_allowed {
         return Err(AppError::Other(format!("Command not in allowlist: {}", command)));
     }
+    // prime-agent has no `login` subcommand — auth happens via /login inside
+    // the interactive TUI, so launch the bare binary instead.
+    let command = if parts.len() == 2 && parts[1] == "login" {
+        parts[0].to_string()
+    } else {
+        command
+    };
     #[cfg(target_os = "macos")]
     {
         // Use AppleScript's `system attribute` to safely read the env var
-        let script = "tell application \"Terminal\"\nactivate\ndo script (system attribute \"KIRODEX_CMD\")\nend tell";
+        let script = "tell application \"Terminal\"\nactivate\ndo script (system attribute \"LAF_AGENT_CMD\")\nend tell";
         std::process::Command::new("osascript")
             .arg("-e")
             .arg(script)
-            .env("KIRODEX_CMD", &command)
+            .env("LAF_AGENT_CMD", &command)
             .spawn()
             .map_err(|e| AppError::Other(format!("Failed to open Terminal: {}", e)))?;
     }

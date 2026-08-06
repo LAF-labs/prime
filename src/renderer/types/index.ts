@@ -123,8 +123,10 @@ export interface AgentTask {
   userPaused?: boolean
   /** Task ID of the parent thread this was forked from */
   parentTaskId?: string
+  /** prime-agent session JSONL path — enables native resume/fork */
+  sessionFile?: string
   /** True for threads restored from persisted history. The thread renders
-   *  immediately but its kiro-cli ACP connection has been torn down — the
+   *  immediately but its prime-agent ACP connection has been torn down — the
    *  next send spawns a fresh subprocess (stateless resumption)
    *  and the historical transcript is replayed as preamble context. */
   isArchived?: boolean
@@ -183,7 +185,7 @@ export type SidebarPosition = 'left' | 'right'
 export type ThemeMode = 'dark' | 'light' | 'system'
 
 export interface AppSettings {
-  kiroBin: string
+  agentBin: string
   agentProfiles: AgentProfile[]
   /** Global UI font size in px (sidebar, file tree, header, dialogs, etc.). */
   fontSize: number
@@ -206,6 +208,8 @@ export interface AppSettings {
   sidebarPosition?: SidebarPosition
   /** Theme mode: dark, light, or system (follows OS preference). Default: dark. */
   theme?: ThemeMode
+  /** App display language: 'system' follows the OS; 'en' | 'ko' force a locale. */
+  language?: 'system' | 'en' | 'ko'
   /** Opt-in flag for anonymous product analytics. Default: true. */
   analyticsEnabled?: boolean
   /** Random UUID generated on first opt-in, cleared on opt-out. */
@@ -222,7 +226,7 @@ export interface AppSettings {
   terminalAutoCloseIdleMins?: number | null
   /**
    * When true, tool calls render inline within the assistant's prose at the
-   * exact point where the agent invoked them — similar to Cursor / Kiro IDE.
+   * exact point where the agent invoked them — similar to Cursor / Prime Agent IDE.
    * When false (default), tool calls are grouped into a single card after
    * the assistant text. Only affects rendering; persisted data is the same.
    */
@@ -250,22 +254,22 @@ export interface ProjectFile {
   modifiedAt: number
 }
 
-// ── Kiro Configuration Types ──────────────────────────────────────
+// ── Prime Agent Configuration Types ──────────────────────────────────────
 
-export interface KiroAgentHook {
+export interface AgentAgentHook {
   command: string
   matcher?: string
 }
 
-export interface KiroAgentHooks {
-  agentSpawn?: KiroAgentHook[]
-  userPromptSubmit?: KiroAgentHook[]
-  preToolUse?: KiroAgentHook[]
-  postToolUse?: KiroAgentHook[]
-  stop?: KiroAgentHook[]
+export interface AgentAgentHooks {
+  agentSpawn?: AgentAgentHook[]
+  userPromptSubmit?: AgentAgentHook[]
+  preToolUse?: AgentAgentHook[]
+  postToolUse?: AgentAgentHook[]
+  stop?: AgentAgentHook[]
 }
 
-export interface KiroAgent {
+export interface AgentAgent {
   name: string
   description: string
   tools: string[]
@@ -275,16 +279,16 @@ export interface KiroAgent {
   keyboardShortcut?: string
   model?: string
   resources?: string[]
-  hooks?: KiroAgentHooks
+  hooks?: AgentAgentHooks
 }
 
-export interface KiroSkill {
+export interface AgentSkill {
   name: string
   source: 'global' | 'local'
   filePath: string
 }
 
-export interface KiroSteeringRule {
+export interface AgentSteeringRule {
   name: string
   alwaysApply: boolean
   source: 'global' | 'local'
@@ -292,7 +296,7 @@ export interface KiroSteeringRule {
   filePath: string
 }
 
-export interface KiroMcpServer {
+export interface McpServerConfig {
   name: string
   enabled: boolean
   transport: 'stdio' | 'http'
@@ -307,19 +311,19 @@ export interface KiroMcpServer {
   source: 'global' | 'local'
 }
 
-export interface KiroPrompt {
+export interface AgentPrompt {
   name: string
   content: string
   source: 'global' | 'local'
   filePath: string
 }
 
-export interface KiroConfig {
-  agents: KiroAgent[]
-  skills: KiroSkill[]
-  steeringRules: KiroSteeringRule[]
-  mcpServers?: KiroMcpServer[]
-  prompts: KiroPrompt[]
+export interface AgentResources {
+  agents: AgentAgent[]
+  skills: AgentSkill[]
+  steeringRules: AgentSteeringRule[]
+  mcpServers?: McpServerConfig[]
+  prompts: AgentPrompt[]
 }
 
 // ── Attachments ───────────────────────────────────────────────────

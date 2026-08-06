@@ -138,15 +138,15 @@ describe('saveThreads', () => {
   it('persists worktree metadata when present', async () => {
     const tasks: Record<string, AgentTask> = {
       't1': {
-        id: 't1', name: 'WT Task', workspace: '/ws/.kiro/worktrees/feat', status: 'paused',
+        id: 't1', name: 'WT Task', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-        worktreePath: '/ws/.kiro/worktrees/feat',
+        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
       },
     }
     await saveThreads(tasks, {})
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
-    expect(savedThreads[0].worktreePath).toBe('/ws/.kiro/worktrees/feat')
+    expect(savedThreads[0].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(savedThreads[0].originalWorkspace).toBe('/ws')
   })
 
@@ -198,13 +198,13 @@ describe('toArchivedTasks', () => {
 
   it('preserves worktree metadata', () => {
     const saved = [{
-      id: 't1', name: 'WT Thread', workspace: '/ws/.kiro/worktrees/feat',
+      id: 't1', name: 'WT Thread', workspace: '/ws/.laf-agent/worktrees/feat',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      worktreePath: '/ws/.kiro/worktrees/feat',
+      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
     }]
     const actual = toArchivedTasks(saved)
-    expect(actual[0].worktreePath).toBe('/ws/.kiro/worktrees/feat')
+    expect(actual[0].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(actual[0].originalWorkspace).toBe('/ws')
   })
 })
@@ -253,10 +253,10 @@ describe('projectId persistence', () => {
   it('saveThreads persists projectId when present', async () => {
     const tasks: Record<string, AgentTask> = {
       't1': {
-        id: 't1', name: 'WT Task', workspace: '/ws/.kiro/worktrees/feat', status: 'paused',
+        id: 't1', name: 'WT Task', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
         projectId: '/ws',
-        worktreePath: '/ws/.kiro/worktrees/feat',
+        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
       },
     }
@@ -284,15 +284,15 @@ describe('projectId persistence', () => {
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
       },
       't2': {
-        id: 't2', name: 'Worktree', workspace: '/ws/.kiro/worktrees/feat', status: 'paused',
+        id: 't2', name: 'Worktree', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
         originalWorkspace: '/ws',
-        worktreePath: '/ws/.kiro/worktrees/feat',
+        worktreePath: '/ws/.laf-agent/worktrees/feat',
       },
     }
     await saveThreads(tasks, {})
     const projects = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'projects')?.[1]
-    // Both threads should be grouped under /ws, not /ws/.kiro/worktrees/feat
+    // Both threads should be grouped under /ws, not /ws/.laf-agent/worktrees/feat
     expect(projects).toHaveLength(1)
     expect(projects[0].workspace).toBe('/ws')
     expect(projects[0].threadIds).toContain('t1')
@@ -301,10 +301,10 @@ describe('projectId persistence', () => {
 
   it('toArchivedTasks restores projectId', () => {
     const saved = [{
-      id: 't1', name: 'WT Thread', workspace: '/ws/.kiro/worktrees/feat',
+      id: 't1', name: 'WT Thread', workspace: '/ws/.laf-agent/worktrees/feat',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
       projectId: '/ws',
-      worktreePath: '/ws/.kiro/worktrees/feat',
+      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
     }]
     const actual = toArchivedTasks(saved)
@@ -348,16 +348,16 @@ describe('createBackup', () => {
 
   it('includes settings snapshot when provided', async () => {
     mockGet.mockResolvedValue([])
-    const settings = { kiroBin: 'kiro-cli', agentProfiles: [], fontSize: 16 }
+    const settings = { agentBin: 'prime-agent', agentProfiles: [], fontSize: 16 }
     await createBackup(settings as never)
     expect(mockSet).toHaveBeenCalledWith('settings', settings)
   })
 
   it('preserves worktree fields in backup', async () => {
     const threads = [{
-      id: 't1', name: 'WT', workspace: '/ws/.kiro/worktrees/feat', createdAt: '',
+      id: 't1', name: 'WT', workspace: '/ws/.laf-agent/worktrees/feat', createdAt: '',
       messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      worktreePath: '/ws/.kiro/worktrees/feat',
+      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
       parentTaskId: 'parent-1',
       projectId: '/ws',
@@ -365,7 +365,7 @@ describe('createBackup', () => {
     mockGet.mockImplementation((key: string) => key === 'threads' ? Promise.resolve(threads) : Promise.resolve([]))
     await createBackup()
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
-    expect(savedThreads[0].worktreePath).toBe('/ws/.kiro/worktrees/feat')
+    expect(savedThreads[0].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(savedThreads[0].originalWorkspace).toBe('/ws')
     expect(savedThreads[0].parentTaskId).toBe('parent-1')
     expect(savedThreads[0].projectId).toBe('/ws')

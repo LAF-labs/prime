@@ -13,7 +13,7 @@ import { ipc } from '@/lib/ipc'
 import type { ChangelogEntry } from '@/lib/changelog'
 import defaultAppIcon from '../../../src-tauri/icons/prod/icon.png'
 
-const FEATURE_REQUEST_URL = 'https://github.com/thabti/kirodex/issues/new'
+const FEATURE_REQUEST_URL = 'https://laf-co.com/'
 
 interface WhatsNewDialogProps {
   open: boolean
@@ -35,7 +35,7 @@ export const WhatsNewDialog = ({ open, entry, onDismiss }: WhatsNewDialogProps) 
       <DialogContent className="max-w-md" showCloseButton={false}>
         <DialogHeader className="flex-row items-start gap-4 p-6 pb-4">
           <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-muted/80">
-            <img src={defaultAppIcon} alt="Kirodex" width={36} height={36} className="rounded-lg" />
+            <img src={defaultAppIcon} alt="LAF Agent" width={36} height={36} className="rounded-lg" />
           </div>
           <div className="min-w-0 pt-0.5">
             <DialogTitle className="text-xl font-semibold">What&apos;s New</DialogTitle>

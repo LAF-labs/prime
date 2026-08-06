@@ -143,6 +143,10 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
     updateDraft({ sidebarPosition: pos })
   }, [updateDraft])
 
+  const handleLanguageChange = useCallback((language: 'system' | 'en' | 'ko') => {
+    updateDraft({ language })
+  }, [updateDraft])
+
   const handleInlineToolCallsChange = useCallback((checked: boolean) => {
     updateDraft({ inlineToolCalls: checked })
   }, [updateDraft])
@@ -168,7 +172,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
               <div>
                 <p className="text-[12.5px] font-medium text-foreground">App icon</p>
                 <p className="text-[11px] text-muted-foreground">
-                  {hasCustomIcon ? 'Custom icon' : 'Default Kirodex icon'} · About dialog & dock
+                  {hasCustomIcon ? 'Custom icon' : 'Default LAF Agent icon'} · About dialog & dock
                 </p>
               </div>
             </div>
@@ -222,6 +226,30 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
       {/* ── Display ─────────────────────────────────────────── */}
       <SettingsGrid label="Display" description="Font size and layout">
         <SettingsCard>
+          {/* Language */}
+          <SettingRow label="Language" description="App display language — 'System' follows the OS">
+            <div className="flex gap-1.5">
+              {([['system', 'System'], ['en', 'English'], ['ko', '한국어']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleLanguageChange(value)}
+                  aria-pressed={(draft.language ?? 'system') === value}
+                  className={cn(
+                    'rounded-md border px-2.5 py-1 text-[11.5px] transition-colors',
+                    (draft.language ?? 'system') === value
+                      ? 'border-ring bg-accent text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+
+          <Divider />
+
           {/* UI font size */}
           <div className="py-2.5">
             <div className="flex items-center justify-between">

@@ -24,9 +24,9 @@
 //!   is detected, the DB file is moved aside and a fresh one is created.
 //!
 //! The database is stored at the platform-standard app data directory:
-//! - macOS: ~/Library/Application Support/rs.kirodex/threads.db
-//! - Linux: ~/.local/share/kirodex/threads.db
-//! - Windows: %APPDATA%/kirodex/threads.db
+//! - macOS: ~/Library/Application Support/rs.laf-agent/threads.db
+//! - Linux: ~/.local/share/laf-agent/threads.db
+//! - Windows: %APPDATA%/laf-agent/threads.db
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -445,7 +445,7 @@ impl ThreadDatabase {
         let data_dir = dirs::data_dir().ok_or_else(|| {
             ThreadDbError::Other("Could not determine app data directory".into())
         })?;
-        Ok(data_dir.join("rs.kirodex").join("threads.db"))
+        Ok(data_dir.join("rs.laf-agent").join("threads.db"))
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────

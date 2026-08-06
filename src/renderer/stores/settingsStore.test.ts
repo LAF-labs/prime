@@ -5,8 +5,8 @@ vi.mock('@/lib/ipc', () => ({
     getSettings: vi.fn().mockResolvedValue({}),
     saveSettings: vi.fn().mockResolvedValue(undefined),
     listModels: vi.fn().mockResolvedValue({ availableModels: [{ modelId: 'm1', name: 'Model 1' }], currentModelId: 'm1' }),
-    kiroWhoami: vi.fn().mockResolvedValue({ accountType: 'pro', email: 'test@test.com', region: 'us-east-1' }),
-    kiroLogout: vi.fn().mockResolvedValue(undefined),
+    authStatus: vi.fn().mockResolvedValue({ accountType: 'pro', email: 'test@test.com', region: 'us-east-1' }),
+    authLogout: vi.fn().mockResolvedValue(undefined),
     openTerminalWithCommand: vi.fn().mockResolvedValue(undefined),
   },
 }))
@@ -23,7 +23,7 @@ import { useSettingsStore } from './settingsStore'
 import { ipc } from '@/lib/ipc'
 
 const defaultState = {
-  settings: { kiroBin: 'kiro-cli', agentProfiles: [], fontSize: 13, sidebarPosition: 'left' as const, analyticsEnabled: true },
+  settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13, sidebarPosition: 'left' as const, analyticsEnabled: true },
   isLoaded: false,
   availableModels: [],
   currentModelId: null,
@@ -35,8 +35,8 @@ const defaultState = {
   operationalWorkspace: null,
   availableCommands: [],
   liveMcpServers: [],
-  kiroAuth: null,
-  kiroAuthChecked: false,
+  agentAuth: null,
+  authChecked: false,
 }
 
 beforeEach(() => {
@@ -50,7 +50,7 @@ describe('settingsStore', () => {
       vi.mocked(ipc.getSettings).mockResolvedValue({ fontSize: 16 } as never)
       await useSettingsStore.getState().loadSettings()
       expect(useSettingsStore.getState().settings.fontSize).toBe(16)
-      expect(useSettingsStore.getState().settings.kiroBin).toBe('kiro-cli')
+      expect(useSettingsStore.getState().settings.agentBin).toBe('prime-agent')
       expect(useSettingsStore.getState().isLoaded).toBe(true)
     })
 
@@ -65,7 +65,7 @@ describe('settingsStore', () => {
       const { loadBackup } = await import('@/lib/history-store')
       vi.mocked(loadBackup).mockResolvedValueOnce({
         threads: [], projects: [], softDeleted: [],
-        settings: { kiroBin: 'kiro-cli', agentProfiles: [], fontSize: 18, hasOnboardedV2: true, theme: 'light',
+        settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 18, hasOnboardedV2: true, theme: 'light',
           projectPrefs: { '/ws': { iconOverride: { type: 'emoji', emoji: '🚀' } } } } as never,
       })
       await useSettingsStore.getState().loadSettings()
@@ -162,22 +162,22 @@ describe('settingsStore', () => {
     })
 
     it('sets operationalWorkspace to worktree path when provided', () => {
-      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.kiro/worktrees/feat')
+      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.laf-agent/worktrees/feat')
       expect(useSettingsStore.getState().activeWorkspace).toBe('/project')
-      expect(useSettingsStore.getState().operationalWorkspace).toBe('/project/.kiro/worktrees/feat')
+      expect(useSettingsStore.getState().operationalWorkspace).toBe('/project/.laf-agent/worktrees/feat')
     })
 
     it('clears operationalWorkspace when workspace is null', () => {
-      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.kiro/worktrees/feat')
+      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.laf-agent/worktrees/feat')
       useSettingsStore.getState().setActiveWorkspace(null)
       expect(useSettingsStore.getState().activeWorkspace).toBeNull()
       expect(useSettingsStore.getState().operationalWorkspace).toBeNull()
     })
 
     it('bails out when all three fields unchanged', () => {
-      useSettingsStore.setState({ activeWorkspace: '/project', operationalWorkspace: '/project/.kiro/worktrees/feat', currentModelId: null })
+      useSettingsStore.setState({ activeWorkspace: '/project', operationalWorkspace: '/project/.laf-agent/worktrees/feat', currentModelId: null })
       const stateBefore = useSettingsStore.getState()
-      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.kiro/worktrees/feat')
+      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.laf-agent/worktrees/feat')
       // State reference should be the same (no unnecessary re-render)
       expect(useSettingsStore.getState().activeWorkspace).toBe(stateBefore.activeWorkspace)
       expect(useSettingsStore.getState().operationalWorkspace).toBe(stateBefore.operationalWorkspace)
@@ -211,58 +211,58 @@ describe('settingsStore', () => {
   describe('checkAuth', () => {
     it('sets auth state on success', async () => {
       await useSettingsStore.getState().checkAuth()
-      expect(useSettingsStore.getState().kiroAuth).toEqual({
+      expect(useSettingsStore.getState().agentAuth).toEqual({
         email: 'test@test.com',
         accountType: 'pro',
         region: 'us-east-1',
         startUrl: undefined,
       })
-      expect(useSettingsStore.getState().kiroAuthChecked).toBe(true)
+      expect(useSettingsStore.getState().authChecked).toBe(true)
     })
 
     it('clears auth when whoami returns no accountType', async () => {
-      vi.mocked(ipc.kiroWhoami).mockResolvedValue({} as never)
+      vi.mocked(ipc.authStatus).mockResolvedValue({} as never)
       await useSettingsStore.getState().checkAuth()
-      expect(useSettingsStore.getState().kiroAuth).toBeNull()
-      expect(useSettingsStore.getState().kiroAuthChecked).toBe(true)
+      expect(useSettingsStore.getState().agentAuth).toBeNull()
+      expect(useSettingsStore.getState().authChecked).toBe(true)
     })
 
     it('clears auth on error', async () => {
-      vi.mocked(ipc.kiroWhoami).mockRejectedValue(new Error('fail'))
+      vi.mocked(ipc.authStatus).mockRejectedValue(new Error('fail'))
       await useSettingsStore.getState().checkAuth()
-      expect(useSettingsStore.getState().kiroAuth).toBeNull()
-      expect(useSettingsStore.getState().kiroAuthChecked).toBe(true)
+      expect(useSettingsStore.getState().agentAuth).toBeNull()
+      expect(useSettingsStore.getState().authChecked).toBe(true)
     })
   })
 
   describe('logout', () => {
     it('calls IPC logout and clears auth', async () => {
-      useSettingsStore.setState({ kiroAuth: { email: 'a@b.com', accountType: 'pro' } })
+      useSettingsStore.setState({ agentAuth: { email: 'a@b.com', accountType: 'pro' } })
       await useSettingsStore.getState().logout()
-      expect(ipc.kiroLogout).toHaveBeenCalled()
-      expect(useSettingsStore.getState().kiroAuth).toBeNull()
+      expect(ipc.authLogout).toHaveBeenCalled()
+      expect(useSettingsStore.getState().agentAuth).toBeNull()
     })
 
     it('clears auth even when IPC fails', async () => {
-      vi.mocked(ipc.kiroLogout).mockRejectedValue(new Error('fail'))
-      useSettingsStore.setState({ kiroAuth: { email: 'a@b.com', accountType: 'pro' } })
+      vi.mocked(ipc.authLogout).mockRejectedValue(new Error('fail'))
+      useSettingsStore.setState({ agentAuth: { email: 'a@b.com', accountType: 'pro' } })
       await useSettingsStore.getState().logout()
-      expect(useSettingsStore.getState().kiroAuth).toBeNull()
+      expect(useSettingsStore.getState().agentAuth).toBeNull()
     })
   })
 
   describe('openLogin', () => {
     it('refreshes state if already logged in', async () => {
-      vi.mocked(ipc.kiroWhoami).mockResolvedValue({ accountType: 'pro', email: 'a@b.com' } as never)
+      vi.mocked(ipc.authStatus).mockResolvedValue({ accountType: 'pro', email: 'a@b.com' } as never)
       await useSettingsStore.getState().openLogin()
-      expect(useSettingsStore.getState().kiroAuth?.accountType).toBe('pro')
+      expect(useSettingsStore.getState().agentAuth?.accountType).toBe('pro')
       expect(ipc.openTerminalWithCommand).not.toHaveBeenCalled()
     })
 
     it('opens terminal when not logged in', async () => {
-      vi.mocked(ipc.kiroWhoami).mockRejectedValue(new Error('not logged in'))
+      vi.mocked(ipc.authStatus).mockRejectedValue(new Error('not logged in'))
       await useSettingsStore.getState().openLogin()
-      expect(ipc.openTerminalWithCommand).toHaveBeenCalledWith('kiro-cli login')
+      expect(ipc.openTerminalWithCommand).toHaveBeenCalledWith('prime-agent login')
     })
   })
 })

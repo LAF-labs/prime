@@ -6,7 +6,7 @@ extern crate objc;
 
 pub mod commands;
 
-use commands::{acp, analytics, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, highlight, kiro_config, kiro_watcher, markdown, pattern_extract, pr_ai, process_diagnostics, project_watcher, pty, settings, streaming_diff, thread_db, thread_title, tracing as app_tracing, transport, vcs_status};
+use commands::{rpc, analytics, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -71,7 +71,7 @@ fn install_panic_hook() {
         );
         // Also write to stderr in case the log system is down
         eprintln!(
-            "[Kirodex PANIC] thread '{}' at {}: {}",
+            "[LAF Agent PANIC] thread '{}' at {}: {}",
             name, location, payload
         );
         // Call the default hook so the backtrace still prints in dev
@@ -85,13 +85,13 @@ fn shutdown_app(app: &tauri::AppHandle) {
     let start = std::time::Instant::now();
 
     // Kill all ACP connections
-    if let Some(acp_state) = app.try_state::<acp::AcpState>() {
+    if let Some(acp_state) = app.try_state::<rpc::AgentState>() {
         {
             let mut conns = acp_state.connections.lock();
             let count = conns.len();
             for (task_id, handle) in conns.drain() {
                 log::info!("Killing ACP connection: {}", task_id);
-                let _ = handle.cmd_tx.send(acp::AcpCommand::Kill);
+                let _ = handle.cmd_tx.send(rpc::AgentCommand::Kill);
                 // Drop the sender so the receiver side unblocks
                 drop(handle);
             }
@@ -120,7 +120,7 @@ fn shutdown_app(app: &tauri::AppHandle) {
     }
 
     // Stop all file watchers
-    kiro_watcher::stop_all(app);
+    resource_watcher::stop_all(app);
     project_watcher::stop_all_project_watchers(app);
 
     log::info!("Shutdown completed in {:?}", start.elapsed());
@@ -174,12 +174,12 @@ fn reposition_traffic_lights(ns_window: cocoa::base::id) {
     }
 }
 
-/// Create a new Kirodex window with the same configuration as the main window.
+/// Create a new LAF Agent window with the same configuration as the main window.
 fn create_new_window(app: &tauri::AppHandle) {
     let label = format!("window-{}", uuid::Uuid::new_v4().simple());
     let url = tauri::WebviewUrl::App("index.html".into());
     let builder = tauri::WebviewWindowBuilder::new(app, &label, url)
-        .title("Kirodex")
+        .title("LAF Agent")
         .inner_size(1400.0, 900.0)
         .min_inner_size(800.0, 600.0)
         .decorations(true)
@@ -290,7 +290,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tau
     }
     let recent_submenu = recent_submenu.build()?;
 
-    let app_submenu = SubmenuBuilder::new(app, "Kirodex")
+    let app_submenu = SubmenuBuilder::new(app, "LAF Agent")
         .about(None)
         .separator()
         .services()
@@ -388,15 +388,14 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(settings::SettingsState::default())
         .manage(analytics::AnalyticsState::default())
-        .manage(acp::AcpState::default())
+        .manage(rpc::AgentState::default())
         .manage(pty::PtyState::default())
         .manage(RelaunchFlag::default())
-        .manage(kiro_watcher::KiroWatcherState::default())
+        .manage(resource_watcher::ResourceWatcherState::default())
         .manage(project_watcher::ProjectWatcherState::default())
         .manage(thread_db::ThreadDbState {
             db: thread_db::ThreadDatabase::open(),
         })
-        .manage(highlight::HighlightState::default())
         .manage(fuzzy::FuzzyState::default())
         .manage(app_tracing::TraceState::default())
         .setup(|app| {
@@ -469,9 +468,9 @@ pub fn run() {
                 // Initial positioning of traffic lights
                 reposition_traffic_lights(ns_window);
             }
-            log::info!("Kirodex started (pid={})", std::process::id());
-            // Start watching global ~/.kiro for config changes
-            kiro_watcher::watch_global_kiro(app.handle());
+            log::info!("LAF Agent started (pid={})", std::process::id());
+            // Start watching the global agent dir for resource changes
+            resource_watcher::watch_global_resources(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -506,8 +505,8 @@ pub fn run() {
                     let app = app.clone();
                     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
                     app.dialog()
-                        .message("Are you sure you want to quit Kirodex?")
-                        .title("Quit Kirodex")
+                        .message("Are you sure you want to quit LAF Agent?")
+                        .title("Quit LAF Agent")
                         .buttons(MessageDialogButtons::OkCancelCustom("Quit".to_string(), "Cancel".to_string()))
                         .show(move |confirmed| {
                             if confirmed {
@@ -543,7 +542,7 @@ pub fn run() {
             settings::set_dock_icon,
             settings::reset_dock_icon,
             // File ops
-            fs_ops::detect_kiro_cli,
+            fs_ops::detect_agent_cli,
             fs_ops::read_text_file,
             fs_ops::read_file_base64,
             fs_ops::is_directory,
@@ -554,8 +553,16 @@ pub fn run() {
             fs_ops::detect_editors,
             fs_ops::detect_editors_background,
             fs_ops::list_project_files,
-            fs_ops::kiro_whoami,
-            fs_ops::kiro_logout,
+            fs_ops::auth_status,
+            fs_ops::ensure_chats_dir,
+            fs_ops::auth_set_api_key,
+            fs_ops::auth_set_custom_provider,
+            fs_ops::repair_custom_providers,
+            fs_ops::disable_serper_websearch,
+            fs_ops::auth_list_providers,
+            provider_discovery::provider_discover_models,
+            fs_ops::auth_remove_provider,
+            fs_ops::auth_logout,
             fs_ops::open_terminal_with_command,
             fs_ops::detect_project_icon,
             fs_ops::list_small_images,
@@ -592,35 +599,38 @@ pub fn run() {
             git::git_worktree_has_changes,
             git::git_worktree_setup,
             // ACP
-            acp::task_create,
-            acp::task_list,
-            acp::task_send_message,
-            acp::task_pause,
-            acp::task_resume,
-            acp::task_cancel,
-            acp::task_delete,
-            acp::task_fork,
-            acp::task_allow_permission,
-            acp::task_deny_permission,
-            acp::task_set_auto_approve,
-            acp::set_mode,
-            acp::set_model,
-            acp::list_models,
-            acp::probe_capabilities,
+            rpc::task_create,
+            rpc::task_list,
+            rpc::task_send_message,
+            rpc::task_pause,
+            rpc::task_resume,
+            rpc::task_cancel,
+            rpc::task_delete,
+            rpc::task_fork,
+            rpc::task_allow_permission,
+            rpc::task_deny_permission,
+            rpc::task_set_auto_approve,
+            rpc::set_mode,
+            rpc::set_model,
+            rpc::agent_rpc_request,
+            rpc::set_thinking_level,
+            rpc::compact_context,
+            rpc::list_models,
+            rpc::probe_capabilities,
             // PTY
             pty::pty_create,
             pty::pty_write,
             pty::pty_resize,
             pty::pty_kill,
             pty::pty_count,
-            // Kiro config
-            kiro_config::get_kiro_config,
-            kiro_config::save_mcp_server_config,
-            kiro_config::mcp_add_server,
-            kiro_config::mcp_remove_server,
-            // Kiro watcher
-            kiro_watcher::watch_kiro_path,
-            kiro_watcher::unwatch_kiro_path,
+            // Agent resources
+            agent_resources::get_agent_resources,
+            agent_resources::save_mcp_server_config,
+            agent_resources::mcp_add_server,
+            agent_resources::mcp_remove_server,
+            // Resource watcher
+            resource_watcher::watch_resource_path,
+            resource_watcher::unwatch_resource_path,
             // Project watcher & file operations
             project_watcher::watch_project_tree,
             project_watcher::unwatch_project_tree,
@@ -653,20 +663,14 @@ pub fn run() {
             analytics::analytics_project_stats,
             analytics::analytics_totals,
             // Streaming Diff
-            streaming_diff::compute_diff,
-            streaming_diff::compute_line_diff,
             // Structured diff parsing
             diff_parse::task_diff_structured,
             diff_parse::git_diff_structured,
             // Markdown parsing
             markdown::parse_markdown,
-            // Syntax highlighting
-            highlight::highlight_code,
-            highlight::highlight_supported_languages,
             // Fuzzy match
             fuzzy::fuzzy_match,
             // MCP Transport
-            transport::mcp_transport_test,
             // Thread title generation
             thread_title::generate_thread_title,
             branch_ai::generate_branch_name,
@@ -717,8 +721,6 @@ pub fn run() {
             git_pr::git_pr_status,
             git_pr::git_pr_open_in_browser,
             // Pattern extraction (code signatures for agent context)
-            pattern_extract::extract_patterns,
-            pattern_extract::extract_patterns_batch,
             // Structured tracing (NDJSON debug traces)
             app_tracing::trace_read_recent,
             app_tracing::trace_file_location,
@@ -726,7 +728,7 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
-            eprintln!("Failed to start Kirodex: {e}");
+            eprintln!("Failed to start LAF Agent: {e}");
             std::process::exit(1);
         });
 }

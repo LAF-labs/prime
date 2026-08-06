@@ -6,7 +6,7 @@
  */
 import type { ModelOption } from '@/stores/settingsStore'
 
-const FAVORITES_KEY = 'kirodex-favorite-models'
+const FAVORITES_KEY = 'laf-agent-favorite-models'
 
 // ── Favorites persistence ────────────────────────────────────────
 

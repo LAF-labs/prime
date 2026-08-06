@@ -1,13 +1,13 @@
 //! AI-powered PR/MR content generation.
 //!
 //! Generates a PR title and body from the diff between the current branch
-//! and a base branch. Uses the same `kiro-cli chat --no-interactive` one-shot
+//! and a base branch. Uses the same `prime-agent chat --no-interactive` one-shot
 //! pattern as commit message generation.
 
 use serde::{Deserialize, Serialize};
 
 use super::error::AppError;
-use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_kiro_oneshot};
+use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_agent_oneshot};
 use super::git_utils::run_git_cmd_async;
 use super::settings::SettingsState;
 
@@ -34,12 +34,13 @@ struct PrModelOutput {
 /// Tauri command — generate PR title and body for the current branch.
 #[tauri::command]
 pub async fn generate_pr_content(
+    app: tauri::AppHandle,
     settings_state: tauri::State<'_, SettingsState>,
     cwd: String,
     base_branch: String,
     workspace: Option<String>,
 ) -> Result<GeneratedPrContent, AppError> {
-    let (kiro_bin, custom_instructions) = {
+    let (agent_bin, custom_instructions) = {
         let settings = settings_state.0.lock();
         // Look up policy by workspace (original project root) first, then cwd
         let lookup_key = workspace.as_deref().unwrap_or(&cwd);
@@ -48,7 +49,7 @@ pub async fn generate_pr_content(
             .and_then(|p| p.get(lookup_key).or_else(|| p.get(&*cwd)))
             .and_then(|pp| pp.text_generation_policy.as_ref())
             .and_then(|pol| pol.pr_instructions.clone());
-        (settings.settings.kiro_bin.clone(), instructions)
+        (settings.settings.agent_bin.clone(), instructions)
     };
 
     let (head_branch, commit_log, diff_stat, diff_patch) = collect_pr_context(&cwd, &base_branch).await?;
@@ -68,7 +69,8 @@ pub async fn generate_pr_content(
         custom_instructions.as_deref(),
     );
 
-    let raw_output = run_kiro_oneshot(&kiro_bin, &cwd, &prompt).await?;
+    let launch = crate::commands::agent_launch::resolve(&app, &agent_bin);
+    let raw_output = run_agent_oneshot(&launch, &cwd, &prompt).await?;
     let parsed = parse_pr_response(&raw_output)?;
     Ok(sanitize_pr(parsed))
 }
@@ -173,7 +175,7 @@ fn build_pr_prompt(
 // ── Output parsing ───────────────────────────────────────────────────────
 
 fn parse_pr_response(raw: &str) -> Result<PrModelOutput, AppError> {
-    // Prefer a JSON object that contains `"title"` (or `"body"`) so a kiro-cli
+    // Prefer a JSON object that contains `"title"` (or `"body"`) so a prime-agent
     // warning like `@{MCPSERVERNAME}/` doesn't get parsed as the answer.
     let block = extract_json_object_with_key(raw, "title")
         .or_else(|| extract_json_object_with_key(raw, "body"))
@@ -257,8 +259,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_pr_response_skips_kiro_cli_warning_brace_block() {
-        // Regression: `{MCPSERVERNAME}` from kiro-cli's `--trust-tools`
+    fn parse_pr_response_skips_agent_cli_warning_brace_block() {
+        // Regression: `{MCPSERVERNAME}` from prime-agent's `--trust-tools`
         // warning is not valid JSON; the parser must walk past it.
         let raw = "WARNING: --trust-tools arg ... prepended with @{MCPSERVERNAME}/\n\
                    > {\"title\":\"Fix login\",\"body\":\"## Summary\\n\\nFix.\"}\n";

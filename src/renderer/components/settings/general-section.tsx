@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Switch } from '@/components/ui/switch'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import type { AppSettings } from '@/types'
 import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider } from './settings-shared'
 import { UpdatesCard } from './updates-card'
@@ -18,6 +19,7 @@ interface GeneralSectionProps {
 }
 
 export const GeneralSection = memo(function GeneralSection({ draft, updateDraft }: GeneralSectionProps) {
+  const t = useT()
   const { availableModels, currentModelId, modelsLoading, modelsError, fetchModels, activeWorkspace } = useSettingsStore()
   const [cliStatus, setCliStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
   const [isDetecting, setIsDetecting] = useState(false)
@@ -29,19 +31,19 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
 
   const handleBrowseCli = useCallback(async () => {
     const path = await ipc.pickFolder()
-    if (path) updateDraft({ kiroBin: path })
+    if (path) updateDraft({ agentBin: path })
   }, [updateDraft])
 
   const handleAutoDetect = useCallback(async () => {
     setIsDetecting(true)
     try {
-      const path = await ipc.detectKiroCli()
-      if (path) updateDraft({ kiroBin: path })
+      const path = await ipc.detectAgentCli()
+      if (path) updateDraft({ agentBin: path })
     } finally { setIsDetecting(false) }
   }, [updateDraft])
 
   const handleCliPathChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    updateDraft({ kiroBin: e.target.value })
+    updateDraft({ agentBin: e.target.value })
   }, [updateDraft])
 
   const handleModelChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -49,8 +51,8 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
   }, [updateDraft])
 
   const handleRefreshModels = useCallback(() => {
-    fetchModels(draft.kiroBin)
-  }, [fetchModels, draft.kiroBin])
+    fetchModels(draft.agentBin)
+  }, [fetchModels, draft.agentBin])
 
   const handleAutoApproveChange = useCallback((checked: boolean) => {
     updateDraft({ autoApprove: checked })
@@ -87,16 +89,41 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
     <>
       <SectionHeader section="general" />
 
-      <SettingsGrid label="Connection" description="Path to the kiro-cli binary">
+      <SettingsGrid label={t('settings.language')} description={t('settings.language.desc')}>
+        <SettingsCard>
+          <SettingRow label={t('settings.language')} description={t('settings.language.desc')}>
+            <div className="flex gap-1.5">
+              {([['system', t('settings.language.system')], ['en', t('settings.language.en')], ['ko', t('settings.language.ko')]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => updateDraft({ language: value as 'system' | 'en' | 'ko' })}
+                  aria-pressed={(draft.language ?? 'system') === value}
+                  className={cn(
+                    'rounded-md border px-2.5 py-1 text-[11.5px] transition-colors',
+                    (draft.language ?? 'system') === value
+                      ? 'border-ring bg-accent text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+        </SettingsCard>
+      </SettingsGrid>
+
+      <SettingsGrid label="Connection" description="Path to the prime-agent binary">
         <SettingsCard>
           <div className="py-1">
             <div className="flex gap-2">
               <input
-                value={draft.kiroBin}
+                value={draft.agentBin}
                 data-testid="settings-cli-path-input"
                 onChange={handleCliPathChange}
-                placeholder="kiro-cli"
-                aria-label="Path to kiro-cli binary"
+                placeholder="prime-agent"
+                aria-label="Path to prime-agent binary"
                 className="flex h-7 w-full flex-1 rounded-md border border-input bg-background/50 px-2.5 font-mono text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               <Tooltip>
@@ -104,7 +131,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   <button
                     type="button"
                     onClick={handleBrowseCli}
-                    aria-label="Browse for kiro-cli binary"
+                    aria-label="Browse for prime-agent binary"
                     className="shrink-0 rounded-md border border-input px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground"
                   >
                     Browse
@@ -118,7 +145,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                     type="button"
                     onClick={handleAutoDetect}
                     disabled={isDetecting}
-                    aria-label="Auto-detect kiro-cli path"
+                    aria-label="Auto-detect prime-agent path"
                     className="flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
                     {isDetecting ? <IconLoader2 className="size-3 animate-spin" /> : <IconSearch className="size-3" />}
@@ -140,7 +167,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                     Test
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Test connection to kiro-cli</TooltipContent>
+                <TooltipContent side="top">Test connection to prime-agent</TooltipContent>
               </Tooltip>
               {cliStatus === 'ok' && <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400"><IconCheck className="size-3" /> Connected</span>}
               {cliStatus === 'fail' && <span className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400"><IconAlertCircle className="size-3" /> Failed</span>}
@@ -201,7 +228,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
             <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label="Toggle respect gitignore" />
           </SettingRow>
           <Divider />
-          <SettingRow label="Use worktrees" description="Isolate threads in .kiro/worktrees/">
+          <SettingRow label="Use worktrees" description="Isolate threads in .laf-agent/worktrees/">
             <Switch
               checked={draft.projectPrefs?.[activeWorkspace ?? '']?.worktreeEnabled ?? false}
               onCheckedChange={handleWorktreeChange}

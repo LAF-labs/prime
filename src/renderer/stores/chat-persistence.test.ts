@@ -64,8 +64,8 @@ vi.mock('./diffStore', () => ({
   useDiffStore: { getState: () => ({ fetchDiff: vi.fn() }) },
 }))
 
-vi.mock('./kiroStore', () => ({
-  useKiroStore: { getState: () => ({ setMcpError: vi.fn() }) },
+vi.mock('./resourceStore', () => ({
+  useResourceStore: { getState: () => ({ setMcpError: vi.fn() }) },
 }))
 
 import { useTaskStore } from './taskStore'
@@ -368,10 +368,10 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
     vi.mocked(historyStore.loadThread).mockResolvedValueOnce({
       id: archivedId,
       name: 'Worktree Thread',
-      workspace: '/ws/.kiro/worktrees/feat',
+      workspace: '/ws/.laf-agent/worktrees/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [makeMessage()],
-      worktreePath: '/ws/.kiro/worktrees/feat',
+      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
       projectId: 'proj-1',
       parentTaskId: 'parent-1',
@@ -382,11 +382,11 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
         [archivedId]: {
           id: archivedId,
           name: 'Worktree Thread',
-          workspace: '/ws/.kiro/worktrees/feat',
+          workspace: '/ws/.laf-agent/worktrees/feat',
           createdAt: '2026-01-01T00:00:00Z',
           lastActivityAt: '2026-01-01T00:00:01Z',
           messageCount: 1,
-          worktreePath: '/ws/.kiro/worktrees/feat',
+          worktreePath: '/ws/.laf-agent/worktrees/feat',
           originalWorkspace: '/ws',
           projectId: 'proj-1',
           parentTaskId: 'parent-1',
@@ -397,7 +397,7 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
     await useTaskStore.getState().hydrateArchivedTask(archivedId)
 
     const hydrated = useTaskStore.getState().tasks[archivedId]
-    expect(hydrated.worktreePath).toBe('/ws/.kiro/worktrees/feat')
+    expect(hydrated.worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(hydrated.originalWorkspace).toBe('/ws')
     expect(hydrated.projectId).toBe('proj-1')
     expect(hydrated.parentTaskId).toBe('parent-1')

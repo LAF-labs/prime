@@ -1,6 +1,6 @@
 import type { ThemeMode } from '@/types'
 
-const THEME_KEY = 'kirodex-theme'
+const THEME_KEY = 'laf-agent-theme'
 
 /** Resolve 'system' to the actual dark/light value based on OS preference. */
 export const getResolvedTheme = (mode: ThemeMode): 'dark' | 'light' => {

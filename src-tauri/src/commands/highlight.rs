@@ -6,7 +6,7 @@
 //!   renders (e.g. scrolling a long chat thread) hit the cache.
 //! - The frontend just receives `Vec<HighlightSpan>` and styles them.
 //!
-//! Why syntect over tree-sitter for kirodex:
+//! Why syntect over tree-sitter for laf-agent:
 //! - Zero grammar wrangling: ~200 syntaxes ship in `default-fancy`.
 //! - No build.rs work, no `tree-sitter-cli`, no per-language crate hunting.
 //! - Tree-sitter is the right choice when you need an editable AST (incremental
@@ -183,13 +183,13 @@ impl HighlightCache {
 
 // ── Theme resolution ─────────────────────────────────────────────────────────
 
-/// Map a kirodex theme hint to a syntect bundled theme name.
+/// Map a laf-agent theme hint to a syntect bundled theme name.
 ///
 /// We accept either:
-/// - `"dark"` / `"light"` — kirodex's canonical hints
+/// - `"dark"` / `"light"` — laf-agent's canonical hints
 /// - any of syntect's bundled theme names (e.g. `"base16-ocean.dark"`)
 fn resolve_theme(hint: &str) -> &'static str {
-    // Fast path: kirodex's canonical hints (case-insensitive).
+    // Fast path: laf-agent's canonical hints (case-insensitive).
     let lower = hint.to_ascii_lowercase();
     match lower.as_str() {
         "dark" | "" => return "base16-ocean.dark",

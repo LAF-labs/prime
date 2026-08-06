@@ -1,18 +1,18 @@
 import { create } from 'zustand'
-import type { KiroConfig, KiroMcpServer } from '@/types'
+import type { AgentResources, McpServerConfig } from '@/types'
 import { ipc } from '@/lib/ipc'
 
-type McpStatus = KiroMcpServer['status']
+type McpStatus = McpServerConfig['status']
 
-const EMPTY_CONFIG: KiroConfig = { agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
+const EMPTY_CONFIG: AgentResources = { agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
 
-interface KiroStore {
+interface ResourceStore {
   /** Per-project config cache keyed by workspace path */
-  configs: Record<string, KiroConfig>
+  configs: Record<string, AgentResources>
   /** Currently active project path */
   activeProject: string | null
   /** Derived config for the active project */
-  config: KiroConfig
+  config: AgentResources
   loading: boolean
   loaded: boolean
   loadConfig: (projectPath?: string) => Promise<void>
@@ -23,7 +23,7 @@ interface KiroStore {
   setMcpDisabledTools: (serverName: string, disabledTools: string[]) => void
 }
 
-const patchMcp = (config: KiroConfig, serverName: string, patch: object): KiroConfig => {
+const patchMcp = (config: AgentResources, serverName: string, patch: object): AgentResources => {
   const servers = config.mcpServers ?? []
   const idx = servers.findIndex((m) => m.name.toLowerCase() === serverName.toLowerCase())
   if (idx < 0) return config
@@ -33,8 +33,8 @@ const patchMcp = (config: KiroConfig, serverName: string, patch: object): KiroCo
 }
 
 /** Apply an MCP patch to all cached configs (MCP servers are global) */
-const patchAllConfigs = (configs: Record<string, KiroConfig>, serverName: string, patch: object): Record<string, KiroConfig> => {
-  const next: Record<string, KiroConfig> = {}
+const patchAllConfigs = (configs: Record<string, AgentResources>, serverName: string, patch: object): Record<string, AgentResources> => {
+  const next: Record<string, AgentResources> = {}
   let changed = false
   for (const [key, cfg] of Object.entries(configs)) {
     const patched = patchMcp(cfg, serverName, patch)
@@ -44,7 +44,7 @@ const patchAllConfigs = (configs: Record<string, KiroConfig>, serverName: string
   return changed ? next : configs
 }
 
-const sanitizeConfig = (config: KiroConfig): KiroConfig => ({
+const sanitizeConfig = (config: AgentResources): AgentResources => ({
   agents: (config.agents ?? []).filter((a) => a.filePath),
   skills: (config.skills ?? []).filter((s) => s.filePath),
   steeringRules: (config.steeringRules ?? []).filter((r) => r.filePath),
@@ -52,7 +52,7 @@ const sanitizeConfig = (config: KiroConfig): KiroConfig => ({
   prompts: (config.prompts ?? []).filter((p) => p.filePath),
 })
 
-export const useKiroStore = create<KiroStore>((set, get) => {
+export const useResourceStore = create<ResourceStore>((set, get) => {
   return {
     configs: {},
     activeProject: null,
@@ -73,7 +73,7 @@ export const useKiroStore = create<KiroStore>((set, get) => {
       if (get().loading) return
       set({ loading: true, activeProject: key })
       try {
-        const raw = await ipc.getKiroConfig(projectPath)
+        const raw = await ipc.getAgentResources(projectPath)
         const safe = sanitizeConfig(raw)
         set((s) => ({
           configs: { ...s.configs, [key]: safe },
@@ -132,45 +132,16 @@ export const useKiroStore = create<KiroStore>((set, get) => {
   }
 })
 
-export function initKiroListeners(): () => void {
-  const unsub1 = ipc.onMcpConnecting(() => {
-    useKiroStore.setState((s) => {
-      const mcpPatch = (cfg: KiroConfig): KiroConfig => ({
-        ...cfg,
-        mcpServers: (cfg.mcpServers ?? []).map((m) =>
-          m.enabled ? { ...m, status: 'connecting' as const, error: undefined, oauthUrl: undefined } : m
-        ),
-      })
-      const configs: Record<string, KiroConfig> = {}
-      for (const [key, cfg] of Object.entries(s.configs)) {
-        configs[key] = mcpPatch(cfg)
-      }
-      return { configs, config: mcpPatch(s.config) }
-    })
-  })
-
-  const unsub2 = ipc.onMcpUpdate(({ serverName, status, error, oauthUrl }) => {
-    useKiroStore.setState((s) => {
-      const patch = {
-        status: status as McpStatus,
-        ...(error !== undefined ? { error } : {}),
-        ...(oauthUrl !== undefined ? { oauthUrl } : {}),
-      }
-      const configs = patchAllConfigs(s.configs, serverName, patch)
-      const config = patchMcp(s.config, serverName, patch)
-      return { configs, config }
-    })
-  })
-
-  // Auto-reload config when .kiro files change on disk
-  const unsub3 = ipc.onKiroConfigChanged(({ projectPath }) => {
-    const store = useKiroStore.getState()
+export function initResourceListeners(): () => void {
+  // Auto-reload config when agent resource files change on disk
+  const unsub3 = ipc.onAgentResourcesChanged(({ projectPath }) => {
+    const store = useResourceStore.getState()
     // Invalidate the affected cache entry so loadConfig re-fetches
     if (projectPath) {
       store.invalidateConfig(projectPath)
     } else {
       // Global change — invalidate all cached configs
-      useKiroStore.setState({ configs: {} })
+      useResourceStore.setState({ configs: {} })
     }
     // Re-fetch the active project's config
     const activeKey = store.activeProject
@@ -180,5 +151,5 @@ export function initKiroListeners(): () => void {
     }
   })
 
-  return () => { unsub1(); unsub2(); unsub3() }
+  return () => { unsub3() }
 }

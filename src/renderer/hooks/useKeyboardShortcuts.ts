@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { useDiffStore } from '@/stores/diffStore'
 import { useDebugStore } from '@/stores/debugStore'
 import { ipc } from '@/lib/ipc'
@@ -35,7 +35,7 @@ function getOrderedThreadIds(): string[] {
 }
 
 /**
- * Global keyboard shortcuts for Kirodex.
+ * Global keyboard shortcuts for LAF Agent.
  * Attach once in App.tsx.
  */
 export function useKeyboardShortcuts() {
@@ -218,7 +218,7 @@ export function useKeyboardShortcuts() {
     // shift-only shortcuts (e.g. "shift+a") can fire even without Cmd/Ctrl held.
     const agentHandler = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase()
-      const agents = useKiroStore.getState().config.agents
+      const agents = useResourceStore.getState().config.agents
       for (const agent of agents) {
         if (!agent.keyboardShortcut) continue
         // Parse "ctrl+a", "shift+b", "ctrl+shift+r" etc.
@@ -241,7 +241,7 @@ export function useKeyboardShortcuts() {
           const currentModeId = useSettingsStore.getState().currentModeId
           const taskId = useTaskStore.getState().selectedTaskId
           // Toggle: if already on this agent, switch back to default
-          const targetId = currentModeId === agent.name ? 'kiro_default' : agent.name
+          const targetId = currentModeId === agent.name ? 'code' : agent.name
           useSettingsStore.setState({ currentModeId: targetId })
           if (taskId) {
             useTaskStore.getState().setTaskMode(taskId, targetId)

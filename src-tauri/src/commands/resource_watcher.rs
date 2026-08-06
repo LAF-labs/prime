@@ -6,11 +6,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-/// Payload emitted to the frontend when .kiro files change.
+/// Payload emitted to the frontend when .agent files change.
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct KiroConfigChanged {
-    /// The project path whose .kiro changed, or null for global ~/.kiro
+struct AgentResourcesChanged {
+    /// The project path whose .agent changed, or null for global ~/.agent
     project_path: Option<String>,
 }
 
@@ -19,18 +19,18 @@ type Debouncer = notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>;
 /// Maximum number of concurrent project watchers to prevent leaks.
 const MAX_PROJECT_WATCHERS: usize = 5;
 
-/// Subdirectories inside .kiro that contain config we care about.
+/// Subdirectories inside .agent that contain config we care about.
 /// We watch these individually (non-recursive) instead of the entire
-/// .kiro tree to avoid tracking node_modules inside skills, etc.
+/// .agent tree to avoid tracking node_modules inside skills, etc.
 const WATCHED_SUBDIRS: &[&str] = &["agents", "skills", "steering", "settings"];
 
-/// Holds active file watchers keyed by the .kiro directory path.
+/// Holds active file watchers keyed by the .agent directory path.
 /// Each entry owns one debouncer that watches multiple subdirs.
-pub struct KiroWatcherState {
+pub struct ResourceWatcherState {
     watchers: Mutex<HashMap<PathBuf, Debouncer>>,
 }
 
-impl Default for KiroWatcherState {
+impl Default for ResourceWatcherState {
     fn default() -> Self {
         Self {
             watchers: Mutex::new(HashMap::new()),
@@ -38,71 +38,71 @@ impl Default for KiroWatcherState {
     }
 }
 
-/// Start watching the global ~/.kiro directory. Called once at app setup.
-pub fn watch_global_kiro(app: &AppHandle) {
+/// Start watching the global ~/.agent directory. Called once at app setup.
+pub fn watch_global_resources(app: &AppHandle) {
     let Some(home) = dirs::home_dir() else { return };
-    let global_kiro = home.join(".kiro");
-    if !global_kiro.is_dir() {
+    let global_dir = home.join(".prime").join("agent");
+    if !global_dir.is_dir() {
         return;
     }
-    let state = app.state::<KiroWatcherState>();
-    start_watcher(&state, &global_kiro, None, app.clone());
+    let state = app.state::<ResourceWatcherState>();
+    start_watcher(&state, &global_dir, None, app.clone());
 }
 
-/// Start watching a project's .kiro directory.
+/// Start watching a project's .agent directory.
 #[tauri::command]
-pub fn watch_kiro_path(path: String, app: AppHandle) {
-    let kiro_dir = PathBuf::from(&path).join(".kiro");
-    if !kiro_dir.is_dir() {
+pub fn watch_resource_path(path: String, app: AppHandle) {
+    let agent_dir = PathBuf::from(&path).join(".prime").join("agent");
+    if !agent_dir.is_dir() {
         return;
     }
-    let state = app.state::<KiroWatcherState>();
+    let state = app.state::<ResourceWatcherState>();
     // Enforce max project watchers (global watcher doesn't count toward limit)
     {
         let watchers = state.watchers.lock();
-        let home_kiro = dirs::home_dir().map(|h| h.join(".kiro"));
+        let home_agent = dirs::home_dir().map(|h| h.join(".prime").join("agent"));
         let project_count = watchers.keys()
-            .filter(|k| home_kiro.as_ref().map_or(true, |g| *k != g))
+            .filter(|k| home_agent.as_ref().map_or(true, |g| *k != g))
             .count();
         if project_count >= MAX_PROJECT_WATCHERS {
-            log::warn!("Max project watchers ({}) reached, skipping {}", MAX_PROJECT_WATCHERS, kiro_dir.display());
+            log::warn!("Max project watchers ({}) reached, skipping {}", MAX_PROJECT_WATCHERS, agent_dir.display());
             return;
         }
     }
-    start_watcher(&state, &kiro_dir, Some(path), app.clone());
+    start_watcher(&state, &agent_dir, Some(path), app.clone());
 }
 
-/// Stop watching a project's .kiro directory.
+/// Stop watching a project's .agent directory.
 #[tauri::command]
-pub fn unwatch_kiro_path(path: String, app: AppHandle) {
-    let kiro_dir = PathBuf::from(&path).join(".kiro");
-    let state = app.state::<KiroWatcherState>();
+pub fn unwatch_resource_path(path: String, app: AppHandle) {
+    let agent_dir = PathBuf::from(&path).join(".prime").join("agent");
+    let state = app.state::<ResourceWatcherState>();
     let mut watchers = state.watchers.lock();
-    if watchers.remove(&kiro_dir).is_some() {
-        log::info!("Stopped watching {}", kiro_dir.display());
+    if watchers.remove(&agent_dir).is_some() {
+        log::info!("Stopped watching {}", agent_dir.display());
     }
 }
 
 /// Stop all watchers. Called during app shutdown.
 pub fn stop_all(app: &AppHandle) {
-    if let Some(state) = app.try_state::<KiroWatcherState>() {
+    if let Some(state) = app.try_state::<ResourceWatcherState>() {
         let mut watchers = state.watchers.lock();
         let count = watchers.len();
         watchers.clear();
         if count > 0 {
-            log::info!("Stopped {} kiro watcher(s)", count);
+            log::info!("Stopped {} agent watcher(s)", count);
         }
     }
 }
 
 fn start_watcher(
-    state: &KiroWatcherState,
-    kiro_dir: &Path,
+    state: &ResourceWatcherState,
+    agent_dir: &Path,
     project_path: Option<String>,
     app: AppHandle,
 ) {
     let mut watchers = state.watchers.lock();
-    if watchers.contains_key(kiro_dir) {
+    if watchers.contains_key(agent_dir) {
         return;
     }
     let app_handle = app.clone();
@@ -112,23 +112,23 @@ fn start_watcher(
         if !events.iter().any(|e| e.kind == DebouncedEventKind::Any) {
             return;
         }
-        let payload = KiroConfigChanged {
+        let payload = AgentResourcesChanged {
             project_path: (*project).clone(),
         };
-        log::debug!("Kiro config changed: {:?}", payload.project_path);
-        let _ = app_handle.emit("kiro-config-changed", payload);
+        log::debug!("Agent config changed: {:?}", payload.project_path);
+        let _ = app_handle.emit("agent-resources-changed", payload);
     });
     match debouncer {
         Ok(mut watcher) => {
             use notify::Watcher;
             let mut watched = 0;
-            // Watch the .kiro root itself (for root-level .md steering files)
-            if watcher.watcher().watch(kiro_dir, notify::RecursiveMode::NonRecursive).is_ok() {
+            // Watch the .agent root itself (for root-level .md steering files)
+            if watcher.watcher().watch(agent_dir, notify::RecursiveMode::NonRecursive).is_ok() {
                 watched += 1;
             }
             // Watch each relevant subdir non-recursively
             for subdir in WATCHED_SUBDIRS {
-                let path = kiro_dir.join(subdir);
+                let path = agent_dir.join(subdir);
                 if path.is_dir() {
                     if watcher.watcher().watch(&path, notify::RecursiveMode::NonRecursive).is_ok() {
                         watched += 1;
@@ -136,14 +136,14 @@ fn start_watcher(
                 }
             }
             if watched == 0 {
-                log::warn!("No watchable subdirs in {}", kiro_dir.display());
+                log::warn!("No watchable subdirs in {}", agent_dir.display());
                 return;
             }
-            log::info!("Watching {} ({} paths)", kiro_dir.display(), watched);
-            watchers.insert(kiro_dir.to_path_buf(), watcher);
+            log::info!("Watching {} ({} paths)", agent_dir.display(), watched);
+            watchers.insert(agent_dir.to_path_buf(), watcher);
         }
         Err(e) => {
-            log::error!("Failed to create watcher for {}: {}", kiro_dir.display(), e);
+            log::error!("Failed to create watcher for {}: {}", agent_dir.display(), e);
         }
     }
 }

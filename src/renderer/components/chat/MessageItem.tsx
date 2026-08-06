@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useKiroStore } from "@/stores/kiroStore";
+import { useResourceStore } from "@/stores/resourceStore";
 import { useSettingsStore, selectChatFontSize } from "@/stores/settingsStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { usePanelResolvedTaskId } from "./PanelContext";
@@ -30,7 +30,7 @@ const LOADING_WORDS = [
 ];
 
 function McpErrorLines() {
-  const mcpServers = useKiroStore((s) => s.config.mcpServers ?? []);
+  const mcpServers = useResourceStore((s) => s.config.mcpServers ?? []);
   const failed = mcpServers.filter(
     (m) => m.enabled && (m.status === "needs-auth" || m.status === "error"),
   );
@@ -50,7 +50,7 @@ function GeneratingIndicator() {
   const resolvedTaskId = usePanelResolvedTaskId()
   const globalModeId = useSettingsStore((s) => s.currentModeId)
   const taskModeId = useTaskStore((s) => resolvedTaskId ? s.taskModes[resolvedTaskId] ?? null : null)
-  const isPlan = (taskModeId ?? globalModeId) === 'kiro_planner'
+  const isPlan = (taskModeId ?? globalModeId) === 'plan'
   const [idx, setIdx] = useState(() =>
     Math.floor(Math.random() * LOADING_WORDS.length),
   );

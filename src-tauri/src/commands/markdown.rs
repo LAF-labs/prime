@@ -7,7 +7,7 @@
 //! We follow the same approach: this module exposes a `parse_markdown` Tauri
 //! command that returns a flat block list. Each block is a self-contained
 //! piece of structured content (heading, paragraph, code fence with language,
-//! list, blockquote, table, mermaid, kiro_summary, etc.). The renderer maps
+//! list, blockquote, table, mermaid, agent_summary, etc.). The renderer maps
 //! each block to a React component — no `react-markdown` parser needed.
 //!
 //! ## Why blocks instead of raw events
@@ -19,7 +19,7 @@
 //! within a block is stored as a flat `Vec<InlineSpan>` (text + emphasis +
 //! code + link).
 //!
-//! Specialized blocks (`mermaid`, `kiro_summary`, JSON report fences) are
+//! Specialized blocks (`mermaid`, `agent_summary`, JSON report fences) are
 //! recognized at parse time so the renderer can handle them directly.
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
@@ -118,15 +118,15 @@ pub enum MarkdownBlock {
     Mermaid {
         text: String,
     },
-    /// Specialized: a `<kiro_summary>...</kiro_summary>` block embedded in
+    /// Specialized: a `<agent_summary>...</agent_summary>` block embedded in
     /// the assistant's reply. Replaces the renderer-side regex extraction in
     /// `TaskCompletionCard.tsx`.
-    KiroSummary {
+    AgentSummary {
         json: String,
     },
-    /// Specialized: ` ```kirodex-report ` fenced JSON. Same idea as KiroSummary
+    /// Specialized: ` ```laf-agent-report ` fenced JSON. Same idea as AgentSummary
     /// but for the structured task completion report.
-    KirodexReport {
+    LafAgentReport {
         json: String,
     },
 }
@@ -235,7 +235,7 @@ fn classify_code_block(language: &str, text: &str) -> MarkdownBlock {
         "mermaid" => MarkdownBlock::Mermaid {
             text: text.to_string(),
         },
-        "kirodex-report" | "kirodex_report" => MarkdownBlock::KirodexReport {
+        "laf-agent-report" | "laf-agent_report" => MarkdownBlock::LafAgentReport {
             json: text.to_string(),
         },
         _ => MarkdownBlock::CodeBlock {
@@ -245,24 +245,24 @@ fn classify_code_block(language: &str, text: &str) -> MarkdownBlock {
     }
 }
 
-/// Pull `<kiro_summary>{...}</kiro_summary>` blocks out of the input *before*
+/// Pull `<agent_summary>{...}</agent_summary>` blocks out of the input *before*
 /// markdown parsing. They're not valid CommonMark and pulldown-cmark would
 /// emit them as inline HTML, which is harder to consume on the renderer side.
 ///
 /// Returns the markdown with summary blocks stripped, plus the JSON payloads
 /// in their original order.
-fn extract_kiro_summaries(input: &str) -> (String, Vec<String>) {
+fn extract_agent_summaries(input: &str) -> (String, Vec<String>) {
     let mut summaries = Vec::new();
     let mut out = String::with_capacity(input.len());
     let mut cursor = 0;
-    while let Some(start) = input[cursor..].find("<kiro_summary>") {
+    while let Some(start) = input[cursor..].find("<agent_summary>") {
         let abs_start = cursor + start;
         out.push_str(&input[cursor..abs_start]);
-        let after_open = abs_start + "<kiro_summary>".len();
-        if let Some(rel_end) = input[after_open..].find("</kiro_summary>") {
+        let after_open = abs_start + "<agent_summary>".len();
+        if let Some(rel_end) = input[after_open..].find("</agent_summary>") {
             let abs_end = after_open + rel_end;
             summaries.push(input[after_open..abs_end].trim().to_string());
-            cursor = abs_end + "</kiro_summary>".len();
+            cursor = abs_end + "</agent_summary>".len();
         } else {
             // Unterminated — bail and keep the rest verbatim.
             out.push_str(&input[abs_start..]);
@@ -275,7 +275,7 @@ fn extract_kiro_summaries(input: &str) -> (String, Vec<String>) {
 
 /// Parse a markdown string into a flat block list.
 pub fn parse(input: &str) -> ParsedMarkdown {
-    let (preprocessed, summaries) = extract_kiro_summaries(input);
+    let (preprocessed, summaries) = extract_agent_summaries(input);
 
     // Stack-based descent. The bottom of the stack is always `Document`.
     let mut stack: Vec<Frame> = vec![Frame::Document { blocks: Vec::new() }];
@@ -587,11 +587,11 @@ pub fn parse(input: &str) -> ParsedMarkdown {
         _ => Vec::new(),
     };
 
-    // Append any pulled-out kiro_summary blocks at the end (they originally
+    // Append any pulled-out agent_summary blocks at the end (they originally
     // appeared at the bottom of the message). If you'd prefer to keep position
     // fidelity, splice them at their extracted offsets — left as future work.
     for json in summaries {
-        blocks.push(MarkdownBlock::KiroSummary { json });
+        blocks.push(MarkdownBlock::AgentSummary { json });
     }
 
     ParsedMarkdown { blocks }
@@ -658,11 +658,11 @@ mod tests {
     }
 
     #[test]
-    fn extracts_kiro_summary() {
-        let input = "Here is the summary.\n<kiro_summary>{\"ok\":true}</kiro_summary>\n";
+    fn extracts_agent_summary() {
+        let input = "Here is the summary.\n<agent_summary>{\"ok\":true}</agent_summary>\n";
         let parsed = parse(input);
         let summary = parsed.blocks.iter().find_map(|b| match b {
-            MarkdownBlock::KiroSummary { json } => Some(json.clone()),
+            MarkdownBlock::AgentSummary { json } => Some(json.clone()),
             _ => None,
         });
         assert_eq!(summary.as_deref(), Some("{\"ok\":true}"));
@@ -713,9 +713,9 @@ mod tests {
     }
 
     #[test]
-    fn extract_kiro_summaries_handles_missing_close() {
-        let (out, summaries) = extract_kiro_summaries("hello <kiro_summary>{ no end");
-        assert_eq!(out, "hello <kiro_summary>{ no end");
+    fn extract_agent_summaries_handles_missing_close() {
+        let (out, summaries) = extract_agent_summaries("hello <agent_summary>{ no end");
+        assert_eq!(out, "hello <agent_summary>{ no end");
         assert!(summaries.is_empty());
     }
 

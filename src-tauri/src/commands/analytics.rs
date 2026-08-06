@@ -192,7 +192,7 @@ mod tests {
         let event = AnalyticsEvent {
             ts: 1713500000000,
             kind: "message_sent".to_string(),
-            project: Some("kirodex".to_string()),
+            project: Some("laf-agent".to_string()),
             thread: None,
             detail: None,
             value: Some(42.0),
@@ -202,7 +202,7 @@ mod tests {
         let restored: AnalyticsEvent = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.ts, 1713500000000);
         assert_eq!(restored.kind, "message_sent");
-        assert_eq!(restored.project.as_deref(), Some("kirodex"));
+        assert_eq!(restored.project.as_deref(), Some("laf-agent"));
         assert!(restored.thread.is_none());
         assert_eq!(restored.value, Some(42.0));
     }

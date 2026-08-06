@@ -43,11 +43,11 @@ interface SettingsStore {
   operationalWorkspace: string | null
   availableCommands: SlashCommand[]
   liveMcpServers: LiveMcpServer[]
-  kiroAuth: { email: string | null; accountType: string; region?: string; startUrl?: string } | null
-  kiroAuthChecked: boolean
+  agentAuth: { email: string | null; accountType: string; region?: string; startUrl?: string } | null
+  authChecked: boolean
   loadSettings: () => Promise<void>
   saveSettings: (settings: AppSettings) => Promise<void>
-  fetchModels: (kiroBin?: string) => Promise<void>
+  fetchModels: (agentBin?: string) => Promise<void>
   setActiveWorkspace: (workspace: string | null, operationalWs?: string | null) => void
   setProjectPref: (workspace: string, patch: Partial<ProjectPrefs>) => void
   checkAuth: () => Promise<void>
@@ -56,7 +56,7 @@ interface SettingsStore {
 }
 
 const defaultSettings: AppSettings = {
-  kiroBin: 'kiro-cli',
+  agentBin: 'prime-agent',
   agentProfiles: [],
   fontSize: 19,
   chatFontSize: 15,
@@ -79,8 +79,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   currentModeId: null,
   activeWorkspace: null,
   operationalWorkspace: null,
-  kiroAuth: null,
-  kiroAuthChecked: false,
+  agentAuth: null,
+  authChecked: false,
   availableCommands: [],
   liveMcpServers: [],
 
@@ -120,7 +120,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     // send the key name, never the value — e.g. the default model id is a
     // user-chosen string we don't need in analytics.
     const keys: Array<keyof AppSettings> = [
-      'kiroBin', 'defaultModel', 'autoApprove', 'respectGitignore',
+      'agentBin', 'defaultModel', 'autoApprove', 'respectGitignore',
       'coAuthor', 'coAuthorJsonReport', 'notifications', 'fontSize',
       'chatFontSize',
       'sidebarPosition', 'analyticsEnabled', 'theme', 'customAppIcon',
@@ -130,10 +130,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  fetchModels: async (kiroBin?: string) => {
+  fetchModels: async (agentBin?: string) => {
     set({ modelsLoading: true, modelsError: null })
     try {
-      const result = await ipc.listModels(kiroBin)
+      const result = await ipc.listModels(agentBin)
       set({
         availableModels: result.availableModels,
         currentModelId: result.currentModelId,
@@ -185,54 +185,54 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   checkAuth: async () => {
     try {
       const { settings } = get()
-      console.log('[auth] checkAuth called with kiroBin:', settings.kiroBin)
-      const result = await ipc.kiroWhoami(settings.kiroBin)
+      console.log('[auth] checkAuth called with agentBin:', settings.agentBin)
+      const result = await ipc.authStatus(settings.agentBin)
       console.log('[auth] whoami result:', JSON.stringify(result))
       if (result.accountType) {
         set({
-          kiroAuth: {
+          agentAuth: {
             email: result.email ?? null,
             accountType: result.accountType,
             region: result.region,
             startUrl: result.startUrl,
           },
-          kiroAuthChecked: true,
+          authChecked: true,
         })
         console.log('[auth] authenticated:', result.accountType, result.email)
       } else {
         console.log('[auth] whoami returned no accountType')
-        set({ kiroAuth: null, kiroAuthChecked: true })
+        set({ agentAuth: null, authChecked: true })
       }
     } catch (err) {
       console.warn('[auth] checkAuth failed:', err)
-      set({ kiroAuth: null, kiroAuthChecked: true })
+      set({ agentAuth: null, authChecked: true })
     }
   },
 
   logout: async () => {
     try {
       const { settings } = get()
-      await ipc.kiroLogout(settings.kiroBin)
+      await ipc.authLogout(settings.agentBin)
     } catch { /* ignore */ }
-    set({ kiroAuth: null })
+    set({ agentAuth: null })
   },
 
   openLogin: async () => {
     const { settings } = get()
-    console.log('[auth] openLogin called with kiroBin:', settings.kiroBin)
+    console.log('[auth] openLogin called with agentBin:', settings.agentBin)
     // If already logged in, just refresh state instead of opening terminal
     try {
-      const result = await ipc.kiroWhoami(settings.kiroBin)
+      const result = await ipc.authStatus(settings.agentBin)
       console.log('[auth] openLogin whoami check:', JSON.stringify(result))
       if (result.accountType) {
         set({
-          kiroAuth: {
+          agentAuth: {
             email: result.email ?? null,
             accountType: result.accountType,
             region: result.region,
             startUrl: result.startUrl,
           },
-          kiroAuthChecked: true,
+          authChecked: true,
         })
         console.log('[auth] already logged in, skipping terminal')
         return
@@ -240,8 +240,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     } catch (err) {
       console.log('[auth] openLogin whoami failed (not logged in):', err)
     }
-    console.log('[auth] opening terminal with:', `${settings.kiroBin} login`)
-    ipc.openTerminalWithCommand(`${settings.kiroBin} login`).catch((err) => {
+    console.log('[auth] opening terminal with:', `${settings.agentBin} login`)
+    ipc.openTerminalWithCommand(`${settings.agentBin} login`).catch((err) => {
       console.error('[auth] openTerminalWithCommand failed:', err)
     })
   },

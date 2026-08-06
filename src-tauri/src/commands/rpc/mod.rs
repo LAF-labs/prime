@@ -1,24 +1,16 @@
-mod client;
 mod commands;
 mod connection;
-mod sandbox;
 pub mod types;
 
 #[cfg(test)]
 mod tests;
 
-// Re-export public API so `crate::commands::acp::*` still resolves
+// Re-export public API so `crate::commands::rpc::*` still resolves
 pub use commands::*;
 pub use types::*;
 
 // Re-export connection helpers for testing
-pub(crate) use connection::{strip_image_tags, build_content_blocks};
-
-// Re-export sandbox functions for crate-internal use
-pub(crate) use sandbox::{
-    extract_paths_from_json, extract_paths_from_json_inner, extract_paths_from_message,
-    friendly_prompt_error, is_path_allowed, is_path_strictly_allowed, is_within_workspace,
-};
+pub(crate) use connection::{strip_image_tags, build_prompt_payload};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -59,7 +51,7 @@ fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {
 // ── Resumption preamble shared by task_create and task_fork ────────────
 //
 // Both `task_create` (for stateless thread resumption) and `task_fork` need
-// to replay an earlier transcript into a freshly spawned kiro-cli subprocess
+// to replay an earlier transcript into a freshly spawned prime-agent subprocess
 // so the model has the conversational context the previous process held.
 // Centralizing the preamble construction here keeps the two code paths in
 // sync and makes the cap/format easy to test.

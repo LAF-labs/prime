@@ -2,9 +2,9 @@
  * resolve-mentions.ts
  *
  * Resolves @file, @folder, @agent:name, @skill:name, and @prompt-name
- * references in a chat message before it is sent to kiro-cli ACP.
+ * references in a chat message before it is sent to prime-agent ACP.
  *
- * This mirrors what the Kiro CLI does natively in its TUI:
+ * This mirrors what the prime-agent CLI does natively in its TUI:
  *  - @src/auth.ts  → inlines the file content as a fenced code block
  *  - @src/         → inlines a directory tree listing (3 levels, 10 items/level)
  *  - @prompt-name  → inlines the prompt content
@@ -19,7 +19,7 @@
  */
 
 import { ipc } from '@/lib/ipc'
-import type { KiroPrompt } from '@/types'
+import type { AgentPrompt } from '@/types'
 
 const FILE_SIZE_LIMIT = 250 * 1024 // 250 KB
 
@@ -140,8 +140,8 @@ const MENTION_PATTERN = /(?<=^|\s)@(?:"([^"]+)"|(\S+))/
 export interface ResolveMentionsOptions {
   /** Absolute path to the project workspace */
   workspace: string | null
-  /** Available prompts from kiro config */
-  prompts: KiroPrompt[]
+  /** Available prompts from agent config */
+  prompts: AgentPrompt[]
 }
 
 /**

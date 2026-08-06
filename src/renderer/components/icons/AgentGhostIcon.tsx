@@ -1,13 +1,13 @@
 import { type SVGProps } from 'react'
 
-export const KiroGhostIcon = (props: SVGProps<SVGSVGElement>) => (
+export const AgentGhostIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid slice" {...props}>
     <defs>
-      <clipPath id="kiro-ghost">
+      <clipPath id="agent-ghost">
         <rect width="500" height="600" x="0" y="0" />
       </clipPath>
     </defs>
-    <g clipPath="url(#kiro-ghost)">
+    <g clipPath="url(#agent-ghost)">
       <g transform="matrix(1.45761,0,0,1.45761,265.367,317.039)" opacity="1">
         <g opacity="1">
           <g opacity="1" transform="matrix(-1,0,0,1,0,0)">

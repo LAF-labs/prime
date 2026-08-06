@@ -6,13 +6,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import MarkdownViewer from '@/components/MarkdownViewer'
 
-interface KiroFileViewerProps {
+interface ResourceFileViewerProps {
   filePath: string
   title: string
   onClose: () => void
 }
 
-export const KiroFileViewer = memo(function KiroFileViewer({ filePath, title, onClose }: KiroFileViewerProps) {
+export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, title, onClose }: ResourceFileViewerProps) {
   const [content, setContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 

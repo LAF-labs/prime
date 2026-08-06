@@ -91,12 +91,12 @@ export function PendingChat({ workspace }: PendingChatProps) {
     removeDraftAttachments(workspace)
     removeDraftPastedChunks(workspace)
     removeDraftMentionedFiles(workspace)
-    const cleanMsg = stripImageDataForTitleGen(msg.replace(/<\/?kirodex_tangent>/g, '').trim())
+    const cleanMsg = stripImageDataForTitleGen(msg.replace(/<\/?laf-agent_tangent>/g, '').trim())
     const name = cleanMsg.length > 60 ? cleanMsg.slice(0, 57) + '\u2026' : cleanMsg
     const { settings: currentSettings, activeWorkspace, currentModeId, currentModelId } = useSettingsStore.getState()
     const prefs = activeWorkspace ? currentSettings.projectPrefs?.[activeWorkspace] : undefined
     const autoApprove = prefs?.autoApprove !== undefined ? prefs.autoApprove : currentSettings.autoApprove
-    const modeId = currentModeId && currentModeId !== 'kiro_default' ? currentModeId : undefined
+    const modeId = currentModeId && currentModeId !== 'code' ? currentModeId : undefined
     const modelId = resolveModelId({ projectPrefs: prefs, settings: currentSettings, currentModelId })
 
     if (useWorktree && worktreeSlug && isValidWorktreeSlug(worktreeSlug)) {
@@ -121,12 +121,12 @@ export function PendingChat({ workspace }: PendingChatProps) {
             ...created.messages,
           ],
         })
-        if (currentModeId && currentModeId !== 'kiro_default') {
+        if (currentModeId && currentModeId !== 'code') {
           useTaskStore.getState().setTaskMode(created.id, currentModeId)
         }
         useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
-        if (msg.includes('<kirodex_tangent>')) {
-          const question = msg.replace(/<\/?kirodex_tangent>/g, '').trim()
+        if (msg.includes('<laf-agent_tangent>')) {
+          const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
           useTaskStore.getState().enterBtwMode(created.id, question)
         }
         return
@@ -142,12 +142,12 @@ export function PendingChat({ workspace }: PendingChatProps) {
             ...created.messages,
           ],
         })
-        if (currentModeId && currentModeId !== 'kiro_default') {
+        if (currentModeId && currentModeId !== 'code') {
           useTaskStore.getState().setTaskMode(created.id, currentModeId)
         }
         useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
-        if (msg.includes('<kirodex_tangent>')) {
-          const question = msg.replace(/<\/?kirodex_tangent>/g, '').trim()
+        if (msg.includes('<laf-agent_tangent>')) {
+          const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
           useTaskStore.getState().enterBtwMode(created.id, question)
         }
         return
@@ -156,21 +156,21 @@ export function PendingChat({ workspace }: PendingChatProps) {
 
     const created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
     upsertTask({ ...created, projectId: getProjectId(workspace) })
-    if (currentModeId && currentModeId !== 'kiro_default') {
+    if (currentModeId && currentModeId !== 'code') {
       useTaskStore.getState().setTaskMode(created.id, currentModeId)
     }
     useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
     // If this was a /btw question, enter btw mode on the new task
-    if (msg.includes('<kirodex_tangent>')) {
-      const question = msg.replace(/<\/?kirodex_tangent>/g, '').trim()
+    if (msg.includes('<laf-agent_tangent>')) {
+      const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
       useTaskStore.getState().enterBtwMode(created.id, question)
     }
   }, [workspace, upsertTask, removeDraft, removeDraftAttachments, removeDraftPastedChunks, removeDraftMentionedFiles, useWorktree, worktreeSlug, getProjectId])
 
-  const kiroAuth = useSettingsStore((s) => s.kiroAuth)
-  const kiroAuthChecked = useSettingsStore((s) => s.kiroAuthChecked)
+  const agentAuth = useSettingsStore((s) => s.agentAuth)
+  const authChecked = useSettingsStore((s) => s.authChecked)
   const openLogin = useSettingsStore((s) => s.openLogin)
-  const isLoggedOut = kiroAuthChecked && !kiroAuth
+  const isLoggedOut = authChecked && !agentAuth
   const isSlugValid = !worktreeSlug || isValidWorktreeSlug(worktreeSlug)
   const isWorkspaceTerminalOpen = useTaskStore((s) => s.isWorkspaceTerminalOpen)
   const toggleWorkspaceTerminal = useTaskStore((s) => s.toggleWorkspaceTerminal)
@@ -187,14 +187,14 @@ export function PendingChat({ workspace }: PendingChatProps) {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground/80">Sign in to start a conversation</p>
-              <p className="mt-1 text-xs text-muted-foreground">Kiro authentication is required to use AI agents</p>
+              <p className="mt-1 text-xs text-muted-foreground">Prime Agent authentication is required to use AI agents</p>
             </div>
             <button
               type="button"
               onClick={openLogin}
               className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
             >
-              Sign in to Kiro
+              Sign in to Prime Agent
             </button>
           </div>
         ) : (
@@ -223,7 +223,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
             {/* Slug row */}
             {useWorktree && (
               <div className="mt-2 flex items-center gap-1.5 border-t border-border/30 pt-2 pl-[26px]">
-                <span className="shrink-0 rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground/70">.kiro/worktrees/</span>
+                <span className="shrink-0 rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground/70">.laf-agent/worktrees/</span>
                 {isEditingSlug ? (
                   <input
                     ref={slugInputRef}

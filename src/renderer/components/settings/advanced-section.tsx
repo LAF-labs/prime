@@ -98,7 +98,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             />
           </SettingRow>
           <Divider />
-          <SettingRow label="Co-authored-by Kirodex" description="Append trailer to every commit">
+          <SettingRow label="Co-authored-by LAF Agent" description="Append trailer to every commit">
             <Switch
               checked={draft.coAuthor ?? true}
               onCheckedChange={handleCoAuthorToggle}

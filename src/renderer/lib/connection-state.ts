@@ -168,7 +168,7 @@ export function getConnectionStatusLabel(status: ConnectionStatus): string | nul
     case 'reconnecting':
       return `Reconnecting (${status.reconnectAttemptCount}/${status.reconnectMaxAttempts})…`
     case 'exhausted':
-      return 'Unable to connect — check that kiro-cli is running'
+      return 'Unable to connect — check that prime-agent is running'
   }
 }
 

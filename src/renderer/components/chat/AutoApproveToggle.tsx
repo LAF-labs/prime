@@ -5,6 +5,7 @@ import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
+import { useT, type I18nKey } from '@/lib/i18n'
 
 /** Resolve auto-approve for a specific workspace (or fall back to global). */
 export const getAutoApproveForWorkspace = (workspace: string | null): boolean => {
@@ -21,17 +22,18 @@ export const selectAutoApprove = (s: ReturnType<typeof useSettingsStore.getState
 
 interface PermissionEntry {
   readonly id: 'auto-approve' | 'ask-first'
-  readonly label: string
-  readonly description: string
+  readonly labelKey: I18nKey
+  readonly descKey: I18nKey
   readonly icon: typeof IconHandStop
 }
 
 const PERMISSIONS: readonly PermissionEntry[] = [
-  { id: 'ask-first', label: 'Ask first', description: 'Confirm before running tools', icon: IconMessageQuestion },
-  { id: 'auto-approve', label: 'Auto-approve', description: 'Run all tools without asking', icon: IconHandStop },
+  { id: 'ask-first', labelKey: 'chat.approve.askFirst', descKey: 'chat.approve.askFirstDesc', icon: IconMessageQuestion },
+  { id: 'auto-approve', labelKey: 'chat.approve.autoRun', descKey: 'chat.approve.autoRunDesc', icon: IconHandStop },
 ] as const
 
 export const AutoApproveToggle = memo(function AutoApproveToggle() {
+  const t = useT()
   const resolvedTaskId = usePanelResolvedTaskId()
   // Derive workspace from the panel's task, not the global activeWorkspace
   const panelWorkspace = useTaskStore((s) => {
@@ -96,7 +98,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        aria-label={`Permissions: ${current.label}`}
+        aria-label={`Permissions: ${t(current.labelKey)}`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
@@ -107,7 +109,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
         )}
       >
         <CurrentIcon className="size-3.5" aria-hidden />
-        <span className="hidden @[480px]/toolbar:inline">{current.label}</span>
+        <span className="hidden @[480px]/toolbar:inline">{t(current.labelKey)}</span>
         <IconChevronDown className="hidden size-3 shrink-0 opacity-50 @[480px]/toolbar:block" aria-hidden />
       </button>
 
@@ -137,7 +139,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
                 )}
               >
                 <Icon className="size-3.5 shrink-0" aria-hidden />
-                <span>{p.label}</span>
+                <span>{t(p.labelKey)}</span>
               </button>
             )
           })}

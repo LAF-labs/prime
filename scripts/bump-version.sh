@@ -42,7 +42,7 @@ sed -i '' "0,/^version = \"$CURRENT\"/s//version = \"$NEW\"/" src-tauri/Cargo.to
 sed -i '' "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" src-tauri/tauri.conf.json
 
 # 4. Update Cargo.lock
-(cd src-tauri && cargo update -p kirodex 2>/dev/null || true)
+(cd src-tauri && cargo update -p laf-agent 2>/dev/null || true)
 
 echo ""
 echo "Updated:"

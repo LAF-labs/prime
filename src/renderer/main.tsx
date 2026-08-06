@@ -9,7 +9,7 @@ import { readPersistedTheme, applyTheme } from './lib/theme'
 applyTheme(readPersistedTheme())
 
 function showError(err: unknown) {
-  console.error('[Kirodex crash]', err)
+  console.error('[LAF Agent crash]', err)
 }
 
 // Errors that are transient (HMR, StrictMode) and should auto-recover, not crash
@@ -66,7 +66,7 @@ class ErrorBoundary extends React.Component<
         color: '#e0e0e0', background: '#0D0D0D',
       }}>
         <div style={{ fontSize: '32px', marginBottom: '4px' }}>⚠️</div>
-        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Kirodex failed to start</h2>
+        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>LAF Agent failed to start</h2>
         <p style={{ fontSize: '13px', color: '#888', maxWidth: '360px', margin: 0, lineHeight: 1.5 }}>
           This usually happens when app data gets corrupted. You can reset it to start fresh, or try reloading.
         </p>

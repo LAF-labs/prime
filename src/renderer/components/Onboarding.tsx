@@ -52,7 +52,10 @@ export function Onboarding() {
         })}
       </div>
 
-      <div className="flex flex-col items-center gap-8 py-12 text-center max-w-lg w-full px-6">
+      <div
+        key={step}
+        className="onboarding-step flex min-h-[560px] w-full max-w-xl flex-col items-center justify-center gap-8 px-8 py-24 text-center"
+      >
         {step === 'welcome' && <OnboardingWelcomeStep onNext={setStep} />}
         {step === 'theme' && <OnboardingThemeStep themeChoice={themeChoice} onThemeChange={handleThemeChange} onNext={setStep} />}
         {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} isAnalyticsEnabled={isAnalyticsEnabled} onAnalyticsChange={setIsAnalyticsEnabled} />}

@@ -1,10 +1,10 @@
 //! MCP Transport Abstraction.
 //!
 //! Provides a `Transport` trait with implementations for:
-//! - **Stdio**: Communicates with a subprocess via stdin/stdout (current kirodex behavior)
+//! - **Stdio**: Communicates with a subprocess via stdin/stdout (current laf-agent behavior)
 //! - **HTTP (SSE)**: Communicates with remote MCP servers via HTTP + Server-Sent Events
 //!
-//! This allows kirodex to support both local CLI-based MCP servers and remote
+//! This allows laf-agent to support both local CLI-based MCP servers and remote
 //! cloud-hosted MCP servers (with OAuth support).
 
 use async_trait::async_trait;
@@ -494,7 +494,7 @@ pub async fn mcp_transport_test(config: TransportConfig) -> Result<String, Strin
             "protocolVersion": "2024-11-05",
             "capabilities": {},
             "clientInfo": {
-                "name": "kirodex",
+                "name": "laf-agent",
                 "version": "0.1.0"
             }
         }

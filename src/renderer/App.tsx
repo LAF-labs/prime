@@ -48,10 +48,11 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useDebugStore } from "@/stores/debugStore";
 import { useDiffStore } from "@/stores/diffStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
-import { useKiroStore, initKiroListeners } from "@/stores/kiroStore";
+import { useResourceStore, initResourceListeners } from "@/stores/resourceStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
 import { useZoomLimit } from "@/hooks/useZoomLimit";
+import { resolveLocale, useI18nStore, useT } from "@/lib/i18n";
 import { UpdateAvailableDialog } from "@/components/UpdateAvailableDialog";
 import { WhatsNewDialog } from "@/components/WhatsNewDialog";
 import { CHANGELOG, isNewerVersion } from "@/lib/changelog";
@@ -87,11 +88,11 @@ const Onboarding = lazy(() =>
 );
 
 function LoginBanner() {
-  const kiroAuth = useSettingsStore((s) => s.kiroAuth);
-  const kiroAuthChecked = useSettingsStore((s) => s.kiroAuthChecked);
+  const agentAuth = useSettingsStore((s) => s.agentAuth);
+  const authChecked = useSettingsStore((s) => s.authChecked);
   const openLogin = useSettingsStore((s) => s.openLogin);
 
-  if (!kiroAuthChecked || kiroAuth) return null;
+  if (!authChecked || agentAuth) return null;
 
   return (
     <div className="mx-auto mb-3 flex w-full max-w-2xl items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 lg:max-w-3xl xl:max-w-4xl">
@@ -99,7 +100,7 @@ function LoginBanner() {
         <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.674 6.674 0 0 0 8 1.333Zm0 10.334a.667.667 0 1 1 0-1.334.667.667 0 0 1 0 1.334ZM8.667 8a.667.667 0 0 1-1.334 0V5.333a.667.667 0 0 1 1.334 0V8Z" fill="currentColor"/>
       </svg>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">Sign in to Kiro to start using AI agents</p>
+        <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">Sign in to Prime Agent to start using AI agents</p>
         <p className="text-[11px] text-amber-600/70 dark:text-amber-400">Authentication is required to create threads and interact with agents</p>
       </div>
       <button
@@ -116,49 +117,50 @@ function LoginBanner() {
 const SHOWCASE_FEATURES = [
   {
     icon: IconLayoutColumns,
-    label: "Side-by-side",
-    description: "Two threads side by side",
+    labelKey: "feature.sideBySide" as const,
+    descKey: "feature.sideBySideDesc" as const,
     color: "text-blue-400",
     bgColor: "bg-blue-500/10",
   },
   {
     icon: IconArrowsShuffle,
-    label: "Spin threads",
-    description: "Fork and branch conversations",
+    labelKey: "feature.spinThreads" as const,
+    descKey: "feature.spinThreadsDesc" as const,
     color: "text-violet-400",
     bgColor: "bg-violet-500/10",
   },
   {
     icon: IconGitBranch,
-    label: "Git worktrees",
-    description: "Isolate each thread in its own branch",
+    labelKey: "feature.worktrees" as const,
+    descKey: "feature.worktreesDesc" as const,
     color: "text-emerald-400",
     bgColor: "bg-emerald-500/10",
   },
   {
     icon: IconGitCompare,
-    label: "Inline diffs",
-    description: "Syntax-highlighted code changes",
+    labelKey: "feature.diffs" as const,
+    descKey: "feature.diffsDesc" as const,
     color: "text-amber-400",
     bgColor: "bg-amber-500/10",
   },
   {
     icon: IconTerminal2,
-    label: "Built-in terminal",
-    description: "Run commands without leaving the app",
+    labelKey: "feature.terminal" as const,
+    descKey: "feature.terminalDesc" as const,
     color: "text-pink-400",
     bgColor: "bg-pink-500/10",
   },
   {
     icon: IconMessageChatbot,
-    label: "Slash commands",
-    description: "/plan, /fork, /btw, /worktree and more",
+    labelKey: "feature.slash" as const,
+    descKey: "feature.slashDesc" as const,
     color: "text-cyan-400",
     bgColor: "bg-cyan-500/10",
   },
 ] as const;
 
 function EmptyState() {
+  const t = useT();
   const projects = useTaskStore((s) => s.projects);
   const hasProjects = projects.length > 0;
 
@@ -178,12 +180,12 @@ function EmptyState() {
         </div>
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground">
-            {hasProjects ? "Start a new thread" : "Open a project to get started"}
+            {hasProjects ? t('empty.startThread') : t('empty.openProject')}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             {hasProjects
-              ? "Pick a project and start chatting with Kiro"
-              : "Point Kirodex at any folder on your machine. The AI agent works directly with your files, runs commands, and helps you build."}
+              ? t('chat.emptyHint')
+              : t('empty.pointHint')}
           </p>
         </div>
         <LoginBanner />
@@ -195,7 +197,7 @@ function EmptyState() {
           {hasProjects ? (
             <>
               <IconPlus size={15} stroke={2} />
-              New Thread
+              {t('empty.newThread')}
             </>
           ) : (
             <>
@@ -218,15 +220,15 @@ function EmptyState() {
           <div className="grid grid-cols-2 gap-2">
             {SHOWCASE_FEATURES.map((feature) => (
               <div
-                key={feature.label}
+                key={feature.labelKey}
                 className="group flex items-start gap-3 rounded-xl border border-border/50 bg-card/50 px-3.5 py-3 transition-colors hover:border-border hover:bg-card"
               >
                 <div className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", feature.bgColor)}>
                   <feature.icon size={16} stroke={1.5} className={cn(feature.color, "transition-transform group-hover:scale-110")} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12.5px] font-medium text-foreground/90">{feature.label}</p>
-                  <p className="text-[11px] leading-snug text-muted-foreground">{feature.description}</p>
+                  <p className="text-[12.5px] font-medium text-foreground/90">{t(feature.labelKey)}</p>
+                  <p className="text-[11px] leading-snug text-muted-foreground">{t(feature.descKey)}</p>
                 </div>
               </div>
             ))}
@@ -290,7 +292,7 @@ export function App() {
   // This sets the html element's font-size which cascades through all rem-based
   // sizing in the app. The CSS variable is kept for components that need it directly.
   useEffect(() => {
-    const size = fontSize ?? 13;
+    const size = fontSize ?? 14;
     document.documentElement.style.setProperty('--app-font-size', `${size}px`);
     document.documentElement.style.fontSize = `${size}px`;
   }, [fontSize]);
@@ -301,6 +303,12 @@ export function App() {
     const resolved = chatFontSize ?? fontSize ?? 15;
     document.documentElement.style.setProperty('--chat-font-size', `${resolved}px`);
   }, [chatFontSize, fontSize]);
+
+  // Keep the i18n locale in sync with the language setting (OS default).
+  const language = useSettingsStore((s) => s.settings.language ?? 'system');
+  useEffect(() => {
+    useI18nStore.getState().setLocale(resolveLocale(language));
+  }, [language]);
 
   // Apply theme and listen for OS preference changes (for 'system' mode)
   useEffect(() => {
@@ -332,7 +340,7 @@ export function App() {
     useSettingsStore.getState().setActiveWorkspace(workspace, operationalWs);
     // Reset mode to default when entering a new/pending thread (no selectedTaskId)
     if (!selectedTaskId) {
-      useSettingsStore.setState({ currentModeId: 'kiro_default' });
+      useSettingsStore.setState({ currentModeId: 'code' });
     }
   }, [selectedTaskId, pendingWorkspace]);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
@@ -439,7 +447,14 @@ export function App() {
         ipc.setDockIcon(base64).catch(() => {});
       }
     });
-    // Pre-warm ACP to get models/modes before user creates a thread
+    // Backfill compat flags on custom providers registered before the
+    // conservative defaults existed — without them, endpoints like Upstage
+    // reject every request with "400 Unrecognized request arguments: store".
+    ipc.repairCustomProviders().catch(() => {});
+    // Web access comes from native provider search + the keyless web_fetch
+    // tool, so the bundled Serper skill would only ask for a key we never use.
+    ipc.disableSerperWebsearch().catch(() => {});
+    // Pre-warm the agent connection to get models before the first thread
     ipc.probeCapabilities().catch(() => {});
     // Purge expired soft-deleted threads every hour
     const purgeInterval = setInterval(() => {
@@ -471,8 +486,8 @@ export function App() {
     };
     window.addEventListener("focus", handleWindowFocus);
     const cleanupTask = initTaskListeners();
-    const cleanupKiro = initKiroListeners();
-    // Begin probing the kiro-cli subprocess so we can show "reconnecting…"
+    const cleanupResources = initResourceListeners();
+    // Begin probing the prime-agent subprocess so we can show "reconnecting…"
     // banners and clear stale latency entries on disconnect.
     const cleanupHealth = startConnectionHealthMonitor();
     // When a `diff.ready` receipt is published (after `turn_end`), refresh
@@ -574,7 +589,7 @@ export function App() {
       clearInterval(autoSaveInterval);
       stopAutoFlush();
       cleanupTask();
-      cleanupKiro();
+      cleanupResources();
       cleanupHealth();
       unsubDiffReceipt();
       if (unlistenNewThread) unlistenNewThread()

@@ -237,13 +237,13 @@ describe('selectTaskIdsForWorkspace', () => {
 describe('selectTaskShell — edge cases', () => {
   it('includes worktreePath and originalWorkspace when present', () => {
     const task = makeTask({
-      worktreePath: '/project/.kiro/worktrees/feature',
+      worktreePath: '/project/.laf-agent/worktrees/feature',
       originalWorkspace: '/project',
       projectId: 'proj-123',
     })
     const state = makeState({ tasks: { 'task-1': task } })
     const shell = selectTaskShell(state, 'task-1')
-    expect(shell?.worktreePath).toBe('/project/.kiro/worktrees/feature')
+    expect(shell?.worktreePath).toBe('/project/.laf-agent/worktrees/feature')
     expect(shell?.originalWorkspace).toBe('/project')
     expect(shell?.projectId).toBe('proj-123')
   })

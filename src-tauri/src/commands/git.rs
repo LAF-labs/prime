@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
-use super::acp::AcpState;
+use super::rpc::AgentState;
 use super::error::AppError;
 use super::settings::SettingsState;
 
@@ -56,7 +56,7 @@ pub struct BranchResult {
     pub branch: String,
 }
 
-fn resolve_workspace(state: &AcpState, task_id: &str) -> Result<String, AppError> {
+fn resolve_workspace(state: &AgentState, task_id: &str) -> Result<String, AppError> {
     let tasks = state.tasks.lock();
     tasks
         .get(task_id)
@@ -247,7 +247,7 @@ pub fn git_commit(
     let parent = repo.head()?.peel_to_commit()?;
     let co_author = settings_state.0.lock().settings.co_author;
     let message = if co_author {
-        format!("{message}\n\nCo-authored-by: Kirodex <274876363+kirodex@users.noreply.github.com>")
+        format!("{message}\n\nCo-authored-by: LAF Agent <laf-agent@users.noreply.github.com>")
     } else {
         message
     };
@@ -284,7 +284,7 @@ pub fn git_fetch(cwd: String) -> Result<String, AppError> {
 
 #[tauri::command]
 pub fn git_stage(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     file_path: String,
 ) -> Result<String, AppError> {
@@ -298,7 +298,7 @@ pub fn git_stage(
 
 #[tauri::command]
 pub fn git_revert(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     file_path: String,
 ) -> Result<String, AppError> {
@@ -330,7 +330,7 @@ pub fn git_revert(
 }
 
 #[tauri::command]
-pub fn task_diff(state: tauri::State<'_, AcpState>, task_id: String) -> Result<String, AppError> {
+pub fn task_diff(state: tauri::State<'_, AgentState>, task_id: String) -> Result<String, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
     let repo = Repository::open(&cwd)?;
 
@@ -471,7 +471,7 @@ pub fn git_staged_stats(cwd: String) -> Result<GitDiffStats, AppError> {
 /// avoiding a duplicate string-parse pass over the diff body.
 #[tauri::command]
 pub fn task_diff_stats(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<GitDiffStats, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
@@ -628,7 +628,7 @@ pub fn git_commit_files(
     let parent = repo.head()?.peel_to_commit()?;
     let co_author = settings_state.0.lock().settings.co_author;
     let message = if co_author {
-        format!("{message}\n\nCo-authored-by: Kirodex <274876363+kirodex@users.noreply.github.com>")
+        format!("{message}\n\nCo-authored-by: LAF Agent <laf-agent@users.noreply.github.com>")
     } else {
         message
     };
@@ -708,7 +708,7 @@ pub fn git_remote_url(cwd: String) -> Result<String, AppError> {
 
 #[tauri::command]
 pub fn git_diff_file(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
     file_path: String,
 ) -> Result<String, AppError> {
@@ -784,7 +784,7 @@ pub fn git_worktree_create(cwd: String, slug: String) -> Result<WorktreeResult, 
     validate_worktree_slug(&slug)?;
     let cwd_path = Path::new(&cwd);
     // Reject creating a worktree from inside another worktree (check first, before fs access)
-    if cwd.contains("/.kiro/worktrees/") {
+    if cwd.contains("/.laf-agent/worktrees/") {
         return Err(AppError::Other("Cannot create a worktree from inside another worktree. Use the project root.".to_string()));
     }
     // Validate cwd is a real directory
@@ -793,7 +793,7 @@ pub fn git_worktree_create(cwd: String, slug: String) -> Result<WorktreeResult, 
     }
     // Validate cwd is a git repository
     Repository::discover(&cwd).map_err(|_| AppError::Other(format!("Not a git repository: {cwd}")))?;
-    let worktree_dir = cwd_path.join(".kiro").join("worktrees").join(&slug);
+    let worktree_dir = cwd_path.join(".laf-agent").join("worktrees").join(&slug);
     let worktree_path = worktree_dir.to_string_lossy().to_string();
     let branch = format!("worktree-{slug}");
     let output = Command::new("git")
@@ -814,7 +814,7 @@ pub fn git_worktree_remove(cwd: String, worktree_path: String) -> Result<(), App
         return Err(AppError::Other(format!("Workspace is not a directory: {cwd}")));
     }
     Repository::discover(&cwd).map_err(|_| AppError::Other(format!("Not a git repository: {cwd}")))?;
-    // Validate worktree_path is under the cwd's .kiro/worktrees/ directory
+    // Validate worktree_path is under the cwd's .laf-agent/worktrees/ directory
     if let (Ok(canonical_cwd), Ok(canonical_wt)) = (
         Path::new(&cwd).canonicalize(),
         Path::new(&worktree_path).canonicalize(),
@@ -945,8 +945,8 @@ pub fn git_worktree_setup(
             }
         }
     }
-    // Ensure .kiro/worktrees/ is in .gitignore
-    ensure_gitignore_entry(&cwd_path, ".kiro/worktrees/")?;
+    // Ensure .laf-agent/worktrees/ is in .gitignore
+    ensure_gitignore_entry(&cwd_path, ".laf-agent/worktrees/")?;
     Ok(WorktreeSetupResult { symlink_count, copied_files })
 }
 
@@ -1076,37 +1076,37 @@ mod tests {
     #[test]
     fn ensure_gitignore_creates_file_if_missing() {
         let dir = tempfile::tempdir().unwrap();
-        ensure_gitignore_entry(dir.path(), ".kiro/worktrees/").unwrap();
+        ensure_gitignore_entry(dir.path(), ".laf-agent/worktrees/").unwrap();
         let content = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
-        assert_eq!(content, ".kiro/worktrees/\n");
+        assert_eq!(content, ".laf-agent/worktrees/\n");
     }
 
     #[test]
     fn ensure_gitignore_appends_if_not_present() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join(".gitignore"), "node_modules/\n").unwrap();
-        ensure_gitignore_entry(dir.path(), ".kiro/worktrees/").unwrap();
+        ensure_gitignore_entry(dir.path(), ".laf-agent/worktrees/").unwrap();
         let content = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
         assert!(content.contains("node_modules/"));
-        assert!(content.contains(".kiro/worktrees/"));
+        assert!(content.contains(".laf-agent/worktrees/"));
     }
 
     #[test]
     fn ensure_gitignore_skips_if_already_present() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join(".gitignore"), ".kiro/worktrees/\n").unwrap();
-        ensure_gitignore_entry(dir.path(), ".kiro/worktrees/").unwrap();
+        std::fs::write(dir.path().join(".gitignore"), ".laf-agent/worktrees/\n").unwrap();
+        ensure_gitignore_entry(dir.path(), ".laf-agent/worktrees/").unwrap();
         let content = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
-        assert_eq!(content.matches(".kiro/worktrees/").count(), 1);
+        assert_eq!(content.matches(".laf-agent/worktrees/").count(), 1);
     }
 
     #[test]
     fn ensure_gitignore_handles_no_trailing_newline() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join(".gitignore"), "node_modules/").unwrap();
-        ensure_gitignore_entry(dir.path(), ".kiro/worktrees/").unwrap();
+        ensure_gitignore_entry(dir.path(), ".laf-agent/worktrees/").unwrap();
         let content = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
-        assert_eq!(content, "node_modules/\n.kiro/worktrees/\n");
+        assert_eq!(content, "node_modules/\n.laf-agent/worktrees/\n");
     }
 
     #[test]
@@ -1128,7 +1128,7 @@ mod tests {
     #[test]
     fn worktree_create_rejects_worktree_path_as_cwd() {
         let result = git_worktree_create(
-            "/project/.kiro/worktrees/feat".to_string(),
+            "/project/.laf-agent/worktrees/feat".to_string(),
             "new-branch".to_string(),
         );
         assert!(result.is_err());

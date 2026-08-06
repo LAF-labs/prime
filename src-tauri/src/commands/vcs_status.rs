@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn vcs_status_works_on_real_repo() {
-        // This test runs against the kirodex repo itself
+        // This test runs against the laf-agent repo itself
         let cwd = env!("CARGO_MANIFEST_DIR").to_string();
         let result = git_vcs_status(cwd);
         // Should succeed on any git repo

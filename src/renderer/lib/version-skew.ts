@@ -1,16 +1,16 @@
 /**
  * Version skew detection.
  *
- * Detects mismatches between the kirodex app version and the kiro-cli version.
+ * Detects mismatches between the laf-agent app version and the prime-agent version.
  * Shows a dismissible warning when versions are incompatible.
  */
 
-const DISMISSED_KEY = 'kirodex-version-skew-dismissed'
+const DISMISSED_KEY = 'laf-agent-version-skew-dismissed'
 
 export interface VersionSkewInfo {
-  /** The app (kirodex) version */
+  /** The app (laf-agent) version */
   appVersion: string
-  /** The CLI (kiro-cli) version */
+  /** The CLI (prime-agent) version */
   cliVersion: string
   /** Whether the versions are compatible */
   isCompatible: boolean
@@ -42,7 +42,7 @@ export function checkVersionSkew(appVersion: string, cliVersion: string): Versio
       appVersion,
       cliVersion,
       isCompatible: false,
-      message: `kirodex v${appVersion} requires kiro-cli v${appParts.major}.x but found v${cliVersion}. Please update.`,
+      message: `laf-agent v${appVersion} requires prime-agent v${appParts.major}.x but found v${cliVersion}. Please update.`,
     }
   }
 
@@ -52,7 +52,7 @@ export function checkVersionSkew(appVersion: string, cliVersion: string): Versio
       appVersion,
       cliVersion,
       isCompatible: true,
-      message: `kiro-cli v${cliVersion} may be outdated. Consider updating to v${appVersion} for best compatibility.`,
+      message: `prime-agent v${cliVersion} may be outdated. Consider updating to v${appVersion} for best compatibility.`,
     }
   }
 
@@ -62,7 +62,7 @@ export function checkVersionSkew(appVersion: string, cliVersion: string): Versio
       appVersion,
       cliVersion,
       isCompatible: true,
-      message: `kiro-cli v${cliVersion} is newer than kirodex v${appVersion}. Consider updating the app.`,
+      message: `prime-agent v${cliVersion} is newer than laf-agent v${appVersion}. Consider updating the app.`,
     }
   }
 

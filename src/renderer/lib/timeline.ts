@@ -338,7 +338,7 @@ export function deriveTimeline(
     const msg = messages[i]
 
     // Skip btw/tangent messages — they only render in the BtwOverlay
-    if (msg.content.includes('<kirodex_tangent>')) {
+    if (msg.content.includes('<laf-agent_tangent>')) {
       inTangent = true
       continue
     }

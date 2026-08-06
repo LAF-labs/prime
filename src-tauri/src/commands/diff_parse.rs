@@ -13,7 +13,7 @@
 use git2::{DiffOptions, Repository};
 use serde::Serialize;
 
-use super::acp::AcpState;
+use super::rpc::AgentState;
 use super::error::AppError;
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -221,7 +221,7 @@ fn parse_git_diff(diff: &git2::Diff<'_>) -> Result<ParsedDiff, AppError> {
 /// replacement for the renderer's `parsePatchFiles(getTaskDiff(taskId))` call.
 #[tauri::command]
 pub fn task_diff_structured(
-    state: tauri::State<'_, AcpState>,
+    state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<ParsedDiff, AppError> {
     let cwd = {

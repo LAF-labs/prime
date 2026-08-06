@@ -178,13 +178,13 @@ mod tests {
 
     #[test]
     fn parse_ps_output_basic() {
-        let output = "  PID  PPID STAT  %CPU   RSS     ELAPSED COMMAND\n  123   100 S      1.2  4096    00:05:30 /usr/bin/kiro-cli chat\n  456   123 S      0.0  2048    00:01:00 node --max-old-space-size=4096\n";
+        let output = "  PID  PPID STAT  %CPU   RSS     ELAPSED COMMAND\n  123   100 S      1.2  4096    00:05:30 /usr/bin/prime-agent chat\n  456   123 S      0.0  2048    00:01:00 node --max-old-space-size=4096\n";
         let entries = parse_ps_output(output);
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].pid, 123);
         assert_eq!(entries[0].ppid, 100);
         assert!((entries[0].rss_mb - 4.0).abs() < 0.01);
-        assert!(entries[0].command.contains("kiro-cli"));
+        assert!(entries[0].command.contains("prime-agent"));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 {
-  "productName": "Kirodex",
+  "productName": "LAF Agent",
   "bundle": {
     "createUpdaterArtifacts": "v1Compatible",
     "icon": ["icons/prod/icon.png", "icons/prod/icon.icns", "icons/prod/icon.ico"]

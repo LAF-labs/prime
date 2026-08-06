@@ -7,15 +7,15 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { useKiroStore } from '@/stores/kiroStore'
+import { useResourceStore } from '@/stores/resourceStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useDebugStore } from '@/stores/debugStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { ipc } from '@/lib/ipc'
-import type { KiroMcpServer } from '@/types'
-import { type ViewerState, SourceDot } from './kiro-config-helpers'
+import type { McpServerConfig } from '@/types'
+import { type ViewerState, SourceDot } from './resource-helpers'
 
-export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcpServer; onOpen: (v: ViewerState) => void }) {
+export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServerConfig; onOpen: (v: ViewerState) => void }) {
   const [expanded, setExpanded] = useState(false)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   const [removing, setRemoving] = useState(false)
@@ -23,7 +23,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcp
   const ctxRef = useRef<HTMLDivElement>(null)
 
   const liveMcp = useSettingsStore((s) => s.liveMcpServers.find((m) => m.name === server.name))
-  const kiroBin = useSettingsStore((s) => s.settings.kiroBin)
+  const agentBin = useSettingsStore((s) => s.settings.agentBin)
   const commands = useSettingsStore((s) => s.availableCommands)
   const activeWorkspace = useTaskStore((s) => {
     const id = s.selectedTaskId
@@ -119,17 +119,17 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcp
 
   const handleToggleEnabled = useCallback(() => {
     setCtxMenu(null)
-    useKiroStore.getState().toggleMcpServer(server.name, server.enabled)
+    useResourceStore.getState().toggleMcpServer(server.name, server.enabled)
   }, [server.name, server.enabled])
 
   const handleDisableAllTools = useCallback(() => {
     setCtxMenu(null)
-    useKiroStore.getState().setMcpDisabledTools(server.name, ['*'])
+    useResourceStore.getState().setMcpDisabledTools(server.name, ['*'])
   }, [server.name])
 
   const handleEnableAllTools = useCallback(() => {
     setCtxMenu(null)
-    useKiroStore.getState().setMcpDisabledTools(server.name, [])
+    useResourceStore.getState().setMcpDisabledTools(server.name, [])
   }, [server.name])
 
   const handleShowLogs = useCallback(() => {
@@ -139,8 +139,8 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcp
   }, [server.name])
 
   /**
-   * Open the OAuth URL the kiro-cli emitted via the
-   * `kiro.dev/mcp/oauth_request` notification. Per the docs, mid-session token
+   * Open the OAuth URL the prime-agent emitted via the
+   * `agent.dev/mcp/oauth_request` notification. Per the docs, mid-session token
    * refresh is automatic, but the very first sign-in needs a click to open the
    * provider's authorization page.
    */
@@ -158,7 +158,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcp
   }, [server.oauthUrl])
 
   /**
-   * Remove the server through `kiro-cli mcp remove`. Going through the CLI
+   * Remove the server through `prime-agent mcp remove`. Going through the CLI
    * keeps registry-mode governance intact and produces the same audit trail
    * the user would get from the terminal.
    *
@@ -187,16 +187,16 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcp
       await ipc.mcpRemoveServer(
         { name: server.name, scope },
         activeWorkspace ?? undefined,
-        kiroBin,
+        agentBin,
       )
       toast.success(`Removed "${server.name}"`)
-      // The kiro_watcher will refresh the panel automatically.
+      // The resource_watcher will refresh the panel automatically.
     } catch (e) {
       toast.error('Could not remove server', { description: e instanceof Error ? e.message : String(e) })
     } finally {
       setRemoving(false)
     }
-  }, [removing, confirmRemove, server.name, server.source, activeWorkspace, kiroBin])
+  }, [removing, confirmRemove, server.name, server.source, activeWorkspace, agentBin])
 
   const handleToggleTool = useCallback((toolName: string) => {
     const current = server.disabledTools ?? []
@@ -211,7 +211,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: KiroMcp
     } else {
       next = [...current, toolName]
     }
-    useKiroStore.getState().setMcpDisabledTools(server.name, next)
+    useResourceStore.getState().setMcpDisabledTools(server.name, next)
   }, [server.name, server.disabledTools, serverTools])
 
   const handleRowClick = useCallback(() => {

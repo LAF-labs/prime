@@ -10,7 +10,7 @@ interface OnboardingThemeStepProps {
 }
 
 export const OnboardingThemeStep = ({ themeChoice, onThemeChange, onNext }: OnboardingThemeStepProps) => (
-  <div className="flex w-full max-w-md flex-col items-center gap-8">
+  <div className="flex w-full flex-col items-center gap-8">
     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
       <IconPaint size={32} stroke={1.5} className="text-primary" />
     </div>

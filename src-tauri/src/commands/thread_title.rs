@@ -2,13 +2,13 @@
 //!
 //! After the first turn completes, the frontend calls this command to generate
 //! a concise 3–8 word title from the user's initial message. Uses the same
-//! `kiro-cli chat --no-interactive` one-shot pattern as commit message
+//! `prime-agent chat --no-interactive` one-shot pattern as commit message
 //! generation.
 
 use serde::{Deserialize, Serialize};
 
 use super::error::AppError;
-use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_kiro_oneshot};
+use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_agent_oneshot};
 use super::settings::SettingsState;
 
 /// Maximum title length in characters.
@@ -31,18 +31,19 @@ struct TitleModelOutput {
 /// Tauri command — generate a thread title from the user's first message.
 #[tauri::command]
 pub async fn generate_thread_title(
+    app: tauri::AppHandle,
     settings_state: tauri::State<'_, SettingsState>,
     message: String,
     workspace: String,
 ) -> Result<GeneratedThreadTitle, AppError> {
-    let (kiro_bin, custom_instructions) = {
+    let (agent_bin, custom_instructions) = {
         let settings = settings_state.0.lock();
         let instructions = settings.settings.project_prefs
             .as_ref()
             .and_then(|p| p.get(&workspace))
             .and_then(|pp| pp.text_generation_policy.as_ref())
             .and_then(|pol| pol.thread_title_instructions.clone());
-        (settings.settings.kiro_bin.clone(), instructions)
+        (settings.settings.agent_bin.clone(), instructions)
     };
 
     if message.trim().is_empty() {
@@ -52,7 +53,8 @@ pub async fn generate_thread_title(
     }
 
     let prompt = build_title_prompt(&message, custom_instructions.as_deref());
-    let raw_output = run_kiro_oneshot(&kiro_bin, &workspace, &prompt).await?;
+    let launch = crate::commands::agent_launch::resolve(&app, &agent_bin);
+    let raw_output = run_agent_oneshot(&launch, &workspace, &prompt).await?;
     let parsed = parse_title_response(&raw_output)?;
     Ok(sanitize_title(parsed))
 }
@@ -119,7 +121,7 @@ fn build_title_prompt(message: &str, custom_instructions: Option<&str>) -> Strin
 
 fn parse_title_response(raw: &str) -> Result<TitleModelOutput, AppError> {
     // Prefer a JSON object that actually contains `"title"` so we skip past
-    // any chrome-printed brace blocks (e.g. `{MCPSERVERNAME}` in a kiro-cli
+    // any chrome-printed brace blocks (e.g. `{MCPSERVERNAME}` in a prime-agent
     // warning). Falls back to any valid JSON, then to the first balanced
     // block for diagnostic preview text.
     let block = extract_json_object_with_key(raw, "title")
@@ -238,8 +240,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_title_response_skips_kiro_cli_warning_brace_block() {
-        // Regression: real kiro-cli output prints a `{MCPSERVERNAME}` token
+    fn parse_title_response_skips_agent_cli_warning_brace_block() {
+        // Regression: real prime-agent output prints a `{MCPSERVERNAME}` token
         // in a `--trust-tools` warning before the actual JSON answer. The
         // previous parser latched onto that and failed every title gen.
         let raw = "WARNING: --trust-tools arg for custom tool needs to be \

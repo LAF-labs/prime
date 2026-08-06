@@ -1,4 +1,4 @@
-import { useState, useCallback, type RefObject } from 'react'
+import { useMemo, useState, useCallback, type RefObject } from 'react'
 import type { ProjectFile } from '@/types'
 
 interface UseFileMentionOptions {
@@ -68,7 +68,11 @@ export function useFileMention({ textareaRef, value, setValue, initialMentionedF
   const incrementMentionIndex = useCallback(() => setMentionIndex((i) => i + 1), [])
   const decrementMentionIndex = useCallback(() => setMentionIndex((i) => Math.max(0, i - 1)), [])
 
-  return {
+  // Returned as one stable object: consumers depend on the bag itself in
+  // their hook dependency arrays, so its identity may only change when a
+  // member does — a fresh literal every render would silently re-create
+  // every callback built on it.
+  return useMemo(() => ({
     mentionTrigger,
     mentionIndex,
     mentionedFiles,
@@ -80,5 +84,9 @@ export function useFileMention({ textareaRef, value, setValue, initialMentionedF
     dismissMention,
     incrementMentionIndex,
     decrementMentionIndex,
-  } as const
+  } as const), [
+    mentionTrigger, mentionIndex, mentionedFiles, detectMentionTrigger,
+    handleSelectFile, handleRemoveMention, addMentionedFile, clearMentions,
+    dismissMention, incrementMentionIndex, decrementMentionIndex,
+  ])
 }

@@ -90,10 +90,16 @@ export const MessageList = memo(function MessageList({
   // Save scroll position on unmount (e.g., switching to dashboard/analytics)
   useEffect(() => {
     return () => {
-      // Cancel any in-flight scroll retry loop
+      // Deliberately the refs' values at unmount: the whole purpose is to
+      // save where the user *ended up*, for whichever thread was last shown.
+      // Capturing at mount would save a stale position for a stale thread.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- latest-at-unmount is the point
       scrollGenRef.current++
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- ditto
       const id = prevTaskIdRef.current
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- ditto
       if (id && parentRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- ditto
         useTaskStore.getState().saveScrollPosition(id, parentRef.current.scrollTop)
       }
     }

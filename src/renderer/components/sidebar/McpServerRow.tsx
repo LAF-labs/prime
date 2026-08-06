@@ -233,14 +233,12 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
       <li className="flex flex-col min-w-0">
         <Tooltip>
           <TooltipTrigger asChild>
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               onClick={handleRowClick}
               onContextMenu={handleContextMenu}
-              onKeyDown={(e) => e.key === 'Enter' && handleRowClick()}
               className={cn(
-                'flex h-6 min-w-0 w-full items-center gap-1.5 rounded-md px-1.5 text-[11px] cursor-pointer',
+                'flex h-6 min-w-0 w-full items-center gap-1.5 rounded-md bg-transparent px-1.5 text-left text-[11px] cursor-pointer',
                 'text-muted-foreground/80 hover:bg-accent/50 hover:text-foreground transition-colors',
                 !server.enabled && 'opacity-60',
               )}
@@ -267,7 +265,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
               )}
               {statusIcon}
               <SourceDot source={server.source} />
-            </div>
+            </button>
           </TooltipTrigger>
           <TooltipContent side="right" className="max-w-[260px]">
             <p className="text-[11px] font-medium">{server.name}</p>

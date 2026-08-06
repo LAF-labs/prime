@@ -60,8 +60,8 @@ export const getRoleIcon = (name: string): { icon: ElementType; color: string } 
 // Stack icons + colors used by AgentStackGroup
 export { IconRobot } from '@tabler/icons-react'
 import {
-  IconStack2, IconDatabase, IconWorld, IconTerminal,
-  IconBoxMultiple, IconCpu,
+  IconStack2, IconDatabase, IconWorld,
+  IconBoxMultiple,
   IconBrandNextjs, IconBrandLaravel, IconBrandPython, IconBrandSwift,
   IconBrandReactNative, IconBrandNodejs, IconBrandDocker,
 } from '@tabler/icons-react'

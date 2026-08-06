@@ -70,7 +70,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
     for (const file of attachmentsBag.droppedFiles) {
       mentionBag.addMentionedFile(file)
     }
-  }, [attachmentsBag.droppedFiles, mentionBag.addMentionedFile])
+  }, [attachmentsBag.droppedFiles, mentionBag])
 
   // ── Track Shift key for raw paste (Cmd+Shift+V) ────────────────
   const isShiftHeldRef = useRef(false)
@@ -282,9 +282,11 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
   }, [])
 
   const slashQuery = slashTrigger?.query ?? ''
-  const filteredCmds = slashTrigger
-    ? (slashQuery ? commands.filter((c) => c.name.replace(/^\/+/, '').toLowerCase().startsWith(slashQuery.toLowerCase())) : commands)
-    : []
+  const filteredCmds = useMemo(() => (
+    slashTrigger
+      ? (slashQuery ? commands.filter((c) => c.name.replace(/^\/+/, '').toLowerCase().startsWith(slashQuery.toLowerCase())) : commands)
+      : []
+  ), [slashTrigger, slashQuery, commands])
   const showPicker = slashTrigger !== null && filteredCmds.length > 0 && !panel
   const showInlinePicker = inlineCommand !== null && !panel && !showPicker
   const showFilePicker = mentionBag.mentionTrigger !== null && !showPicker && !showInlinePicker && !panel
@@ -304,7 +306,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
     resize()
     detectSlashTrigger(newValue, cursor)
     mentionBag.detectMentionTrigger(newValue, cursor)
-  }, [resize, detectSlashTrigger, mentionBag.detectMentionTrigger])
+  }, [resize, detectSlashTrigger, mentionBag])
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim()
@@ -599,7 +601,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
     const cursor = el.selectionStart ?? el.value.length
     detectSlashTrigger(el.value, cursor)
     mentionBag.detectMentionTrigger(el.value, cursor)
-  }, [showPicker, showFilePicker, detectSlashTrigger, mentionBag.detectMentionTrigger])
+  }, [showPicker, showFilePicker, detectSlashTrigger, mentionBag])
 
   // ── Auto-insert [Image filename] when images are added ───────
   const prevAttachmentCountRef = useRef(
@@ -625,7 +627,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
   const handlePaste = useCallback((e: ClipboardEvent) => {
     handleTextPaste(e)
     if (!e.defaultPrevented) attachmentsBag.handlePaste(e)
-  }, [handleTextPaste, attachmentsBag.handlePaste])
+  }, [handleTextPaste, attachmentsBag])
 
   return {
     // Text state
@@ -665,7 +667,7 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
         prevAttachmentCountRef.current = Math.max(0, prevAttachmentCountRef.current - 1)
       }
       attachmentsBag.handleRemoveAttachment(id)
-    }, [attachmentsBag.attachments, attachmentsBag.handleRemoveAttachment]),
+    }, [attachmentsBag]),
     handleFilePickerClick: attachmentsBag.handleFilePickerClick,
     handleFileInputChange: attachmentsBag.handleFileInputChange,
     clearAttachments: attachmentsBag.clearAttachments,

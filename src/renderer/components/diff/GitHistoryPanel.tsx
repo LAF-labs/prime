@@ -6,7 +6,7 @@ import { t } from '@/lib/i18n'
  */
 import { memo, useEffect, useState, useCallback } from 'react'
 import {
-  IconGitCommit, IconRefresh, IconChevronDown, IconChevronUp,
+  IconGitCommit, IconRefresh, IconChevronDown,
   IconArrowBackUp, IconLoader2, IconArchive,
 } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
@@ -54,7 +54,6 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
   const [commits, setCommits] = useState<CommitEntry[]>([])
   const [stashes, setStashes] = useState<StashEntry[]>([])
   const [loading, setLoading] = useState(false)
-  const [expandedOid, setExpandedOid] = useState<string | null>(null)
   const [showStashes, setShowStashes] = useState(false)
 
   const fetchHistory = useCallback(async () => {
@@ -89,14 +88,6 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
     if (!workspace) return
     try {
       await ipc.gitStashPop(workspace, index)
-      void fetchHistory()
-    } catch { /* ignore */ }
-  }, [workspace, fetchHistory])
-
-  const handleStashDrop = useCallback(async (index: number) => {
-    if (!workspace) return
-    try {
-      await ipc.gitStashDrop(workspace, index)
       void fetchHistory()
     } catch { /* ignore */ }
   }, [workspace, fetchHistory])

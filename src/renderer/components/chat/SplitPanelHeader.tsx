@@ -43,6 +43,7 @@ export const SplitPanelHeader = memo(function SplitPanelHeader({
 
   return (
     <div
+      // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- header row contains a nested close <button>; nested buttons are invalid HTML
       role="button"
       tabIndex={0}
       aria-label={`Focus ${taskName} panel`}

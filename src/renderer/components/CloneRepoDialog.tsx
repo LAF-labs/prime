@@ -125,7 +125,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3 px-6 pb-2" onKeyDown={handleKeyDown}>
+        <div role="presentation" className="flex flex-col gap-3 px-6 pb-2" onKeyDown={handleKeyDown}>
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="clone-url"

@@ -807,7 +807,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
     }),
 
-  updateCompactionStatus: (taskId, status, summary) => {
+  updateCompactionStatus: (taskId, status, _summary) => {
     set((state) => {
       const task = state.tasks[taskId]
       if (!task) return state

@@ -144,8 +144,6 @@ const EMOJI_CATEGORIES = [
   },
 ] as const
 
-type EmojiCategoryLabel = (typeof EMOJI_CATEGORIES)[number]['label']
-
 const EMOJI_KEYWORDS: Record<string, readonly string[]> = {
   // Dev & Tech
   '💻': ['laptop', 'computer', 'dev', 'code'],

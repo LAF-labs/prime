@@ -14,12 +14,11 @@ import { useResizeHandle } from '@/hooks/useResizeHandle'
 import { useModifierKeys } from '@/hooks/useModifierKeys'
 import { useMenuPosition } from '@/hooks/useMenuPosition'
 import { ProjectItem } from './ProjectItem'
-import { SplitThreadPicker } from '@/components/chat/SplitThreadPicker'
 import { SidebarFooter } from './SidebarFooter'
 
 const IS_MAC = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('mac')
 
-const NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight: boolean }) {
+const _NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight: boolean }) {
   const navIndex = useTaskStore((s) => s.navIndex)
   const navHistoryLen = useTaskStore((s) => s.navHistory.length)
   const navBack = useTaskStore((s) => s.navBack)
@@ -111,7 +110,7 @@ const SortDropdown = memo(function SortDropdown({ sort, onChange }: { sort: Sort
       </Tooltip>
       {open && (
         <>
-          <div className="fixed inset-0 z-[199]" onClick={() => setOpen(false)} />
+          <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setOpen(false)} />
           <div ref={dropRef} className="fixed z-[200] min-w-[130px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: pos.top, left: pos.left }}>
             {SORT_OPTIONS.map((opt) => (
               <button key={opt.key} type="button"
@@ -178,7 +177,7 @@ const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub 
       </Tooltip>
       {open && (
         <>
-          <div className="fixed inset-0 z-[199]" onClick={() => setOpen(false)} />
+          <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setOpen(false)} />
           <div ref={dropRef} className="fixed z-[200] min-w-[180px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: pos.top, left: pos.left }}>
             <button
               type="button"
@@ -293,9 +292,10 @@ const SplitViewsList = memo(function SplitViewsList() {
       </ul>
       {ctxMenu && (
         <>
-          <div className="fixed inset-0 z-[299]" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null) }} />
+          <div role="presentation" className="fixed inset-0 z-[299]" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null) }} />
           <div
             ref={ctxRef}
+            role="presentation"
             className="fixed z-[300] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg"
             style={{ left: ctxMenu.x, top: ctxMenu.y }}
             onMouseDown={(e) => e.stopPropagation()}
@@ -428,7 +428,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
   useMenuPosition(sidebarCtxRef, ctxMenu)
   const isMetaHeld = useModifierKeys()
 
-  const { selectedTaskId, pendingWorkspace, lastAddedProject, setSelectedTask, setView, setNewProjectOpen, removeTask, removeProject, archiveThreads, renameTask, reorderProject, reorderThread, clearLastAddedProject } = useTaskStore(
+  const { selectedTaskId, pendingWorkspace, lastAddedProject, setSelectedTask, setView, setNewProjectOpen, removeTask, removeProject, archiveThreads, renameTask, reorderProject, reorderThread } = useTaskStore(
     useShallow((s) => ({
       selectedTaskId: s.selectedTaskId,
       pendingWorkspace: s.pendingWorkspace,
@@ -442,7 +442,6 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       renameTask: s.renameTask,
       reorderProject: s.reorderProject,
       reorderThread: s.reorderThread,
-      clearLastAddedProject: s.clearLastAddedProject,
     }))
   )
 
@@ -573,7 +572,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       )}
       {ctxMenu && (
         <>
-          <div className="fixed inset-0 z-[199]" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null) }} />
+          <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null) }} />
           <div ref={sidebarCtxRef} className="fixed z-[200] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: ctxMenu.y, left: ctxMenu.x }}>
             <button type="button" onClick={handleSwitchSide} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground hover:bg-accent transition-colors">
               {isRight ? <IconLayoutSidebarLeftCollapse className="size-3.5" /> : <IconLayoutSidebarRightCollapse className="size-3.5" />}

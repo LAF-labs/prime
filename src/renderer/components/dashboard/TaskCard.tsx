@@ -43,6 +43,7 @@ export const TaskCard = memo(function TaskCard({ task }: { task: AgentTask }) {
 
   return (
     <Card
+      // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- Card renders a <div> with block-level children, which are invalid inside a <button>
       role="button"
       tabIndex={0}
       data-testid="task-card"

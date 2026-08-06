@@ -24,7 +24,6 @@ export const PillsRow = memo(function PillsRow({ mentionedFiles, nonImageAttachm
   const totalCount = mentionedFiles.length + nonImageAttachments.length + pastedChunks.length + folderPaths.length
   const [isExpanded, setIsExpanded] = useState(false)
   const isCollapsible = totalCount > PILLS_COLLAPSE_THRESHOLD
-  const showAll = !isCollapsible || isExpanded
 
   const handleToggle = useCallback(() => setIsExpanded((v) => !v), [])
 

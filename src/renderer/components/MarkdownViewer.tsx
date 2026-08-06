@@ -113,7 +113,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
 }: MarkdownViewerProps) {
   const components = useMemo<Components>(
     () => ({
-      h1({ node, children, ...props }) {
+      h1({ node: _node, children, ...props }) {
         const text = nodeToPlainText(children)
         const id = slugify(text)
         return (
@@ -122,7 +122,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </h1>
         )
       },
-      h2({ node, children, ...props }) {
+      h2({ node: _node, children, ...props }) {
         const text = nodeToPlainText(children)
         const id = slugify(text)
         return (
@@ -131,7 +131,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </h2>
         )
       },
-      h3({ node, children, ...props }) {
+      h3({ node: _node, children, ...props }) {
         const text = nodeToPlainText(children)
         const id = slugify(text)
         return (
@@ -140,7 +140,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </h3>
         )
       },
-      h4({ node, children, ...props }) {
+      h4({ node: _node, children, ...props }) {
         const text = nodeToPlainText(children)
         const id = slugify(text)
         return (
@@ -149,7 +149,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </h4>
         )
       },
-      pre({ node, children, ...props }) {
+      pre({ node: _node, children, ...props }) {
         const block = extractCodeBlock(children)
         if (!block) return <pre {...props}>{children}</pre>
         const lang = extractLanguage(block.className)
@@ -167,7 +167,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </div>
         )
       },
-      code({ node, className: codeClassName, children, ...props }) {
+      code({ node: _node, className: codeClassName, children, ...props }) {
         if (codeClassName?.startsWith('language-'))
           return (
             <code className={codeClassName} {...props}>
@@ -183,14 +183,13 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </code>
         )
       },
-      a({ node, href, children, ...props }) {
+      a({ node: _node, href, children, ...props }) {
         return (
           <a
             href={href}
             onClick={handleExternalLinkClick}
             onKeyDown={handleExternalLinkKeyDown}
             tabIndex={0}
-            role="link"
             className="text-primary underline decoration-primary/30 underline-offset-2 transition-colors hover:decoration-primary/60"
             {...props}
           >
@@ -198,7 +197,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           </a>
         )
       },
-      input({ node, type, checked, ...props }) {
+      input({ node: _node, type, checked, ...props }) {
         if (type === 'checkbox') {
           return (
             <span className="mr-1.5 inline-flex align-text-bottom">
@@ -212,14 +211,14 @@ const MarkdownViewer = memo(function MarkdownViewer({
         }
         return <input type={type} checked={checked} {...props} />
       },
-      table({ node, children, ...props }) {
+      table({ node: _node, children, ...props }) {
         return (
           <div className="my-3 overflow-x-auto rounded-lg border border-border/50">
             <table className="w-full" {...props}>{children}</table>
           </div>
         )
       },
-      img({ node, src, alt, ...props }) {
+      img({ node: _node, src, alt, ...props }) {
         return (
           <img
             src={src}
@@ -230,7 +229,7 @@ const MarkdownViewer = memo(function MarkdownViewer({
           />
         )
       },
-      hr({ node, ...props }) {
+      hr({ node: _node, ...props }) {
         return <hr className="my-6 border-border/50" {...props} />
       },
     }),

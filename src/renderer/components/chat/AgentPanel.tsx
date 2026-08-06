@@ -62,7 +62,7 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
       }
     }
     onDismiss()
-  }, [onDismiss, resolvedTaskId])
+  }, [onDismiss, resolvedTaskId, currentModeId])
 
   const formatName = (name: string): string => name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
@@ -111,7 +111,10 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
     <PanelShell onDismiss={onDismiss}>
       {hasSearch && (
         <div className="px-3 pb-1">
-          <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search agents & servers…')} autoFocus className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" />
+          <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search agents & servers…')}
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus inside a just-opened popover panel
+            autoFocus
+            className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" />
         </div>
       )}
       {filteredBuiltIn.length > 0 && (

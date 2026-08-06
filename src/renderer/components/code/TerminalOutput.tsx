@@ -10,6 +10,7 @@ interface TerminalOutputProps {
 
 // Strip ANSI escape codes
 function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex -- ESC (\x1b) is the intended ANSI escape prefix
   return text.replace(/\x1b\[[0-9;]*m/g, '')
 }
 

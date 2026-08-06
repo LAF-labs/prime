@@ -12,7 +12,7 @@
     "check:ts": "tsc --noEmit",
     "check:rust": "cd src-tauri && cargo check",
     "check:web": "tsc --noEmit && vite build",
-    "lint": "oxlint --report-unused-disable-directives src/",
+    "lint": "oxlint --deny-warnings src/",
     "test:rust": "cd src-tauri && cargo test",
     "test:ui": "vitest run",
     "test:coverage": "vitest run --coverage",

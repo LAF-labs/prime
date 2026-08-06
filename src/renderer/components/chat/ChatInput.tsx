@@ -49,7 +49,7 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
   const t = useT()
   const {
     value, setValue, textareaRef, containerRef, canSend,
-    slashIndex, slashQuery, commands, filteredCmds, showPicker,
+    slashIndex, slashQuery, commands, showPicker,
     panel, dismissPanel, handleSelectCommand,
     inlineCommand, inlineIndex, showInlinePicker,
     handleInlineItemsChange, commitInlineCommand, dismissInlineCommand,

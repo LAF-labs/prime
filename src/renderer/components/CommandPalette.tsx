@@ -520,8 +520,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
 
   return (
     <>
-      <div className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[501] w-full max-w-[520px] -translate-x-1/2 rounded-xl border border-border bg-popover shadow-2xl" onKeyDown={handleKeyDown}>
+      <div role="presentation" className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div role="presentation" className="fixed left-1/2 top-[15%] z-[501] w-full max-w-[520px] -translate-x-1/2 rounded-xl border border-border bg-popover shadow-2xl" onKeyDown={handleKeyDown}>
         {/* Search input */}
         <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3">
           <IconSearch className="size-4 shrink-0 text-muted-foreground/50" />

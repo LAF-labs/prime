@@ -149,7 +149,7 @@ export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
   },
 
   collapseDir: (path: string) => {
-    const { expandedDirs, childrenMap } = get()
+    const { expandedDirs } = get()
     const newExpanded = new Set(expandedDirs)
     newExpanded.delete(path)
     // Also collapse all children of this dir

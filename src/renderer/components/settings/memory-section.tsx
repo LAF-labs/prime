@@ -1,7 +1,7 @@
 import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo, useState, useCallback } from 'react'
 import {
-  IconRefresh, IconTrash, IconAlertTriangle, IconTerminal2,
+  IconRefresh, IconTrash, IconTerminal2,
   IconMessage, IconTool, IconPlayerPlay, IconStack2, IconArchive,
   IconNote, IconBug, IconCpu, IconFlame, IconChevronRight,
 } from '@tabler/icons-react'

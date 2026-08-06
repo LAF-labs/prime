@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconRobot, IconBolt, IconCompass, IconChevronRight, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconSettings, IconBug, IconDownload, IconDots } from '@tabler/icons-react'
+import { IconBolt, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconSettings, IconBug, IconDownload, IconDots } from '@tabler/icons-react'
 import { getVersion } from '@tauri-apps/api/app'
 import { AgentGhostIcon } from '@/components/icons/AgentGhostIcon'
 import { useResourceStore } from '@/stores/resourceStore'
@@ -12,7 +12,7 @@ import { ipc } from '@/lib/ipc'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { ResourceFileViewer } from './ResourceFileViewer'
-import { type ViewerState, EMPTY_ARRAY, getAgentStack, SectionToggle, InlineSearch } from './resource-helpers'
+import { type ViewerState, EMPTY_ARRAY, SectionToggle, InlineSearch } from './resource-helpers'
 import { SkillRow } from './AgentSkillRow'
 import { McpRow } from './McpServerRow'
 import { AddMcpServerDialog } from './AddMcpServerDialog'
@@ -263,7 +263,7 @@ export const ResourcePanel = memo(function ResourcePanel({
         <AddMcpServerDialog open={addMcpOpen} onOpenChange={setAddMcpOpen} workspace={activeWorkspace} />
         {menuOpen && (
           <>
-            <div className="fixed inset-0 z-[199]" onClick={() => setMenuOpen(false)} />
+            <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setMenuOpen(false)} />
             <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[180px] -translate-y-full rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: menuPos.top, left: menuPos.left }}>
               <button type="button" role="menuitem" onClick={handleSettingsClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
                 <IconSettings className={cn('size-3.5', isMemorySpike && 'text-destructive')} aria-hidden />
@@ -481,7 +481,7 @@ export const ResourcePanel = memo(function ResourcePanel({
       <AddMcpServerDialog open={addMcpOpen} onOpenChange={setAddMcpOpen} workspace={activeWorkspace} />
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-[199]" onClick={() => setMenuOpen(false)} />
+          <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setMenuOpen(false)} />
           <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[180px] -translate-y-full rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: menuPos.top, left: menuPos.left }}>
             <button type="button" role="menuitem" onClick={handleSettingsClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
               <IconSettings className={cn('size-3.5', isMemorySpike && 'text-destructive')} aria-hidden />

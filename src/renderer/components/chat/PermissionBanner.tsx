@@ -3,6 +3,9 @@ import { memo, useMemo } from 'react'
 import { IconShieldExclamation, IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 
+/** Display order for permission options; module-level so hooks don't depend on it. */
+const ORDER = ['allow_once', 'allow_always', 'reject_once', 'reject_always']
+
 interface PermissionOption {
   optionId: string
   name: string
@@ -40,11 +43,10 @@ const KIND_ICONS: Record<string, typeof IconCheck | null> = {
 }
 
 export const PermissionBanner = memo(function PermissionBanner({
-  toolName, description, options, onSelect,
+  toolName, options, onSelect,
 }: PermissionBannerProps) {
   const displayName = formatToolName(toolName)
 
-  const ORDER = ['allow_once', 'allow_always', 'reject_once', 'reject_always']
   const sorted = useMemo(() => [...options].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)), [options])
 
   return (

@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo, useState, useCallback, useEffect } from "react";
-import { IconChevronLeft, IconChevronRight, IconCornerDownLeft, IconMessageCircleQuestion, IconCircleCheckFilled, IconCircle } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconCornerDownLeft, IconMessageCircleQuestion, IconCircleCheckFilled } from "@tabler/icons-react";
 import { useTaskStore } from "@/stores/taskStore";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
@@ -95,7 +95,7 @@ export const QuestionCards = memo(function QuestionCards({
     state.clearTurn(task.id);
     ipc.sendMessage(task.id, msg);
     setDismissed(true);
-  }, [blocks, selections, extraText, isAllAnswered, isLastPage, total, page]);
+  }, [blocks, selections, extraText, isAllAnswered, isLastPage, total, page, taskIdProp]);
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);

@@ -31,6 +31,7 @@ export const SkillRow = memo(function SkillRow({ skill, onOpen }: { skill: Agent
     <Tooltip>
       <TooltipTrigger asChild>
         <li
+          // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- must remain an <li> for list semantics; the whole row is also a draggable chip
           role="button"
           tabIndex={0}
           draggable

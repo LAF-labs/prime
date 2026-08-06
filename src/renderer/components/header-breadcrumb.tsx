@@ -139,21 +139,20 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
               className="min-w-0 max-w-[200px] truncate rounded-sm bg-transparent px-0.5 text-[13px] font-medium text-foreground outline-none ring-1 ring-ring"
             />
           ) : (
-            <span
+            <button
+              type="button"
               data-no-drag
-              role="button"
-              tabIndex={0}
               aria-label={`Rename thread ${taskName}`}
               onDoubleClick={handleThreadDoubleClick}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === "F2")
                   handleThreadDoubleClick()
               }}
-              className="min-w-0 max-w-[200px] cursor-default truncate rounded-sm text-[13px] font-medium text-foreground hover:bg-accent/50 px-0.5 transition-colors"
+              className="min-w-0 max-w-[200px] cursor-default truncate rounded-sm bg-transparent py-0 px-0.5 text-[13px] font-medium text-foreground hover:bg-accent/50 transition-colors"
               title={taskName}
             >
               {taskName}
-            </span>
+            </button>
           )}
           {isWorktree && (
             <Tooltip>

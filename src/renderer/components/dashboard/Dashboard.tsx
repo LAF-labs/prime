@@ -42,7 +42,6 @@ const STATUS_DOT: Record<string, string> = {
 export const Dashboard = memo(function Dashboard() {
   const tasks = useTaskStore((s) => s.tasks)
   const activityFeed = useTaskStore((s) => s.activityFeed)
-  const setNewProjectOpen = useTaskStore((s) => s.setNewProjectOpen)
 
   const sorted = useMemo(() => {
     const arr = Object.values(tasks)
@@ -57,8 +56,6 @@ export const Dashboard = memo(function Dashboard() {
   const taskCount = sorted.length
   const addProject = useTaskStore((s) => s.addProject)
   const createDraftThread = useTaskStore((s) => s.createDraftThread)
-
-  const openNewTask = useCallback(() => setNewProjectOpen(true), [setNewProjectOpen])
 
   /** Pick a folder → add as project → create a draft thread → open chat */
   const handleNewThread = useCallback(async () => {

@@ -477,6 +477,7 @@ const InlineCode: Components['code'] = ({ className, children, ...props }) => {
     const fileName = text.split('/').pop() ?? text
     return (
       <code
+        // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- must stay a <code> element to keep inline-code semantics and styling inside prose
         role="button"
         tabIndex={0}
         onClick={() => useFilePreviewStore.getState().openPreview(text)}
@@ -526,16 +527,17 @@ const STATIC_COMPONENTS: Components = {
   em: ({ children, ...props }) => <em {...props}>{wrapWithInlineTokens(children)}</em>,
   pre: PreFence,
   code: InlineCode,
-  a: ({ href, ...props }) => (
+  a: ({ href, children, ...props }) => (
     <a
       href={href}
       onClick={handleExternalLinkClick}
       onKeyDown={handleExternalLinkKeyDown}
       tabIndex={0}
-      role="link"
       className="text-primary underline decoration-primary/30 underline-offset-2 transition-colors hover:decoration-primary/60"
       {...props}
-    />
+    >
+      {children}
+    </a>
   ),
 }
 

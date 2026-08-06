@@ -10,7 +10,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useUpdateStore } from '@/stores/updateStore'
 import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 
 export const UpdateAvailableDialog = () => {

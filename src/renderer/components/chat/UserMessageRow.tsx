@@ -132,6 +132,7 @@ const AttachmentPill = memo(function AttachmentPill({ name, type, src }: { name:
             >
               <IconX className="size-5" />
             </button>
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events -- onClick is only a stopPropagation guard so clicking the image does not dismiss the lightbox */}
             <img
               src={src}
               alt={name}

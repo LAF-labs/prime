@@ -297,12 +297,18 @@ export const TerminalDrawer = memo(function TerminalDrawer({
     init().catch((err) => console.error('[TerminalDrawer] init failed:', err))
     return () => {
       cancelled = true
+      // Deliberately the refs' values at unmount, not at mount: terminals
+      // opened after this effect ran must still be killed and disposed here.
+      // Capturing `.current` in the effect body would leak exactly those.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- latest-at-unmount is the point
       instancesRef.current.forEach((inst) => {
         if (inst.rafId !== null) cancelAnimationFrame(inst.rafId)
         void ipc.ptyKill(inst.id)
         inst.term.dispose()
       })
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- same: drain what exists now
       readyPtys.current.clear()
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- same: drain what exists now
       instanceMap.current.clear()
       setInstances([])
       setActiveId(null)
@@ -584,6 +590,7 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                 )}
                 {tabs.length > 1 && (
                   <span
+                    // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- close control lives inside the tab <button>; nested buttons are invalid HTML
                     role="button"
                     tabIndex={0}
                     onClick={(e) => {
@@ -687,6 +694,7 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                     <div className="w-px shrink-0 bg-border/60" />
                   )}
                   <div
+                    role="presentation"
                     className={`min-h-0 min-w-0 flex-1 ${
                       isActiveInst && visibleInstances.length > 1
                         ? 'ring-1 ring-primary/20 ring-inset rounded-sm'

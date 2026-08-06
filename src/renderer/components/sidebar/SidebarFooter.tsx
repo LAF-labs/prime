@@ -16,7 +16,7 @@ export const SidebarFooter = memo(function SidebarFooter() {
   return (
     <div className="flex min-h-0 flex-col border-b border-border/40">
       <div className="flex items-center">
-        <div onMouseDown={handleDragStart} className="flex-1 h-1.5 cursor-row-resize hover:bg-primary/20 active:bg-primary/30 transition-colors" />
+        <div onMouseDown={handleDragStart} role="separator" aria-orientation="horizontal" className="flex-1 h-1.5 cursor-row-resize hover:bg-primary/20 active:bg-primary/30 transition-colors" />
       </div>
       {collapsed ? (
         <div className="px-1 py-1">

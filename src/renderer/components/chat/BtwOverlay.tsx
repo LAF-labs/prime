@@ -79,6 +79,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
   const hasResponse = strippedText.length > 0 || report !== null
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events -- backdrop click-to-dismiss; Escape dismiss is handled by a window-level keydown listener
     <div
       className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
       data-state="open"
@@ -91,6 +92,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
       <div
         ref={overlayRef}
         tabIndex={-1}
+        role="presentation"
         className="mx-auto flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl outline-none animate-in zoom-in-95 fade-in-0 duration-200"
         onClick={(e) => e.stopPropagation()}
       >

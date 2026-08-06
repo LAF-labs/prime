@@ -27,8 +27,9 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
   const isJson = filePath.endsWith('.json')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
+        role="presentation"
         className="relative flex h-[80vh] w-[680px] max-w-[95vw] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >

@@ -63,6 +63,8 @@ export const DiffFileSidebar = ({ fileStats, selectedFileIdx, sidebarWidth, view
     </div>
     <div
       onMouseDown={onDragStart}
+      role="separator"
+      aria-orientation="vertical"
       className="w-1 shrink-0 cursor-col-resize border-r hover:bg-primary/20 active:bg-primary/30 transition-colors"
     />
   </div>

@@ -385,6 +385,8 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
       <div className="relative ml-3 flex h-full shrink-0 flex-col border-l border-border bg-background" style={{ width }}>
         {/* Resize handle */}
         <div
+          role="separator"
+          aria-orientation="vertical"
           className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize hover:bg-primary/20 active:bg-primary/30"
           onMouseDown={handleResizeStart}
         />

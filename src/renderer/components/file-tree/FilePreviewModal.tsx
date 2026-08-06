@@ -182,8 +182,9 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
   }, [handleKeyDown])
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div role="presentation" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
+        role="presentation"
         className="relative flex h-[85vh] w-[750px] max-w-[95vw] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >

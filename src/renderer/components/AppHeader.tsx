@@ -71,6 +71,7 @@ const AppHeaderInner = memo(function AppHeaderInner({
   const workspace = taskWorkspace ?? pendingWorkspace
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- title-bar drag region; onMouseDown only starts a native window drag, there is no action to expose to keyboard
     <header
       data-testid="app-header"
       data-tauri-drag-region

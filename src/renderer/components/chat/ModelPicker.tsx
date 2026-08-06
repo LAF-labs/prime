@@ -1,7 +1,7 @@
 import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect } from 'react'
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react'
-import { useSettingsStore, type ModelOption } from '@/stores/settingsStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
 import { ipc } from '@/lib/ipc'

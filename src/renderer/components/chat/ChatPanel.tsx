@@ -21,7 +21,6 @@ import { StickyTaskList } from './StickyTaskList'
 
 import { useMessageSearch } from '@/hooks/useMessageSearch'
 import { ipc } from '@/lib/ipc'
-import { resolveModelId } from '@/lib/resolve-model'
 import { record } from '@/lib/analytics-collector'
 import { claimTurn, releaseTurn, rekeyTurnClaim } from '@/lib/turn-ownership'
 import * as threadDb from '@/lib/thread-db'
@@ -171,15 +170,13 @@ async function dispatchToAgent(
   { task, state, userMsg, shouldCreateNew, isResumed, proj }: DispatchContext,
 ): Promise<void> {
   if (shouldCreateNew) {
-    const { settings, currentModeId, currentModelId } = useSettingsStore.getState()
+    const { settings, currentModeId } = useSettingsStore.getState()
     const taskState = useTaskStore.getState()
     const projectRoot = task.originalWorkspace ?? task.workspace
     const projectPrefs = projectRoot ? settings.projectPrefs?.[projectRoot] : undefined
     const autoApprove = projectPrefs?.autoApprove !== undefined ? projectPrefs.autoApprove : settings.autoApprove
     const modeId = taskState.taskModes[targetTaskId] ?? currentModeId
     const effectiveModeId = modeId && modeId !== 'code' ? modeId : undefined
-    const taskModelId = taskState.taskModels[targetTaskId]
-    const modelId = resolveModelId({ taskModelId, projectPrefs, settings, currentModelId })
     const created = await ipc.createTask({
       name: task.name,
       workspace: task.workspace,

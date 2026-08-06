@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo, useCallback, useState, useRef, useEffect } from 'react'
-import { IconX, IconFileText, IconFileCode, IconFile, IconPhoto, IconClipboard, IconExternalLink } from '@tabler/icons-react'
+import { IconFileText, IconFileCode, IconFile, IconPhoto, IconClipboard, IconExternalLink } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { ipc } from '@/lib/ipc'
 import type { Attachment } from '@/types'
@@ -167,7 +167,15 @@ const AttachmentPill = memo(function AttachmentPill({
         )}
         role="listitem"
         aria-label={`${attachment.type}: ${attachment.name}`}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- chip toggles its preview but must stay role=listitem for the attachment list; focusability is required for the keyboard handler
+        tabIndex={0}
         onClick={handleClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleClick()
+          }
+        }}
       >
         {isImage ? (
           <img src={attachment.preview} alt="" className="size-4 shrink-0 rounded-sm object-cover" />

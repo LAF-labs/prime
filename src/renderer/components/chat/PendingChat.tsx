@@ -39,8 +39,6 @@ export function PendingChat({ workspace }: PendingChatProps) {
   const setDraftMentionedFiles = useTaskStore((s) => s.setDraftMentionedFiles)
   const removeDraftMentionedFiles = useTaskStore((s) => s.removeDraftMentionedFiles)
 
-  const settings = useSettingsStore((s) => s.settings)
-  const projectPrefs = settings.projectPrefs?.[workspace]
   const [useWorktree, setUseWorktree] = useState(false)
   const [worktreeSlug, setWorktreeSlug] = useState('')
   const [isSlugEdited, setIsSlugEdited] = useState(false)

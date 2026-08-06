@@ -135,6 +135,8 @@ export const DiffPanel = memo(function DiffPanel() {
       {/* Drag handle */}
       <div
         onMouseDown={onDragStart}
+        role="separator"
+        aria-orientation="horizontal"
         className="flex h-2 cursor-row-resize items-center justify-center hover:bg-primary/20 active:bg-primary/30 transition-colors"
       >
         <IconGripHorizontal className="size-3 text-muted-foreground" />

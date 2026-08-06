@@ -8,7 +8,7 @@ vi.mock('@/lib/ipc', () => ({
   },
 }))
 
-import { useResourceStore, initResourceListeners } from './resourceStore'
+import { useResourceStore } from './resourceStore'
 import { ipc } from '@/lib/ipc'
 
 const makeMcpServers = () => [

@@ -197,6 +197,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
   return (
     <li className="group/thread relative min-w-0">
       <div
+        // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- row nests a rename <input> and hover action <button>s; nested interactive content is invalid inside <button>
         role="button"
         tabIndex={0}
         aria-label={task.isDraft ? `${task.name}, draft` : undefined}

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { AgentTask, AppSettings, AgentResources, ToolCall, PlanStep, DebugLogEntry, ProjectFile, IpcAttachment } from '@/types'
+import type { AgentTask, AppSettings, AgentResources, ToolCall, DebugLogEntry, ProjectFile, IpcAttachment } from '@/types'
 
 type UnsubscribeFn = () => void
 

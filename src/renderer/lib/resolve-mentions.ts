@@ -211,7 +211,7 @@ export async function resolveMentions(
   // Rebuild message by replacing matches back-to-front to preserve indices
   let result = message
   for (let i = matches.length - 1; i >= 0; i--) {
-    const { full, start, end } = matches[i]
+    const { start, end } = matches[i]
     const replacement = resolved[i]
     if (replacement === null) continue // keep as-is
     result = result.slice(0, start) + replacement + result.slice(end)

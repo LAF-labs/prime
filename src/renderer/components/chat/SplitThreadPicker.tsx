@@ -4,7 +4,6 @@ import { IconX } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useProjectIcon } from '@/hooks/useProjectIcon'
 import { ProjectIcon } from '@/components/sidebar/ProjectIcon'
-import { cn } from '@/lib/utils'
 
 interface PickerThreadRowProps {
   readonly taskId: string

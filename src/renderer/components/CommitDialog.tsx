@@ -364,6 +364,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
               )}
             </div>
             <textarea
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus inside a just-opened dialog
               autoFocus
               value={commitMsg}
               onChange={(e) => setCommitMsg(e.target.value)}

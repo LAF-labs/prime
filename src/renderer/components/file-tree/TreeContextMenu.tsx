@@ -34,7 +34,6 @@ export const TreeContextMenu = memo(function TreeContextMenu({
   x, y, entry, workspace, onClose,
 }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const store = useFileTreeStore
 
   // Close on click outside or Escape
   useEffect(() => {
@@ -72,10 +71,10 @@ export const TreeContextMenu = memo(function TreeContextMenu({
     const parentDir = entry?.isDir ? entry.path : (entry?.path.split('/').slice(0, -1).join('/') ?? '')
     if (entry?.isDir && !useFileTreeStore.getState().expandedDirs.has(entry.path)) {
       useFileTreeStore.getState().expandDir(entry.path).then(() => {
-        store.getState().setRenamingPath(`__new_file__:${parentDir}`)
+        useFileTreeStore.getState().setRenamingPath(`__new_file__:${parentDir}`)
       })
     } else {
-      store.getState().setRenamingPath(`__new_file__:${parentDir}`)
+      useFileTreeStore.getState().setRenamingPath(`__new_file__:${parentDir}`)
     }
     onClose()
   }, [entry, onClose])
@@ -84,10 +83,10 @@ export const TreeContextMenu = memo(function TreeContextMenu({
     const parentDir = entry?.isDir ? entry.path : (entry?.path.split('/').slice(0, -1).join('/') ?? '')
     if (entry?.isDir && !useFileTreeStore.getState().expandedDirs.has(entry.path)) {
       useFileTreeStore.getState().expandDir(entry.path).then(() => {
-        store.getState().setRenamingPath(`__new_folder__:${parentDir}`)
+        useFileTreeStore.getState().setRenamingPath(`__new_folder__:${parentDir}`)
       })
     } else {
-      store.getState().setRenamingPath(`__new_folder__:${parentDir}`)
+      useFileTreeStore.getState().setRenamingPath(`__new_folder__:${parentDir}`)
     }
     onClose()
   }, [entry, onClose])
@@ -151,7 +150,7 @@ export const TreeContextMenu = memo(function TreeContextMenu({
       console.error('Failed to copy relative path:', err)
     })
     onClose()
-  }, [entry, workspace, onClose])
+  }, [entry, onClose])
 
   const handleAddToGitignore = useCallback(() => {
     if (!entry) return
@@ -161,13 +160,13 @@ export const TreeContextMenu = memo(function TreeContextMenu({
 
   const handleRename = useCallback(() => {
     if (!entry) return
-    store.getState().setRenamingPath(entry.path)
+    useFileTreeStore.getState().setRenamingPath(entry.path)
     onClose()
   }, [entry, onClose])
 
   const handleTrash = useCallback(() => {
     if (!entry) return
-    store.getState().deleteEntry(entry.path, false).catch((e) => reportFailure(t('Could not delete'), e))
+    useFileTreeStore.getState().deleteEntry(entry.path, false).catch((e) => reportFailure(t('Could not delete'), e))
     onClose()
   }, [entry, onClose])
 

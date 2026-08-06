@@ -58,13 +58,22 @@ export const SettingsPanel = () => {
     if (open && settingsInitialSection) setSection(settingsInitialSection as Section)
   }, [open, settingsInitialSection])
 
+  const handleAttemptClose = useCallback(() => {
+    if (isDirty(draft, settings)) {
+      setIsUnsavedDialogOpen(true)
+    } else {
+      applyTheme(settings.theme ?? 'dark')
+      setOpen(false)
+    }
+  }, [draft, settings, setOpen])
+
   useEffect(() => {
     if (!open) return
     setSearchQuery('')
     const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') handleAttemptClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, setOpen])
+  }, [open, handleAttemptClose])
 
   useEffect(() => {
     if (!open) return
@@ -92,21 +101,13 @@ export const SettingsPanel = () => {
     }
     setIsUnsavedDialogOpen(false)
     setOpen(false)
-  }, [draft, saveSettings, setOpen])
+  }, [draft, saveSettings, setOpen, t])
 
   const handleClose = useCallback(() => {
     applyTheme(settings.theme ?? 'dark')
     setOpen(false)
   }, [settings.theme, setOpen])
 
-  const handleAttemptClose = useCallback(() => {
-    if (isDirty(draft, settings)) {
-      setIsUnsavedDialogOpen(true)
-    } else {
-      applyTheme(settings.theme ?? 'dark')
-      setOpen(false)
-    }
-  }, [draft, settings, setOpen])
 
   const handleDiscardAndClose = useCallback(() => {
     setIsUnsavedDialogOpen(false)

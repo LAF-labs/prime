@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, type RefObject } from 'react'
+import { useState, useCallback, useEffect, useRef, type RefObject, useMemo } from 'react'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { ipc } from '@/lib/ipc'
 import { processDroppedFile, processNativePath } from '@/components/chat/attachment-utils'
@@ -261,7 +261,11 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
     }
   }, [isActive]) // eslint-disable-line react-hooks/exhaustive-deps -- containerRef is a stable ref object; re-running on ref identity change is unnecessary
 
-  return {
+  // Returned as one stable object: consumers depend on the bag itself in
+  // their hook dependency arrays, so its identity may only change when a
+  // member does — a fresh literal every render would silently re-create
+  // every callback built on it.
+  return useMemo(() => ({
     attachments,
     folderPaths,
     isDragOver,
@@ -273,5 +277,9 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
     handleFilePickerClick,
     handleFileInputChange,
     clearAttachments,
-  } as const
+  } as const), [
+    attachments, folderPaths, isDragOver, fileInputRef, droppedFiles,
+    handleRemoveAttachment, handleRemoveFolder, handlePaste,
+    handleFilePickerClick, handleFileInputChange, clearAttachments,
+  ])
 }

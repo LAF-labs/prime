@@ -207,6 +207,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
           {/* Fetch URL */}
           {fetchMeta?.url && (
             <span
+              // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- rendered inside the row <button>; a nested <a> would be invalid interactive nesting
               role="link"
               tabIndex={0}
               onClick={(e) => {

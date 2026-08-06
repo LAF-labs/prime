@@ -12,7 +12,6 @@ import { AppHeader } from "@/components/AppHeader";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { TaskSidebar } from "@/components/sidebar/TaskSidebar";
 
-const IS_MAC = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('mac')
 const ChatPanel = lazy(() =>
   import("@/components/chat/ChatPanel").then((m) => ({ default: m.ChatPanel })),
 );
@@ -50,7 +49,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useDebugStore } from "@/stores/debugStore";
 import { useDiffStore } from "@/stores/diffStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
-import { useResourceStore, initResourceListeners } from "@/stores/resourceStore";
+import { initResourceListeners } from "@/stores/resourceStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
 import { useZoomLimit } from "@/hooks/useZoomLimit";

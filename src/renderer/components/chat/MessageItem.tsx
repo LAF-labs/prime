@@ -1,7 +1,6 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { IconCopy, IconCheck } from "@tabler/icons-react";
 import type { TaskMessage, ToolCall } from "@/types";
-import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +12,6 @@ import { useTaskStore } from "@/stores/taskStore";
 import { usePanelResolvedTaskId } from "./PanelContext";
 import ChatMarkdown from "./ChatMarkdown";
 import { ToolCallDisplay } from "./ToolCallDisplay";
-import { ThinkingDisplay } from "./ThinkingDisplay";
 import { TaskCompletionCard, parseReport, stripReport, shouldRenderReportCard } from "./TaskCompletionCard";
 
 const LOADING_WORDS = [

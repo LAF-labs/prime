@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { ipc } from '@/lib/ipc'
 import { isPassthroughCommand, parseCommand, runRpcCommand, GUI_COMMANDS, RPC_COMMANDS } from '@/lib/agent-commands'
 import { useDebugStore } from '@/stores/debugStore'
 import { record } from '@/lib/analytics-collector'

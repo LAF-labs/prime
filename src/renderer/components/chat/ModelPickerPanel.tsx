@@ -102,6 +102,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('Search models…')}
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus inside a just-opened popover panel
             autoFocus
             className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80"
           />

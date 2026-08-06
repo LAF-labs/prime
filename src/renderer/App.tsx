@@ -77,6 +77,20 @@ import {
   IconMessageChatbot,
   IconGitCompare,
 } from "@tabler/icons-react";
+/**
+ * Shown while a lazily-loaded panel's chunk is fetched.
+ *
+ * Every Suspense boundary here was fallback-less, so a cold start or a slow
+ * disk left the user looking at an empty rectangle with no indication that
+ * anything was happening.
+ */
+const PanelFallback = () => (
+  <div className="flex h-full w-full items-center justify-center" role="status" aria-live="polite">
+    <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-primary" />
+    <span className="sr-only">{t('Loading')}</span>
+  </div>
+)
+
 const Onboarding = lazy(() =>
   import("@/components/Onboarding").then((m) => ({ default: m.Onboarding })),
 );
@@ -682,9 +696,15 @@ export function App() {
 
   if (settingsLoaded && !hasOnboardedV2)
     return (
-      <Suspense>
-        <Onboarding />
-      </Suspense>
+      // Inside a boundary: this early return sits outside the tree below, so a
+      // failed chunk fetch used to escape to the root handler, which offers to
+      // delete the user's app data — actively wrong advice for a transient
+      // network or disk error, and offered to someone on their first run.
+      <ErrorBoundary>
+        <Suspense fallback={<PanelFallback />}>
+          <Onboarding />
+        </Suspense>
+      </ErrorBoundary>
     );
 
   return (
@@ -716,7 +736,7 @@ export function App() {
                 className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
                 style={{ fontSize: 'var(--app-font-size, 13px)' }}
               >
-                <Suspense>
+                <Suspense fallback={<PanelFallback />}>
                   {view === 'analytics' ? (
                     <AnalyticsDashboard />
                   ) : selectedTaskId && activeSplitId ? (
@@ -733,7 +753,7 @@ export function App() {
             </ErrorBoundary>
             {sidePanelOpen && !activeSplitId && (selectedTaskId || pendingWorkspace) && (
               <ErrorBoundary>
-                <Suspense>
+                <Suspense fallback={<PanelFallback />}>
                   {fileTreeIsOpen ? (
                     <FileTreePanel onClose={closeSidePanel} workspace={pendingWorkspace ?? undefined} />
                   ) : (
@@ -748,7 +768,7 @@ export function App() {
           {/* Bottom debug panel */}
           {debugOpen && (
             <ErrorBoundary>
-              <Suspense>
+              <Suspense fallback={<PanelFallback />}>
                 <DebugPanel />
               </Suspense>
             </ErrorBoundary>
@@ -759,7 +779,7 @@ export function App() {
         <NewProjectSheet />
       </ErrorBoundary>
       <ErrorBoundary>
-        <Suspense>
+        <Suspense fallback={<PanelFallback />}>
           <SettingsPanel />
         </Suspense>
       </ErrorBoundary>

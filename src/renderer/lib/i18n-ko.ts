@@ -668,4 +668,5 @@ export const ko: Record<string, string> = {
   'Run /compact to shorten the thread, or start a new one.':
     '/compact로 대화를 줄이거나 새 스레드를 시작하세요.',
   'Send your message again to retry.': '메시지를 다시 보내면 재시도됩니다.',
+  'Continue without setup': '설정 없이 계속하기',
 }

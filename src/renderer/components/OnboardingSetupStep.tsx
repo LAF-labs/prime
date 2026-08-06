@@ -7,6 +7,10 @@ import { OnboardingCliSection } from '@/components/OnboardingCliSection'
 import { OnboardingAuthSection } from '@/components/OnboardingAuthSection'
 import { OnboardingKernelSection } from '@/components/OnboardingKernelSection'
 import { useT } from '@/lib/i18n'
+import { withTimeout } from '@/lib/with-timeout'
+
+/** Detection reads the bundle and the PATH; anything slower than this is stuck. */
+const DETECT_TIMEOUT_MS = 8000
 
 interface OnboardingSetupStepProps {
   themeChoice: ThemeMode
@@ -30,7 +34,10 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
   // confirmation instead of an install flow.
   useEffect(() => {
     let cancelled = false
-    ipc.detectAgentCli()
+    // Bounded: a detection call that never settles would leave `isBundled`
+    // null forever, and every card and button below is gated on it — the
+    // step rendered a heading, a gap, and no way forward at all.
+    withTimeout(ipc.detectAgentCli(), DETECT_TIMEOUT_MS)
       .then((path) => {
         if (cancelled) return
         if (path === 'prime-agent') {
@@ -41,7 +48,11 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
           setIsBundled(false)
         }
       })
-      .catch(() => { if (!cancelled) setIsBundled(false) })
+      .catch((err) => {
+        if (cancelled) return
+        console.warn('[onboarding] agent detection failed:', err)
+        setIsBundled(false)
+      })
     return () => { cancelled = true }
   }, [])
 
@@ -71,7 +82,12 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
         </div>
       ) : isBundled === false ? (
         <OnboardingCliSection onCliReady={handleCliReady} />
-      ) : null}
+      ) : (
+        <div className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-5 py-3">
+          <div className="size-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground/80" />
+          <p className="text-[13px] text-muted-foreground">{t('Looking for the agent runtime…')}</p>
+        </div>
+      )}
 
       <OnboardingAuthSection bin={bin} isCliReady={isCliReady} onAuthChange={setIsAuthenticated} />
 
@@ -84,10 +100,14 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
             className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-8 py-3 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">
             {t('Launch LAF Agent')} <IconArrowRight size={18} />
           </button>
-        ) : isCliReady ? (
+        ) : isBundled !== null ? (
+          // Available whether or not a CLI was found. Everything here can be
+          // fixed later in Settings, and there must always be a way out of
+          // this step — being unable to reach the app at all is worse than
+          // reaching it unconfigured.
           <button type="button" onClick={finish}
             className="text-[13px] text-muted-foreground transition-colors hover:text-foreground/70">
-            {t('Skip sign-in for now')}
+            {isCliReady ? t('Skip sign-in for now') : t('Continue without setup')}
           </button>
         ) : null}
       </div>

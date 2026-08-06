@@ -715,3 +715,48 @@ fn prompt_payload_carries_multiple_images() {
     assert_eq!(images[1]["mimeType"], "image/jpeg");
     assert_eq!(payload["streamingBehavior"], "steer");
 }
+
+// ── Concurrent agent limit ──────────────────────────────────────
+
+use super::commands::agent_slot_available;
+use crate::commands::settings::DEFAULT_MAX_CONCURRENT_AGENTS;
+
+#[test]
+fn agents_below_the_limit_are_allowed() {
+    assert!(agent_slot_available(Some(3), 0, false).is_ok());
+    assert!(agent_slot_available(Some(3), 2, false).is_ok());
+}
+
+#[test]
+fn the_agent_at_the_limit_is_refused_with_something_actionable() {
+    let err = agent_slot_available(Some(3), 3, false).unwrap_err();
+    assert!(err.contains('3'), "the message should name the limit: {err}");
+    assert!(err.to_lowercase().contains("settings"), "and where to change it: {err}");
+}
+
+/// Reconnecting a thread replaces its connection; refusing that would strand a
+/// thread the user already has open once the limit is reached.
+#[test]
+fn replacing_an_existing_connection_is_always_allowed() {
+    assert!(agent_slot_available(Some(1), 1, true).is_ok());
+    assert!(agent_slot_available(Some(3), 99, true).is_ok());
+}
+
+#[test]
+fn zero_means_the_user_opted_out_of_the_limit() {
+    assert!(agent_slot_available(Some(0), 500, false).is_ok());
+}
+
+#[test]
+fn an_unset_limit_falls_back_to_the_default() {
+    let n = DEFAULT_MAX_CONCURRENT_AGENTS as usize;
+    assert!(agent_slot_available(None, n - 1, false).is_ok());
+    assert!(agent_slot_available(None, n, false).is_err());
+}
+
+/// The singular reads correctly, since a limit of one is a plausible setting.
+#[test]
+fn a_limit_of_one_is_phrased_as_one() {
+    let err = agent_slot_available(Some(1), 1, false).unwrap_err();
+    assert!(err.starts_with("1 agent is"), "got: {err}");
+}

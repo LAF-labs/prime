@@ -27,6 +27,49 @@ pub(crate) fn resolve_initial_model(
     settings.default_model.clone().filter(|s| !s.trim().is_empty())
 }
 
+/// Refuse to start another agent when the machine already has enough.
+///
+/// Every live thread is a Node process that in turn runs a Python kernel, and
+/// there was no cap at any level — not per window, not globally. With `/goal`
+/// and autonomous mode in the product, threads can keep starting while nobody
+/// is at the keyboard, and the failure mode was the OS refusing to fork with
+/// an error that only reached the debug panel.
+///
+/// Reconnecting a thread that already has a slot is always allowed: that is
+/// replacing a connection, not adding one.
+fn ensure_agent_slot(
+    state: &tauri::State<'_, AgentState>,
+    configured: Option<u32>,
+    task_id: &str,
+) -> Result<(), String> {
+    let (live, replacing) = {
+        let conns = state.connections.lock();
+        (conns.len(), conns.contains_key(task_id))
+    };
+    agent_slot_available(configured, live, replacing)
+}
+
+/// The decision itself, separated from the lock so it can be tested.
+pub(crate) fn agent_slot_available(
+    configured: Option<u32>,
+    live: usize,
+    replacing: bool,
+) -> Result<(), String> {
+    let limit = configured.unwrap_or(crate::commands::settings::DEFAULT_MAX_CONCURRENT_AGENTS);
+    if limit == 0 {
+        return Ok(()); // explicitly unlimited
+    }
+    if replacing || live < limit as usize {
+        return Ok(());
+    }
+    Err(format!(
+        "{} agent{} already running, which is the current limit. \
+         Close a thread, or raise the limit in Settings.",
+        limit,
+        if limit == 1 { " is" } else { "s are" }
+    ))
+}
+
 // ── Tauri Commands ─────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -44,6 +87,7 @@ pub fn task_create(
     let id = params.existing_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = now_rfc3339();
     let settings = settings_state.0.lock();
+    ensure_agent_slot(&state, settings.settings.max_concurrent_agents, &id)?;
     let auto_approve = params.auto_approve.unwrap_or(settings.settings.auto_approve);
     let agent_bin = settings.settings.agent_bin.clone();
     let co_author = settings.settings.co_author;
@@ -286,6 +330,7 @@ pub fn task_send_message(
 
     if need_reconnect {
         let settings = settings_state.0.lock();
+        ensure_agent_slot(&state, settings.settings.max_concurrent_agents, &task_id)?;
         let agent_bin = settings.settings.agent_bin.clone();
         let global_auto_approve = settings.settings.auto_approve;
 
@@ -447,6 +492,12 @@ pub async fn task_fork(
     params: ForkTaskParams,
 ) -> Result<Task, String> {
     let task_id = &params.task_id;
+    {
+        let limit = settings_state.0.lock().settings.max_concurrent_agents;
+        // A fork is an additional agent, not a replacement — check against a
+        // fresh id so an existing slot for the parent doesn't wave it through.
+        ensure_agent_slot(&state, limit, "")?;
+    }
     let parent = {
         let tasks = state.tasks.lock();
         tasks.get(task_id).cloned()

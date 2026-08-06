@@ -239,6 +239,12 @@ export interface AppSettings {
    */
   autoArchiveDays?: number | null
   /**
+   * How many agent processes may run at once. Each live thread is a Node
+   * process with its own Python kernel. Undefined uses the backend default
+   * (8); 0 removes the limit.
+   */
+  maxConcurrentAgents?: number | null
+  /**
    * Manual token pricing keyed by provider name, in **USD per 1M tokens**.
    * prime-agent only prices its built-in providers, so a user-registered
    * OpenAI-compatible provider always reports a cost of 0 without this.

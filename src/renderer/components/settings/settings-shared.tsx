@@ -55,6 +55,7 @@ export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'App icon', description: 'Upload a custom app icon for the dock and About dialog', section: 'appearance', keywords: 'icon logo branding image upload custom dock' },
   { label: 'Inline tool calls', description: 'Show each tool entry between paragraphs as it happens', section: 'appearance', keywords: 'inline tool calls activity flow interleave between paragraphs' },
   { label: 'Keyboard shortcuts', description: 'View all available keyboard shortcuts', section: 'keymap', keywords: 'keyboard shortcuts hotkeys keybindings' },
+  { label: 'Max concurrent agents', description: 'How many agents may run at once', section: 'advanced', keywords: 'concurrent agents limit threads processes parallel load memory cap kernel' },
   { label: 'Anonymous analytics', description: 'Share anonymous usage data', section: 'advanced', keywords: 'analytics privacy telemetry' },
   { label: 'AI commit messages', description: 'Draft a commit message from the diff using your agent', section: 'advanced', keywords: 'ai commit message generate sparkle diff' },
   { label: 'Co-authored-by', description: 'Append LAF Agent trailer to every commit', section: 'advanced', keywords: 'git commit co-author trailer' },

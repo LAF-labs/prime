@@ -5,15 +5,12 @@ vi.mock('@/lib/ipc', () => ({
     getSettings: vi.fn().mockResolvedValue({}),
     saveSettings: vi.fn().mockResolvedValue(undefined),
     listModels: vi.fn().mockResolvedValue({ availableModels: [{ modelId: 'm1', name: 'Model 1' }], currentModelId: 'm1' }),
-    authStatus: vi.fn().mockResolvedValue({ accountType: 'pro', email: 'test@test.com', region: 'us-east-1' }),
+    authStatus: vi.fn().mockResolvedValue({ accountType: 'anthropic', email: 'test@test.com' }),
     authLogout: vi.fn().mockResolvedValue(undefined),
     openTerminalWithCommand: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
-vi.mock('@/lib/analytics', () => ({
-  track: vi.fn(),
-}))
 
 vi.mock('@/lib/history-store', () => ({
   loadBackup: vi.fn().mockResolvedValue({ threads: [], projects: [], softDeleted: [] }),
@@ -23,7 +20,7 @@ import { useSettingsStore } from './settingsStore'
 import { ipc } from '@/lib/ipc'
 
 const defaultState = {
-  settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13, sidebarPosition: 'left' as const, analyticsEnabled: true },
+  settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13, sidebarPosition: 'left' as const },
   isLoaded: false,
   availableModels: [],
   currentModelId: null,
@@ -213,9 +210,7 @@ describe('settingsStore', () => {
       await useSettingsStore.getState().checkAuth()
       expect(useSettingsStore.getState().agentAuth).toEqual({
         email: 'test@test.com',
-        accountType: 'pro',
-        region: 'us-east-1',
-        startUrl: undefined,
+        accountType: 'anthropic',
       })
       expect(useSettingsStore.getState().authChecked).toBe(true)
     })

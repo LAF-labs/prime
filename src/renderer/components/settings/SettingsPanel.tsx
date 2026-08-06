@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
 import { IconX, IconArrowLeft, IconBrandGithub, IconSearch, IconRotate, IconCircleFilled, IconAlertTriangle } from '@tabler/icons-react'
@@ -28,7 +27,6 @@ const defaultSettings: AppSettings = {
   fontSize: 14,
   chatFontSize: 14,
   sidebarPosition: 'left',
-  analyticsEnabled: true,
 }
 
 /** Shallow compare two AppSettings objects to detect unsaved changes */

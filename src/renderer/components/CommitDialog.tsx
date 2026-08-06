@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { ipc } from '@/lib/ipc'
-import { track } from '@/lib/analytics'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { cn } from '@/lib/utils'
 import { withStackedGitToast } from '@/lib/git-toast'
@@ -97,7 +96,6 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
         ? `${result.subject}\n\n${result.body}`
         : result.subject
       setCommitMsg(next)
-      track('feature_used', { feature: 'git', detail: 'commit_message_generated' })
     } catch (e) {
       toast.error('Could not generate commit message', {
         description: e instanceof Error ? e.message : String(e),
@@ -138,7 +136,6 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
       toast.success('Changes committed', {
         description: `${filePaths.length} file${filePaths.length > 1 ? 's' : ''} committed${targetBranch ? ` on ${targetBranch}` : ''}`,
       })
-      track('feature_used', { feature: 'git', detail: targetBranch ? 'commit_new_branch' : 'commit' })
 
       // Reset and close
       setCommitMsg('')
@@ -191,7 +188,6 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
         { label: 'Commit', action: () => ipc.gitCommitFiles(workspace, finalMsg, filePaths) },
         { label: 'Push', action: () => ipc.gitPush(workspace) },
       ])
-      track('feature_used', { feature: 'git', detail: 'commit_push' })
     } catch (e) {
       toast.error('Commit & Push failed', {
         description: e instanceof Error ? e.message : String(e),

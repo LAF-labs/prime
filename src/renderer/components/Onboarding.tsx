@@ -15,7 +15,6 @@ export function Onboarding() {
   const [themeChoice, setThemeChoice] = useState<ThemeMode>(
     useSettingsStore.getState().settings.theme ?? 'dark',
   )
-  const [isAnalyticsEnabled, setIsAnalyticsEnabled] = useState(true)
 
   const handleThemeChange = useCallback((mode: ThemeMode) => {
     setThemeChoice(mode)
@@ -58,7 +57,7 @@ export function Onboarding() {
       >
         {step === 'welcome' && <OnboardingWelcomeStep onNext={setStep} />}
         {step === 'theme' && <OnboardingThemeStep themeChoice={themeChoice} onThemeChange={handleThemeChange} onNext={setStep} />}
-        {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} isAnalyticsEnabled={isAnalyticsEnabled} onAnalyticsChange={setIsAnalyticsEnabled} />}
+        {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} />}
       </div>
     </div>
   )

@@ -74,7 +74,6 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                 </p>
                 <p className="text-[10px] text-foreground/70">
                   {agentAuth.accountType}
-                  {agentAuth.region ? ` · ${agentAuth.region}` : ""}
                 </p>
               </div>
               <div className="py-1">

@@ -3,7 +3,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { IconGitCommit, IconChevronDown, IconArrowUp, IconArrowDown, IconRefresh, IconLoader2, IconCloudUpload } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ipc } from '@/lib/ipc'
-import { track } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
 import { CommitDialog } from '@/components/CommitDialog'
 import { PublishRepoDialog } from '@/components/PublishRepoDialog'
@@ -71,7 +70,6 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
           ? 'Already up to date'
           : 'Done',
       })
-      track('feature_used', { feature: 'git', detail: key ?? label.toLowerCase() })
     } catch {
       // Error toast already shown by withGitToast
     } finally { setActiveAction(null); setMenuOpen(false) }

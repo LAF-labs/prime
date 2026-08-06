@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/analytics', () => ({
-  track: vi.fn(),
-}))
 
 import { useUpdateStore } from './updateStore'
-import { track } from '@/lib/analytics'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -70,11 +66,6 @@ describe('updateStore', () => {
     useUpdateStore.getState().dismissVersion('1.0.0')
     expect(useUpdateStore.getState().dismissedVersion).toBe('1.0.0')
     expect(useUpdateStore.getState().status).toBe('idle')
-  })
-
-  it('dismissVersion tracks analytics event', () => {
-    useUpdateStore.getState().dismissVersion('1.0.0')
-    expect(track).toHaveBeenCalledWith('update_dismissed', { available_version: '1.0.0' })
   })
 
   it('dismissVersion handles localStorage error gracefully', () => {

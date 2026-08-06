@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect } from 'react'
 import { IconArrowRight, IconCircleCheck } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -11,11 +10,9 @@ import { useT } from '@/lib/i18n'
 
 interface OnboardingSetupStepProps {
   themeChoice: ThemeMode
-  isAnalyticsEnabled: boolean
-  onAnalyticsChange: (v: boolean) => void
 }
 
-export const OnboardingSetupStep = ({ themeChoice, isAnalyticsEnabled }: OnboardingSetupStepProps) => {
+export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) => {
   const t = useT()
   const [bin, setBin] = useState('prime-agent')
   const [isCliReady, setIsCliReady] = useState(false)
@@ -50,10 +47,10 @@ export const OnboardingSetupStep = ({ themeChoice, isAnalyticsEnabled }: Onboard
 
   const finish = useCallback(async () => {
     const settings = useSettingsStore.getState().settings
-    await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice, analyticsEnabled: isAnalyticsEnabled })
+    await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice })
     useSettingsStore.getState().checkAuth()
     ipc.probeCapabilities().catch(() => {})
-  }, [bin, themeChoice, isAnalyticsEnabled])
+  }, [bin, themeChoice])
 
   return (
     <div className="flex w-full flex-col gap-6">

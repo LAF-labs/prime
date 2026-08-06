@@ -64,13 +64,6 @@ import { WorktreeCleanupDialog } from "@/components/sidebar/WorktreeCleanupDialo
 import { CloneRepoDialog } from "@/components/CloneRepoDialog";
 import { GlobalFilePreviewModal } from "@/components/GlobalFilePreviewModal";
 import { getVersion } from "@tauri-apps/api/app";
-import {
-  initAnalytics,
-  resetAnalytics,
-  makeAnonId,
-  readLastVersion,
-  writeLastVersion,
-} from "@/lib/analytics";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/lib/utils";
 import {
@@ -277,8 +270,6 @@ export function App() {
   const debugOpen = useDebugStore((s) => s.isOpen);
   const settingsLoaded = useSettingsStore((s) => s.isLoaded);
   const hasOnboardedV2 = useSettingsStore((s) => s.settings.hasOnboardedV2);
-  const analyticsEnabled = useSettingsStore((s) => s.settings.analyticsEnabled ?? true);
-  const analyticsAnonId = useSettingsStore((s) => s.settings.analyticsAnonId ?? null);
   const fontSize = useSettingsStore((s) => s.settings.fontSize);
   const chatFontSize = useSettingsStore((s) => s.settings.chatFontSize);
   const theme = useSettingsStore((s) => s.settings.theme ?? 'dark');
@@ -571,7 +562,7 @@ export function App() {
     import('@/lib/history-store').then(({ subscribeToChanges, isSelfWriting }) => {
       // Skip sync reloads when:
       // 1. This window wrote the change (isSelfWriting) — avoids reloading our own saves
-      // 2. This window has live ACP sessions — loadTasks would overwrite running/paused tasks
+      // 2. This window has live agent sessions — loadTasks would overwrite running/paused tasks
       const shouldSkipSync = () => isSelfWriting() || Object.values(useTaskStore.getState().tasks).some(
         (t) => t.status === 'running' || t.status === 'paused',
       )
@@ -621,34 +612,6 @@ export function App() {
     return () => document.removeEventListener('selection-new-thread', h)
   }, [])
 
-  // Wire PostHog once settings are loaded; re-run on opt-in/opt-out toggles.
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    if (!analyticsEnabled) {
-      resetAnalytics();
-      return;
-    }
-
-    const { settings, saveSettings } = useSettingsStore.getState();
-    let distinctId = analyticsAnonId;
-    // Lazily mint an anonymous id on first opt-in and persist it.
-    if (!distinctId) {
-      distinctId = makeAnonId();
-      saveSettings({ ...settings, analyticsAnonId: distinctId }).catch(() => {});
-    }
-
-    const previousVersion = readLastVersion();
-    initAnalytics({
-      enabled: true,
-      distinctId,
-      previousVersion,
-    }).then((ok) => {
-      if (ok) {
-        getVersion().then((v) => writeLastVersion(v)).catch(() => {});
-      }
-    });
-  }, [settingsLoaded, analyticsEnabled, analyticsAnonId]);
-
   // Show "What's New" dialog once after a version upgrade.
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -673,6 +636,13 @@ export function App() {
       }
     }).catch(() => {});
   }, [settingsLoaded]);
+
+  // `/changelog` shows the same dialog on demand, always the newest entry.
+  useEffect(() => {
+    const handleShow = () => setWhatsNewEntry(CHANGELOG[0] ?? null);
+    document.addEventListener("slash-changelog", handleShow);
+    return () => document.removeEventListener("slash-changelog", handleShow);
+  }, []);
 
   // ⌘B keyboard shortcut to toggle sidebar
   useEffect(() => {

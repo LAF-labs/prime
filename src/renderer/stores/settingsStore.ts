@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { AppSettings, ProjectPrefs } from '@/types'
 import { ipc } from '@/lib/ipc'
-import { track } from '@/lib/analytics'
 
 
 
@@ -43,7 +42,7 @@ interface SettingsStore {
   operationalWorkspace: string | null
   availableCommands: SlashCommand[]
   liveMcpServers: LiveMcpServer[]
-  agentAuth: { email: string | null; accountType: string; region?: string; startUrl?: string } | null
+  agentAuth: { email: string | null; accountType: string } | null
   authChecked: boolean
   loadSettings: () => Promise<void>
   saveSettings: (settings: AppSettings) => Promise<void>
@@ -61,7 +60,6 @@ const defaultSettings: AppSettings = {
   fontSize: 19,
   chatFontSize: 15,
   sidebarPosition: 'left',
-  analyticsEnabled: true,
   // Default to true — new users get inline tool calls by default.
   // Existing users who never explicitly set this will also get the new default.
   // The toggle checks `!== false` so only an explicit `false` disables it.
@@ -123,10 +121,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       'agentBin', 'defaultModel', 'autoApprove', 'respectGitignore',
       'coAuthor', 'coAuthorJsonReport', 'notifications', 'fontSize',
       'chatFontSize',
-      'sidebarPosition', 'analyticsEnabled', 'theme', 'customAppIcon',
+      'sidebarPosition', 'theme', 'customAppIcon',
     ]
     for (const k of keys) {
-      if (prev[k] !== settings[k]) track('settings_changed', { key: String(k) })
     }
   },
 
@@ -178,7 +175,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       settings: updated,
       ...(patch.modelId !== undefined ? { currentModelId: patch.modelId } : {}),
     })
-    if (patch.modelId !== undefined) track('feature_used', { feature: 'model_switch' })
     ipc.saveSettings(updated).catch(() => {})
   },
 
@@ -193,8 +189,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           agentAuth: {
             email: result.email ?? null,
             accountType: result.accountType,
-            region: result.region,
-            startUrl: result.startUrl,
           },
           authChecked: true,
         })
@@ -229,8 +223,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           agentAuth: {
             email: result.email ?? null,
             accountType: result.accountType,
-            region: result.region,
-            startUrl: result.startUrl,
           },
           authChecked: true,
         })

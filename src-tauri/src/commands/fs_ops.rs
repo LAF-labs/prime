@@ -853,10 +853,6 @@ pub struct AuthIdentity {
     pub email: Option<String>,
     #[serde(default)]
     pub account_type: Option<String>,
-    #[serde(default)]
-    pub region: Option<String>,
-    #[serde(default)]
-    pub start_url: Option<String>,
 }
 
 #[tauri::command]
@@ -882,8 +878,6 @@ pub fn auth_status(agent_bin: Option<String>) -> Result<AuthIdentity, AppError> 
             } else {
                 providers.join(", ")
             }),
-            region: None,
-            start_url: None,
         });
     }
 
@@ -900,8 +894,6 @@ pub fn auth_status(agent_bin: Option<String>) -> Result<AuthIdentity, AppError> 
         return Ok(AuthIdentity {
             email: None,
             account_type: Some(format!("env: {}", env_providers.join(", "))),
-            region: None,
-            start_url: None,
         });
     }
 

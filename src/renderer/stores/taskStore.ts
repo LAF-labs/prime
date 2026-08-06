@@ -6,7 +6,6 @@ import * as historyStore from '@/lib/history-store'
 import * as threadDb from '@/lib/thread-db'
 import type { ArchivedThreadMeta } from '@/lib/history-store'
 import { useSettingsStore } from './settingsStore'
-import { track } from '@/lib/analytics'
 import { sendTaskNotification } from '@/lib/notifications'
 import type { TaskStore } from './task-store-types'
 
@@ -371,7 +370,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
       const statusChanged = !prev || prev.status !== task.status
       if (statusChanged && (task.status === 'completed' || task.status === 'error' || task.status === 'cancelled')) {
-        track('task_completed', { status: task.status })
       }
       const activity: ActivityEntry[] = statusChanged
         ? [
@@ -625,7 +623,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         return { tasks, archivedMeta, selectedTaskId }
       })
 
-      // Notify the backend to clean up any lingering ACP resources for these threads.
+      // Notify the backend to clean up any lingering agent resources for these threads.
       for (const id of staleIds) {
         void ipc.deleteTask(id).catch(() => {})
       }
@@ -857,7 +855,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         ...state.activityFeed,
       ].slice(0, 20),
     }))
-    track('task_created', { has_prompt: false })
     get().persistHistory()
     return id
   },

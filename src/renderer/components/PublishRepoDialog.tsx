@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button'
 import { AnimatedHeight } from '@/components/AnimatedHeight'
 import { toast } from 'sonner'
 import { ipc } from '@/lib/ipc'
-import { track } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
 
 type PublishProvider = 'github' | 'gitlab' | 'bitbucket'
@@ -86,7 +85,6 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
       toast.success('Repository published', {
         description: `Pushed to ${currentProvider.label}`,
       })
-      track('feature_used', { feature: 'git', detail: 'publish_repo' })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {

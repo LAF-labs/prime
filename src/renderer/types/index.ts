@@ -1,6 +1,6 @@
 export type TaskStatus = 'running' | 'paused' | 'completed' | 'error' | 'cancelled' | 'pending_permission'
 
-// ── Tool calls (matches ACP ToolCall / ToolCallUpdate) ────────────
+// ── Tool calls (mirrors prime-agent tool_call / tool_call_update) ────────────
 
 export type ToolKind = 'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'think' | 'fetch' | 'switch_mode' | 'other'
 export type ToolCallStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
@@ -19,7 +19,7 @@ export interface ToolCallContentItem {
   oldText?: string | null
   newText?: string
   /**
-   * For type=diff: pre-computed line-level stats annotated by the Rust ACP
+   * For type=diff: pre-computed line-level stats annotated by the Rust RPC
    * client (`commands::diff_stats::annotate_diff_content`). Equivalent to
    * `git diff --numstat` for the (oldText, newText) pair. Present on
    * `type === 'diff'` entries from live tool calls; may be absent on older
@@ -62,7 +62,7 @@ export interface ToolCallSplit {
   toolCallId: string
 }
 
-// ── Plan (matches ACP Plan / PlanEntry) ───────────────────────────
+// ── Plan (mirrors prime-agent plan entries) ───────────────────────────
 
 export type PlanEntryStatus = 'pending' | 'in_progress' | 'completed'
 export type PlanEntryPriority = 'high' | 'medium' | 'low'
@@ -126,7 +126,7 @@ export interface AgentTask {
   /** prime-agent session JSONL path — enables native resume/fork */
   sessionFile?: string
   /** True for threads restored from persisted history. The thread renders
-   *  immediately but its prime-agent ACP connection has been torn down — the
+   *  immediately but its prime-agent connection has been torn down — the
    *  next send spawns a fresh subprocess (stateless resumption)
    *  and the historical transcript is replayed as preamble context. */
   isArchived?: boolean
@@ -136,7 +136,7 @@ export interface AgentTask {
   originalWorkspace?: string
   /** Canonical project workspace path — threads always group under this */
   projectId?: string
-  /** True for restored threads whose backend ACP connection was destroyed */
+  /** True for restored threads whose backend connection was destroyed */
   needsNewConnection?: boolean
 }
 
@@ -210,10 +210,6 @@ export interface AppSettings {
   theme?: ThemeMode
   /** App display language: 'system' follows the OS; 'en' | 'ko' force a locale. */
   language?: 'system' | 'en' | 'ko'
-  /** Opt-in flag for anonymous product analytics. Default: true. */
-  analyticsEnabled?: boolean
-  /** Random UUID generated on first opt-in, cleared on opt-out. */
-  analyticsAnonId?: string | null
   /** Max character limit for /btw side questions. Default: 1220. */
   btwMaxChars?: number
   /** Base64 data URL for a user-supplied app icon (About dialog + dock). */

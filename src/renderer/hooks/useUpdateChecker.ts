@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useUpdateStore } from '@/stores/updateStore'
-import { track } from '@/lib/analytics'
 import { getVersion } from '@tauri-apps/api/app'
 
 import type { Update } from '@tauri-apps/plugin-updater'
@@ -25,7 +24,6 @@ export const useUpdateChecker = () => {
       if (!update) {
         useUpdateStore.getState().setStatus('idle')
         useUpdateStore.getState().setUpdateInfo(null)
-        track('update_check', { result: 'none' })
         return
       }
 
@@ -36,15 +34,12 @@ export const useUpdateChecker = () => {
         body: update.body ?? undefined,
       })
       useUpdateStore.getState().setStatus('available')
-      track('update_check', { result: 'available', latest_version: update.version })
       const currentVersion = await getVersion().catch(() => null)
-      track('update_available', { latest_version: update.version, current_version: currentVersion })
     } catch (err) {
       console.warn('[updater] check failed:', err)
       useUpdateStore.getState().setError(
         err instanceof Error ? err.message : 'Update check failed',
       )
-      track('update_check', { result: 'error' })
     }
   }, [])
 
@@ -74,12 +69,10 @@ export const useUpdateChecker = () => {
             downloaded: downloadedBytes,
             total: totalBytes,
           })
-          track('update_downloaded', { from_version: fromVersion, to_version: toVersion })
         }
       })
 
       useUpdateStore.getState().setStatus('ready')
-      track('update_installed', { from_version: fromVersion, to_version: toVersion })
     } catch (err) {
       console.error('[updater] download failed:', err)
       useUpdateStore.getState().setError(
@@ -91,7 +84,6 @@ export const useUpdateChecker = () => {
   const restart = useCallback(async () => {
     try {
       const toVersion = pendingUpdateRef.current?.version ?? null
-      track('update_restart_clicked', { to_version: toVersion })
       const { prepareForRelaunch } = await import('@/lib/relaunch')
       await prepareForRelaunch()
       const { relaunch } = await import('@tauri-apps/plugin-process')

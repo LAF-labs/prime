@@ -6,7 +6,6 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
 import { toast } from 'sonner'
-import { track } from '@/lib/analytics'
 import { useResizeHandle } from '@/hooks/useResizeHandle'
 import { DiffViewer } from './DiffViewer'
 
@@ -57,7 +56,6 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
         ? `${result.subject}\n\n${result.body}`
         : result.subject
       setCommitMsg(next)
-      track('feature_used', { feature: 'git', detail: 'commit_message_generated' })
     } catch (e) {
       toast.error('Could not generate commit message', {
         description: e instanceof Error ? e.message : String(e),

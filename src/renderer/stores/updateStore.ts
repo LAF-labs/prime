@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { track } from '@/lib/analytics'
 
 export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
 
@@ -59,7 +58,6 @@ export const useUpdateStore = create<UpdateState>((set) => ({
     } catch (err) {
       console.warn('Failed to persist dismissed version:', err)
     }
-    track('update_dismissed', { available_version: version })
     set({ dismissedVersion: version, status: 'idle' })
   },
   reset: () => set({ status: 'idle', updateInfo: null, progress: null, error: null }),

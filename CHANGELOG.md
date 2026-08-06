@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.1] - 2026-08-06
+
+Initial release.
+
 ## 0.1.0 (2026-08-06)
 
 - Initial release of **LAF Agent**: native macOS desktop client powered by [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent).

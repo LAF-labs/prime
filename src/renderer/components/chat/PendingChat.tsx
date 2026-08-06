@@ -12,6 +12,7 @@ import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { PastedChunk } from '@/hooks/useChatInput'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ChatInput } from './ChatInput'
+import { claimTurn } from '@/lib/turn-ownership'
 import { captureDraft, restoreDraft } from './draft-recovery'
 import { EmptyThreadSplash } from './EmptyThreadSplash'
 import { TerminalDrawer } from './TerminalDrawer'
@@ -134,6 +135,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
         if (currentModeId && currentModeId !== 'code') {
           useTaskStore.getState().setTaskMode(created.id, currentModeId)
         }
+        claimTurn(created.id)
         useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
         if (msg.includes('<laf-agent_tangent>')) {
           const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
@@ -164,6 +166,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
         if (currentModeId && currentModeId !== 'code') {
           useTaskStore.getState().setTaskMode(created.id, currentModeId)
         }
+        claimTurn(created.id)
         useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
         if (msg.includes('<laf-agent_tangent>')) {
           const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
@@ -179,6 +182,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
       if (currentModeId && currentModeId !== 'code') {
         useTaskStore.getState().setTaskMode(created.id, currentModeId)
       }
+      claimTurn(created.id)
       useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
       // If this was a /btw question, enter btw mode on the new task
       if (msg.includes('<laf-agent_tangent>')) {

@@ -95,9 +95,42 @@ CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
     INSERT INTO messages_fts(rowid, content) VALUES (new.id, new.content);
 END;
 "#,
+    // Migration 1: make message inserts idempotent.
+    //
+    // `turn_end` is broadcast to every window, and each one independently
+    // persisted the assistant message — so with two windows open every turn
+    // was stored twice, and hydrating from SQLite showed the conversation
+    // duplicated. A partial unique index leaves existing rows (NULL key)
+    // alone while making any new duplicate insert a no-op.
+    r#"
+ALTER TABLE messages ADD COLUMN dedupe_key TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedupe
+    ON messages(dedupe_key) WHERE dedupe_key IS NOT NULL;
+"#,
     // Future migrations go here, e.g.:
     // "ALTER TABLE threads ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;",
 ];
+
+/// Identity of a message for deduplication.
+///
+/// Two windows persisting the same `turn_end` produce byte-identical values
+/// here. Content is hashed rather than stored so the index stays small; the
+/// timestamp and role are kept verbatim because they are cheap and make
+/// collisions between genuinely different messages vanishingly unlikely.
+fn dedupe_key(message: &DbMessage) -> String {
+    // FNV-1a: tiny, and — unlike `DefaultHasher` — stable across Rust
+    // releases, which matters for a value written to disk.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in message.content.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x1000_0000_01b3);
+    }
+    format!(
+        "{}\u{1f}{}\u{1f}{}\u{1f}{:016x}",
+        message.thread_id, message.role, message.timestamp, hash
+    )
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -555,9 +588,10 @@ impl ThreadDatabase {
             let tx = conn.unchecked_transaction()?;
             let mut ids = Vec::with_capacity(messages.len());
             for message in &messages {
-                tx.execute(
-                    r#"INSERT INTO messages (thread_id, role, content, timestamp, thinking, tool_calls)
-                       VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
+                let key = dedupe_key(message);
+                let inserted = tx.execute(
+                    r#"INSERT OR IGNORE INTO messages (thread_id, role, content, timestamp, thinking, tool_calls, dedupe_key)
+                       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
                     rusqlite::params![
                         message.thread_id,
                         message.role,
@@ -565,8 +599,19 @@ impl ThreadDatabase {
                         message.timestamp,
                         message.thinking,
                         message.tool_calls.as_ref().map(|tc| serde_json::to_string(tc).unwrap_or_default()),
+                        key,
                     ],
                 )?;
+                if inserted == 0 {
+                    // Backfill re-running over messages already stored: keep
+                    // the existing row rather than adding a second copy.
+                    ids.push(tx.query_row(
+                        "SELECT id FROM messages WHERE dedupe_key = ?1",
+                        [&key],
+                        |row| row.get(0),
+                    )?);
+                    continue;
+                }
                 ids.push(tx.last_insert_rowid());
             }
             tx.commit()?;
@@ -713,9 +758,12 @@ impl ThreadDatabase {
     pub async fn save_message(&self, message: &DbMessage) -> Result<i64, ThreadDbError> {
         let message = message.clone();
         self.write_with_result(move |conn| {
-            conn.execute(
-                r#"INSERT INTO messages (thread_id, role, content, timestamp, thinking, tool_calls)
-                   VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
+            let key = dedupe_key(&message);
+            // OR IGNORE against the unique key: a second window persisting the
+            // same turn is a no-op rather than a duplicate row.
+            let inserted = conn.execute(
+                r#"INSERT OR IGNORE INTO messages (thread_id, role, content, timestamp, thinking, tool_calls, dedupe_key)
+                   VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
                 rusqlite::params![
                     message.thread_id,
                     message.role,
@@ -723,8 +771,20 @@ impl ThreadDatabase {
                     message.timestamp,
                     message.thinking,
                     message.tool_calls.as_ref().map(|tc| serde_json::to_string(tc).unwrap_or_default()),
+                    key,
                 ],
             )?;
+            if inserted == 0 {
+                // Already stored; hand back the existing row so callers that
+                // key off the id still work.
+                return conn
+                    .query_row(
+                        "SELECT id FROM messages WHERE dedupe_key = ?1",
+                        [&key],
+                        |row| row.get(0),
+                    )
+                    .map_err(ThreadDbError::from);
+            }
             Ok(conn.last_insert_rowid())
         })
         .await
@@ -1305,6 +1365,52 @@ mod tests {
         let results = db.search_messages("binary search", 10).await.unwrap();
         assert!(!results.is_empty());
         assert_eq!(results[0].thread_name, "Search Thread");
+    }
+
+    /// `turn_end` reaches every window and each one persists the message, so
+    /// the second write must not create a second row.
+    #[tokio::test]
+    async fn saving_the_same_message_twice_stores_it_once() {
+        let db = ThreadDatabase::open_memory().unwrap();
+        db.save_thread(&DbThread {
+            id: "t1".into(),
+            name: "Thread".into(),
+            workspace: "/w".into(),
+            status: "idle".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            parent_thread_id: None,
+            auto_approve: false,
+            metadata: None,
+            message_count: 0,
+        })
+        .await
+        .unwrap();
+
+        let msg = DbMessage {
+            id: 0,
+            thread_id: "t1".into(),
+            role: "assistant".into(),
+            content: "the answer".into(),
+            timestamp: "2026-01-01T00:00:05Z".into(),
+            thinking: None,
+            tool_calls: None,
+        };
+
+        let first = db.save_message(&msg).await.unwrap();
+        let second = db.save_message(&msg).await.unwrap();
+        assert_eq!(first, second, "the second write should find the first row");
+        assert_eq!(db.load_messages("t1").await.unwrap().len(), 1);
+
+        // A genuinely different message at the same instant is still its own
+        // row — dedup keys off content, not just the timestamp.
+        let other = DbMessage { content: "a different answer".into(), ..msg.clone() };
+        db.save_message(&other).await.unwrap();
+        assert_eq!(db.load_messages("t1").await.unwrap().len(), 2);
+
+        // And the batch path, which backfill re-runs over existing messages.
+        db.save_messages_batch(vec![msg.clone(), other.clone()]).await.unwrap();
+        assert_eq!(db.load_messages("t1").await.unwrap().len(), 2);
     }
 
     /// Archiving is a sidebar state, not a deletion. If it removed the rows,

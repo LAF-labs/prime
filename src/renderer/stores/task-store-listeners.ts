@@ -9,6 +9,7 @@ import { useDiffStore } from '@/stores/diffStore'
 import { useTaskStore } from './taskStore'
 import type { TaskStore } from './task-store-types'
 import { record } from '@/lib/analytics-collector'
+import { consumeTurnClaim } from '@/lib/turn-ownership'
 import {
   EMPTY_SNAPSHOT, snapshotOf, spendDelta, providerOf,
   type SessionStats, type SpendSnapshot,
@@ -444,10 +445,15 @@ export function initTaskListeners(): () => void {
     // Non-refusal turn end: clear any refusal tracker for this task
     delete refusalRetried[taskId]
 
+    // `turn_end` is broadcast to every window. Only the one that sent the
+    // message counts it, so two open windows don't report every turn — and
+    // every dollar — twice.
+    const isDispatchingWindow = consumeTurnClaim(taskId)
+
     // Use a single setState to avoid stale reads between getState() calls
     useTaskStore.setState((s) => applyTurnEnd(s, taskId, stopReason))
 
-    void recordTurnSpend(taskId)
+    if (isDispatchingWindow) void recordTurnSpend(taskId)
 
     // Clear dispatch snapshot — turn is complete
     useTaskStore.getState().setDispatchSnapshot(taskId, null)
@@ -499,8 +505,9 @@ export function initTaskListeners(): () => void {
       }
     }
 
-    // Analytics: record assistant output word count and diff stats
-    {
+    // Analytics: record assistant output word count and diff stats.
+    // Same reason as the spend above — one window counts the turn.
+    if (isDispatchingWindow) {
       const t = useTaskStore.getState().tasks[taskId]
       if (t) {
         const proj = projectName(t.originalWorkspace ?? t.workspace)

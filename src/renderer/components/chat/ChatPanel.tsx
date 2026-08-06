@@ -22,6 +22,7 @@ import { useMessageSearch } from '@/hooks/useMessageSearch'
 import { ipc } from '@/lib/ipc'
 import { resolveModelId } from '@/lib/resolve-model'
 import { record } from '@/lib/analytics-collector'
+import { claimTurn, releaseTurn, rekeyTurnClaim } from '@/lib/turn-ownership'
 import * as threadDb from '@/lib/thread-db'
 import {
   EMPTY_MESSAGES,
@@ -115,6 +116,9 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   const streamingChunk = state.streamingChunks[targetTaskId] ?? ''
   state.setDispatchSnapshot(targetTaskId, captureDispatchSnapshot(task, streamingChunk))
 
+  // This window is the one that will count this turn.
+  claimTurn(targetTaskId)
+
   const userMsg = buildUserMessage(msg)
   state.upsertTask({ ...task, status: 'running', messages: [...task.messages, userMsg], isArchived: undefined, needsNewConnection: undefined })
   state.clearTurn(task.id)
@@ -142,6 +146,7 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
       useTaskStore.getState().upsertTask({ ...current, status: 'paused' })
     }
     useTaskStore.getState().setDispatchSnapshot(targetTaskId, null)
+    releaseTurn(targetTaskId)
     toast.error(t('Could not send the message'), { description: detail })
   }
 }
@@ -214,6 +219,7 @@ async function dispatchToAgent(
     // snapshot missing from both keys.
     if (created.id !== targetTaskId) {
       useTaskStore.getState().rekeyDispatchSnapshot(targetTaskId, created.id)
+      rekeyTurnClaim(targetTaskId, created.id)
     }
     state.setSelectedTask(created.id)
   } else {

@@ -309,4 +309,5 @@ State-changing actions that modify persisted data must call `persistHistory()` a
 - [Keyboard shortcuts](keyboard-shortcuts.md) — Global shortcuts
 - [Slash commands](slash-commands.md) — Chat command reference
 - [Sidecar architecture](sidecar-architecture.md) — Why the agent runtime is bundled
+- [Releasing](releasing.md) — Signing key, update feed, and how an update reaches a user
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — Code style, project layout, and PR process

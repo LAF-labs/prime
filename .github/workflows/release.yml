@@ -10,8 +10,13 @@ name: Release
 #   APPLE_ID                   Apple ID used for notarization
 #   APPLE_PASSWORD             app-specific password for that Apple ID
 #   APPLE_TEAM_ID              10-character team id
-# Optional, to re-enable auto-update:
-#   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+# Required for auto-update (the updater refuses unsigned manifests):
+#   TAURI_SIGNING_PRIVATE_KEY          contents of the minisign private key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD its password, or "" if it has none
+#
+# The release is created as a draft. `releases/latest/download/latest.json`
+# only serves *published* releases, so no user is offered the update until
+# the draft is published — which is the intended gate, not an oversight.
 
 on:
   push:

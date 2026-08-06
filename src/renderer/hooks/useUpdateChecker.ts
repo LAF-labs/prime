@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useUpdateStore } from '@/stores/updateStore'
-import { getVersion } from '@tauri-apps/api/app'
 
 import type { Update } from '@tauri-apps/plugin-updater'
 
@@ -34,7 +33,6 @@ export const useUpdateChecker = () => {
         body: update.body ?? undefined,
       })
       useUpdateStore.getState().setStatus('available')
-      const currentVersion = await getVersion().catch(() => null)
     } catch (err) {
       console.warn('[updater] check failed:', err)
       useUpdateStore.getState().setError(
@@ -48,9 +46,6 @@ export const useUpdateChecker = () => {
 
     useUpdateStore.getState().setStatus('downloading')
     useUpdateStore.getState().setProgress({ downloaded: 0, total: null })
-    const toVersion = pendingUpdateRef.current.version
-    const fromVersion = await getVersion().catch(() => null)
-
     try {
       let totalBytes: number | null = null
       let downloadedBytes = 0
@@ -83,7 +78,6 @@ export const useUpdateChecker = () => {
 
   const restart = useCallback(async () => {
     try {
-      const toVersion = pendingUpdateRef.current?.version ?? null
       const { prepareForRelaunch } = await import('@/lib/relaunch')
       await prepareForRelaunch()
       const { relaunch } = await import('@tauri-apps/plugin-process')

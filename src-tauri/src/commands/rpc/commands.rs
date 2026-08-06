@@ -325,9 +325,28 @@ pub fn task_send_message(
         let _ = handle.cmd_tx.send(AgentCommand::Prompt(message, attachments.unwrap_or_default()));
         state.connections.lock().insert(task_id.clone(), handle);
     } else {
-        let conns = state.connections.lock();
-        if let Some(h) = conns.get(&task_id) {
-            let _ = h.cmd_tx.send(AgentCommand::Prompt(message, attachments.unwrap_or_default()));
+        // The liveness check above and this send are not atomic: the child can
+        // die in between. Swallowing the error left the message in the
+        // timeline with a spinner that ran until the 5-minute watchdog, and
+        // the user had no way to know it was never delivered.
+        let sent = {
+            let conns = state.connections.lock();
+            match conns.get(&task_id) {
+                Some(h) => h
+                    .cmd_tx
+                    .send(AgentCommand::Prompt(message, attachments.unwrap_or_default()))
+                    .is_ok(),
+                None => false,
+            }
+        };
+        if !sent {
+            if let Some(task) = state.tasks.lock().get_mut(&task_id) {
+                task.status = "paused".to_string();
+            }
+            return Err(
+                "The agent connection closed before the message was sent. Send it again to reconnect."
+                    .to_string(),
+            );
         }
     }
 
@@ -757,10 +776,12 @@ pub async fn agent_rpc_request(
             .get(&task_id)
             .ok_or_else(|| "This thread has no live agent connection yet.".to_string())?;
         handle.pending.lock().insert(request_id.clone(), tx);
-        handle
-            .cmd_tx
-            .send(AgentCommand::Raw(Value::Object(payload)))
-            .map_err(|e| format!("Failed to reach the agent: {e}"))?;
+        if let Err(e) = handle.cmd_tx.send(AgentCommand::Raw(Value::Object(payload))) {
+            // The reservation outlives the failed send otherwise, and nothing
+            // else would ever clear it.
+            handle.pending.lock().remove(&request_id);
+            return Err(format!("Failed to reach the agent: {e}"));
+        }
     }
 
     let response = match tokio::time::timeout(std::time::Duration::from_secs(120), rx).await {

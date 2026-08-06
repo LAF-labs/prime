@@ -27,6 +27,17 @@ use super::types::{
 
 /// Strip embedded `<image src="data:..." />` tags and their `[Attached image: ...]` prefixes
 /// from the text so the model doesn't receive raw base64 in the text content block.
+/// First `max` characters of `text`, never splitting one in half.
+///
+/// Slicing by byte index is what a `&text[..120]` does, and it panics the
+/// moment byte 120 lands inside a multi-byte character.
+pub(crate) fn truncate_chars(text: &str, max: usize) -> String {
+    match text.char_indices().nth(max) {
+        Some((byte_idx, _)) => text[..byte_idx].to_string(),
+        None => text.to_string(),
+    }
+}
+
 pub(crate) fn strip_image_tags(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let mut i = 0;
@@ -54,8 +65,12 @@ pub(crate) fn strip_image_tags(text: &str) -> String {
                 continue;
             }
         }
-        result.push(bytes[i] as char);
-        i += 1;
+        // Copy one whole character, not one byte. `bytes[i] as char` reads a
+        // UTF-8 byte as a Latin-1 code point, which turns every non-ASCII
+        // prompt into mojibake the moment an attachment is present.
+        let ch = text[i..].chars().next().expect("index is on a char boundary");
+        result.push(ch);
+        i += ch.len_utf8();
     }
     // Collapse multiple consecutive newlines into at most two
     while result.contains("\n\n\n") {
@@ -255,6 +270,7 @@ pub(crate) fn spawn_connection_with_preamble(
     let auto_approve_flag = Arc::new(AtomicBool::new(auto_approve));
     let pending: PendingRequests = Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new()));
     let pending_task = pending.clone();
+    let pending_epilogue = pending.clone();
 
     let alive_task = alive.clone();
     let auto_approve_task = auto_approve_flag.clone();
@@ -283,6 +299,22 @@ pub(crate) fn spawn_connection_with_preamble(
 
         alive_task.store(false, Ordering::SeqCst);
         pid_task.store(0, Ordering::SeqCst);
+
+        // Release everyone still waiting on a reply that is never coming.
+        // Dropping the responders makes their receivers fail immediately, so
+        // the caller reports "the agent connection closed" instead of spinning
+        // for the full 120-second timeout — which is what the user saw when
+        // the agent crashed mid-request.
+        {
+            let mut waiting = pending_epilogue.lock();
+            if !waiting.is_empty() {
+                log::warn!(
+                    "[RPC] connection for task {tid_task} ended with {} request(s) in flight",
+                    waiting.len()
+                );
+                waiting.clear();
+            }
+        }
 
         // If the connection died while the task was still running, the
         // frontend never receives a `turn_end` event and the spinner gets
@@ -316,6 +348,15 @@ pub(crate) fn spawn_connection_with_preamble(
 
         if let Err(e) = result {
             use tauri::Emitter;
+            // `task_error` is what the chat surface renders. Sending this only
+            // to `debug_log` meant a failure to start the agent — a wrong
+            // binary path, a sidecar without its exec bit, a broken PATH —
+            // showed up as a thread that silently does nothing, with the
+            // actual cause buried in a panel behind an overflow menu.
+            let _ = app_task.emit("task_error", json!({
+                "taskId": tid_task,
+                "error": e,
+            }));
             let _ = app_task.emit("debug_log", json!({
                 "direction": "in", "category": "error", "type": "connection-error",
                 "taskId": tid_task, "summary": e, "payload": { "error": e }, "isError": true
@@ -472,15 +513,46 @@ pub(crate) async fn run_rpc_connection(
         use tokio::io::AsyncReadExt;
         let mut stderr = stderr;
         let mut buf = vec![0u8; 4096];
+        // The agent prints box-drawing banners and emoji, so a 4096-byte read
+        // routinely lands mid-character. Carry the remainder into the next
+        // read instead of decoding it as replacement characters.
+        let mut carry: Vec<u8> = Vec::new();
         loop {
             match stderr.read(&mut buf).await {
                 Ok(0) => break,
                 Ok(n) => {
-                    let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                    carry.extend_from_slice(&buf[..n]);
+                    let text = match std::str::from_utf8(&carry) {
+                        Ok(s) => {
+                            let s = s.to_string();
+                            carry.clear();
+                            s
+                        }
+                        Err(e) => {
+                            let good = e.valid_up_to();
+                            // A trailing incomplete sequence waits for more
+                            // bytes; genuinely invalid bytes are lossy-decoded
+                            // so a broken stream still surfaces something.
+                            let s = String::from_utf8_lossy(&carry[..good]).to_string();
+                            if e.error_len().is_some() {
+                                carry.clear();
+                            } else {
+                                carry.drain(..good);
+                            }
+                            s
+                        }
+                    };
+                    if text.is_empty() {
+                        continue;
+                    }
                     use tauri::Emitter;
                     let _ = app_stderr.emit("debug_log", json!({
                         "direction": "in", "category": "stderr", "type": "stderr",
-                        "taskId": tid_stderr, "summary": &text[..text.len().min(120)],
+                        // Truncating by byte index panics when byte 120 falls
+                        // inside a character — which it does for any Korean or
+                        // emoji output, killing this task and with it every
+                        // diagnostic for the rest of the session.
+                        "taskId": tid_stderr, "summary": truncate_chars(&text, 120),
                         "payload": text, "isError": false
                     }));
                 }
@@ -512,7 +584,19 @@ pub(crate) async fn run_rpc_connection(
     let reader_ctx = ctx.clone();
     let reader = tokio::spawn(async move {
         let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
+        loop {
+            // `while let Ok(Some(line))` silently exits on a read error, which
+            // is indistinguishable from EOF — the process stays up, `alive`
+            // stays true, and the thread accepts prompts it will never render.
+            // One non-UTF-8 byte was enough to produce that.
+            let line = match lines.next_line().await {
+                Ok(Some(line)) => line,
+                Ok(None) => break, // EOF — the agent exited or closed stdout.
+                Err(e) => {
+                    log::warn!("[RPC] stdout read failed, ending the reader: {e}");
+                    break;
+                }
+            };
             let line = line.trim_end_matches('\r');
             if line.is_empty() {
                 continue;
@@ -522,7 +606,6 @@ pub(crate) async fn run_rpc_connection(
                 Err(e) => log::debug!("[RPC] non-JSON stdout line ({e}): {line}"),
             }
         }
-        // EOF — subprocess exited or closed stdout.
     });
 
     // Command loop: translate AgentCommand into RPC lines.
@@ -577,6 +660,14 @@ pub(crate) async fn run_rpc_connection(
             }
             status = child.wait() => {
                 log::info!("[RPC] prime-agent for task {task_id} exited: {status:?}");
+                // Exit 137 (OOM-killed) and exit 0 were reported identically,
+                // so a crash looked like a clean finish to the whole UI.
+                if let Ok(status) = status {
+                    if !status.success() {
+                        reader.abort();
+                        return Err(describe_exit(status));
+                    }
+                }
                 break;
             }
         }
@@ -587,6 +678,28 @@ pub(crate) async fn run_rpc_connection(
     }
     reader.abort();
     Ok(())
+}
+
+/// Turn a non-zero exit into something a user can act on.
+fn describe_exit(status: std::process::ExitStatus) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            // 9 is what the OOM killer sends, and it is the common case here:
+            // the agent holds the whole conversation in memory.
+            if signal == 9 {
+                return "The agent was killed — most likely it ran out of memory. \
+                        Try compacting the thread or starting a new one."
+                    .to_string();
+            }
+            return format!("The agent was terminated by signal {signal}.");
+        }
+    }
+    match status.code() {
+        Some(code) => format!("The agent exited unexpectedly (code {code})."),
+        None => "The agent exited unexpectedly.".to_string(),
+    }
 }
 
 /// Dispatch one parsed stdout line from the agent.

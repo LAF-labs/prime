@@ -242,6 +242,47 @@ fn strip_image_tags_handles_empty_string() {
     assert_eq!(strip_image_tags(""), "");
 }
 
+/// Every test above is ASCII, which is how a byte-by-byte copy survived here:
+/// it reinterpreted each UTF-8 byte as a Latin-1 code point, so attaching a
+/// screenshot to a Korean prompt sent the model mojibake.
+#[test]
+fn strip_image_tags_keeps_non_ascii_text_intact() {
+    let input = "안녕하세요, 이 스크린샷을 봐주세요 🙏";
+    assert_eq!(strip_image_tags(input), input);
+}
+
+#[test]
+fn strip_image_tags_keeps_non_ascii_around_a_stripped_image() {
+    let input = "이 이미지를 확인해 주세요\n[Attached image: 화면.png (image/png, 100 bytes)]\n<image src=\"data:image/png;base64,abc123\" />\n고맙습니다 🙇";
+    assert_eq!(
+        strip_image_tags(input),
+        "이 이미지를 확인해 주세요\n고맙습니다 🙇"
+    );
+}
+
+// ── truncate_chars ──────────────────────────────────────────────
+
+/// `&text[..120]` panics when byte 120 lands inside a character, which took
+/// out the stderr reader — and with it every diagnostic for that session.
+#[test]
+fn truncating_never_splits_a_character() {
+    let korean = "가".repeat(200); // 3 bytes each: byte 120 is a boundary, 121 is not
+    let cut = super::connection::truncate_chars(&korean, 120);
+    assert_eq!(cut.chars().count(), 120);
+
+    let emoji = "🙂".repeat(100); // 4 bytes each
+    assert_eq!(super::connection::truncate_chars(&emoji, 40).chars().count(), 40);
+
+    let mixed = "ab가🙂";
+    assert_eq!(super::connection::truncate_chars(mixed, 3), "ab가");
+}
+
+#[test]
+fn truncating_returns_short_text_unchanged() {
+    assert_eq!(super::connection::truncate_chars("짧다", 120), "짧다");
+    assert_eq!(super::connection::truncate_chars("", 10), "");
+}
+
 // ── build_prompt_payload ────────────────────────────────────────
 
 #[test]

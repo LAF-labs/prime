@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# Build the bundled prime-agent sidecar into src-tauri/resources/prime-agent.
+# Build the bundled agent-harness sidecar into src-tauri/resources/prime-agent.
+#
+# The harness is built from LAF's own fork (LAF-labs/prime-harness) at a
+# PINNED ref, never from a moving branch. This is what makes releases
+# reproducible and decouples us from upstream's cadence: upstream releases
+# land in the fork only when we merge them (see scripts/harness-upstream.sh).
+# To take a new harness version: merge/tag in the fork, bump HARNESS_REF here,
+# rebuild, commit both together.
 #
 # The sidecar is an npm-package-shaped folder:
 #   node                  — Node.js runtime (>= 22.8, arm64)
@@ -16,20 +23,27 @@
 
 set -euo pipefail
 
-PRIME_AGENT_REPO="${PRIME_AGENT_REPO:-https://github.com/PrimeIntellect-ai/prime-agent}"
+HARNESS_REPO="${HARNESS_REPO:-https://github.com/LAF-labs/prime-harness}"
+# The single source of truth for which harness this app ships.
+HARNESS_REF="${HARNESS_REF:-v0.7.0}"
 WORK="$(mktemp -d)"
 OUT="$(cd "$(dirname "$0")/.." && pwd)/src-tauri/resources/prime-agent"
 
-echo "==> Cloning prime-agent"
-git clone --depth 1 "$PRIME_AGENT_REPO" "$WORK/prime-agent"
+echo "==> Cloning harness at ${HARNESS_REF}"
+git clone --quiet --branch "$HARNESS_REF" --depth 1 "$HARNESS_REPO" "$WORK/prime-agent"
+HARNESS_SHA="$(git -C "$WORK/prime-agent" rev-parse HEAD)"
 
 echo "==> Installing monorepo deps"
 cd "$WORK/prime-agent"
 npm install
 
-echo "==> Building coding-agent"
+echo "==> Building all workspace packages"
+# The root build script compiles the packages in dependency order
+# (tui → ai → agent → coding-agent). Building coding-agent alone fails on
+# tagged releases because its siblings' dist/ and type declarations don't
+# exist yet.
+npm run build
 cd packages/coding-agent
-npm run build   # tsgo compile + copy-assets (theme, export-html, runtime, skills) + bundle
 
 echo "==> Assembling sidecar"
 rm -rf "$OUT"
@@ -91,4 +105,15 @@ curl -fsSL "$UV_URL" | tar -xz -C "$WORK"
 cp "$WORK/uv-${UV_TARGET}/uv" uv
 chmod +x uv
 
-echo "==> Done: $(du -sh "$OUT" | cut -f1) at $OUT"
+# Provenance: which harness this sidecar was built from. The app surfaces
+# this in Settings ("Harness vX.Y.Z") and support asks for it first.
+cat > "$OUT/HARNESS.json" <<EOF
+{
+  "ref": "${HARNESS_REF}",
+  "commit": "${HARNESS_SHA}",
+  "repo": "${HARNESS_REPO}",
+  "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+
+echo "==> Done: $(du -sh "$OUT" | cut -f1) at $OUT (harness ${HARNESS_REF} @ ${HARNESS_SHA:0:8})"

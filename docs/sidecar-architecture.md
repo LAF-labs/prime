@@ -2,6 +2,23 @@
 
 A record of why the agent runs the way it does, and when that should change.
 
+## Who owns the harness
+
+The sidecar is built from **LAF's own fork** —
+[LAF-labs/prime-harness](https://github.com/LAF-labs/prime-harness) — at the
+pinned `HARNESS_REF` in `scripts/build-sidecar.sh`, never from upstream
+directly and never from a moving branch. `HARNESS.json` inside the sidecar
+records the exact ref, commit, and build time; the app shows it in Settings.
+
+Upstream (`PrimeIntellect-ai/prime-agent`) ships fast — 40+ releases. We
+follow it deliberately, not automatically: `scripts/harness-upstream.sh`
+shows what upstream has shipped since our pinned ref, and taking an update
+means merging the upstream tag into the fork, re-tagging, bumping
+`HARNESS_REF`, rebuilding, and committing both together. Harness-level
+features we own (the permission gate, sandboxing, provider compatibility)
+land in the fork as first-class code rather than riding along as external
+patches.
+
 ## What ships today
 
 `src-tauri/resources/prime-agent/` is a 192 MB folder inside the app bundle:

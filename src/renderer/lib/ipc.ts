@@ -350,7 +350,7 @@ export const ipc = {
     invoke('analytics_mode_usage', { since: since ?? null }),
   analyticsProjectStats: (since?: number): Promise<Array<{ project: string; threads: number; messages: number }>> =>
     invoke('analytics_project_stats', { since: since ?? null }),
-  analyticsTotals: (since?: number): Promise<{ codingHours: number; messagesSent: number; messagesReceived: number; tokens: number; diffAdditions: number; diffDeletions: number; filesEdited: number; toolCalls: number }> =>
+  analyticsTotals: (since?: number): Promise<{ codingHours: number; messagesSent: number; messagesReceived: number; tokens: number; cost: number; diffAdditions: number; diffDeletions: number; filesEdited: number; toolCalls: number }> =>
     invoke('analytics_totals', { since: since ?? null }),
 
   // ── Thread title generation ──────────────────────────────────────────────────

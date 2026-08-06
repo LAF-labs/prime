@@ -498,8 +498,14 @@ pub fn analytics_tokens_by_day(
     state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<DayValue>, AppError> {
-    let events = load_events_filtered(&app, &state, &["token_usage"], since)?;
-    Ok(group_by_day(&events, |bucket| (sum_value(bucket), None)))
+    // `token_spend`, not `token_usage`: the latter is context-window
+    // occupancy, which is re-counted every turn and drops after compaction —
+    // summing it days-wide overstates consumption several times over.
+    let events = load_events_filtered(&app, &state, &["token_spend"], since)?;
+    Ok(group_by_day(&events, |bucket| {
+        let cost: f64 = bucket.iter().filter_map(|e| e.value2).sum();
+        (sum_value(bucket), if cost > 0.0 { Some(cost) } else { None })
+    }))
 }
 
 #[tauri::command]
@@ -607,6 +613,9 @@ pub struct AnalyticsTotals {
     pub messages_sent: u64,
     pub messages_received: u64,
     pub tokens: f64,
+    /// USD, summed from priced turns only — unpriced providers contribute
+    /// tokens without cost rather than a misleading zero.
+    pub cost: f64,
     pub diff_additions: f64,
     pub diff_deletions: f64,
     pub files_edited: u64,
@@ -625,6 +634,7 @@ pub fn analytics_totals(
         messages_sent: 0,
         messages_received: 0,
         tokens: 0.0,
+        cost: 0.0,
         diff_additions: 0.0,
         diff_deletions: 0.0,
         files_edited: 0,
@@ -636,7 +646,10 @@ pub fn analytics_totals(
             "session" => totals.coding_hours += e.value.unwrap_or(0.0) / 3600.0,
             "message_sent" => totals.messages_sent += 1,
             "message_received" => totals.messages_received += 1,
-            "token_usage" => totals.tokens += e.value.unwrap_or(0.0),
+            "token_spend" => {
+                totals.tokens += e.value.unwrap_or(0.0);
+                totals.cost += e.value2.unwrap_or(0.0);
+            }
             "diff_stats" => {
                 totals.diff_additions += e.value.unwrap_or(0.0);
                 totals.diff_deletions += e.value2.unwrap_or(0.0);

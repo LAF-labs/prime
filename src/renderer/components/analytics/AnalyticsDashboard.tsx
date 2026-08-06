@@ -101,7 +101,7 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
                 <MessagesChart sent={p.message_sent} received={p.message_received} />
               </Suspense>
               <Suspense fallback={<ChartFallback />}>
-                <TokensChart events={p.token_usage} modelEvents={p.model_used} />
+                <TokensChart events={p.token_spend} modelEvents={p.model_used} />
               </Suspense>
               <Suspense fallback={<ChartFallback />}>
                 <DiffStatsChart diffEvents={p.diff_stats} fileEvents={p.file_edited} />

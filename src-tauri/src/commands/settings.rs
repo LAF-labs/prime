@@ -32,6 +32,30 @@ pub struct TextGenerationPolicy {
     pub pr_instructions: Option<String>,
 }
 
+/// User-supplied token pricing for a single provider.
+///
+/// prime-agent only knows per-model prices for its built-in providers, so cost
+/// for a user-registered OpenAI-compatible provider always comes back as 0.
+/// These rates let the user fill that gap by hand.
+///
+/// **Unit: USD per 1M tokens** for every field.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderRate {
+    /// Price per 1M input (prompt) tokens, in USD.
+    #[serde(default)]
+    pub input: f64,
+    /// Price per 1M output (completion) tokens, in USD.
+    #[serde(default)]
+    pub output: f64,
+    /// Price per 1M cache-read tokens, in USD. `None` when the user left it blank.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read: Option<f64>,
+    /// Price per 1M cache-write tokens, in USD. `None` when the user left it blank.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write: Option<f64>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectPrefs {
@@ -131,6 +155,11 @@ pub struct AppSettings {
     /// `None` or 0 disables auto-archiving.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auto_archive_days: Option<u32>,
+    /// Manual token pricing keyed by provider name, in **USD per 1M tokens**.
+    /// Only needed for user-registered OpenAI-compatible providers, whose
+    /// `models.json` entries carry no price and therefore report a cost of 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_rates: Option<std::collections::HashMap<String, ProviderRate>>,
 }
 
 fn default_agent_bin() -> String {
@@ -175,6 +204,7 @@ impl Default for AppSettings {
             inline_tool_calls: None,
             ai_commit_messages: true,
             auto_archive_days: None,
+            provider_rates: None,
         }
     }
 }
@@ -381,6 +411,40 @@ mod tests {
         let json = r#"{}"#;
         let prefs: ProjectPrefs = serde_json::from_str(json).unwrap();
         assert!(prefs.tight_sandbox.is_none());
+    }
+
+    #[test]
+    fn provider_rates_defaults_to_none_when_missing() {
+        let settings: AppSettings = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(settings.provider_rates.is_none());
+    }
+
+    #[test]
+    fn provider_rates_roundtrip_in_camel_case() {
+        let mut rates = std::collections::HashMap::new();
+        rates.insert(
+            "upstage".to_string(),
+            ProviderRate {
+                input: 0.5,
+                output: 1.5,
+                cache_read: Some(0.05),
+                cache_write: None,
+            },
+        );
+        let settings = AppSettings {
+            provider_rates: Some(rates),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("providerRates"));
+        assert!(json.contains("cacheRead"));
+        assert!(!json.contains("cacheWrite"));
+        let restored: AppSettings = serde_json::from_str(&json).unwrap();
+        let r = restored.provider_rates.unwrap();
+        assert_eq!(
+            r["upstage"],
+            ProviderRate { input: 0.5, output: 1.5, cache_read: Some(0.05), cache_write: None },
+        );
     }
 
     #[test]

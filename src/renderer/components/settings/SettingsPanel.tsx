@@ -325,7 +325,7 @@ export const SettingsPanel = () => {
                 )
               ) : (
                 <>
-                  {section === 'account' && <AccountSection />}
+                  {section === 'account' && <AccountSection draft={draft} updateDraft={updateDraft} />}
                   {section === 'general' && <GeneralSection draft={draft} updateDraft={updateDraft} />}
                   {section === 'appearance' && <AppearanceSection draft={draft} updateDraft={updateDraft} />}
                   {section === 'keymap' && <KeymapSection />}

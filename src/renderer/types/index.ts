@@ -232,6 +232,24 @@ export interface AppSettings {
    * null or 0 = disabled. Default: null (disabled).
    */
   autoArchiveDays?: number | null
+  /**
+   * Manual token pricing keyed by provider name, in **USD per 1M tokens**.
+   * prime-agent only prices its built-in providers, so a user-registered
+   * OpenAI-compatible provider always reports a cost of 0 without this.
+   */
+  providerRates?: Record<string, ProviderRate>
+}
+
+/** Token pricing for one provider. Every field is **USD per 1M tokens**. */
+export interface ProviderRate {
+  /** Price per 1M input (prompt) tokens. */
+  input: number
+  /** Price per 1M output (completion) tokens. */
+  output: number
+  /** Price per 1M cache-read tokens. Omitted when the user left it blank. */
+  cacheRead?: number
+  /** Price per 1M cache-write tokens. Omitted when the user left it blank. */
+  cacheWrite?: number
 }
 
 export interface ProjectFile {

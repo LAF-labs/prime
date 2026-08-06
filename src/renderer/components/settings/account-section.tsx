@@ -2,10 +2,17 @@ import { memo, useCallback } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useT } from '@/lib/i18n'
 import { ProviderKeyManager } from '@/components/ProviderKeyManager'
+import type { AppSettings } from '@/types'
 import { SectionHeader, SettingsCard, SettingsGrid } from './settings-shared'
 import { WebSearchCard } from './websearch-card'
+import { ProviderRatesCard } from './provider-rates-card'
 
-export const AccountSection = memo(function AccountSection() {
+interface AccountSectionProps {
+  draft: AppSettings
+  updateDraft: (patch: Partial<AppSettings>) => void
+}
+
+export const AccountSection = memo(function AccountSection({ draft, updateDraft }: AccountSectionProps) {
   const t = useT()
   const checkAuth = useSettingsStore((s) => s.checkAuth)
 
@@ -23,6 +30,8 @@ export const AccountSection = memo(function AccountSection() {
           </div>
         </SettingsCard>
       </SettingsGrid>
+
+      <ProviderRatesCard draft={draft} updateDraft={updateDraft} />
 
       <WebSearchCard />
     </>

@@ -401,6 +401,7 @@ export const ko: Record<string, string> = {
   // ── Providers & models ────────────────────────────────────────────
   'Search models…': '모델 검색…',
   'No models loaded': '불러온 모델이 없습니다',
+  'No providers configured yet.': '아직 설정된 프로바이더가 없습니다.',
   'Refresh model list': '모델 목록 새로고침',
   'Refresh available models': '사용 가능한 모델 새로고침',
   'Select default AI model': '기본 AI 모델 선택',
@@ -642,4 +643,23 @@ export const ko: Record<string, string> = {
   'Updates': '업데이트',
   'Use worktrees': '워크트리 사용',
   'Where memory goes': '메모리 사용처',
+
+  // ── Provider token pricing ────────────────────────────────────────
+  'Token pricing': '토큰 단가',
+  'USD per 1M tokens': '100만 토큰당 USD',
+  'Cost for custom providers': '커스텀 프로바이더 비용',
+  'Built-in providers come with per-model prices, so their cost is calculated for you. A provider you added yourself has no price data, so its cost always shows as $0 — enter its rates here to see real numbers.':
+    '기본 제공 프로바이더는 모델별 단가를 갖고 있어 비용이 자동으로 계산됩니다. 직접 추가한 프로바이더는 단가 정보가 없어 비용이 항상 $0으로 표시되므로, 여기에 단가를 입력해야 실제 비용을 볼 수 있습니다.',
+  'Loading providers…': '프로바이더 불러오는 중…',
+  // 'Provider' is already translated in the Common actions group.
+  'Input': '입력',
+  'Output': '출력',
+  'Cache read': '캐시 읽기',
+  'Cache write': '캐시 쓰기',
+  'Custom endpoint — enter rates manually': '커스텀 엔드포인트 — 단가를 직접 입력하세요',
+  'Priced automatically': '자동 계산됨',
+  'Rates apply to every model on a provider. Add an OpenAI-compatible endpoint above to set its pricing.':
+    '단가는 해당 프로바이더의 모든 모델에 적용됩니다. 위에서 OpenAI 호환 엔드포인트를 추가하면 단가를 설정할 수 있습니다.',
+  'Rates apply to every model on a provider. Leave a field blank to leave it unset — check the provider’s pricing page for the current numbers.':
+    '단가는 해당 프로바이더의 모든 모델에 적용됩니다. 비워 두면 미설정으로 남으며, 최신 단가는 프로바이더의 요금 페이지에서 확인하세요.',
 }

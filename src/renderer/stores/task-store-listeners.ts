@@ -9,6 +9,10 @@ import { useDiffStore } from '@/stores/diffStore'
 import { useTaskStore } from './taskStore'
 import type { TaskStore } from './task-store-types'
 import { record } from '@/lib/analytics-collector'
+import {
+  EMPTY_SNAPSHOT, snapshotOf, spendDelta, providerOf,
+  type SessionStats, type SpendSnapshot,
+} from '@/lib/token-spend'
 import { stripImageDataForTitleGen } from '@/lib/message-utils'
 import { getReceiptBus, createTurnQuiescedReceipt, createDiffReadyReceipt } from '@/lib/typed-receipts'
 import * as threadDb from '@/lib/thread-db'
@@ -17,6 +21,54 @@ import * as threadDb from '@/lib/thread-db'
 const projectName = (workspace: string): string => {
   const parts = workspace.replace(/\\/g, '/').split('/')
   return parts[parts.length - 1] || workspace
+}
+
+// ── Billable token accounting ────────────────────────────────────
+//
+// `usage_update` carries context-window occupancy, which is a gauge, not a
+// total — charting it as consumption overstates it badly and bears no
+// relation to a bill. The billable figures live in the agent's cumulative
+// session stats, so after each turn we snapshot them and record the delta.
+// See lib/token-spend.ts for the cost rules.
+
+/** Last observed cumulative totals per thread, to diff the next turn against. */
+const spendSnapshots: Record<string, SpendSnapshot> = {}
+
+const recordTurnSpend = async (taskId: string): Promise<void> => {
+  let stats: SessionStats | null = null
+  try {
+    stats = (await ipc.agentRpcRequest(taskId, 'get_session_stats')) as SessionStats
+  } catch {
+    // A torn-down connection is the common case here; usage simply goes
+    // unrecorded for that turn rather than surfacing an error to the user.
+    return
+  }
+
+  const current = snapshotOf(stats)
+  const previous = spendSnapshots[taskId] ?? EMPTY_SNAPSHOT
+  spendSnapshots[taskId] = current
+
+  const modelId = useTaskStore.getState().taskModels[taskId]
+    ?? useSettingsStore.getState().currentModelId
+  const provider = providerOf(modelId)
+  const rate = provider ? useSettingsStore.getState().settings.providerRates?.[provider] : undefined
+
+  const delta = spendDelta(previous, current, rate)
+  if (delta.tokens <= 0) return
+
+  const task = useTaskStore.getState().tasks[taskId]
+  record('token_spend', {
+    project: task ? projectName(task.originalWorkspace ?? task.workspace) : undefined,
+    thread: taskId,
+    detail: modelId ?? undefined,
+    value: delta.tokens,
+    value2: delta.cost,
+  })
+}
+
+/** Drop a thread's running totals when it goes away. */
+export const forgetSpendSnapshot = (taskId: string): void => {
+  delete spendSnapshots[taskId]
 }
 
 // ── Throttled periodic backup ────────────────────────────────────
@@ -394,6 +446,8 @@ export function initTaskListeners(): () => void {
 
     // Use a single setState to avoid stale reads between getState() calls
     useTaskStore.setState((s) => applyTurnEnd(s, taskId, stopReason))
+
+    void recordTurnSpend(taskId)
 
     // Clear dispatch snapshot — turn is complete
     useTaskStore.getState().setDispatchSnapshot(taskId, null)

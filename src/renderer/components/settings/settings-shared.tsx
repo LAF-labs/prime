@@ -63,6 +63,7 @@ export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'Clear history', description: 'Clear all threads without resetting settings', section: 'advanced', keywords: 'clear history delete conversations data threads' },
   { label: 'Replay onboarding', description: 'Run the setup wizard again', section: 'advanced', keywords: 'onboarding wizard setup replay' },
   { label: 'Account', description: 'Authentication status and sign in', section: 'account', keywords: 'account login sign auth email' },
+  { label: 'Token pricing', description: 'USD per 1M tokens for custom providers', section: 'account', keywords: 'cost price pricing token rate usd custom provider spend billing' },
   { label: 'Thread memory monitor', description: 'Per-thread memory usage and live buffers', section: 'memory', keywords: 'memory monitor performance ram heap thread usage profile leak' },
   { label: 'Terminal scrollback', description: 'Lines retained per terminal tab', section: 'memory', keywords: 'terminal scrollback pty memory lines history shell' },
   { label: 'Auto-close idle terminals', description: 'Close background terminal tabs after N minutes', section: 'memory', keywords: 'terminal idle auto close pty kill memory background tab' },

@@ -39,6 +39,7 @@ export interface PartitionedEvents {
   message_sent: AnalyticsEvent[]
   message_received: AnalyticsEvent[]
   token_usage: AnalyticsEvent[]
+  token_spend: AnalyticsEvent[]
   tool_call: AnalyticsEvent[]
   file_edited: AnalyticsEvent[]
   diff_stats: AnalyticsEvent[]
@@ -54,7 +55,7 @@ const EMPTY: AnalyticsEvent[] = []
 
 export const partitionEvents = (events: AnalyticsEvent[]): PartitionedEvents => {
   const p: PartitionedEvents = {
-    session: [], message_sent: [], message_received: [], token_usage: [],
+    session: [], message_sent: [], message_received: [], token_usage: [], token_spend: [],
     tool_call: [], file_edited: [], diff_stats: [], slash_cmd: [],
     model_used: [], mode_switch: [], thread_created: [], mcp_used: [], skill_used: [],
   }

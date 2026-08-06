@@ -103,14 +103,18 @@ interface SubagentDisplayProps {
 export const SubagentDisplay = memo(function SubagentDisplay({ allToolCalls }: SubagentDisplayProps) {
   const [expanded, setExpanded] = useState(true)
   const { stages, task, description, isRunning, isCompleted } = aggregateSubagentData(allToolCalls)
-  if (stages.length === 0) return null
-  const summary = description ?? task ?? 'Parallel agents'
-  const hasTaskDescription = task && task !== summary
   const stagesWithDescriptions = useMemo(() =>
     stages.map((stage) => ({
       ...stage,
       description: summarizePrompt(stage.prompt_template),
     })), [stages])
+
+  // Below the hook: stages arrive as the subagent tool call streams in, so an
+  // earlier return would change this component's hook count mid-turn.
+  if (stages.length === 0) return null
+
+  const summary = description ?? task ?? 'Parallel agents'
+  const hasTaskDescription = task && task !== summary
   return (
     <div className="rounded-lg border border-border/60 bg-card/60">
       <button

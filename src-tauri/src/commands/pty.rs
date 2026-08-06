@@ -28,6 +28,13 @@ pub struct PtyInstance {
 
 impl Drop for PtyInstance {
     fn drop(&mut self) {
+        // The shell is a session leader, so its pid is also its process-group
+        // id. Killing only that pid leaves whatever the user was running in
+        // the terminal — a dev server, a build — alive with no terminal to
+        // stop it from. Signal the group first, then reap the leader.
+        if let Some(pid) = self.child.process_id() {
+            super::process_group::terminate_group(pid, std::time::Duration::from_millis(500));
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }

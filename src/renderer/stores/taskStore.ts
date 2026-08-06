@@ -79,6 +79,7 @@ const withoutChatDirs = (list: string[]): string[] => list.filter((w) => !isChat
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: {},
   archivedMeta: {},
+  historyLoaded: false,
   projects: [],
   projectIds: {},
   projectNames: {},
@@ -1210,7 +1211,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const sp of savedProjects) {
           if (sp.threadOrder?.length) threadOrders[sp.workspace] = sp.threadOrder
         }
-        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds: capDeletedIds(deletedTaskIds), threadOrders, connected: true })
+        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds: capDeletedIds(deletedTaskIds), threadOrders, connected: true, historyLoaded: true })
         // One-time migration: sync JSON history threads into SQLite (background, best-effort).
         // This ensures all historical threads are available via the SQLite store going forward.
         threadDb.migrateFromJsonHistory(historyStore.loadThreads).then((result) => {
@@ -1218,8 +1219,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             console.info(`[thread-db] Migrated ${result.migrated} threads from JSON to SQLite (${result.skipped} already existed, ${result.failed} failed)`)
           }
         }).catch(() => {})
-      } catch {
-        // History load failed — derive projects from live tasks, filtering worktree paths
+      } catch (err) {
+        // History load failed — derive projects from live tasks, filtering worktree paths.
+        // `historyLoaded` deliberately stays false: we do not know what is on
+        // disk, and the next autosave would write our partial view over it.
+        console.error('[taskStore] history load failed — persistence disabled for this window', err)
         const projects = [...new Set(list.map((t) => t.originalWorkspace ?? t.workspace))]
         set({ tasks, projects: withoutChatDirs(projects), connected: true })
       }
@@ -1292,7 +1296,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const sp of savedProjects) {
           if (sp.threadOrder?.length) threadOrders[sp.workspace] = sp.threadOrder
         }
-        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds, threadOrders, connected: false })
+        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds, threadOrders, connected: false, historyLoaded: true })
       } catch {
         set({ connected: false })
       }
@@ -1411,7 +1415,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   persistHistory: () => {
-    const { tasks, projectNames, projectIds, softDeleted, projects, threadOrders, archivedMeta, streamingChunks, thinkingChunks, liveToolCalls, liveToolSplits } = get()
+    const { tasks, projectNames, projectIds, softDeleted, projects, threadOrders, archivedMeta, streamingChunks, thinkingChunks, liveToolCalls, liveToolSplits, historyLoaded } = get()
+    // Writing before we know what is on disk deletes it. Agent events reach
+    // every window, including one whose own load is still in flight, so this
+    // guard is what stops a second window from erasing the archive.
+    if (!historyLoaded) return
     // Tell saveThreads which on-disk archived ids to preserve verbatim.
     // Without this set, saveThreads would drop every archived thread that
     // isn't currently inflated in `tasks`.

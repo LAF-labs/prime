@@ -25,8 +25,6 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ toolCalls, inline
   const [expanded, setExpanded] = useState(true)
   const [showAll, setShowAll] = useState(false)
 
-  if (!toolCalls.length) return null
-
   const { completedCount, runningCount, failedCount, cancelledCount } = useMemo(() => {
     let completed = 0, running = 0, failed = 0, cancelled = 0
     for (const tc of toolCalls) {
@@ -39,6 +37,11 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ toolCalls, inline
   }, [toolCalls])
 
   const hasSubagent = useMemo(() => toolCalls.some(isSubagentToolCall), [toolCalls])
+
+  // Below every hook: a message starts its turn with no tool calls and gains
+  // them as the agent streams, so returning early above would change the hook
+  // count between renders of the same component instance.
+  if (!toolCalls.length) return null
 
   // Inline layout: render each tool entry directly, no aggregate header.
   if (inline) {

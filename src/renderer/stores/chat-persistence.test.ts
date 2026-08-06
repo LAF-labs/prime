@@ -108,6 +108,10 @@ beforeEach(() => {
     activityFeed: [],
     connected: false,
     archivedMeta: {},
+    // These tests exercise persistence directly, which a real window only
+    // reaches after its history read has landed. Without this they would all
+    // hit the "don't write what you haven't read" guard in persistHistory.
+    historyLoaded: true,
     terminalOpenTasks: new Set(),
     pendingWorkspace: null,
     view: 'dashboard',
@@ -512,6 +516,55 @@ describe('setSelectedTask — archived thread hydration', () => {
     useTaskStore.getState().setSelectedTask('ghost-thread')
     // selectedTaskId is still set (UI shows empty state)
     expect(threadDb.loadFullThread).not.toHaveBeenCalled()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// persistHistory refuses to write history it has not read
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('persistHistory — write guard', () => {
+  it('does not write while the history read is still in flight', () => {
+    // A second window: its loadTasks() is awaiting IPC, but agent events are
+    // broadcast to every window and would otherwise drive a save here. Since
+    // saveThreads drops every thread absent from `tasks` and `archivedMeta`,
+    // that save would delete the user's whole archive from disk.
+    useTaskStore.setState({
+      historyLoaded: false,
+      tasks: { live: makeTask({ id: 'live', messages: [makeMessage({ content: 'hi' })] }) },
+      archivedMeta: {},
+    })
+
+    useTaskStore.getState().persistHistory()
+
+    expect(historyStore.saveThreads).not.toHaveBeenCalled()
+  })
+
+  it('does not write when the history read failed outright', () => {
+    // Same hazard, single window: loadTasks caught an error and never learned
+    // what was on disk. Writing our partial view would truncate the file.
+    useTaskStore.setState({
+      historyLoaded: false,
+      tasks: { live: makeTask({ id: 'live', messages: [makeMessage({ content: 'hi' })] }) },
+      archivedMeta: {},
+      connected: true,
+    })
+
+    useTaskStore.getState().persistHistory()
+
+    expect(historyStore.saveThreads).not.toHaveBeenCalled()
+  })
+
+  it('writes once the read has landed', () => {
+    useTaskStore.setState({
+      historyLoaded: true,
+      tasks: { live: makeTask({ id: 'live', messages: [makeMessage({ content: 'hi' })] }) },
+      archivedMeta: {},
+    })
+
+    useTaskStore.getState().persistHistory()
+
+    expect(historyStore.saveThreads).toHaveBeenCalledTimes(1)
   })
 })
 

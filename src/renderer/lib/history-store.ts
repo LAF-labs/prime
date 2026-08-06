@@ -57,23 +57,41 @@ let _selfWriteCount = 0
 /** Returns true if this window is currently writing to the store. */
 export const isSelfWriting = (): boolean => _selfWriteCount > 0
 
+/**
+ * Set when the history file on disk turned out to be damaged.
+ *
+ * The plugin cannot tell us this: it swallows the parse error and hands back a
+ * store that reads exactly like an empty one. So we ask Rust to look at the
+ * bytes before we touch them, and remember the verdict here.
+ */
+let _quarantinedPath: string | null = null
+
+/** Where a damaged history file was moved, if this session found one. */
+export const getQuarantinedPath = (): string | null => _quarantinedPath
+
 const getStore = async (): Promise<LazyStore> => {
   if (!_store) {
     const { LazyStore } = await import('@tauri-apps/plugin-store')
-    _store = new LazyStore(HISTORY_FILE, { autoSave: 500, defaults: {} })
-    // Validate the store is readable — if corrupted, reset it
+
+    // Look at the file before the plugin loads it. A truncated write leaves
+    // bytes that parse as nothing; the plugin would present that as "you have
+    // no conversations" and the next autosave would overwrite the remains.
     try {
-      await _store.get<unknown>('threads')
-    } catch (err) {
-      console.warn('[history-store] Store corrupted, resetting:', err)
-      try {
-        await _store.clear()
-        await _store.save()
-      } catch {
-        // If clear also fails, recreate the store instance
-        _store = new LazyStore(HISTORY_FILE, { autoSave: 500, defaults: {} })
+      const { ipc } = await import('./ipc')
+      const health = await ipc.historyHealth(HISTORY_FILE)
+      if (health.exists && !health.parseable) {
+        console.error(
+          `[history-store] ${HISTORY_FILE} is damaged (${health.bytes} bytes) — moving it aside rather than overwriting it`,
+        )
+        _quarantinedPath = await ipc.historyQuarantine(HISTORY_FILE)
       }
+    } catch (err) {
+      // A failed health check is not a reason to block startup; the write
+      // guard in the task store still refuses to persist what it never read.
+      console.warn('[history-store] could not check history integrity:', err)
     }
+
+    _store = new LazyStore(HISTORY_FILE, { autoSave: 500, defaults: {} })
   }
   return _store
 }
@@ -348,6 +366,20 @@ export async function createBackup(settings?: AppSettings): Promise<void> {
   const projects = (await primary.get<SavedProject[]>('projects')) ?? []
   const softDeleted = (await primary.get<SoftDeletedThread[]>('softDeleted')) ?? []
   const backup = await getBackupStore()
+
+  // A backup exists for the case where the primary went bad. Copying an empty
+  // primary over a populated backup destroys the only remaining copy — which
+  // is exactly what used to happen within five minutes of a truncated write.
+  if (threads.length === 0) {
+    const existing = (await backup.get<SavedThread[]>('threads')) ?? []
+    if (existing.length > 0) {
+      console.warn(
+        `[history-store] refusing to back up an empty history over ${existing.length} backed-up thread(s)`,
+      )
+      return
+    }
+  }
+
   await backup.set('threads', threads)
   await backup.set('projects', projects)
   await backup.set('softDeleted', softDeleted)

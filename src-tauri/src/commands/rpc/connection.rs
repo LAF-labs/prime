@@ -260,6 +260,8 @@ pub(crate) fn spawn_connection_with_preamble(
     let auto_approve_task = auto_approve_flag.clone();
     let app_task = app.clone();
     let tid_task = task_id.clone();
+    let pid = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let pid_task = pid.clone();
 
     tauri::async_runtime::spawn(async move {
         let result = run_rpc_connection(
@@ -275,10 +277,12 @@ pub(crate) fn spawn_connection_with_preamble(
             options,
             pending_preamble,
             pending_task,
+            pid_task.clone(),
         )
         .await;
 
         alive_task.store(false, Ordering::SeqCst);
+        pid_task.store(0, Ordering::SeqCst);
 
         // If the connection died while the task was still running, the
         // frontend never receives a `turn_end` event and the spinner gets
@@ -319,7 +323,7 @@ pub(crate) fn spawn_connection_with_preamble(
         }
     });
 
-    Ok(ConnectionHandle { cmd_tx, alive, auto_approve: auto_approve_flag, pending })
+    Ok(ConnectionHandle { cmd_tx, alive, auto_approve: auto_approve_flag, pending, pid })
 }
 
 /// Shared state for the stdout reader task.
@@ -352,6 +356,7 @@ pub(crate) async fn run_rpc_connection(
     options: LaunchOptions,
     mut pending_preamble: Option<String>,
     pending: PendingRequests,
+    pid_slot: Arc<std::sync::atomic::AtomicU32>,
 ) -> Result<(), String> {
     let mut cmd = tokio::process::Command::new(&launch.program);
     cmd.args(&launch.prefix_args);
@@ -417,6 +422,11 @@ pub(crate) async fn run_rpc_connection(
             Err(e) => log::warn!("[RPC] could not build the kernel sandbox, running unconfined: {e}"),
         }
     }
+    // The agent goes on to spawn a Python kernel, `uv`, MCP servers, and the
+    // model's own bash commands. Giving it its own process group is what lets
+    // teardown reach all of them instead of just the Node process.
+    crate::commands::process_group::lead_new_group(&mut cmd);
+
     let mut child = cmd
         .current_dir(&workspace)
         .stdin(std::process::Stdio::piped())
@@ -430,6 +440,10 @@ pub(crate) async fn run_rpc_connection(
         .env("PRIME_AGENT_INSTALL_UV", "1")
         .spawn()
         .map_err(|e| format!("Failed to spawn prime-agent: {e}"))?;
+
+    if let Some(id) = child.id() {
+        pid_slot.store(id, Ordering::SeqCst);
+    }
 
     let mut stdin = child.stdin.take().ok_or("No stdin")?;
     let stdout = child.stdout.take().ok_or("No stdout")?;

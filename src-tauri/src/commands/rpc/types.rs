@@ -172,6 +172,11 @@ pub struct ConnectionHandle {
     pub cmd_tx: mpsc::UnboundedSender<AgentCommand>,
     pub alive: Arc<std::sync::atomic::AtomicBool>,
     pub auto_approve: Arc<std::sync::atomic::AtomicBool>,
+    /// The agent process's pid, which is also its process-group id — the child
+    /// is made a group leader at spawn. Zero until the process is up, and again
+    /// once it has exited. Teardown signals the group so the kernel, MCP
+    /// servers, and tool subprocesses go with it.
+    pub pid: Arc<std::sync::atomic::AtomicU32>,
     /// In-flight generic RPC requests, keyed by the correlation id we put on
     /// the wire. The reader resolves them when the matching `response` line
     /// arrives, which is what lets the UI call *any* prime-agent RPC command.

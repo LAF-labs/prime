@@ -6,7 +6,7 @@ extern crate objc;
 
 pub mod commands;
 
-use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
+use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -79,9 +79,22 @@ fn install_panic_hook() {
     }));
 }
 
+/// Set once the teardown below has run, so the several exit paths that all
+/// funnel into it don't repeat the work.
+static SHUTDOWN_DONE: AtomicBool = AtomicBool::new(false);
+
 /// Gracefully shut down all agent connections and PTY sessions.
+///
+/// Reachable from every way the app can exit: the last window's close button,
+/// Cmd+Q and the menu's Quit item (via `RunEvent::Exit`), and the updater's
+/// relaunch. Missing any one of them leaves the agent children, their Python
+/// kernels, and the PTY shells running with no parent — invisible to the user
+/// and alive until reboot.
 fn shutdown_app(app: &tauri::AppHandle) {
-    log::info!("Window close requested — shutting down");
+    if SHUTDOWN_DONE.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    log::info!("Shutting down");
     let start = std::time::Instant::now();
 
     // Kill all agent connections
@@ -89,13 +102,32 @@ fn shutdown_app(app: &tauri::AppHandle) {
         {
             let mut conns = agent_state.connections.lock();
             let count = conns.len();
+            let mut groups = Vec::new();
             for (task_id, handle) in conns.drain() {
                 log::info!("Killing agent connection: {}", task_id);
                 let _ = handle.cmd_tx.send(rpc::AgentCommand::Kill);
+                let pid = handle.pid.load(Ordering::SeqCst);
+                if pid != 0 {
+                    groups.push(pid);
+                }
                 // Drop the sender so the receiver side unblocks
                 drop(handle);
             }
-            log::info!("Sent kill to {} agent connection(s)", count);
+
+            // `Kill` is handled by a task on the async runtime, and we are about
+            // to call `app.exit(0)` — nobody would ever observe it. Signal the
+            // process groups here, synchronously, and wait for them to go.
+            for pid in &groups {
+                commands::process_group::terminate_group(
+                    *pid,
+                    std::time::Duration::from_millis(1500),
+                );
+            }
+            log::info!(
+                "Terminated {} agent connection(s), {} process group(s)",
+                count,
+                groups.len()
+            );
         }
 
         // Drop all pending permission resolvers so blocked agent threads unblock
@@ -541,6 +573,9 @@ pub fn run() {
             settings::save_settings,
             settings::set_dock_icon,
             settings::reset_dock_icon,
+            // History integrity
+            history_guard::history_health,
+            history_guard::history_quarantine,
             // File ops
             fs_ops::detect_agent_cli,
             fs_ops::harness_info,
@@ -729,9 +764,19 @@ pub fn run() {
             app_tracing::trace_file_location,
             app_tracing::trace_clear,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .unwrap_or_else(|e| {
             eprintln!("Failed to start LAF Agent: {e}");
             std::process::exit(1);
+        })
+        .run(|app_handle, event| {
+            // The window's close button is not the only way out: Cmd+Q, the
+            // menu's Quit item, and the updater's relaunch all bypass
+            // `CloseRequested` entirely. `Exit` is the one event every path
+            // passes through, so teardown hangs off it. `shutdown_app` is
+            // idempotent, so the close-button path running it first is fine.
+            if matches!(event, tauri::RunEvent::Exit) {
+                shutdown_app(app_handle);
+            }
         });
 }

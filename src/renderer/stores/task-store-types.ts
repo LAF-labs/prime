@@ -34,6 +34,17 @@ export interface TaskStore {
    *  These are read-only past-session threads. Hydrated on demand when the
    *  user opens one. Keyed by thread id. */
   archivedMeta: Record<string, ArchivedThreadMeta>
+  /**
+   * True once this window has successfully read the on-disk history.
+   *
+   * `saveThreads` drops any thread that is neither live in `tasks` nor listed
+   * in `archivedMeta`, so writing before the read lands — or after it failed —
+   * deletes every archived conversation from disk. Agent events are broadcast
+   * to *all* windows, so a second window receives them while its own load is
+   * still in flight; that is the path that made this a real bug rather than a
+   * theoretical one.
+   */
+  historyLoaded: boolean
   projects: string[]           // workspace paths
   /** Maps workspace path → stable UUID for project identity */
   projectIds: Record<string, string>

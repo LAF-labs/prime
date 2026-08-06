@@ -4,6 +4,16 @@ import type { AgentTask, AppSettings, AgentResources, ToolCall, PlanStep, DebugL
 
 type UnsubscribeFn = () => void
 
+/** What `history_health` reports about a store file on disk. */
+export interface HistoryHealth {
+  /** False on a first run, which is not a fault. */
+  exists: boolean
+  bytes: number
+  /** False means the bytes are damaged — not that the store is empty. */
+  parseable: boolean
+  threadCount: number
+}
+
 const tauriListen = <T>(event: string, cb: (payload: T) => void): UnsubscribeFn => {
   let unlisten: (() => void) | null = null
   let cleaned = false
@@ -77,6 +87,18 @@ export const ipc = {
     invoke('set_dock_icon', { iconBase64 }),
   resetDockIcon: (): Promise<void> =>
     invoke('reset_dock_icon'),
+
+  // ── History integrity ────────────────────────────────────────────────────
+  /**
+   * Inspect a store file before the store plugin loads it. The plugin
+   * discards parse errors, so a damaged file is indistinguishable from an
+   * empty one from the renderer's side — this is how we tell them apart.
+   */
+  historyHealth: (name: string): Promise<HistoryHealth> =>
+    invoke('history_health', { name }),
+  /** Move a damaged store aside instead of letting it be overwritten. */
+  historyQuarantine: (name: string): Promise<string | null> =>
+    invoke('history_quarantine', { name }),
   gitDetect: (path: string): Promise<boolean> =>
     invoke('git_detect', { path }),
   gitInit: (path: string): Promise<void> =>

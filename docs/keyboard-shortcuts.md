@@ -1,6 +1,6 @@
 # Keyboard shortcuts
 
-Kirodex registers global keyboard shortcuts via the `useKeyboardShortcuts` hook, attached once in `App.tsx`. Shortcuts are ignored when focus is in an `INPUT` or `SELECT` element. The chat textarea handles its own key events separately.
+LAF Agent registers global keyboard shortcuts via the `useKeyboardShortcuts` hook, attached once in `App.tsx`. Shortcuts are ignored when focus is in an `INPUT` or `SELECT` element. The chat textarea handles its own key events separately.
 
 On Windows/Linux, replace Cmd with Ctrl.
 
@@ -25,7 +25,7 @@ On Windows/Linux, replace Cmd with Ctrl.
 
 ## Agent shortcuts
 
-Agents defined in `.kiro/` can have custom keyboard shortcuts (e.g., `ctrl+a`, `shift+b`, `ctrl+shift+r`). These toggle the agent on/off — pressing the shortcut when the agent is already active switches back to the default agent.
+Agents defined in `.agent/` can have custom keyboard shortcuts (e.g., `ctrl+a`, `shift+b`, `ctrl+shift+r`). These toggle the agent on/off — pressing the shortcut when the agent is already active switches back to the default agent.
 
 Agent shortcuts are ignored when focus is in an input, select, or textarea element.
 

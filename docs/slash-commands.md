@@ -16,7 +16,7 @@ Unknown commands return `handled: false` and are forwarded to ACP as regular mes
 | /upload | Trigger file upload dialog | Yes |
 | /usage | Switch to analytics dashboard view | Yes |
 | /data | Alias for /usage | Yes |
-| /plan | Toggle plan mode (switches between `kiro_planner` and `kiro_default`) | No (syncs via IPC) |
+| /plan | Toggle plan mode (switches between `plan` and `code`) | No (syncs via IPC) |
 | /close or /exit | Archive current thread (preserves history in read-only view) | Yes |
 | /fork | Fork current thread into a new conversation | Yes |
 | /branch | Open branch picker panel | Yes |

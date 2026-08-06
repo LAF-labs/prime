@@ -1,6 +1,6 @@
 # Development guide
 
-This guide covers setting up a local development environment, the build workflow, and common tasks for contributing to Kirodex.
+This guide covers setting up a local development environment, the build workflow, and common tasks for contributing to LAF Agent.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ This guide covers setting up a local development environment, the build workflow
 | [Rust](https://rustup.rs) | >= 1.78 | Backend compilation |
 | [Bun](https://bun.sh) | >= 1.0 | Package manager and script runner |
 | [Tauri CLI](https://v2.tauri.app/start/create-project/#cargo) | ^2.0.0 | Desktop app build tooling |
-| [kiro-cli](https://kiro.dev) | latest | Required at runtime for agent actions |
+| [prime-agent](https://agent.dev) | latest | Required at runtime for agent actions |
 
 Install Tauri CLI via cargo:
 
@@ -20,13 +20,13 @@ cargo install tauri-cli --locked --version "^2.0.0"
 ## Quick start
 
 ```bash
-git clone https://github.com/thabti/kirodex.git
-cd kirodex
+git clone https://laf-co.com/.git
+cd laf-agent
 bun install
 bun run dev
 ```
 
-This starts Vite on `localhost:5174`, compiles the Rust backend, and opens the Kirodex window. The first build compiles ~430 crates and takes a few minutes. Subsequent builds are incremental (~2s).
+This starts Vite on `localhost:5174`, compiles the Rust backend, and opens the LAF Agent window. The first build compiles ~430 crates and takes a few minutes. Subsequent builds are incremental (~2s).
 
 ## Frontend-only contributions
 
@@ -176,28 +176,28 @@ bun run check:ts    # must exit 0
 bun run build       # must succeed
 ```
 
-## kiro-cli detection
+## prime-agent detection
 
-The app auto-detects kiro-cli at these paths (in order):
+The app auto-detects prime-agent at these paths (in order):
 
-1. `~/.local/bin/kiro-cli`
-2. `/usr/local/bin/kiro-cli`
-3. `~/.kiro/bin/kiro-cli`
-4. `/opt/homebrew/bin/kiro-cli`
-5. Falls back to `which kiro-cli`
+1. `~/.local/bin/prime-agent`
+2. `/usr/local/bin/prime-agent`
+3. `~/.agent/bin/prime-agent`
+4. `/opt/homebrew/bin/prime-agent`
+5. Falls back to `which prime-agent`
 
-Without kiro-cli, the app launches but every agent action fails with "Failed to spawn kiro-cli."
+Without prime-agent, the app launches but every agent action fails with "Failed to spawn prime-agent."
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | `no such command: tauri` | Run `cargo install tauri-cli --locked --version "^2.0.0"` |
-| "Failed to spawn kiro-cli" | Install kiro-cli and verify with `kiro-cli --version` |
+| "Failed to spawn prime-agent" | Install prime-agent and verify with `prime-agent --version` |
 | Rust compilation errors | Run `rustup update`. Requires Rust >= 1.78. |
 | Frontend type errors | Run `bun install`, then `bun run check:ts` |
 | First build is slow | Normal. Initial `cargo build` compiles ~430 crates. |
-| macOS DMG won't open | Unsigned build — run `xattr -cr /path/to/Kirodex.app` |
+| macOS DMG won't open | Unsigned build — run `xattr -cr /path/to/LAF Agent.app` |
 | Vite rebuilds on doc edits | Check `vite.config.ts` watch ignores include `*.md` and `src-tauri/**` |
 
 ## Related documentation

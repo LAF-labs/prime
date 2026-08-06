@@ -2,7 +2,7 @@
 
 ## System overview
 
-Kirodex is a native desktop app for managing AI coding agents via the Agent Client Protocol (ACP). The app is built with Tauri v2: a Rust backend handles subprocess management, git operations, file system access, terminal emulation, analytics, and config persistence, while a React 19 frontend provides the UI. All communication between the two layers happens through Tauri's IPC (`invoke()` for commands, `listen()` for events). There are no Node.js APIs in the frontend.
+LAF Agent is a native desktop app for managing AI coding agents via the Agent Client Protocol (ACP). The app is built with Tauri v2: a Rust backend handles subprocess management, git operations, file system access, terminal emulation, analytics, and config persistence, while a React 19 frontend provides the UI. All communication between the two layers happens through Tauri's IPC (`invoke()` for commands, `listen()` for events). There are no Node.js APIs in the frontend.
 
 ```mermaid
 graph TD
@@ -13,14 +13,14 @@ graph TD
   end
 
   subgraph Backend["Backend — Rust (Tauri v2)"]
-    ACP["acp/\n(kiro-cli subprocess)"]
+    ACP["acp/\n(prime-agent subprocess)"]
     Goal["goal.rs\n(autonomous loop)"]
     PTY["pty.rs\n(portable-pty)"]
     Git["git.rs + git_ai.rs\n(git2 / libgit2)"]
     Analytics["analytics.rs\n(redb)"]
     Settings["settings.rs\n(confy)"]
     FsOps["fs_ops.rs\n(file ops, which)"]
-    KiroConfig["kiro_config.rs\n(serde_yaml)"]
+    AgentResources["agent_resources.rs\n(serde_yaml)"]
     ThreadDB["thread_db.rs\n(redb)"]
     Highlight["highlight.rs\n(redb cache)"]
     ProjectWatcher["project_watcher.rs\n(notify)"]
@@ -34,10 +34,10 @@ graph TD
   Zustand -- "invoke()" --> Analytics
   Zustand -- "invoke()" --> Settings
   Zustand -- "invoke()" --> FsOps
-  Zustand -- "invoke()" --> KiroConfig
+  Zustand -- "invoke()" --> AgentResources
   Zustand -- "invoke()" --> ThreadDB
 
-  ACP -- "stdin/stdout" --> KiroCLI["kiro-cli acp"]
+  ACP -- "stdin/stdout" --> AgentCLI["prime-agent acp"]
   PTY -- "PTY I/O" --> Shell["User shell"]
   Git -- "libgit2 FFI" --> Repo["Git repository"]
   Analytics -- "ACID storage" --> ReDB["redb database"]
@@ -54,7 +54,7 @@ sequenceDiagram
   participant Store as Zustand store
   participant IPC as Tauri IPC
   participant ACP as acp/
-  participant CLI as kiro-cli
+  participant CLI as prime-agent
 
   UI->>Store: user sends message
   Store->>IPC: invoke("send_message")
@@ -74,7 +74,7 @@ All Rust modules live in `src-tauri/src/commands/`. Tauri commands return `Resul
 
 | Module | Purpose |
 |--------|---------|
-| `acp/` | ACP protocol implementation. Spawns `kiro-cli acp` as a subprocess and implements the ACP `Client` trait. Each connection runs on a dedicated OS thread with a single-threaded tokio runtime. |
+| `acp/` | ACP protocol implementation. Spawns `prime-agent acp` as a subprocess and implements the ACP `Client` trait. Each connection runs on a dedicated OS thread with a single-threaded tokio runtime. |
 | `goal.rs` | Autonomous goal loop orchestrator. Manages plan → implement → verify cycles with self-correction (Ralph Loop pattern). |
 | `git.rs` | Git operations via `git2` (libgit2 bindings). Branch, stage, commit, push, pull, fetch, worktree management. |
 | `git_ai.rs` | AI-powered commit message generation from diff analysis. |
@@ -84,8 +84,8 @@ All Rust modules live in `src-tauri/src/commands/`. Tauri commands return `Resul
 | `git_utils.rs` | Shared git utility functions. |
 | `pty.rs` | Terminal emulation via `portable-pty`. Manages PTY child process lifecycle. |
 | `settings.rs` | Config persistence via `confy`. |
-| `fs_ops.rs` | File operations and kiro-cli binary detection via the `which` crate. |
-| `kiro_config.rs` | `.kiro/` project configuration discovery and parsing. |
+| `fs_ops.rs` | File operations and prime-agent binary detection via the `which` crate. |
+| `agent_resources.rs` | `.agent/` project configuration discovery and parsing. |
 | `error.rs` | Shared `AppError` enum via `thiserror`. |
 
 ### Data and persistence
@@ -115,7 +115,7 @@ All Rust modules live in `src-tauri/src/commands/`. Tauri commands return `Resul
 | Module | Purpose |
 |--------|---------|
 | `project_watcher.rs` | Real-time filesystem watching for the file tree panel. |
-| `kiro_watcher.rs` | Watches `.kiro/` directory for config changes. |
+| `resource_watcher.rs` | Watches `.agent/` directory for config changes. |
 | `vcs_status.rs` | Git status indicators per file (modified, added, deleted, renamed). |
 | `fuzzy.rs` | Fuzzy search implementation for command palette and pickers. |
 | `transport.rs` | ACP transport layer abstraction. |
@@ -134,7 +134,7 @@ Zustand stores in `src/renderer/stores/` are the single source of truth. No Redu
 |-------|---------------|
 | `taskStore.ts` | Tasks, messages, streaming state, ACP connection lifecycle, split view |
 | `settingsStore.ts` | Agent profiles, model selection, appearance preferences |
-| `kiroStore.ts` | `.kiro/` config state (agents, skills, steering, MCP servers) |
+| `resourceStore.ts` | `.agent/` config state (agents, skills, steering, MCP servers) |
 | `diffStore.ts` | Diff viewer file selection and content |
 | `debugStore.ts` | Debug panel log entries and filters |
 | `updateStore.ts` | App update checking and installation state |
@@ -153,7 +153,7 @@ Components live in `src/renderer/components/`, organized by feature:
 |-----------|----------|
 | `ui/` | Radix UI primitives styled with `class-variance-authority`, composed via `cn()` helper |
 | `chat/` | ChatPanel, MessageList, ChatInput, SplitChatLayout, slash command panels |
-| `sidebar/` | TaskSidebar, KiroConfigPanel, ThreadItem, ProjectItem |
+| `sidebar/` | TaskSidebar, ResourcePanel, ThreadItem, ProjectItem |
 | `code/` | CodePanel, DiffViewer (Shiki for syntax highlighting) |
 | `analytics/` | Analytics dashboard with nine chart types (Recharts) |
 | `file-tree/` | FileTreePanel, TreeContextMenu |
@@ -206,15 +206,15 @@ This pattern isolates each ACP connection on its own OS thread while keeping the
 
 ### mpsc channels
 
-Each ACP connection has an `mpsc::UnboundedSender` that the Tauri command handlers use to send `AcpCommand` variants (send message, cancel task, kill connection, etc.) to the connection thread. The connection thread's event loop receives these commands and dispatches them to the ACP client.
+Each ACP connection has an `mpsc::UnboundedSender` that the Tauri command handlers use to send `AgentCommand` variants (send message, cancel task, kill connection, etc.) to the connection thread. The connection thread's event loop receives these commands and dispatches them to the ACP client.
 
 ### Permission oneshot channels
 
-When the ACP agent requests a permission (file write, command execution, etc.), the connection thread creates a `oneshot::channel` and stores the sender in the managed `AcpState`. The frontend displays a permission dialog; when the user responds, the Tauri command (`task_allow_permission` / `task_deny_permission`) looks up the sender in `AcpState` via `app.try_state::<AcpState>()` and sends the response. The connection thread receives it on the `oneshot::Receiver` and forwards the decision to the ACP client.
+When the ACP agent requests a permission (file write, command execution, etc.), the connection thread creates a `oneshot::channel` and stores the sender in the managed `AgentState`. The frontend displays a permission dialog; when the user responds, the Tauri command (`task_allow_permission` / `task_deny_permission`) looks up the sender in `AgentState` via `app.try_state::<AgentState>()` and sends the response. The connection thread receives it on the `oneshot::Receiver` and forwards the decision to the ACP client.
 
 ### Window cleanup
 
-Tauri's `on_window_event` with `CloseRequested` drains all ACP connections (sending `AcpCommand::Kill` to each) and clears PTY state. An ack-based flush protocol ensures frontend state is persisted before shutdown: Rust emits `app://flush-before-quit`, the frontend flushes and emits `app://flush-ack`, Rust waits with a two-second timeout.
+Tauri's `on_window_event` with `CloseRequested` drains all ACP connections (sending `AgentCommand::Kill` to each) and clears PTY state. An ack-based flush protocol ensures frontend state is persisted before shutdown: Rust emits `app://flush-before-quit`, the frontend flushes and emits `app://flush-ack`, Rust waits with a two-second timeout.
 
 ## State management patterns
 

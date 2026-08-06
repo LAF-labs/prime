@@ -1,8 +1,8 @@
-# CLAUDE.md — Kirodex
+# CLAUDE.md — LAF Agent
 
 ## Project overview
 
-Kirodex is a cross-platform native desktop app (macOS, Windows, Linux) for managing AI coding agents via the Agent Client Protocol (ACP). It features a chat interface with threaded conversations, task management, diff viewer, integrated terminal (ghostty-web), git operations (git2), analytics dashboard (recharts + redb), onboarding wizard, multi-window support, and a full settings panel. Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). ~12MB binary, ~0% CPU at idle.
+LAF Agent is a cross-platform native desktop app (macOS, Windows, Linux) for managing AI coding agents via the Agent Client Protocol (ACP). It features a chat interface with threaded conversations, task management, diff viewer, integrated terminal (ghostty-web), git operations (git2), analytics dashboard (recharts + redb), onboarding wizard, multi-window support, and a full settings panel. Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). ~12MB binary, ~0% CPU at idle.
 
 ## Tech stack
 
@@ -76,23 +76,23 @@ src/
 │   │   ├── task-store-types.ts   # TaskStore type definitions
 │   │   ├── task-store-listeners.ts # IPC event listener setup for taskStore
 │   │   ├── settingsStore.ts      # Agent profiles, models, appearance
-│   │   ├── kiroStore.ts          # .kiro/ config state
+│   │   ├── resourceStore.ts          # .agent/ config state
 │   │   ├── diffStore.ts          # Diff viewer state
-│   │   ├── debugStore.ts         # Debug panel state (Kiro logs)
+│   │   ├── debugStore.ts         # Debug panel state (Agent logs)
 │   │   ├── jsDebugStore.ts       # JS console/network debug state
 │   │   ├── analyticsStore.ts     # Analytics dashboard state
 │   │   └── updateStore.ts        # App update state
 │   └── components/
 │       ├── ui/              # Radix-based primitives (button, input, dialog, card, badge, etc.)
 │       ├── chat/            # ChatPanel, MessageList, ChatInput, SlashPanels, BranchSelector, etc.
-│       ├── sidebar/         # TaskSidebar, KiroConfigPanel, IconPickerDialog, WorktreeCleanupDialog
+│       ├── sidebar/         # TaskSidebar, ResourcePanel, IconPickerDialog, WorktreeCleanupDialog
 │       ├── code/            # CodePanel, DiffViewer, DiffToolbar, DiffFileSidebar, DebugLog
 │       ├── analytics/       # AnalyticsDashboard, chart components (9 chart types)
 │       ├── unified-title-bar/ # Cross-platform title bar (macOS/Windows/Linux)
 │       ├── settings/        # SettingsPanel with sections (general, appearance, keymap, advanced, etc.)
 │       ├── dashboard/       # Dashboard, TaskCard
 │       ├── diff/            # DiffPanel
-│       ├── debug/           # DebugPanel, JsDebugTab, KiroDebugTab
+│       ├── debug/           # DebugPanel, JsDebugTab, AgentDebugTab
 │       ├── task/            # NewProjectSheet
 │       ├── Onboarding.tsx   # First-run onboarding wizard
 │       ├── OnboardingWelcomeStep.tsx
@@ -115,26 +115,26 @@ src-tauri/
 │   ├── main.rs              # Entry point
 │   ├── lib.rs               # Tauri app setup, command registration, window events, native menu, multi-window, panic hook, shutdown
 │   └── commands/
-│       ├── mod.rs           # Module declarations (acp, analytics, error, fs_ops, git, kiro_config, pty, settings)
+│       ├── mod.rs           # Module declarations (acp, analytics, error, fs_ops, git, agent_resources, pty, settings)
 │       ├── acp/             # ACP protocol module (split into submodules)
 │       │   ├── mod.rs       # Re-exports, utility functions
 │       │   ├── client.rs    # ACP client wrapper
 │       │   ├── commands.rs  # Tauri command handlers (~60 commands)
 │       │   ├── connection.rs # Connection lifecycle, message handling
 │       │   ├── sandbox.rs   # Path sandboxing for permissions
-│       │   ├── types.rs     # AcpState, AcpCommand, ConnectionHandle types
+│       │   ├── types.rs     # AgentState, AgentCommand, ConnectionHandle types
 │       │   └── tests.rs     # ACP unit tests
 │       ├── analytics.rs     # Analytics persistence (redb ACID-compliant DB)
 │       ├── error.rs         # Shared AppError type (thiserror)
 │       ├── pty.rs           # Terminal emulation (portable-pty)
 │       ├── git.rs           # Git operations via git2 (libgit2) — branches, worktrees, stage, commit, push, pull
 │       ├── settings.rs      # Config persistence via confy, recent projects
-│       ├── fs_ops.rs        # File ops, kiro-cli detection (which crate), editor detection, project file listing
-│       └── kiro_config.rs   # .kiro/ config discovery (serde_yaml for frontmatter)
+│       ├── fs_ops.rs        # File ops, prime-agent detection (which crate), editor detection, project file listing
+│       └── agent_resources.rs   # .agent/ config discovery (serde_yaml for frontmatter)
 ├── Cargo.toml
 ├── tauri.conf.json
 ├── tauri.ci.conf.json       # CI-specific Tauri config overrides
-├── Kirodex.entitlements     # macOS entitlements
+├── LAF Agent.entitlements     # macOS entitlements
 ├── Info.plist               # macOS Info.plist
 ├── capabilities/            # Tauri v2 permission capabilities
 ├── icons/                   # App icons (prod + dev variants)
@@ -198,7 +198,7 @@ bun run clean             # Remove dist/ and cargo clean
 - **Tauri IPC**: All frontend↔backend communication uses `invoke()` for commands and `listen()` for events. No direct Node.js APIs. The `ipc.ts` wrapper provides typed functions for all ~60 commands and ~20 event listeners.
 - **ACP on dedicated OS threads**: The ACP Rust SDK uses `!Send` futures, so each connection runs on a dedicated OS thread with a single-threaded tokio runtime + `LocalSet`. Communication with the Tauri async runtime happens via `mpsc` channels.
 - **ACP module split**: The ACP code is split into `acp/{mod.rs, client.rs, commands.rs, connection.rs, sandbox.rs, types.rs, tests.rs}` for maintainability. `commands.rs` holds Tauri command handlers, `connection.rs` manages lifecycle, `sandbox.rs` handles path permission validation, `client.rs` wraps the SDK client.
-- **Permission handling**: Permission requests from ACP go through a `oneshot` channel. The permission handler runs on the Tauri async runtime and accesses managed state via `app.try_state::<AcpState>()`, not a cloned copy.
+- **Permission handling**: Permission requests from ACP go through a `oneshot` channel. The permission handler runs on the Tauri async runtime and accesses managed state via `app.try_state::<AgentState>()`, not a cloned copy.
 - **State**: Zustand stores are the single source of truth. No Redux, no Context for global state. The taskStore is the largest (~39KB) with extracted types (`task-store-types.ts`) and IPC listeners (`task-store-listeners.ts`).
 - **Persistence**: `tauri-plugin-store` (LazyStore) persists tasks, projects, and soft-deleted threads. A self-write guard (`_selfWriteCount`) prevents reload loops from autoSave-triggered `onKeyChange` events.
 - **Analytics pipeline**: Frontend collects events via `analytics-collector.ts`, aggregates via `analytics-aggregators.ts`, and renders via recharts. Backend persists events in a redb database (`analytics.rs`) with ACID guarantees.
@@ -223,7 +223,7 @@ bun run clean             # Remove dist/ and cargo clean
 - Accessibility: semantic HTML, ARIA attributes, keyboard navigation
 - Icons: use `@tabler/icons-react` exclusively. Never use `lucide-react`. Tabler icons use the `Icon` prefix (e.g., `IconPlus`, `IconCheck`, `IconChevronDown`).
 - Conventional Commits for git messages (`feat:`, `fix:`, `chore:`, etc.)
-- Every commit must include: `Co-authored-by: Kirodex <274876363+kirodex@users.noreply.github.com>`
+- Every commit must include: `Co-authored-by: LAF Agent <274876363+laf-agent@users.noreply.github.com>`
 
 ## Build validation
 
@@ -256,11 +256,11 @@ The `agent-client-protocol` crate produces `!Send` futures. You cannot run them 
 
 ### Permission resolvers must use managed Tauri state
 
-Early versions cloned the `AcpState` into the permission handler closure. This created a second copy; when `task_allow_permission` / `task_deny_permission` commands looked up the resolver in the managed state, it wasn't there. Fix: the permission handler accesses state via `app.try_state::<AcpState>()` so it reads/writes the same instance the Tauri commands use.
+Early versions cloned the `AgentState` into the permission handler closure. This created a second copy; when `task_allow_permission` / `task_deny_permission` commands looked up the resolver in the managed state, it wasn't there. Fix: the permission handler accesses state via `app.try_state::<AgentState>()` so it reads/writes the same instance the Tauri commands use.
 
 ### ACP notifications need method normalization
 
-The ACP SDK sometimes prefixes ext_notification methods with an underscore (e.g., `_kiro.dev/commands/available`). Always strip the leading `_` before matching: `method.strip_prefix('_').unwrap_or(method)`.
+The ACP SDK sometimes prefixes ext_notification methods with an underscore (e.g., `_agent.dev/commands/available`). Always strip the leading `_` before matching: `method.strip_prefix('_').unwrap_or(method)`.
 
 ### Backend task updates wipe client-side messages
 
@@ -287,7 +287,7 @@ The `commands/available` notification includes `mcpServers` with live `toolCount
 
 ### Window cleanup on close
 
-Tauri's `on_window_event` with `CloseRequested` is the place to kill ACP connections and PTY sessions. Drain the connections map and send `AcpCommand::Kill` to each, then clear the PTY state. Without this, orphaned `kiro-cli` processes survive after the app closes.
+Tauri's `on_window_event` with `CloseRequested` is the place to kill ACP connections and PTY sessions. Drain the connections map and send `AgentCommand::Kill` to each, then clear the PTY state. Without this, orphaned `prime-agent` processes survive after the app closes.
 
 ### probe_capabilities guard
 
@@ -359,7 +359,7 @@ When deleting a thread or removing a project, call `ipc.cancelTask()` before `ip
 
 ### confy changes the config file location
 
-`confy` stores config at its own XDG/macOS-standard path (e.g., `~/Library/Application Support/rs.kirodex/default-config.toml` on macOS), not the previous custom path. If migrating from hand-rolled persistence, existing settings at the old path won't be found. Consider a one-time migration or document the new location.
+`confy` stores config at its own XDG/macOS-standard path (e.g., `~/Library/Application Support/rs.laf-agent/default-config.toml` on macOS), not the previous custom path. If migrating from hand-rolled persistence, existing settings at the old path won't be found. Consider a one-time migration or document the new location.
 
 ### upsertTask must preserve client-side name
 

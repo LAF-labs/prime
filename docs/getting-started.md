@@ -1,67 +1,67 @@
 # Getting started
 
-This guide walks you through installing Kirodex, connecting it to kiro-cli, and running your first agent conversation.
+This guide walks you through installing LAF Agent, connecting it to prime-agent, and running your first agent conversation.
 
 ## Installation
 
 ### macOS (Homebrew)
 
 ```bash
-brew install --cask thabti/tap/kirodex
+curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh
 ```
 
 To upgrade:
 
 ```bash
-brew update && brew reinstall kirodex
+brew update && brew reinstall laf-agent
 ```
 
 ### macOS (manual)
 
-Download the `.dmg` from the [latest release](https://github.com/thabti/kirodex/releases/latest), open it, and drag Kirodex to Applications.
+Download the `.dmg` from the [latest release](https://laf-co.com/), open it, and drag LAF Agent to Applications.
 
 If macOS blocks the app (unsigned build), run:
 
 ```bash
-xattr -cr /Applications/Kirodex.app
+xattr -cr /Applications/LAF Agent.app
 ```
 
 ### Linux
 
 ```bash
 # Debian / Ubuntu
-sudo dpkg -i kirodex_*_amd64.deb
+sudo dpkg -i laf-agent_*_amd64.deb
 
 # AppImage
-chmod +x Kirodex_*.AppImage && ./Kirodex_*.AppImage
+chmod +x LAF Agent_*.AppImage && ./LAF Agent_*.AppImage
 ```
 
 ### Windows
 
-Download the `.exe` installer from [releases](https://github.com/thabti/kirodex/releases/latest). Winget and Scoop support coming soon.
+Download the `.exe` installer from [releases](https://laf-co.com/). Winget and Scoop support coming soon.
 
 ## Prerequisites
 
-Kirodex requires [kiro-cli](https://kiro.dev) installed and in your PATH. Without it, the app launches but agent actions fail.
+LAF Agent requires [prime-agent](https://agent.dev) installed and in your PATH. Without it, the app launches but agent actions fail.
 
 Verify your installation:
 
 ```bash
-kiro-cli --version
+prime-agent --version
 ```
 
-The app auto-detects kiro-cli at these paths:
-1. `~/.local/bin/kiro-cli`
-2. `/usr/local/bin/kiro-cli`
-3. `~/.kiro/bin/kiro-cli`
-4. `/opt/homebrew/bin/kiro-cli`
-5. System PATH (`which kiro-cli`)
+The app auto-detects prime-agent at these paths:
+1. `~/.local/bin/prime-agent`
+2. `/usr/local/bin/prime-agent`
+3. `~/.agent/bin/prime-agent`
+4. `/opt/homebrew/bin/prime-agent`
+5. System PATH (`which prime-agent`)
 
 ## First launch
 
-On first launch, Kirodex shows an onboarding wizard that:
+On first launch, LAF Agent shows an onboarding wizard that:
 
-1. Detects your kiro-cli installation
+1. Detects your prime-agent installation
 2. Verifies authentication (prompts login if needed)
 3. Lets you choose a theme (light or dark)
 
@@ -172,7 +172,7 @@ Toggle the file tree panel to browse your project:
 
 ## Git integration
 
-Kirodex has built-in git support:
+LAF Agent has built-in git support:
 - **Branch management** — create, switch, and delete branches from the branch selector
 - **Staging and committing** — stage files and commit with AI-generated messages
 - **Push, pull, fetch** — sync with remotes
@@ -217,16 +217,16 @@ Open settings with `Cmd+,` or the gear icon. Configure:
 
 ## Notifications
 
-Kirodex sends native desktop notifications when the agent finishes a turn while the app is in the background. Toggle in Settings > General > Permissions.
+LAF Agent sends native desktop notifications when the agent finishes a turn while the app is in the background. Toggle in Settings > General > Permissions.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| "Failed to spawn kiro-cli" | Install kiro-cli and verify with `kiro-cli --version` |
+| "Failed to spawn prime-agent" | Install prime-agent and verify with `prime-agent --version` |
 | Agent not responding | Check connection status indicator in the header; try cancelling and resending |
 | White flash on launch | Ensure `class="dark"` is on the HTML element (report as bug if persistent) |
-| macOS blocks the app | Run `xattr -cr /Applications/Kirodex.app` |
+| macOS blocks the app | Run `xattr -cr /Applications/LAF Agent.app` |
 
 ## Related documentation
 

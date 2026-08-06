@@ -1,4 +1,4 @@
-# Contributing to Kirodex
+# Contributing to LAF Agent
 
 Thanks for your interest in contributing. This guide covers everything you need to get started.
 
@@ -10,13 +10,13 @@ Install these before running the commands below:
 
 - [Rust](https://rustup.rs) >= 1.78 (provides `cargo` and `rustc`)
 - [Bun](https://bun.sh) >= 1.0 (or Node >= 20)
-- [kiro-cli](https://kiro.dev) — required at runtime to spawn agents; `bun run dev` will open without it but every agent action fails with "Failed to spawn kiro-cli"
+- [prime-agent](https://agent.dev) — required at runtime to spawn agents; `bun run dev` will open without it but every agent action fails with "Failed to spawn prime-agent"
 
 ### Clone and run
 
 ```bash
-git clone https://github.com/thabti/kirodex.git
-cd kirodex
+git clone https://laf-co.com/.git
+cd laf-agent
 cargo install tauri-cli --locked --version "^2.0.0"   # provides the `cargo tauri` subcommand used by `bun run dev` / `bun run build`
 bun install
 bun run dev
@@ -76,9 +76,9 @@ Include a scope when it helps: `feat(chat):`, `fix(git):`, `refactor(settings):`
 | Directory | What lives there |
 |-----------|-----------------|
 | `src/renderer/` | React frontend (components, stores, hooks, types) |
-| `src-tauri/src/commands/` | Rust backend modules (acp, analytics, git, settings, pty, fs_ops, kiro_config, error) |
+| `src-tauri/src/commands/` | Rust backend modules (acp, analytics, git, settings, pty, fs_ops, agent_resources, error) |
 | `src/tailwind.css` | Theme tokens and global styles |
-| `.kiro/steering/` | Kiro agent steering rules |
+| `.agent/steering/` | Agent agent steering rules |
 
 ## Code style
 
@@ -111,7 +111,7 @@ Include a scope when it helps: `feat(chat):`, `fix(git):`, `refactor(settings):`
 ## Architecture notes
 
 - **ACP connections** run on dedicated OS threads with single-threaded tokio runtimes (the SDK uses `!Send` futures). Communication with the Tauri async runtime happens via `mpsc` channels.
-- **Permission handling** uses `oneshot` channels bridging the ACP thread to the Tauri runtime. The handler accesses managed state via `app.try_state::<AcpState>()`.
+- **Permission handling** uses `oneshot` channels bridging the ACP thread to the Tauri runtime. The handler accesses managed state via `app.try_state::<AgentState>()`.
 - **Frontend state** lives in Zustand stores. No Redux, no React Context for global state.
 - **IPC** uses Tauri's `invoke()` for commands and `listen()` for events. Always return unlisten functions in `useEffect` cleanup.
 
@@ -172,7 +172,6 @@ The `v*` tag push triggers `.github/workflows/release.yml` which:
 1. Builds for **macOS** (Apple Silicon), **Linux** (x86_64), and **Windows** (x86_64)
 2. Signs and notarizes the macOS `.dmg` using Apple Developer ID
 3. Creates a draft GitHub release with all platform artifacts
-4. Updates the Homebrew tap (if `thabti/homebrew-tap` exists)
 
 ### Manual trigger
 

@@ -25,6 +25,7 @@ pub mod process_diagnostics;
 pub mod process_group;
 pub mod project_watcher;
 pub mod provider_discovery;
+pub mod provider_errors;
 pub mod pty;
 pub mod serde_utils;
 pub mod settings;

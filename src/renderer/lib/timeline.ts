@@ -30,6 +30,7 @@ export interface SystemMessageRow {
   content: string
   timestamp: string
   variant: SystemMessageVariant
+  errorAction?: import('@/lib/ipc').TaskErrorAction
 }
 
 export interface AssistantTextRow {
@@ -371,6 +372,7 @@ export function deriveTimeline(
         content: msg.content,
         timestamp: msg.timestamp,
         variant,
+        ...(msg.errorAction && msg.errorAction !== 'none' ? { errorAction: msg.errorAction } : {}),
       })
       continue
     }

@@ -664,4 +664,8 @@ export const ko: Record<string, string> = {
     '단가는 해당 프로바이더의 모든 모델에 적용됩니다. 비워 두면 미설정으로 남으며, 최신 단가는 프로바이더의 요금 페이지에서 확인하세요.',
   'Could not start the thread': '스레드를 시작하지 못했습니다',
   'Could not send the message': '메시지를 보내지 못했습니다',
+  'Open provider settings': '프로바이더 설정 열기',
+  'Run /compact to shorten the thread, or start a new one.':
+    '/compact로 대화를 줄이거나 새 스레드를 시작하세요.',
+  'Send your message again to retry.': '메시지를 다시 보내면 재시도됩니다.',
 }

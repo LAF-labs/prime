@@ -89,6 +89,12 @@ export interface TaskMessage {
    * persisted messages without splits fall back to grouped rendering.
    */
   toolCallSplits?: ToolCallSplit[]
+  /**
+   * For a system message reporting a failed turn: what the user can do about
+   * it, as classified by the backend. Drives the action button on the error
+   * card so a rejected key isn't just text saying to go somewhere.
+   */
+  errorAction?: import('@/lib/ipc').TaskErrorAction
 }
 
 // ── Task ──────────────────────────────────────────────────────────

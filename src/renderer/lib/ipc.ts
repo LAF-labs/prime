@@ -4,6 +4,23 @@ import type { AgentTask, AppSettings, AgentResources, ToolCall, PlanStep, DebugL
 
 type UnsubscribeFn = () => void
 
+/**
+ * What the user can do about a failed turn.
+ *
+ * The backend classifies the provider's raw error so the UI can offer the
+ * matching affordance instead of printing a JSON blob.
+ */
+export type TaskErrorAction = 'open-settings' | 'retry' | 'compact' | 'none'
+
+export interface TaskErrorPayload {
+  taskId: string
+  /** Already phrased for a person. */
+  message: string
+  action?: TaskErrorAction
+  /** The provider's own text, for the debug panel. */
+  detail?: string
+}
+
 /** What `history_health` reports about a store file on disk. */
 export interface HistoryHealth {
   /** False on a first run, which is not a fault. */
@@ -330,7 +347,7 @@ export const ipc = {
     tauriListen('session_init', cb),
   onCommandsUpdate: (cb: (data: { taskId: string; commands: Array<{ name: string; description?: string; inputType?: string }>; mcpServers?: Array<{ name: string; status: string; toolCount: number }> | Record<string, Array<{ name: string; status: string; toolCount: number }>> }) => void): UnsubscribeFn =>
     tauriListen('commands_update', cb),
-  onTaskError: (cb: (data: { taskId: string; message: string }) => void): UnsubscribeFn =>
+  onTaskError: (cb: (data: TaskErrorPayload) => void): UnsubscribeFn =>
     tauriListen('task_error', cb),
   onSubagentUpdate: (cb: (data: { taskId: string; subagents: unknown[]; pendingStages: unknown[] }) => void): UnsubscribeFn =>
     tauriListen('subagent_update', cb),

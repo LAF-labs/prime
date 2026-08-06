@@ -683,7 +683,7 @@ export function initTaskListeners(): () => void {
     })
   })
 
-  const unsub12 = ipc.onTaskError(({ taskId, message }) => {
+  const unsub12 = ipc.onTaskError(({ taskId, message, action }) => {
     useTaskStore.setState((s) => {
       const task = s.tasks[taskId]
       if (!task) return s
@@ -691,6 +691,9 @@ export function initTaskListeners(): () => void {
         role: 'system' as const,
         content: `\u26a0\ufe0f ${message}`,
         timestamp: new Date().toISOString(),
+        // Carried so the error card can offer the matching button rather than
+        // leaving the user to work out where to go.
+        ...(action && action !== 'none' ? { errorAction: action } : {}),
       }
       // Drop the dispatch snapshot — the turn is dead.
       const { [taskId]: _drop, ...remainingSnapshots } = s.dispatchSnapshots

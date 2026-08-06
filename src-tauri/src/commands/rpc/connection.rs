@@ -724,9 +724,15 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
                     "error" => {
                         let reason = delta_event.get("reason").and_then(|v| v.as_str()).unwrap_or("error");
                         if reason != "aborted" {
+                            // `reason` is an agent-internal token. Run it
+                            // through the same classifier rather than telling
+                            // the user to open a panel buried in a menu.
+                            let classified = crate::commands::provider_errors::classify(reason);
                             let _ = app.emit("task_error", json!({
                                 "taskId": tid,
-                                "message": format!("The model stream failed ({reason}). Check the debug panel for details.")
+                                "message": classified.message,
+                                "action": classified.action,
+                                "detail": classified.detail,
                             }));
                         }
                     }
@@ -843,8 +849,15 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
             let success = event.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
             if !success {
                 let final_error = event.get("finalError").and_then(|v| v.as_str()).unwrap_or("retries exhausted");
+                // Passing the provider's raw JSON straight through made a
+                // rejected key indistinguishable from a 500 — both rendered as
+                // a grey one-liner with no hint of what to do.
+                let classified = crate::commands::provider_errors::classify(final_error);
                 let _ = app.emit("task_error", json!({
-                    "taskId": tid, "message": format!("Provider request failed: {final_error}")
+                    "taskId": tid,
+                    "message": classified.message,
+                    "action": classified.action,
+                    "detail": classified.detail,
                 }));
             }
         }

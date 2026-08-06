@@ -582,6 +582,7 @@ export const ko: Record<string, string> = {
   'Drafts': '임시 저장',
   'Font size and layout': '글자 크기 및 레이아웃',
   'Free held memory': '점유 메모리 해제',
+  'Harness {version} ({commit})': '하네스 {version} ({commit})',
   'Hide gitignored files from @ mentions': '@ 멘션에서 gitignore 대상 파일 숨기기',
   'How tool activity appears in threads': '스레드에서 도구 활동을 표시하는 방식',
   'Idle threshold': '유휴 기준 시간',

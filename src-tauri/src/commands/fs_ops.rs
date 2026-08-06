@@ -35,6 +35,32 @@ pub fn detect_agent_cli(app: tauri::AppHandle) -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+/// Build metadata for the bundled agent harness, written by
+/// `scripts/build-sidecar.sh` as `HARNESS.json` in the sidecar directory.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct HarnessInfo {
+    #[serde(rename = "ref")]
+    pub r#ref: String,
+    pub commit: String,
+    pub repo: String,
+    pub built_at: String,
+}
+
+/// Read the bundled harness build metadata, if present. Returns `Ok(None)`
+/// when no sidecar is bundled, the file is missing (e.g. a rebuild is in
+/// progress), or it fails to parse — the UI simply hides the version line.
+#[tauri::command]
+pub fn harness_info(app: tauri::AppHandle) -> Result<Option<HarnessInfo>, AppError> {
+    let Some(dir) = crate::commands::agent_launch::bundled_sidecar_dir(&app) else {
+        return Ok(None);
+    };
+    let info = std::fs::read_to_string(dir.join("HARNESS.json"))
+        .ok()
+        .and_then(|content| serde_json::from_str::<HarnessInfo>(&content).ok());
+    Ok(info)
+}
+
 /// Paths that should never be readable from the frontend, regardless of workspace.
 const SENSITIVE_PATH_PREFIXES: &[&str] = &[
     ".ssh/", ".gnupg/", ".aws/", ".config/gh/", ".netrc",

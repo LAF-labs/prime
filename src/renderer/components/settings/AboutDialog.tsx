@@ -11,7 +11,15 @@ import { useUpdateStore } from '@/stores/updateStore'
 import { cn } from '@/lib/utils'
 import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-external'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { ipc } from '@/lib/ipc'
 import defaultAppIcon from '../../../../src-tauri/icons/prod/icon.png'
+
+interface HarnessInfo {
+  ref: string
+  commit: string
+  repo: string
+  builtAt: string
+}
 
 interface AboutDialogProps {
   open: boolean
@@ -20,12 +28,15 @@ interface AboutDialogProps {
 
 export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
   const [appVersion, setAppVersion] = useState('')
+  const [harness, setHarness] = useState<HarnessInfo | null>(null)
   const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore()
   const customAppIcon = useSettingsStore((s) => s.settings.customAppIcon)
   const displayIcon = customAppIcon || defaultAppIcon
 
   useEffect(() => {
-    if (open) getVersion().then(setAppVersion).catch(() => {})
+    if (!open) return
+    getVersion().then(setAppVersion).catch(() => {})
+    ipc.harnessInfo().then(setHarness).catch(() => {})
   }, [open])
 
   const handleCheck = useCallback(async () => {
@@ -90,6 +101,11 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
           <p className="mt-1 text-center text-[10px] text-muted-foreground/60">
             Powered by Prime Agent (PrimeIntellect-ai/prime-agent)
           </p>
+          {harness && (
+            <p className="mt-0.5 text-center text-[10px] text-muted-foreground/60">
+              {t('Harness {version} ({commit})', { version: harness.ref, commit: harness.commit.slice(0, 7) })}
+            </p>
+          )}
           <a
             href="https://github.com/LAF-labs/prime/blob/main/THIRD-PARTY-NOTICES.md"
             onClick={handleExternalLinkClick}

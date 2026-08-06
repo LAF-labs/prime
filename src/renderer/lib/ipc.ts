@@ -63,6 +63,8 @@ export const ipc = {
     invoke('pick_image'),
   detectAgentCli: (): Promise<string | null> =>
     invoke('detect_agent_cli'),
+  harnessInfo: (): Promise<{ ref: string; commit: string; repo: string; builtAt: string } | null> =>
+    invoke('harness_info'),
   listModels: (agentBin?: string): Promise<{ availableModels: Array<{ modelId: string; name: string; description?: string | null }>; currentModelId: string | null }> =>
     invoke('list_models', { agentBin }),
   probeCapabilities: (): Promise<{ ok: boolean }> =>

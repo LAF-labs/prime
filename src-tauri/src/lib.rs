@@ -543,6 +543,7 @@ pub fn run() {
             settings::reset_dock_icon,
             // File ops
             fs_ops::detect_agent_cli,
+            fs_ops::harness_info,
             fs_ops::read_text_file,
             fs_ops::read_file_base64,
             fs_ops::is_directory,

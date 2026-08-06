@@ -64,14 +64,6 @@ where
     T: DeserializeOwned,
     D: Deserializer<'de>,
 {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum ValueOrJsonString<T> {
-        Null,
-        Value(T),
-        String(String),
-    }
-
     // First try to deserialize as Option
     let opt: Option<serde_json::Value> = Option::deserialize(deserializer)?;
 

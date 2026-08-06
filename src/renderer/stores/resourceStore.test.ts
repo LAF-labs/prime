@@ -4,8 +4,6 @@ vi.mock('@/lib/ipc', () => ({
   ipc: {
     getAgentResources: vi.fn().mockResolvedValue({ agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }),
     saveMcpServerConfig: vi.fn().mockResolvedValue(undefined),
-    onMcpConnecting: vi.fn().mockReturnValue(() => {}),
-    onMcpUpdate: vi.fn().mockReturnValue(() => {}),
     onAgentResourcesChanged: vi.fn().mockReturnValue(() => {}),
   },
 }))

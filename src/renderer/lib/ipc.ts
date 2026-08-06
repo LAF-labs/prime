@@ -232,7 +232,7 @@ export const ipc = {
   listSmallImages: (cwd: string, maxSize: number): Promise<Array<{ path: string; width: number; height: number }>> =>
     invoke('list_small_images', { cwd, maxSize }),
   // Auth
-  authStatus: (agentBin?: string): Promise<{ email?: string | null; accountType?: string; region?: string; startUrl?: string }> =>
+  authStatus: (agentBin?: string): Promise<{ email?: string | null; accountType?: string }> =>
     invoke('auth_status', { agentBin }),
   authLogout: (agentBin?: string): Promise<void> =>
     invoke('auth_logout', { agentBin }),
@@ -304,10 +304,6 @@ export const ipc = {
     tauriListen('debug_log', cb),
   onSessionInit: (cb: (data: { taskId: string; sessionId?: string; sessionFile?: string | null; models: unknown; modes: unknown; configOptions: unknown }) => void): UnsubscribeFn =>
     tauriListen('session_init', cb),
-  onMcpUpdate: (cb: (data: { serverName: string; status: string; error?: string; oauthUrl?: string }) => void): UnsubscribeFn =>
-    tauriListen('mcp_update', cb),
-  onMcpConnecting: (cb: () => void): UnsubscribeFn =>
-    tauriListen('mcp_connecting', cb),
   onCommandsUpdate: (cb: (data: { taskId: string; commands: Array<{ name: string; description?: string; inputType?: string }>; mcpServers?: Array<{ name: string; status: string; toolCount: number }> | Record<string, Array<{ name: string; status: string; toolCount: number }>> }) => void): UnsubscribeFn =>
     tauriListen('commands_update', cb),
   onTaskError: (cb: (data: { taskId: string; message: string }) => void): UnsubscribeFn =>
@@ -321,12 +317,6 @@ export const ipc = {
   onAgentResourcesChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>
     tauriListen('agent-resources-changed', cb),
 
-  // ── Streaming Diff (Rust-powered) ──────────────────────────────────────────
-  computeDiff: (oldText: string, newText: string): Promise<Array<{ type: 'insert'; text: string } | { type: 'delete'; bytes: number } | { type: 'keep'; bytes: number }>> =>
-    invoke('compute_diff', { oldText, newText }),
-  computeLineDiff: (oldText: string, newText: string): Promise<Array<{ type: 'insert'; lines: number } | { type: 'delete'; lines: number } | { type: 'keep'; lines: number }>> =>
-    invoke('compute_line_diff', { oldText, newText }),
-
   // ── Structured diff parsing (replaces @pierre/diffs parsePatchFiles) ────────
   taskDiffStructured: (taskId: string): Promise<import('@/types/diff').ParsedDiff> =>
     invoke('task_diff_structured', { taskId }),
@@ -336,12 +326,6 @@ export const ipc = {
   // ── Markdown parsing (replaces react-markdown for assistant messages) ───────
   parseMarkdown: (text: string): Promise<import('@/types/markdown').ParsedMarkdown> =>
     invoke('parse_markdown', { text }),
-
-  // ── Syntax highlighting (replaces Shiki WASM in renderer) ───────────────────
-  highlightCode: (text: string, lang: string, theme?: string): Promise<import('@/types/highlight').HighlightResult> =>
-    invoke('highlight_code', { text, lang, theme }),
-  highlightSupportedLanguages: (): Promise<string[]> =>
-    invoke('highlight_supported_languages'),
 
   // ── Fuzzy match (replaces fuzzy-search.ts) ──────────────────────────────────
   fuzzyMatch: (query: string, candidates: Array<{ id: string; text: string; secondary?: string }>, limit?: number): Promise<Array<{ id: string; score: number; indices: number[]; secondaryMatched: boolean }>> =>
@@ -366,10 +350,6 @@ export const ipc = {
     invoke('analytics_project_stats', { since: since ?? null }),
   analyticsTotals: (since?: number): Promise<{ codingHours: number; messagesSent: number; messagesReceived: number; tokens: number; diffAdditions: number; diffDeletions: number; filesEdited: number; toolCalls: number }> =>
     invoke('analytics_totals', { since: since ?? null }),
-
-  // ── MCP Transport Test ──────────────────────────────────────────────────────
-  mcpTransportTest: (config: { type: 'stdio'; command: string; args: string[]; env?: Record<string, string>; workingDirectory?: string } | { type: 'http'; url: string; token?: string; oauthUrl?: string; timeoutSecs?: number }): Promise<string> =>
-    invoke('mcp_transport_test', { config }),
 
   // ── Thread title generation ──────────────────────────────────────────────────
   generateThreadTitle: (message: string, workspace: string): Promise<{ title: string }> =>
@@ -437,12 +417,6 @@ export const ipc = {
   gitPrOpenInBrowser: (cwd: string): Promise<void> =>
     invoke('git_pr_open_in_browser', { cwd }),
 
-  // ── Pattern extraction (code signatures for agent context) ──────────────
-  extractPatterns: (filePath: string): Promise<{ path: string; language: string; symbols: Array<{ name: string; kind: string; signature: string; line: number; isPublic: boolean }>; totalLines: number }> =>
-    invoke('extract_patterns', { filePath }),
-  extractPatternsBatch: (filePaths: string[]): Promise<Array<{ path: string; language: string; symbols: Array<{ name: string; kind: string; signature: string; line: number; isPublic: boolean }>; totalLines: number }>> =>
-    invoke('extract_patterns_batch', { filePaths }),
-
   // ── Structured tracing (NDJSON debug traces) ────────────────────────────
   traceReadRecent: (limit?: number): Promise<Array<{ name: string; timestamp: string; durationMs: number; attributes: Record<string, unknown>; exit: string }>> =>
     invoke('trace_read_recent', { limit }),
@@ -451,7 +425,7 @@ export const ipc = {
   traceClear: (): Promise<void> =>
     invoke('trace_clear'),
 
-  // ── ACP: model selection ───────────────────────────────────────────────
+  // ── Agent: model selection ───────────────────────────────────────────────
   setModel: (taskId: string, modelId: string): Promise<void> =>
     invoke('set_model', { taskId, modelId }),
 

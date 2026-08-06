@@ -14,10 +14,6 @@ pub(crate) use connection::{strip_image_tags, build_prompt_payload};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn now_millis() -> u128 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
-}
-
 fn now_rfc3339() -> String {
     // Produce a UTC timestamp like 2024-01-15T12:30:45Z
     let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();

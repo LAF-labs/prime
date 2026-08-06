@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconX, IconRefresh, IconChevronRight, IconChevronDown,
@@ -388,7 +389,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
         />
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border pl-3 pr-0 py-2">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Files</span>
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Files')}</span>
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -400,7 +401,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
                   <IconFilePlus className="size-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">New File</TooltipContent>
+              <TooltipContent side="bottom">{t('New File')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -412,7 +413,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
                   <IconFolderPlus className="size-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">New Folder</TooltipContent>
+              <TooltipContent side="bottom">{t('New Folder')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -435,7 +436,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
                   <IconFoldDown className="size-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Collapse All</TooltipContent>
+              <TooltipContent side="bottom">{t('Collapse All')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -443,7 +444,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
                   <IconRefresh className="size-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Refresh</TooltipContent>
+              <TooltipContent side="bottom">{t('Refresh')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -451,7 +452,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
                   <IconX className="size-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Close</TooltipContent>
+              <TooltipContent side="bottom">{t('Close')}</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -464,7 +465,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
               </div>
             )}
             {!isRootLoading && visibleRootEntries.length === 0 && (
-              <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">No files found</p>
+              <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">{t('No files found')}</p>
             )}
 
             {/* New file/folder at root */}

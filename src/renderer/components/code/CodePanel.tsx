@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useEffect, useCallback } from 'react'
 import { IconX, IconFileCode, IconMaximize, IconMinimize, IconGitCommit, IconLoader2, IconSparkles } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -105,7 +106,7 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
         <div className="flex items-center border-b">
           <div className="flex flex-1 items-center gap-1.5 px-3 py-1.5">
             <IconFileCode className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[11px] font-medium text-foreground">Files Changed</span>
+            <span className="text-[11px] font-medium text-foreground">{t('Files Changed')}</span>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -121,11 +122,11 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={onClose} aria-label="Close panel" className="pl-2 pr-0 py-1.5 text-muted-foreground hover:text-foreground">
+              <button onClick={onClose} aria-label={t('Close panel')} className="pl-2 pr-0 py-1.5 text-muted-foreground hover:text-foreground">
                 <IconX className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Close</TooltipContent>
+            <TooltipContent side="bottom">{t('Close')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -148,7 +149,7 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
               onKeyDown={handleKeyDown}
               disabled={isCommitDisabled}
               placeholder={hasChanges ? 'Commit message…' : 'No changes'}
-              aria-label="Commit message"
+              aria-label={t('Commit message')}
               className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-[11px] outline-none placeholder:text-muted-foreground/60 focus:border-ring disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {aiCommitMessages && (
@@ -158,7 +159,7 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
                     type="button"
                     onClick={() => void handleGenerate()}
                     disabled={!hasChanges || !effectiveWorkspace || isGenerating || isCommitting}
-                    aria-label="Generate commit message with AI"
+                    aria-label={t('Generate commit message with AI')}
                     className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {isGenerating
@@ -166,20 +167,20 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
                       : <IconSparkles className="size-3.5" />}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Generate commit message with AI</TooltipContent>
+                <TooltipContent side="top">{t('Generate commit message with AI')}</TooltipContent>
               </Tooltip>
             )}
             <button
               type="button"
               onClick={() => void handleCommit()}
               disabled={isCommitDisabled || !commitMsg.trim()}
-              aria-label="Commit"
+              aria-label={t('Commit')}
               className="shrink-0 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isCommitting
                 ? <IconLoader2 className="size-3.5 animate-spin" />
                 : <IconGitCommit className="size-3.5" />}
-              <span>Commit</span>
+              <span>{t('Commit')}</span>
             </button>
           </div>
         </div>

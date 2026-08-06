@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { fuzzyScore } from '@/lib/fuzzy-search'
@@ -183,7 +184,7 @@ export const SlashCommandPicker = memo(function SlashCommandPicker({
     <div
       className="absolute bottom-full left-0 right-0 z-[300] mb-2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl ring-1 ring-black/5 dark:ring-white/5 floating-panel"
       role="listbox"
-      aria-label="Slash commands"
+      aria-label={t('Slash commands')}
     >
       <ul ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
         {filtered.map((cmd, i) => {

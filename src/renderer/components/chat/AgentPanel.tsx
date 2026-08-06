@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { IconCode, IconListCheck, IconRobot } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -110,12 +111,12 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
     <PanelShell onDismiss={onDismiss}>
       {hasSearch && (
         <div className="px-3 pb-1">
-          <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search agents & servers…" autoFocus className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" />
+          <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search agents & servers…')} autoFocus className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" />
         </div>
       )}
       {filteredBuiltIn.length > 0 && (
         <>
-          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Agents</span></div>
+          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('Agents')}</span></div>
           <ul className="pb-1">
             {filteredBuiltIn.map((agent) => {
               const isActive = currentModeId === agent.id
@@ -154,7 +155,7 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
       {filteredServers.length > 0 && (
         <>
           <div className="mx-3 border-t border-border/40" />
-          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">MCP Servers</span></div>
+          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{t('MCP Servers')}</span></div>
           <div className="max-h-[160px] overflow-y-auto pb-1">
             {filteredServers.map((server) => {
               const dot = STATUS_DOT[server.status] ?? STATUS_DOT.loading

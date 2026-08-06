@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { IconGitCommit, IconChevronDown, IconArrowUp, IconArrowDown, IconRefresh, IconLoader2, IconCloudUpload } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -130,13 +131,13 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
       {/* Chevron — sits flush against the diff stats button on the left */}
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" aria-label="Git options" data-testid="git-options-button"
+          <button type="button" aria-label={t('Git options')} data-testid="git-options-button"
             onClick={() => { setMenuOpen((v) => !v) }}
             className="inline-flex h-7 w-6 items-center justify-center rounded-r-lg text-emerald-400 transition-colors hover:bg-emerald-500/10">
             <IconChevronDown className={cn('size-3 transition-transform', menuOpen && 'rotate-180')} aria-hidden />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Git actions</TooltipContent>
+        <TooltipContent side="bottom">{t('Git actions')}</TooltipContent>
       </Tooltip>
 
       {/* Dropdown menu */}

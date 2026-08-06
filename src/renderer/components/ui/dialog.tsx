@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { forwardRef, type ElementRef, type ComponentPropsWithoutRef, type HTMLAttributes } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { IconX } from '@tabler/icons-react'
@@ -43,7 +44,7 @@ const DialogContent = forwardRef<
       {showCloseButton && (
         <DialogPrimitive.Close
           className="absolute right-2 top-2 inline-flex size-8 items-center justify-center rounded-lg border border-transparent text-foreground opacity-70 ring-offset-background transition-opacity hover:bg-accent hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:pointer-events-none"
-          aria-label="Close"
+          aria-label={t('Close')}
         >
           <IconX className="size-4" />
         </DialogPrimitive.Close>

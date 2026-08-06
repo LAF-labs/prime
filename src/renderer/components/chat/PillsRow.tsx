@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useState } from 'react'
 import { IconPaperclip, IconClipboard, IconChevronDown, IconFolder } from '@tabler/icons-react'
 import { FileMentionPill } from './FileMentionPicker'
@@ -99,10 +100,10 @@ export const PillsRow = memo(function PillsRow({ mentionedFiles, nonImageAttachm
               onClick={handleToggle}
               data-testid="pills-collapse-button"
               className="inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[11px] text-foreground/70 transition-colors hover:text-foreground/70"
-              aria-label="Collapse attachments"
+              aria-label={t('Collapse attachments')}
             >
               <IconChevronDown className="size-3.5 rotate-180" aria-hidden />
-              <span>Less</span>
+              <span>{t('Less')}</span>
             </button>
           )}
         </>

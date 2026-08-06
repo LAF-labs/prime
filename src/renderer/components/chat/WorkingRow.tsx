@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
@@ -106,9 +107,9 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
               type="button"
               onClick={handleCancel}
               className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-amber-600 ring-1 ring-amber-500/40 hover:bg-amber-500/10 dark:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              aria-label="Cancel stuck task"
+              aria-label={t('Cancel stuck task')}
             >
-              Cancel
+              {t('Cancel')}
             </button>
           )}
         </div>
@@ -123,10 +124,10 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
         <div className="flex items-center gap-2">
           <span
             className={`inline-block size-1.5 animate-pulse rounded-full ${isPlan ? 'bg-teal-500' : 'bg-primary'}`}
-            aria-label="Agent is working"
+            aria-label={t('Agent is working')}
           />
           <span className="text-[11px] text-muted-foreground/60">
-            Working for <ElapsedTimer startMs={startMsRef.current} nowMs={nowMs} />
+            {t('Working for')} <ElapsedTimer startMs={startMsRef.current} nowMs={nowMs} />
           </span>
         </div>
       </div>

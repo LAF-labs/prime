@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo } from 'react'
 import { IconChevronUp } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -175,8 +176,8 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
       : null
 
   const placeholderText = disabled
-    ? (disabledReason ?? t('chat.taskEnded'))
-    : t('chat.inputPlaceholder')
+    ? (disabledReason ?? t('Task ended'))
+    : t('Ask anything, @ to mention files, / for commands — Shift+Enter for newline')
 
   if (isCollapsed) {
     return (
@@ -185,7 +186,7 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
           <button
             type="button"
             onClick={onToggleCollapse}
-            aria-label="Expand chat input"
+            aria-label={t('Expand chat input')}
             className={cn(
               'flex w-full items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-2.5 transition-colors',
               borderIdle,

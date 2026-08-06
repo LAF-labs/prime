@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from "react";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -100,15 +101,15 @@ function LoginBanner() {
         <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.674 6.674 0 0 0 8 1.333Zm0 10.334a.667.667 0 1 1 0-1.334.667.667 0 0 1 0 1.334ZM8.667 8a.667.667 0 0 1-1.334 0V5.333a.667.667 0 0 1 1.334 0V8Z" fill="currentColor"/>
       </svg>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">Sign in to Prime Agent to start using AI agents</p>
-        <p className="text-[11px] text-amber-600/70 dark:text-amber-400">Authentication is required to create threads and interact with agents</p>
+        <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">{t('Sign in to Prime Agent to start using AI agents')}</p>
+        <p className="text-[11px] text-amber-600/70 dark:text-amber-400">{t('Authentication is required to create threads and interact with agents')}</p>
       </div>
       <button
         type="button"
         onClick={openLogin}
         className="shrink-0 rounded-lg bg-amber-500/20 px-3 py-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-200 transition-colors hover:bg-amber-500/30"
       >
-        Sign in
+        {t('Sign in')}
       </button>
     </div>
   );
@@ -180,12 +181,12 @@ function EmptyState() {
         </div>
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground">
-            {hasProjects ? t('empty.startThread') : t('empty.openProject')}
+            {hasProjects ? t('Start a new thread') : t('Open a project to get started')}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             {hasProjects
-              ? t('chat.emptyHint')
-              : t('empty.pointHint')}
+              ? t('Pick a project and start chatting with Prime Agent')
+              : t('Point LAF Agent at any folder on your machine. The AI agent works directly with your files, runs commands, and helps you build.')}
           </p>
         </div>
         <LoginBanner />
@@ -197,25 +198,25 @@ function EmptyState() {
           {hasProjects ? (
             <>
               <IconPlus size={15} stroke={2} />
-              {t('empty.newThread')}
+              {t('New Thread')}
             </>
           ) : (
             <>
               <IconFolderOpen size={15} stroke={1.5} />
-              Import Project
+              {t('Import Project')}
             </>
           )}
         </button>
         {!hasProjects && (
           <p className="text-[11px] text-muted-foreground">
-            Or press <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘O</kbd> to open a folder
+            {t('Or press')} <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘O</kbd> to open a folder
           </p>
         )}
 
         {/* Features showcase */}
-        <div className="mt-4 w-full" role="region" aria-label="Features overview">
+        <div className="mt-4 w-full" role="region" aria-label={t('Features overview')}>
           <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">
-            What you can do
+            {t('What you can do')}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {SHOWCASE_FEATURES.map((feature) => (

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useEffect, useCallback } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
 import {
@@ -121,7 +122,7 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <IconRefresh className="size-3.5" />
-                Restart to finish
+                {t('Restart to finish')}
               </button>
             )}
             {isError && (
@@ -134,7 +135,7 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
                 className="flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <IconCheck className="size-3.5" />
-                Check for updates
+                {t('Check for updates')}
               </button>
             )}
           </div>
@@ -149,7 +150,7 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
             href="https://laf-co.com/"
             onClick={handleExternalLinkClick}
             onKeyDown={handleExternalLinkKeyDown}
-            aria-label="LAF Agent on GitHub"
+            aria-label={t('LAF Agent on GitHub')}
             tabIndex={0}
             className={cn(
               'inline-flex size-6 items-center justify-center rounded-md',

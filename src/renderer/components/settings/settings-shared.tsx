@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState } from 'react'
 import {
   IconUser, IconSettings2, IconPaint, IconKeyboard, IconTool, IconArchive, IconActivity,
@@ -178,7 +179,7 @@ export const ConfirmDialog = ({
             onClick={() => onOpenChange(false)}
             className="rounded-lg border border-input px-4 py-2 text-[13px] font-medium transition-colors hover:bg-accent"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"

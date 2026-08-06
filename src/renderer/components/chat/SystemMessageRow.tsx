@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo } from 'react'
 import { IconGitBranch, IconInfoCircle, IconAlertTriangle, IconPlugConnectedX } from '@tabler/icons-react'
 import type { SystemMessageRow as SystemMessageRowData } from '@/lib/timeline'
@@ -21,7 +22,7 @@ export const SystemMessageRow = memo(function SystemMessageRow({ row }: { row: S
         <div className="mx-auto flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground/60">
           <IconGitBranch className="size-3.5 shrink-0" aria-hidden />
           <span>
-            Worktree <span className="text-muted-foreground/80 font-medium">{slug}</span>
+            {t('Worktree')} <span className="text-muted-foreground/80 font-medium">{slug}</span>
             {branch && <> on <span className="text-muted-foreground/80 font-medium">{branch}</span></>}
           </span>
         </div>
@@ -48,8 +49,8 @@ export const SystemMessageRow = memo(function SystemMessageRow({ row }: { row: S
             <div className="flex items-start gap-2.5">
               <IconPlugConnectedX className="mt-0.5 size-4 shrink-0 text-amber-500/70" aria-hidden />
               <div className="min-w-0 space-y-1 text-[13px]">
-                <p className="break-words font-medium text-foreground/90">Connection to the agent was lost</p>
-                <p className="break-words text-muted-foreground text-[12px]">Send a new message to reconnect and continue.</p>
+                <p className="break-words font-medium text-foreground/90">{t('Connection to the agent was lost')}</p>
+                <p className="break-words text-muted-foreground text-[12px]">{t('Send a new message to reconnect and continue.')}</p>
               </div>
             </div>
           </div>

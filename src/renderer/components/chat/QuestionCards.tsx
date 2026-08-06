@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useCallback, useEffect } from "react";
 import { IconChevronLeft, IconChevronRight, IconCornerDownLeft, IconMessageCircleQuestion, IconCircleCheckFilled, IconCircle } from "@tabler/icons-react";
 import { useTaskStore } from "@/stores/taskStore";
@@ -261,7 +262,7 @@ export const QuestionCards = memo(function QuestionCards({
           type="text"
           value={currentExtra}
           onChange={(e) => setExtraText((prev) => ({ ...prev, [current?.number ?? '']: e.target.value }))}
-          placeholder="Add extra context (optional)"
+          placeholder={t('Add extra context (optional)')}
           className="w-full rounded-xl border border-border/40 bg-background/60 px-3.5 py-2.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/30 focus:ring-1 focus:ring-primary/10"
         />
       </div>
@@ -279,7 +280,7 @@ export const QuestionCards = memo(function QuestionCards({
             onClick={handleDismiss}
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
           >
-            Dismiss
+            {t('Dismiss')}
             <kbd className="rounded-sm bg-muted/40 px-1 py-0.5 text-[10px] font-medium">
               esc
             </kbd>
@@ -295,7 +296,7 @@ export const QuestionCards = memo(function QuestionCards({
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
                 className="rounded-lg p-1.5 text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-20"
-                aria-label="Previous question"
+                aria-label={t('Previous question')}
               >
                 <IconChevronLeft className="size-4" />
               </button>
@@ -304,7 +305,7 @@ export const QuestionCards = memo(function QuestionCards({
                 onClick={() => setPage((p) => Math.min(total - 1, p + 1))}
                 disabled={isLastPage}
                 className="rounded-lg p-1.5 text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-20"
-                aria-label="Next question"
+                aria-label={t('Next question')}
               >
                 <IconChevronRight className="size-4" />
               </button>

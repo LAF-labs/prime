@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
 import { IconShieldExclamation } from '@tabler/icons-react'
 import type { AgentTask, TaskStatus } from '@/types'
@@ -86,7 +87,7 @@ export const TaskCard = memo(function TaskCard({ task }: { task: AgentTask }) {
           {task.pendingPermission && (
             <div className="flex items-center gap-1 text-[10px] text-warning-foreground">
               <IconShieldExclamation className="h-3 w-3 animate-pulse" />
-              Needs attention
+              {t('Needs attention')}
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { IconTrash, IconChevronRight, IconChevronDown, IconCopy, IconCheck } from '@tabler/icons-react'
@@ -117,7 +118,7 @@ const DebugRow = memo(function DebugRow({
             <button
               type="button"
               onClick={handleCopy}
-              aria-label="Copy entry"
+              aria-label={t('Copy entry')}
               className="flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground/0 transition-colors group-hover/row:text-muted-foreground/70 hover:!text-foreground"
             >
               {copied ? <IconCheck className="size-2.5" /> : <IconCopy className="size-2.5" />}
@@ -274,7 +275,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           type="text"
           value={filter.search}
           onChange={(e) => setFilter({ search: e.target.value })}
-          placeholder="Filter..."
+          placeholder={t('Filter...')}
           className="h-5 w-32 rounded border border-border/50 bg-background px-1.5 text-[10px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ring/50"
         />
 
@@ -293,9 +294,9 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
             value={filter.threadName}
             onChange={(e) => setFilter({ threadName: e.target.value })}
             className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none truncate"
-            aria-label="Filter by thread"
+            aria-label={t('Filter by thread')}
           >
-            <option value="">All threads</option>
+            <option value="">{t('All threads')}</option>
             {threadNames.map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
@@ -307,9 +308,9 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
             value={filter.projectName}
             onChange={(e) => setFilter({ projectName: e.target.value })}
             className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none truncate"
-            aria-label="Filter by project"
+            aria-label={t('Filter by project')}
           >
-            <option value="">All projects</option>
+            <option value="">{t('All projects')}</option>
             {projectNames.map((p) => (
               <option key={p} value={p}>{p.split('/').pop()}</option>
             ))}
@@ -323,7 +324,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
             onChange={(e) => setFilter({ errorsOnly: e.target.checked })}
             className="size-3 rounded"
           />
-          Errors
+          {t('Errors')}
         </label>
 
         {filter.mcpServerName && (
@@ -353,7 +354,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
               <IconTrash className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Clear log</TooltipContent>
+          <TooltipContent side="bottom">{t('Clear log')}</TooltipContent>
         </Tooltip>
       </div>
 

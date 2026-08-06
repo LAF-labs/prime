@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo } from 'react'
 
 export const InlineDiff = memo(function InlineDiff({ diffText }: { diffText: string }) {
@@ -12,7 +13,7 @@ export const InlineDiff = memo(function InlineDiff({ diffText }: { diffText: str
   return (
     <div className="ml-6 mr-2 mb-1 mt-0.5 rounded-md border border-border/60 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 text-[11px] text-muted-foreground">
-        <span>Changes</span>
+        <span>{t('Changes')}</span>
         <span className="flex-1" />
         {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
         {deleted > 0 && <span className="text-red-600 dark:text-red-400">-{deleted}</span>}

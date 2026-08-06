@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { IconChevronDown, IconHandStop, IconMessageQuestion } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -5,7 +6,7 @@ import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
-import { useT, type I18nKey } from '@/lib/i18n'
+import { useT } from '@/lib/i18n'
 
 /** Resolve auto-approve for a specific workspace (or fall back to global). */
 export const getAutoApproveForWorkspace = (workspace: string | null): boolean => {
@@ -22,14 +23,14 @@ export const selectAutoApprove = (s: ReturnType<typeof useSettingsStore.getState
 
 interface PermissionEntry {
   readonly id: 'auto-approve' | 'ask-first'
-  readonly labelKey: I18nKey
-  readonly descKey: I18nKey
+  readonly labelKey: string
+  readonly descKey: string
   readonly icon: typeof IconHandStop
 }
 
 const PERMISSIONS: readonly PermissionEntry[] = [
-  { id: 'ask-first', labelKey: 'chat.approve.askFirst', descKey: 'chat.approve.askFirstDesc', icon: IconMessageQuestion },
-  { id: 'auto-approve', labelKey: 'chat.approve.autoRun', descKey: 'chat.approve.autoRunDesc', icon: IconHandStop },
+  { id: 'ask-first', labelKey: 'Ask first', descKey: 'Confirm before running tools', icon: IconMessageQuestion },
+  { id: 'auto-approve', labelKey: 'Auto-run', descKey: 'Run tools without confirmation', icon: IconHandStop },
 ] as const
 
 export const AutoApproveToggle = memo(function AutoApproveToggle() {
@@ -116,7 +117,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
       {isOpen && (
         <div
           role="listbox"
-          aria-label="Select permissions"
+          aria-label={t('Select permissions')}
           className="absolute bottom-full left-0 z-[200] mb-2 rounded-lg border border-border bg-popover py-1 shadow-xl"
         >
           {PERMISSIONS.map((p) => {

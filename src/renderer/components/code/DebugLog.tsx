@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useMemo } from 'react'
 import { IconTrash } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,7 @@ export function DebugLog({ entries, onClear }: DebugLogProps) {
           onChange={(e) => setFilter(e.target.value)}
           className="h-6 rounded border bg-input px-1 text-[11px] text-foreground"
         >
-          <option value="">All types</option>
+          <option value="">{t('All types')}</option>
           {types.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
@@ -44,7 +45,7 @@ export function DebugLog({ entries, onClear }: DebugLogProps) {
       <div className="min-h-0 flex-1 overflow-auto p-2 space-y-1">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-            No debug messages
+            {t('No debug messages')}
           </div>
         ) : (
           filtered.map((entry) => (

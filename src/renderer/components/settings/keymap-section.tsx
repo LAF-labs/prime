@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useCallback } from 'react'
 import { IconSearch } from '@tabler/icons-react'
 import { SectionHeader, SettingsCard, SettingsGrid } from './settings-shared'
@@ -49,8 +50,8 @@ export const KeymapSection = memo(function KeymapSection() {
         <input
           value={keymapFilter}
           onChange={handleFilterChange}
-          placeholder="Search shortcuts…"
-          aria-label="Search keyboard shortcuts"
+          placeholder={t('Search shortcuts…')}
+          aria-label={t('Search keyboard shortcuts')}
           className="flex h-7 w-full rounded-md border border-input bg-background/50 pl-8 pr-3 text-[11px] placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
       </div>
@@ -58,7 +59,7 @@ export const KeymapSection = memo(function KeymapSection() {
       {groups.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-8">
           <IconSearch className="size-4 text-muted-foreground/40" />
-          <p className="text-[12px] text-muted-foreground">No matching shortcuts</p>
+          <p className="text-[12px] text-muted-foreground">{t('No matching shortcuts')}</p>
         </div>
       )}
 

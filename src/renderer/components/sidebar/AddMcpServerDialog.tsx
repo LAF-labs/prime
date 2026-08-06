@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { IconLoader2, IconPlug, IconWorld } from '@tabler/icons-react'
 import {
@@ -141,9 +142,9 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" onKeyDown={handleKeyDown}>
         <DialogHeader>
-          <DialogTitle>Add MCP server</DialogTitle>
+          <DialogTitle>{t('Add MCP server')}</DialogTitle>
           <DialogDescription>
-            Runs <code className="rounded bg-muted px-1 font-mono text-[11px]">prime-agent mcp add</code>. Validation,
+            {t('Runs')} <code className="rounded bg-muted px-1 font-mono text-[11px]">prime-agent mcp add</code>. Validation,
             registry checks, and config writes are handled by the CLI.
           </DialogDescription>
         </DialogHeader>
@@ -161,7 +162,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
                   : 'text-muted-foreground hover:bg-accent/50',
               )}
             >
-              <IconPlug className="size-3.5" /> Local (stdio)
+              <IconPlug className="size-3.5" /> {t('Local (stdio)')}
             </button>
             <button
               type="button"
@@ -173,13 +174,13 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
                   : 'text-muted-foreground hover:bg-accent/50',
               )}
             >
-              <IconWorld className="size-3.5" /> Remote (HTTP)
+              <IconWorld className="size-3.5" /> {t('Remote (HTTP)')}
             </button>
           </div>
 
           {/* Name */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-muted-foreground">Name</label>
+            <label className="text-[11px] font-medium text-muted-foreground">{t('Name')}</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -195,7 +196,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
 
           {/* Scope */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-muted-foreground">Scope</label>
+            <label className="text-[11px] font-medium text-muted-foreground">{t('Scope')}</label>
             <div className="flex items-center rounded-md border border-border overflow-hidden">
               <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.agent/settings/mcp.json" />
               <ScopeButton
@@ -239,7 +240,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
           {transport === 'stdio' ? (
             <>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-medium text-muted-foreground">Command</label>
+                <label className="text-[11px] font-medium text-muted-foreground">{t('Command')}</label>
                 <Input
                   value={command}
                   onChange={(e) => setCommand(e.target.value)}
@@ -248,7 +249,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Arguments <span className="text-muted-foreground/60">(one per line, or space-separated)</span>
+                  {t('Arguments')} <span className="text-muted-foreground/60">(one per line, or space-separated)</span>
                 </label>
                 <Textarea
                   value={argsText}
@@ -261,14 +262,14 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
             </>
           ) : (
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-muted-foreground">URL</label>
+              <label className="text-[11px] font-medium text-muted-foreground">{t('URL')}</label>
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://api.example.com/mcp"
               />
               <p className="text-[10px] text-muted-foreground">
-                OAuth flows trigger automatically the first time the server connects.
+                {t('OAuth flows trigger automatically the first time the server connects.')}
               </p>
             </div>
           )}
@@ -276,7 +277,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
           {/* Env */}
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-medium text-muted-foreground">
-              Environment variables <span className="text-muted-foreground/60">(KEY=VALUE, one per line)</span>
+              {t('Environment variables')} <span className="text-muted-foreground/60">(KEY=VALUE, one per line)</span>
             </label>
             <Textarea
               value={envText}
@@ -286,7 +287,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
               className="font-mono text-[12px]"
             />
             <p className="text-[10px] text-muted-foreground">
-              Use <code className="font-mono">{'${VAR}'}</code> to reference env vars from your shell instead of hardcoding secrets.
+              {t('Use')} <code className="font-mono">{'${VAR}'}</code> to reference env vars from your shell instead of hardcoding secrets.
             </p>
           </div>
         </div>
@@ -296,7 +297,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
             ESC to cancel · ⌘↵ to add
           </span>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button onClick={submit} disabled={!canSubmit}>
             {submitting && <IconLoader2 className="mr-1 size-3.5 animate-spin" />}

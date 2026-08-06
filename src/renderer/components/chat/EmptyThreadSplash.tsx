@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
 
 interface SplashItem {
@@ -68,7 +69,7 @@ const SplashItemButton = ({ item }: { readonly item: SplashItem }) => {
 
 export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
   return (
-    <div className="flex flex-col items-center gap-4 px-4 select-none" role="region" aria-label="Getting started">
+    <div className="flex flex-col items-center gap-4 px-4 select-none" role="region" aria-label={t('Getting started')}>
       {/* Logo / title */}
       <div className="flex flex-col items-center gap-1">
         <div className="flex size-8 items-center justify-center rounded-lg bg-muted/40">
@@ -76,14 +77,14 @@ export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
             <path d="M4 17l6-6-6-6" /><path d="M12 19h8" />
           </svg>
         </div>
-        <p className="text-[13px] font-medium text-foreground/70">What can I help you build?</p>
+        <p className="text-[13px] font-medium text-foreground/70">{t('What can I help you build?')}</p>
       </div>
 
       {/* Commands grid */}
       <div className="w-full max-w-xl">
         {/* Slash commands */}
         <p className="mb-1 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Slash commands
+          {t('Slash commands')}
         </p>
         <div className="grid grid-cols-3 gap-x-2 gap-y-2">
           {SLASH_COMMANDS.map((item) => (
@@ -93,7 +94,7 @@ export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
 
         {/* @ mentions */}
         <p className="mb-1 mt-3 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Mentions
+          {t('Mentions')}
         </p>
         <div className="grid grid-cols-3 gap-x-2 gap-y-2">
           {AT_COMMANDS.map((item) => (
@@ -103,7 +104,7 @@ export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
       </div>
 
       <p className="text-[10px] text-muted-foreground">
-        Type <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">/</kbd> or <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">@</kbd> in the input to get started
+        {t('Type')} <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">/</kbd> or <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">@</kbd> in the input to get started
       </p>
     </div>
   )

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useMemo } from 'react'
 import { IconShieldExclamation, IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -78,13 +79,13 @@ export const PermissionBanner = memo(function PermissionBanner({
                 onClick={() => onSelect('__allow__')}
                 className="inline-flex min-h-[28px] items-center gap-1 rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <IconCheck className="size-3" /> Allow
+                <IconCheck className="size-3" /> {t('Allow')}
               </button>
               <button
                 onClick={() => onSelect('__deny__')}
                 className="inline-flex min-h-[28px] items-center gap-1 rounded-md px-3 py-2 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <IconX className="size-3" /> Deny
+                <IconX className="size-3" /> {t('Deny')}
               </button>
             </>
           )}

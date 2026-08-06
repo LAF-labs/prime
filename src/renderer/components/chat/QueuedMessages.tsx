@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo } from 'react'
 import { IconCornerDownLeft, IconTrash, IconChevronUp, IconChevronDown, IconPhoto, IconPencil } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -50,7 +51,7 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
                         <IconChevronUp className="size-3.5" />
                       </button>
                     </TooltipTrigger>
-                    {i > 0 && <TooltipContent side="left" className="text-[11px]">Move up</TooltipContent>}
+                    {i > 0 && <TooltipContent side="left" className="text-[11px]">{t('Move up')}</TooltipContent>}
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -66,7 +67,7 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
                         <IconChevronDown className="size-3.5" />
                       </button>
                     </TooltipTrigger>
-                    {i < messages.length - 1 && <TooltipContent side="left" className="text-[11px]">Move down</TooltipContent>}
+                    {i < messages.length - 1 && <TooltipContent side="left" className="text-[11px]">{t('Move down')}</TooltipContent>}
                   </Tooltip>
                 </div>
               )}
@@ -89,10 +90,10 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
                   <TooltipTrigger asChild>
                     <button type="button" onClick={() => onSteer(i)}
                       className="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                      <IconCornerDownLeft className="size-3" /> Steer
+                      <IconCornerDownLeft className="size-3" /> {t('Steer')}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="text-[11px]">Pause agent and send this message</TooltipContent>
+                  <TooltipContent side="top" className="text-[11px]">{t('Pause agent and send this message')}</TooltipContent>
                 </Tooltip>
               )}
               {onEdit && (
@@ -104,7 +105,7 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
                       <IconPencil className="size-3" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="text-[11px]">Edit message</TooltipContent>
+                  <TooltipContent side="top" className="text-[11px]">{t('Edit message')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -115,7 +116,7 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
                     <IconTrash className="size-3" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="text-[11px]">Remove</TooltipContent>
+                <TooltipContent side="top" className="text-[11px]">{t('Remove')}</TooltipContent>
               </Tooltip>
             </div>
           )

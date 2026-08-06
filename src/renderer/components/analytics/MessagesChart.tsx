@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { AnalyticsEvent } from '@/types/analytics'
@@ -13,7 +14,7 @@ export const MessagesChart = ({ sent, received }: { sent: AnalyticsEvent[]; rece
   const outputWords = useMemo(() => computeTotalOutputWords(received), [received])
 
   return (
-    <ChartCard title="Messages & words">
+    <ChartCard title={t('Messages & words')}>
       <div className="mb-2 grid grid-cols-3 gap-2">
         <StatRow label="Messages" value={totalMessages} />
         <StatRow label="Input words" value={fmtNum(inputWords)} />

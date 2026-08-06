@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { IconChevronDown, IconCode, IconListCheck } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -11,13 +12,13 @@ const MODE_PLAN = 'plan' as const
 
 interface ModeEntry {
   readonly id: string
-  readonly labelKey: 'chat.mode.code' | 'chat.mode.plan'
+  readonly labelKey: 'Code' | 'Plan'
   readonly icon: typeof IconCode
 }
 
 const MODES: readonly ModeEntry[] = [
-  { id: MODE_CODE, labelKey: 'chat.mode.code' as const, icon: IconCode },
-  { id: MODE_PLAN, labelKey: 'chat.mode.plan' as const, icon: IconListCheck },
+  { id: MODE_CODE, labelKey: 'Code' as const, icon: IconCode },
+  { id: MODE_PLAN, labelKey: 'Plan' as const, icon: IconListCheck },
 ] as const
 
 export const PlanToggle = memo(function PlanToggle() {
@@ -80,7 +81,7 @@ export const PlanToggle = memo(function PlanToggle() {
       {isOpen && (
         <div
           role="listbox"
-          aria-label="Select mode"
+          aria-label={t('Select mode')}
           className="absolute bottom-full left-0 z-[200] mb-2 min-w-[140px] rounded-xl border border-border bg-popover py-1.5 shadow-xl"
         >
           {MODES.map((m) => {

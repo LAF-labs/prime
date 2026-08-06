@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { isValidWorktreeSlug, slugify, sanitizeBranchName } from '@/lib/utils'
@@ -39,11 +40,11 @@ export const BranchPanel = memo(function BranchPanel({ onDismiss }: { onDismiss:
   return (
     <PanelShell onDismiss={onDismiss}>
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Create branch</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('Create branch')}</span>
       </div>
       <div className="flex items-center gap-2 px-3 pb-2">
-        <input ref={inputRef} type="text" value={name} onChange={(e) => { setName(e.target.value); setError(null) }} onKeyDown={handleKeyDown} placeholder="Branch name…" autoFocus className="flex-1 rounded-md border border-border/40 bg-background/50 px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" aria-label="Branch name" />
-        <button type="button" disabled={!name.trim() || isCreating || !workspace} onMouseDown={(e) => { e.preventDefault(); void handleCreate() }} className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50" aria-label="Create branch">
+        <input ref={inputRef} type="text" value={name} onChange={(e) => { setName(e.target.value); setError(null) }} onKeyDown={handleKeyDown} placeholder={t('Branch name…')} autoFocus className="flex-1 rounded-md border border-border/40 bg-background/50 px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" aria-label={t('Branch name')} />
+        <button type="button" disabled={!name.trim() || isCreating || !workspace} onMouseDown={(e) => { e.preventDefault(); void handleCreate() }} className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50" aria-label={t('Create branch')}>
           {isCreating ? 'Creating…' : 'Create'}
         </button>
       </div>
@@ -92,11 +93,11 @@ export const WorktreePanel = memo(function WorktreePanel({ onDismiss }: { onDism
   return (
     <PanelShell onDismiss={onDismiss}>
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Create worktree</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('Create worktree')}</span>
       </div>
       <div className="flex items-center gap-2 px-3 pb-1">
-        <input ref={inputRef} type="text" value={slug} onChange={(e) => { setSlug(e.target.value); setError(null) }} onKeyDown={handleKeyDown} placeholder="Worktree name…" autoFocus className="flex-1 rounded-md border border-border/40 bg-background/50 px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" aria-label="Worktree slug" />
-        <button type="button" disabled={!isValid || isCreating || !workspace} onMouseDown={(e) => { e.preventDefault(); void handleCreate() }} className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50" aria-label="Create worktree">
+        <input ref={inputRef} type="text" value={slug} onChange={(e) => { setSlug(e.target.value); setError(null) }} onKeyDown={handleKeyDown} placeholder={t('Worktree name…')} autoFocus className="flex-1 rounded-md border border-border/40 bg-background/50 px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80" aria-label={t('Worktree slug')} />
+        <button type="button" disabled={!isValid || isCreating || !workspace} onMouseDown={(e) => { e.preventDefault(); void handleCreate() }} className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50" aria-label={t('Create worktree')}>
           {isCreating ? 'Creating…' : 'Create'}
         </button>
       </div>

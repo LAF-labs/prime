@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { IconHistory } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -335,7 +336,7 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
       <Empty>
         <EmptyHeader>
           <EmptyTitle>LAF Agent</EmptyTitle>
-          <EmptyDescription>Select a task or create a new one to get started.</EmptyDescription>
+          <EmptyDescription>{t('Select a task or create a new one to get started.')}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     )

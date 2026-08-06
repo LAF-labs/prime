@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useState, memo } from 'react'
 import { IconX, IconExternalLink } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
@@ -47,7 +48,7 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
                 <IconExternalLink className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Open in editor</TooltipContent>
+            <TooltipContent side="bottom">{t('Open in editor')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -59,7 +60,7 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
                 <IconX className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Close</TooltipContent>
+            <TooltipContent side="bottom">{t('Close')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -71,7 +72,7 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
             </div>
           )}
           {!loading && content === null && (
-            <p className="text-sm text-muted-foreground">Could not read file.</p>
+            <p className="text-sm text-muted-foreground">{t('Could not read file.')}</p>
           )}
           {!loading && content !== null && isJson && (
             <pre className={cn(

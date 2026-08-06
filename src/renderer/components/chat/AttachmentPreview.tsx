@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useState, useRef, useEffect } from 'react'
 import { IconX, IconFileText, IconFileCode, IconFile, IconPhoto, IconClipboard, IconExternalLink } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -102,7 +103,7 @@ const PreviewPopover = memo(function PreviewPopover({
       )}
       {!isImage && !hasText && (
         <div className="flex items-center justify-center py-6 text-[11px] text-muted-foreground">
-          No preview available
+          {t('No preview available')}
         </div>
       )}
 
@@ -119,7 +120,7 @@ const PreviewPopover = memo(function PreviewPopover({
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground/85"
           >
             <IconExternalLink className="size-3" />
-            Open
+            {t('Open')}
           </button>
         )}
       </div>

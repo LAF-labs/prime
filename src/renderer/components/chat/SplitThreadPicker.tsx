@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useCallback, useEffect, useRef } from 'react'
 import { IconX } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -105,10 +106,10 @@ export const SplitThreadPicker = memo(function SplitThreadPicker({
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-        <span className="text-[13px] font-medium text-foreground">Pick a thread</span>
+        <span className="text-[13px] font-medium text-foreground">{t('Pick a thread')}</span>
         <button
           type="button"
-          aria-label="Close"
+          aria-label={t('Close')}
           onClick={onClose}
           className="inline-flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
@@ -123,7 +124,7 @@ export const SplitThreadPicker = memo(function SplitThreadPicker({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search threads…"
+          placeholder={t('Search threads…')}
           className="w-full bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/50 outline-none"
         />
       </div>

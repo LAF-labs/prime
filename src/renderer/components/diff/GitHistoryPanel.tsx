@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 /**
  * Git History Panel — displays commit history timeline.
  * All data comes from the Rust backend via IPC. This component is a dumb
@@ -106,7 +107,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
       <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
         <div className="flex items-center gap-2 text-[12px] font-medium text-foreground/80">
           <IconGitCommit className="size-3.5" />
-          <span>Commit History</span>
+          <span>{t('Commit History')}</span>
           {commits.length > 0 && (
             <span className="text-muted-foreground/50">({commits.length})</span>
           )}
@@ -139,7 +140,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
                 {loading ? <IconLoader2 className="size-3.5 animate-spin" /> : <IconRefresh className="size-3.5" />}
               </button>
             </TooltipTrigger>
-            <TooltipContent>Refresh</TooltipContent>
+            <TooltipContent>{t('Refresh')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -147,7 +148,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
       {/* Stash section */}
       {showStashes && stashes.length > 0 && (
         <div className="border-b border-border/40 bg-muted/20 px-3 py-2">
-          <div className="mb-1 text-[11px] font-medium text-muted-foreground/60">STASHES</div>
+          <div className="mb-1 text-[11px] font-medium text-muted-foreground/60">{t('STASHES')}</div>
           {stashes.map((stash) => (
             <div key={stash.oid} className="flex items-center gap-2 rounded px-2 py-1.5 text-[12px] hover:bg-accent/50">
               <IconArchive className="size-3 shrink-0 text-muted-foreground/50" />
@@ -163,7 +164,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
                     <IconArrowBackUp className="size-3" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Pop stash</TooltipContent>
+                <TooltipContent>{t('Pop stash')}</TooltipContent>
               </Tooltip>
             </div>
           ))}
@@ -180,7 +181,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
         )}
         {!loading && commits.length === 0 && (
           <div className="py-8 text-center text-[12px] text-muted-foreground/50">
-            No commits found
+            {t('No commits found')}
           </div>
         )}
         {commits.map((commit) => (
@@ -208,7 +209,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
                   </span>
                   {commit.isHead && (
                     <span className="shrink-0 rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-medium text-blue-500">
-                      HEAD
+                      {t('HEAD')}
                     </span>
                   )}
                 </div>
@@ -242,7 +243,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({ workspace, onView
                         <IconChevronDown className="size-3" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>View diff</TooltipContent>
+                    <TooltipContent>{t('View diff')}</TooltipContent>
                   </Tooltip>
                 )}
               </div>

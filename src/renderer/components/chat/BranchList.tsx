@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useMemo } from 'react'
 import { IconGitBranch, IconSearch, IconPlus, IconCheck, IconLoader2, IconTrash } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -92,7 +93,7 @@ export const BranchList = memo(function BranchList({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={onSearchKeyDown}
-            placeholder="Search branches"
+            placeholder={t('Search branches')}
             className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -108,7 +109,7 @@ export const BranchList = memo(function BranchList({
                 disabled={checkingOut}
                 className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md bg-destructive/15 px-2 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/25 disabled:opacity-50"
               >
-                Force checkout (discard local changes)
+                {t('Force checkout (discard local changes)')}
               </button>
             )}
           </div>
@@ -116,21 +117,21 @@ export const BranchList = memo(function BranchList({
         {isWorktree && (
           <div className="mx-2 mt-2 flex items-center gap-1.5 rounded-lg bg-violet-500/10 px-3 py-2 text-[11px] text-violet-600 dark:text-violet-400">
             <IconGitBranch className="size-3 shrink-0" aria-hidden />
-            Branch locked to this worktree
+            {t('Branch locked to this worktree')}
           </div>
         )}
         {loading && !data ? (
           <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
             <IconLoader2 className="size-3.5 animate-spin" />
-            Loading branches...
+            {t('Loading branches...')}
           </div>
         ) : !hasResults && !canCreate ? (
-          <div className="py-6 text-center text-xs text-muted-foreground">No branches found.</div>
+          <div className="py-6 text-center text-xs text-muted-foreground">{t('No branches found.')}</div>
         ) : (
           <>
             {filteredLocal.length > 0 && (
               <div className="py-1">
-                <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Branches</div>
+                <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('Branches')}</div>
                 {filteredLocal.map((branch) => (
                   <BranchItem
                     key={branch.name}
@@ -165,7 +166,7 @@ export const BranchList = memo(function BranchList({
             className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
           >
             <IconPlus className="size-3.5" />
-            <span>Create and checkout <span className="font-medium text-foreground">{search.trim()}</span></span>
+            <span>{t('Create and checkout')} <span className="font-medium text-foreground">{search.trim()}</span></span>
           </button>
         </>
       )}

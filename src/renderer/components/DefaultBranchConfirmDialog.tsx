@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback } from 'react'
 import { IconAlertTriangle, IconGitBranch, IconLoader2 } from '@tabler/icons-react'
 import {
@@ -109,7 +110,7 @@ export function DefaultBranchConfirmDialog({
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
               <IconGitBranch className="size-3" />
-              Create a feature branch instead
+              {t('Create a feature branch instead')}
             </p>
             <input
               type="text"
@@ -129,7 +130,7 @@ export function DefaultBranchConfirmDialog({
 
         <DialogFooter className="sm:flex-wrap">
           <Button variant="outline" size="sm" onClick={handleClose} className="w-full sm:w-auto sm:mr-auto">
-            Abort
+            {t('Abort')}
           </Button>
           <Button
             variant="outline"

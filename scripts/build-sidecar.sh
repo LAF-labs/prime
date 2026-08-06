@@ -75,4 +75,20 @@ rm -rf node_modules/zeromq/build/darwin/x64
 echo "==> Bundling Node runtime"
 cp "$(readlink -f "$(which node)")" node
 
+# uv is prime-agent's only Python installer: it fetches a standalone CPython
+# and builds ~/.prime/agent/kernel-venv on first run. Bundling the single
+# static binary means a fresh machine needs no Python and no uv install step
+# — the app just needs network for the one-time kernel setup.
+echo "==> Bundling uv"
+UV_VERSION="${UV_VERSION:-0.10.2}"
+case "$(uname -m)" in
+  arm64|aarch64) UV_TARGET="aarch64-apple-darwin" ;;
+  x86_64)        UV_TARGET="x86_64-apple-darwin" ;;
+  *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
+esac
+UV_URL="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${UV_TARGET}.tar.gz"
+curl -fsSL "$UV_URL" | tar -xz -C "$WORK"
+cp "$WORK/uv-${UV_TARGET}/uv" uv
+chmod +x uv
+
 echo "==> Done: $(du -sh "$OUT" | cut -f1) at $OUT"

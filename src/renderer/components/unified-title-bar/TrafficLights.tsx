@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { IconX, IconMinus, IconArrowsDiagonal } from '@tabler/icons-react'
@@ -21,7 +22,7 @@ export const TrafficLights = () => {
     <div className={cn('traffic-lights-group', !isWindowFocused && 'window-unfocused')}>
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t('Close')}
         onClick={() => void getCurrentWindow().close()}
         className="traffic-light traffic-light-close"
       >
@@ -29,7 +30,7 @@ export const TrafficLights = () => {
       </button>
       <button
         type="button"
-        aria-label="Minimize"
+        aria-label={t('Minimize')}
         onClick={() => void getCurrentWindow().minimize()}
         className="traffic-light traffic-light-minimize"
       >
@@ -37,7 +38,7 @@ export const TrafficLights = () => {
       </button>
       <button
         type="button"
-        aria-label="Maximize"
+        aria-label={t('Maximize')}
         onClick={() => void getCurrentWindow().isFullscreen().then(f => getCurrentWindow().setFullscreen(!f))}
         className="traffic-light traffic-light-maximize"
       >

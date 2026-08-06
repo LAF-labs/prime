@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { IconAlertCircle, IconRotate } from '@tabler/icons-react'
 
@@ -49,14 +50,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <div data-testid="error-boundary-section" className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
           <IconAlertCircle className="h-8 w-8 text-destructive/70" />
           <div>
-            <p className="text-sm font-medium text-foreground">Something went wrong</p>
+            <p className="text-sm font-medium text-foreground">{t('Something went wrong')}</p>
             <p data-testid="error-boundary-message" className="mt-1 max-w-sm text-xs text-muted-foreground">
               {this.state.error.message || 'An unexpected error occurred.'}
             </p>
           </div>
           {isLooping ? (
             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-              This component keeps crashing. Reload the window to recover.
+              {t('This component keeps crashing. Reload the window to recover.')}
             </p>
           ) : (
             <button
@@ -65,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
               className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
             >
               <IconRotate className="h-3 w-3" />
-              Try again
+              {t('Try again')}
             </button>
           )}
         </div>

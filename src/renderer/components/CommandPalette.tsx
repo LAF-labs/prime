@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 /**
  * Command Palette — enhanced with contextual commands, keyboard shortcut hints,
  * frecency tracking, and unified slash command surface.
@@ -529,7 +530,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search threads, projects, or actions…"
+            placeholder={t('Search threads, projects, or actions…')}
             className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground/40"
           />
           <kbd className="shrink-0 rounded border border-border/60 bg-muted/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
@@ -541,7 +542,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         <div ref={listRef} className="max-h-[400px] overflow-y-auto p-1.5">
           {items.length === 0 && (
             <div className="px-3 py-6 text-center text-[13px] text-muted-foreground/50">
-              No results found
+              {t('No results found')}
             </div>
           )}
           {items.map((item, idx) => {

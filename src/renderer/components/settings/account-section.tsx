@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useT } from '@/lib/i18n'
@@ -16,7 +17,7 @@ export const AccountSection = memo(function AccountSection() {
   return (
     <>
       <SectionHeader section="account" />
-      <SettingsGrid label={t('providers.title')} description={t('providers.desc')}>
+      <SettingsGrid label={t('AI providers')} description={t('API keys for the models you use. Add as many as you like.')}>
         <SettingsCard>
           <div className="py-2">
             <ProviderKeyManager onChange={handleChange} />

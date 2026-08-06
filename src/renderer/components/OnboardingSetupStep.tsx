@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect } from 'react'
 import { IconArrowRight, IconCircleCheck } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -5,6 +6,7 @@ import { ipc } from '@/lib/ipc'
 import type { ThemeMode } from '@/types'
 import { OnboardingCliSection } from '@/components/OnboardingCliSection'
 import { OnboardingAuthSection } from '@/components/OnboardingAuthSection'
+import { OnboardingKernelSection } from '@/components/OnboardingKernelSection'
 import { useT } from '@/lib/i18n'
 
 interface OnboardingSetupStepProps {
@@ -19,6 +21,7 @@ export const OnboardingSetupStep = ({ themeChoice, isAnalyticsEnabled }: Onboard
   const [isCliReady, setIsCliReady] = useState(false)
   const [isBundled, setIsBundled] = useState<boolean | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [, setIsKernelReady] = useState(false)
 
   const handleCliReady = useCallback((resolvedBin: string) => {
     setBin(resolvedBin)
@@ -55,8 +58,8 @@ export const OnboardingSetupStep = ({ themeChoice, isAnalyticsEnabled }: Onboard
   return (
     <div className="flex w-full flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t('onboarding.setup.title')}</h2>
-        <p className="mt-2 text-[14px] text-muted-foreground">{t('onboarding.setup.subtitle')}</p>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t('Set up LAF Agent')}</h2>
+        <p className="mt-2 text-[14px] text-muted-foreground">{t('Add an AI provider key and you’re ready to go.')}</p>
       </div>
 
       {isBundled ? (
@@ -65,8 +68,8 @@ export const OnboardingSetupStep = ({ themeChoice, isAnalyticsEnabled }: Onboard
             <IconCircleCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex-1 text-left">
-            <p className="text-[13px] font-medium text-foreground/90">{t('onboarding.runtime.title')}</p>
-            <p className="text-[11px] text-muted-foreground">{t('onboarding.runtime.bundled')}</p>
+            <p className="text-[13px] font-medium text-foreground/90">{t('Agent runtime')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('Prime Agent is bundled with the app — nothing to install.')}</p>
           </div>
         </div>
       ) : isBundled === false ? (
@@ -75,17 +78,19 @@ export const OnboardingSetupStep = ({ themeChoice, isAnalyticsEnabled }: Onboard
 
       <OnboardingAuthSection bin={bin} isCliReady={isCliReady} onAuthChange={setIsAuthenticated} />
 
+      <OnboardingKernelSection onReady={setIsKernelReady} />
+
       {/* Actions */}
       <div className="flex flex-col items-center gap-2 pt-2">
         {isAuthenticated && isCliReady ? (
           <button type="button" onClick={finish}
             className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-8 py-3 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-            {t('onboarding.launch')} <IconArrowRight size={18} />
+            {t('Launch LAF Agent')} <IconArrowRight size={18} />
           </button>
         ) : isCliReady ? (
           <button type="button" onClick={finish}
             className="text-[13px] text-muted-foreground transition-colors hover:text-foreground/70">
-            {t('onboarding.skipSignIn')}
+            {t('Skip sign-in for now')}
           </button>
         ) : null}
       </div>

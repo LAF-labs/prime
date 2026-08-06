@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useMemo } from 'react'
 import {
   IconCheck, IconLock, IconWorld, IconLoader2,
@@ -117,9 +118,9 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
       <DialogContent className="max-w-xl" showCloseButton>
         <DialogHeader>
-          <DialogTitle>Publish repository</DialogTitle>
+          <DialogTitle>{t('Publish repository')}</DialogTitle>
           <DialogDescription>
-            Pick where to host it, then point us at a repo to push to.
+            {t('Pick where to host it, then point us at a repo to push to.')}
           </DialogDescription>
 
           {/* Step indicators */}
@@ -174,7 +175,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
             {/* Step 0: Provider selection */}
             {step === 0 && (
               <div className="space-y-3">
-                <span className="text-xs font-medium text-foreground">Provider</span>
+                <span className="text-xs font-medium text-foreground">{t('Provider')}</span>
                 <div className="grid grid-cols-3 gap-2.5">
                   {PROVIDERS.map((option) => {
                     const isSelected = provider === option.value
@@ -205,7 +206,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
                 {/* Repository path */}
                 <div className="space-y-2">
                   <label htmlFor="publish-repo-path" className="text-xs font-medium text-foreground">
-                    Repository
+                    {t('Repository')}
                   </label>
                   <div className="flex items-stretch overflow-hidden rounded-md border border-input bg-background focus-within:border-ring">
                     <span className="flex shrink-0 items-center gap-1.5 border-r border-input bg-muted/50 px-2.5 font-mono text-xs text-muted-foreground">
@@ -226,7 +227,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
 
                 {/* Visibility */}
                 <div className="space-y-2">
-                  <span className="text-xs font-medium text-foreground">Visibility</span>
+                  <span className="text-xs font-medium text-foreground">{t('Visibility')}</span>
                   <div className="grid grid-cols-2 gap-2.5">
                     {([
                       { value: 'private' as const, label: 'Private', desc: 'Only invited people', Icon: IconLock },
@@ -264,12 +265,12 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
                     className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                   >
                     <IconChevronDown className={cn('size-3.5 transition-transform', !advancedOpen && '-rotate-90')} />
-                    Advanced
+                    {t('Advanced')}
                   </button>
                   {advancedOpen && (
                     <div className="mt-3 grid gap-3 grid-cols-2">
                       <div className="space-y-1.5">
-                        <label htmlFor="publish-remote" className="text-xs font-medium text-foreground">Remote</label>
+                        <label htmlFor="publish-remote" className="text-xs font-medium text-foreground">{t('Remote')}</label>
                         <input
                           id="publish-remote"
                           value={remoteName}
@@ -280,7 +281,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <span className="text-xs font-medium text-foreground">Protocol</span>
+                        <span className="text-xs font-medium text-foreground">{t('Protocol')}</span>
                         <div className="grid grid-cols-2 gap-2">
                           {(['ssh', 'https'] as const).map((value) => (
                             <button
@@ -312,7 +313,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
                 )}
                 {error && !isPublishing && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    <p className="font-medium">Publish failed</p>
+                    <p className="font-medium">{t('Publish failed')}</p>
                     <p className="mt-0.5 opacity-90">{error}</p>
                   </div>
                 )}
@@ -326,7 +327,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
                   <span className="grid size-8 place-items-center rounded-full bg-green-500/15 text-green-400">
                     <IconCheck className="size-4" />
                   </span>
-                  <h3 className="text-sm font-semibold text-foreground">Repository published</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{t('Repository published')}</h3>
                   <p className="max-w-xs text-pretty text-xs text-muted-foreground">
                     Your code is now live on {currentProvider.label}.
                   </p>
@@ -353,16 +354,16 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
 
         <DialogFooter>
           {step === 2 ? (
-            <Button size="sm" onClick={handleClose}>Done</Button>
+            <Button size="sm" onClick={handleClose}>{t('Done')}</Button>
           ) : (
             <>
-              <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={handleClose}>{t('Cancel')}</Button>
               {step === 0 && (
-                <Button size="sm" onClick={() => setStep(1)}>Next</Button>
+                <Button size="sm" onClick={() => setStep(1)}>{t('Next')}</Button>
               )}
               {step === 1 && (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => setStep(0)}>Back</Button>
+                  <Button variant="outline" size="sm" onClick={() => setStep(0)}>{t('Back')}</Button>
                   <Button size="sm" disabled={!canSubmit || isPublishing} onClick={() => void handlePublish()}>
                     {isPublishing ? <><IconLoader2 className="size-3.5 animate-spin mr-1" /> Publishing…</> : 'Publish'}
                   </Button>

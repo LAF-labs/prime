@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconRobot, IconBolt, IconCompass, IconChevronRight, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconSettings, IconBug, IconDownload, IconDots } from '@tabler/icons-react'
 import { getVersion } from '@tauri-apps/api/app'
@@ -204,38 +205,38 @@ export const ResourcePanel = memo(function ResourcePanel({
                   <TooltipTrigger asChild>
                     <button type="button" onClick={handleSettingsClick} aria-label={`Memory spike: ${spikeTotal}`}
                       className="inline-flex h-5 items-center gap-1 rounded-full bg-destructive/15 px-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/25 transition-colors">
-                      <span className="size-1.5 rounded-full bg-destructive" /> Memory
+                      <span className="size-1.5 rounded-full bg-destructive" /> {t('Memory')}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">Memory spike: {spikeTotal}</TooltipContent>
                 </Tooltip>
               )}
               {!isMemorySpike && isUpdateAvailable && (
-                <button type="button" aria-label="Download and install update" onClick={handleUpdateClick}
+                <button type="button" aria-label={t('Download and install update')} onClick={handleUpdateClick}
                   className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium leading-none text-primary-foreground transition-colors hover:bg-primary/80">
-                  <IconDownload size={10} /> Update
+                  <IconDownload size={10} /> {t('Update')}
                 </button>
               )}
               {!isMemorySpike && !isUpdateAvailable && isIndicatorVisible && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span data-testid="update-indicator-dot" className="relative flex size-5 shrink-0 items-center justify-center" aria-label="Update in progress">
+                    <span data-testid="update-indicator-dot" className="relative flex size-5 shrink-0 items-center justify-center" aria-label={t('Update in progress')}>
                       <span className="absolute size-2 animate-ping rounded-full bg-emerald-400/40" />
                       <span className="relative size-1.5 rounded-full bg-emerald-400" />
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent side="top">Update in progress</TooltipContent>
+                  <TooltipContent side="top">{t('Update in progress')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button ref={menuBtnRef} type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded={menuOpen} onClick={handleOpenMenu}
+                  <button ref={menuBtnRef} type="button" aria-label={t('More actions')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={handleOpenMenu}
                     className={cn('inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       menuOpen ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground')}>
                     <IconDots className="size-3" aria-hidden />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">More</TooltipContent>
+                <TooltipContent side="top">{t('More')}</TooltipContent>
               </Tooltip>
               <HeaderUserMenu />
             </div>
@@ -263,13 +264,13 @@ export const ResourcePanel = memo(function ResourcePanel({
                 {isMemorySpike && <span className="ml-auto text-[10px] text-destructive">{spikeTotal}</span>}
               </button>
               <button type="button" role="menuitem" onClick={handleDebugClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                <IconBug className="size-3.5" aria-hidden /> Debug panel
+                <IconBug className="size-3.5" aria-hidden /> {t('Debug panel')}
               </button>
               {isUpdateAvailable && (
                 <>
                   <div className="my-1 border-t border-border/50" />
                   <button type="button" role="menuitem" onClick={handleUpdateClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                    <IconDownload className="size-3.5" aria-hidden /> Install update
+                    <IconDownload className="size-3.5" aria-hidden /> {t('Install update')}
                   </button>
                 </>
               )}
@@ -302,12 +303,12 @@ export const ResourcePanel = memo(function ResourcePanel({
               <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="inline-flex size-5 items-center justify-center text-muted-foreground/70" aria-label="Drag tip">
+                    <span className="inline-flex size-5 items-center justify-center text-muted-foreground/70" aria-label={t('Drag tip')}>
                       <IconHandFinger className="size-3" aria-hidden />
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[220px]">
-                    <p className="text-[11px] font-medium">Drag into chat</p>
+                    <p className="text-[11px] font-medium">{t('Drag into chat')}</p>
                     <p className="mt-0.5 text-[10px] text-muted-foreground leading-relaxed">Drop any agent, skill, or steering rule into the message box to attach it as context.</p>
                   </TooltipContent>
                 </Tooltip>
@@ -320,7 +321,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                         <IconSearch className="size-3.5" aria-hidden />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top">Filter</TooltipContent>
+                    <TooltipContent side="top">{t('Filter')}</TooltipContent>
                   </Tooltip>
                 )}
               </>
@@ -341,38 +342,38 @@ export const ResourcePanel = memo(function ResourcePanel({
                 <TooltipTrigger asChild>
                   <button type="button" onClick={handleSettingsClick} aria-label={`Memory spike: ${spikeTotal}`}
                     className="inline-flex h-5 items-center gap-1 rounded-full bg-destructive/15 px-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/25 transition-colors">
-                    <span className="size-1.5 rounded-full bg-destructive" /> Memory
+                    <span className="size-1.5 rounded-full bg-destructive" /> {t('Memory')}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">Memory spike: {spikeTotal}</TooltipContent>
               </Tooltip>
             )}
             {!isMemorySpike && isUpdateAvailable && (
-              <button type="button" aria-label="Download and install update" onClick={handleUpdateClick}
+              <button type="button" aria-label={t('Download and install update')} onClick={handleUpdateClick}
                 className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium leading-none text-primary-foreground transition-colors hover:bg-primary/80">
-                <IconDownload size={10} /> Update
+                <IconDownload size={10} /> {t('Update')}
               </button>
             )}
             {!isMemorySpike && !isUpdateAvailable && isIndicatorVisible && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span data-testid="update-indicator-dot" className="relative flex size-5 shrink-0 items-center justify-center" aria-label="Update in progress">
+                  <span data-testid="update-indicator-dot" className="relative flex size-5 shrink-0 items-center justify-center" aria-label={t('Update in progress')}>
                     <span className="absolute size-2 animate-ping rounded-full bg-emerald-400/40" />
                     <span className="relative size-1.5 rounded-full bg-emerald-400" />
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="top">Update in progress</TooltipContent>
+                <TooltipContent side="top">{t('Update in progress')}</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <button ref={menuBtnRef} type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded={menuOpen} onClick={handleOpenMenu}
+                <button ref={menuBtnRef} type="button" aria-label={t('More actions')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={handleOpenMenu}
                   className={cn('inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     menuOpen ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground')}>
                   <IconDots className="size-3" aria-hidden />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">More</TooltipContent>
+              <TooltipContent side="top">{t('More')}</TooltipContent>
             </Tooltip>
             <HeaderUserMenu />
           </div>
@@ -406,7 +407,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                       <IconPlus className="size-3" aria-hidden />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top">Add MCP server</TooltipContent>
+                  <TooltipContent side="top">{t('Add MCP server')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -421,7 +422,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                       <IconEdit className="size-3" aria-hidden />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top">Edit mcp.json</TooltipContent>
+                  <TooltipContent side="top">{t('Edit mcp.json')}</TooltipContent>
                 </Tooltip>
               </div>
             )}
@@ -464,7 +465,7 @@ export const ResourcePanel = memo(function ResourcePanel({
               </ul>
             )}
 
-            {noResults && <p className="px-2 py-3 text-center text-[10px] text-muted-foreground">No matches</p>}
+            {noResults && <p className="px-2 py-3 text-center text-[10px] text-muted-foreground">{t('No matches')}</p>}
           </>
         )}
       </div>
@@ -481,13 +482,13 @@ export const ResourcePanel = memo(function ResourcePanel({
               {isMemorySpike && <span className="ml-auto text-[10px] text-destructive">{spikeTotal}</span>}
             </button>
             <button type="button" role="menuitem" onClick={handleDebugClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-              <IconBug className="size-3.5" aria-hidden /> Debug panel
+              <IconBug className="size-3.5" aria-hidden /> {t('Debug panel')}
             </button>
             {isUpdateAvailable && (
               <>
                 <div className="my-1 border-t border-border/50" />
                 <button type="button" role="menuitem" onClick={handleUpdateClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                  <IconDownload className="size-3.5" aria-hidden /> Install update
+                  <IconDownload className="size-3.5" aria-hidden /> {t('Install update')}
                 </button>
               </>
             )}

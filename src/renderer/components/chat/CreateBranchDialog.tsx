@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useRef } from 'react'
 import { IconArrowLeft, IconGitBranch, IconGitFork, IconLoader2, IconPlus } from '@tabler/icons-react'
 
@@ -29,23 +30,23 @@ export const CreateBranchDialog = memo(function CreateBranchDialog({
       <div className="flex flex-col">
         <button
           type="button"
-          aria-label="Create new branch"
+          aria-label={t('Create new branch')}
           onClick={() => onInlineModeChange('branch')}
           disabled={checkingOut}
           className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
         >
           <IconPlus className="size-3.5" />
-          <span>New branch</span>
+          <span>{t('New branch')}</span>
         </button>
         <button
           type="button"
-          aria-label="Create new worktree"
+          aria-label={t('Create new worktree')}
           onClick={() => onInlineModeChange('worktree')}
           disabled={checkingOut}
           className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
         >
           <IconGitFork className="size-3.5" />
-          <span>New worktree</span>
+          <span>{t('New worktree')}</span>
         </button>
       </div>
     )
@@ -56,7 +57,7 @@ export const CreateBranchDialog = memo(function CreateBranchDialog({
       <div className="mb-2 flex items-center gap-1.5">
         <button
           type="button"
-          aria-label="Go back"
+          aria-label={t('Go back')}
           onClick={() => { onInlineModeChange('none'); onInlineValueChange('') }}
           className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >

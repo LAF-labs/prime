@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useId } from 'react'
 import {
   IconChevronDown, IconChevronRight, IconCheck, IconLoader2, IconX,
@@ -243,7 +244,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
         {/* Cancelled label */}
         {isCancelled && (
           <span className="shrink-0 rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-500">
-            Cancelled
+            {t('Cancelled')}
           </span>
         )}
 
@@ -254,7 +255,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
               type="button"
               onClick={handleOpenDiff}
               className="rounded-md p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
-              aria-label="View diff"
+              aria-label={t('View diff')}
             >
               <IconGitCompare className="size-3" />
             </button>

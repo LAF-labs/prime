@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
 import { IconUpload, IconRotate } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -51,7 +52,7 @@ const FontSizeStepper = memo(function FontSizeStepper({
             −
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top">Decrease</TooltipContent>
+        <TooltipContent side="top">{t('Decrease')}</TooltipContent>
       </Tooltip>
       <input
         type="number"
@@ -74,7 +75,7 @@ const FontSizeStepper = memo(function FontSizeStepper({
             +
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top">Increase</TooltipContent>
+        <TooltipContent side="top">{t('Increase')}</TooltipContent>
       </Tooltip>
       <span className="ml-1.5 text-[10px] text-muted-foreground/60">px</span>
     </div>
@@ -170,7 +171,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
                 draggable={false}
               />
               <div>
-                <p className="text-[12.5px] font-medium text-foreground">App icon</p>
+                <p className="text-[12.5px] font-medium text-foreground">{t('App icon')}</p>
                 <p className="text-[11px] text-muted-foreground">
                   {hasCustomIcon ? 'Custom icon' : 'Default LAF Agent icon'} · About dialog & dock
                 </p>
@@ -183,14 +184,14 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
                     <button
                       type="button"
                       onClick={handleResetIcon}
-                      aria-label="Reset to default app icon"
+                      aria-label={t('Reset to default app icon')}
                       className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <IconRotate className="size-3" />
-                      Reset
+                      {t('Reset')}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top">Reset to default icon</TooltipContent>
+                  <TooltipContent side="top">{t('Reset to default icon')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -198,14 +199,14 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
                   <button
                     type="button"
                     onClick={handleUploadIcon}
-                    aria-label="Upload custom app icon"
+                    aria-label={t('Upload custom app icon')}
                     className="flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <IconUpload className="size-3" />
-                    Change
+                    {t('Change')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Upload custom icon (max 2 MB)</TooltipContent>
+                <TooltipContent side="top">{t('Upload custom icon (max 2 MB)')}</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -214,7 +215,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
 
           {/* Theme row */}
           <div className="py-3">
-            <p className="mb-2 text-[12.5px] font-medium text-foreground">Theme</p>
+            <p className="mb-2 text-[12.5px] font-medium text-foreground">{t('Theme')}</p>
             <ThemeSelector
               value={draft.theme ?? 'dark'}
               onChange={handleThemeChange}
@@ -254,8 +255,8 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
           <div className="py-2.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[12.5px] font-medium text-foreground">UI font size</p>
-                <p className="text-[11px] text-muted-foreground">Sidebar, file tree, header, dialogs</p>
+                <p className="text-[12.5px] font-medium text-foreground">{t('UI font size')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('Sidebar, file tree, header, dialogs')}</p>
               </div>
               <FontSizeStepper
                 value={fontSize}
@@ -268,7 +269,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
               />
             </div>
             <div className="mt-2.5 rounded-md border border-border/40 bg-background/30 px-3 py-2">
-              <p className="text-foreground/70 leading-relaxed" style={{ fontSize }}>The quick brown fox jumps over the lazy dog</p>
+              <p className="text-foreground/70 leading-relaxed" style={{ fontSize }}>{t('The quick brown fox jumps over the lazy dog')}</p>
             </div>
           </div>
 
@@ -278,7 +279,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
           <div className="py-2.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[12.5px] font-medium text-foreground">Chat font size</p>
+                <p className="text-[12.5px] font-medium text-foreground">{t('Chat font size')}</p>
                 <p className="text-[11px] text-muted-foreground">
                   Chat messages, markdown rendering, and the message input
                   {draft.chatFontSize == null && <span className="ml-1 text-muted-foreground/70">· following UI size</span>}
@@ -291,14 +292,14 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
                       <button
                         type="button"
                         onClick={handleResetChatFontSize}
-                        aria-label="Reset chat font size to follow UI font size"
+                        aria-label={t('Reset chat font size to follow UI font size')}
                         className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
                       >
                         <IconRotate className="size-3" />
-                        Reset
+                        {t('Reset')}
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top">Reset to follow UI size</TooltipContent>
+                    <TooltipContent side="top">{t('Reset to follow UI size')}</TooltipContent>
                   </Tooltip>
                 )}
                 <FontSizeStepper
@@ -314,7 +315,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
             </div>
             <div className="mt-2.5 rounded-md border border-border/40 bg-background/30 px-3 py-2">
               <p className="text-foreground/70 leading-[1.7]" style={{ fontSize: chatFontSize }}>
-                Markdown preview rendered at the chat font size.
+                {t('Markdown preview rendered at the chat font size.')}
               </p>
             </div>
           </div>
@@ -355,7 +356,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
             <Switch
               checked={draft.inlineToolCalls !== false}
               onCheckedChange={handleInlineToolCallsChange}
-              aria-label="Toggle inline tool calls"
+              aria-label={t('Toggle inline tool calls')}
             />
           </SettingRow>
         </SettingsCard>

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { IconArrowDown } from '@tabler/icons-react'
@@ -255,7 +256,7 @@ export const MessageList = memo(function MessageList({
   if (!timelineRows.length) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
-        <p className="text-[15px]">Send a message to start the conversation.</p>
+        <p className="text-[15px]">{t('Send a message to start the conversation.')}</p>
       </div>
     )
   }
@@ -321,7 +322,7 @@ export const MessageList = memo(function MessageList({
           className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-[13px] text-muted-foreground shadow-lg transition-colors opacity-50 hover:opacity-100 hover:border-primary hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
         >
           <IconArrowDown className="size-3" />
-          Scroll to bottom
+          {t('Scroll to bottom')}
         </button>
       )}
       <SelectionToolbar containerRef={parentRef} workspace={workspace} />

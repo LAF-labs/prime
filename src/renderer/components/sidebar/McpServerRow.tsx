@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   IconChevronRight, IconCircle, IconCheck,
@@ -274,7 +275,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
               {server.transport} · {server.source}{server.enabled ? '' : ' · disabled'}
             </p>
             {statusTooltip && <p className="mt-0.5 text-[10px] text-muted-foreground">{statusTooltip}</p>}
-            {allToolsDisabled && <p className="text-[10px] text-amber-600 dark:text-amber-400">All tools disabled</p>}
+            {allToolsDisabled && <p className="text-[10px] text-amber-600 dark:text-amber-400">{t('All tools disabled')}</p>}
             {server.error && <p className="mt-0.5 text-[9px] text-red-600 dark:text-red-400 font-mono break-all">{server.error}</p>}
             <p className="mt-1 text-[9px] text-muted-foreground">Right-click for actions · changes apply to new threads</p>
           </TooltipContent>
@@ -284,7 +285,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
         {expanded && isExpandable && (
           <ul className="ml-4 flex flex-col gap-px py-0.5">
             {allToolsDisabled && (
-              <li className="px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400 italic">All tools disabled</li>
+              <li className="px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400 italic">{t('All tools disabled')}</li>
             )}
             {serverTools.length > 0 ? (
               serverTools.map((tool) => {
@@ -339,7 +340,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                 onClick={handleAuthenticate}
               >
-                <IconLockOpen className="size-3.5 text-amber-600 dark:text-amber-400" /> Authenticate
+                <IconLockOpen className="size-3.5 text-amber-600 dark:text-amber-400" /> {t('Authenticate')}
               </button>
               <div className="my-1 border-t border-border/50" />
             </>
@@ -350,7 +351,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
               onClick={handleToggleEnabled}
             >
-              <IconPlugOff className="size-3.5" /> Disable
+              <IconPlugOff className="size-3.5" /> {t('Disable')}
             </button>
           ) : (
             <button
@@ -358,7 +359,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
               onClick={handleToggleEnabled}
             >
-              <IconCircleCheck className="size-3.5" /> Enable
+              <IconCircleCheck className="size-3.5" /> {t('Enable')}
             </button>
           )}
 
@@ -371,7 +372,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                   onClick={handleDisableAllTools}
                 >
-                  <IconBan className="size-3.5" /> Disable All Tools
+                  <IconBan className="size-3.5" /> {t('Disable All Tools')}
                 </button>
               )}
               {(server.disabledTools?.length ?? 0) > 0 && (
@@ -380,7 +381,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                   onClick={handleEnableAllTools}
                 >
-                  <IconCircleCheck className="size-3.5" /> Enable All Tools
+                  <IconCircleCheck className="size-3.5" /> {t('Enable All Tools')}
                 </button>
               )}
               <div className="my-1 border-t border-border/50" />
@@ -392,7 +393,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
             className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={handleShowLogs}
           >
-            <IconTerminal className="size-3.5" /> Show MCP Logs
+            <IconTerminal className="size-3.5" /> {t('Show MCP Logs')}
           </button>
           <button
             type="button"

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useCallback, useRef, useState } from 'react'
 import { IconGitBranch, IconPencil } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
@@ -186,15 +187,15 @@ export function PendingChat({ workspace }: PendingChatProps) {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground/80">Sign in to start a conversation</p>
-              <p className="mt-1 text-xs text-muted-foreground">Prime Agent authentication is required to use AI agents</p>
+              <p className="text-sm font-medium text-foreground/80">{t('Sign in to start a conversation')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('Prime Agent authentication is required to use AI agents')}</p>
             </div>
             <button
               type="button"
               onClick={openLogin}
               className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
             >
-              Sign in to Prime Agent
+              {t('Sign in to Prime Agent')}
             </button>
           </div>
         ) : (
@@ -214,11 +215,11 @@ export function PendingChat({ workspace }: PendingChatProps) {
                 id="worktree-toggle"
                 checked={useWorktree}
                 onCheckedChange={handleWorktreeToggle}
-                aria-label="Use worktree for this thread"
+                aria-label={t('Use worktree for this thread')}
               />
               <IconGitBranch className="size-3.5 text-violet-500 dark:text-violet-400" aria-hidden />
-              <span className="text-xs font-medium text-foreground/70">Use worktree</span>
-              <span className="text-[11px] text-muted-foreground">Isolate this thread in its own directory</span>
+              <span className="text-xs font-medium text-foreground/70">{t('Use worktree')}</span>
+              <span className="text-[11px] text-muted-foreground">{t('Isolate this thread in its own directory')}</span>
             </label>
             {/* Slug row */}
             {useWorktree && (
@@ -235,14 +236,14 @@ export function PendingChat({ workspace }: PendingChatProps) {
                     maxLength={30}
                     placeholder="slug"
                     className={`min-w-0 flex-1 rounded border bg-background/60 px-1.5 py-0.5 font-mono text-[11px] text-foreground outline-none placeholder:text-muted-foreground/40 ${isSlugValid ? 'border-border/40 focus:border-violet-400/60' : 'border-red-400/60'}`}
-                    aria-label="Worktree slug"
+                    aria-label={t('Worktree slug')}
                   />
                 ) : (
                   <button
                     type="button"
                     onClick={handleEditSlug}
                     className="group inline-flex min-w-0 items-center gap-1 rounded border border-transparent px-1.5 py-0.5 font-mono text-[11px] text-foreground/60 transition-colors hover:border-border/40 hover:bg-muted/40 hover:text-foreground"
-                    aria-label="Edit worktree slug"
+                    aria-label={t('Edit worktree slug')}
                     tabIndex={0}
                   >
                     <span className="truncate">{worktreeSlug || 'slug'}</span>

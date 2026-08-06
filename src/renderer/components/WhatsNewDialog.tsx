@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useCallback } from 'react'
 import { IconX } from '@tabler/icons-react'
 import {
@@ -45,7 +46,7 @@ export const WhatsNewDialog = ({ open, entry, onDismiss }: WhatsNewDialogProps) 
             type="button"
             onClick={onDismiss}
             className="absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-            aria-label="Close"
+            aria-label={t('Close')}
           >
             <IconX className="size-4" />
           </button>
@@ -62,10 +63,10 @@ export const WhatsNewDialog = ({ open, entry, onDismiss }: WhatsNewDialogProps) 
 
         <DialogFooter className="grid grid-cols-2 gap-3">
           <Button variant="outline" size="lg" onClick={handleRequestFeature}>
-            Request feature
+            {t('Request feature')}
           </Button>
           <Button size="lg" onClick={onDismiss}>
-            Got it
+            {t('Got it')}
           </Button>
         </DialogFooter>
       </DialogContent>

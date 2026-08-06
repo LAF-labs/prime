@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { IconPlus, IconArrowsUpDown, IconCheck, IconLayoutSidebarLeftCollapse, IconLayoutSidebarRightCollapse, IconFolderOpen, IconLayoutColumns, IconX, IconReplace, IconArrowsExchange, IconGitBranch, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -37,7 +38,7 @@ const NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight
           <button
             type="button"
             data-testid="nav-back-button"
-            aria-label="Back"
+            aria-label={t('Back')}
             disabled={!canBack}
             onClick={navBack}
             className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
@@ -46,7 +47,7 @@ const NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          Back <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{modKey}[</kbd>
+          {t('Back')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{modKey}[</kbd>
         </TooltipContent>
       </Tooltip>
       <Tooltip>
@@ -54,7 +55,7 @@ const NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight
           <button
             type="button"
             data-testid="nav-forward-button"
-            aria-label="Forward"
+            aria-label={t('Forward')}
             disabled={!canForward}
             onClick={navForward}
             className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
@@ -63,7 +64,7 @@ const NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          Forward <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{modKey}]</kbd>
+          {t('Forward')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{modKey}]</kbd>
         </TooltipContent>
       </Tooltip>
     </div>
@@ -107,7 +108,7 @@ const SortDropdown = memo(function SortDropdown({ sort, onChange }: { sort: Sort
             <IconArrowsUpDown className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top">Sort tasks</TooltipContent>
+        <TooltipContent side="top">{t('Sort tasks')}</TooltipContent>
       </Tooltip>
       {open && (
         <>
@@ -163,7 +164,7 @@ const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub 
           <button
             ref={btnRef}
             type="button"
-            aria-label="Add project"
+            aria-label={t('Add project')}
             data-testid="add-project-button"
             onClick={handleOpen}
             className={cn(
@@ -174,7 +175,7 @@ const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub 
             <IconPlus className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top">Add project</TooltipContent>
+        <TooltipContent side="top">{t('Add project')}</TooltipContent>
       </Tooltip>
       {open && (
         <>
@@ -185,14 +186,14 @@ const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub 
               onClick={handleImportFolder}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             >
-              <IconFolderOpen className="size-3.5" aria-hidden /> Import folder
+              <IconFolderOpen className="size-3.5" aria-hidden /> {t('Import folder')}
             </button>
             <button
               type="button"
               onClick={handleCloneFromGitHub}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             >
-              <IconGitBranch className="size-3.5" aria-hidden /> Clone from GitHub
+              <IconGitBranch className="size-3.5" aria-hidden /> {t('Clone from GitHub')}
             </button>
           </div>
         </>
@@ -254,7 +255,7 @@ const SplitViewsList = memo(function SplitViewsList() {
   return (
     <div className="pb-1">
       <div className="px-3 py-2">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Side-by-side</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Side-by-side')}</span>
       </div>
       <ul className="flex flex-col gap-0.5 px-2">
         {splitViews.map((sv) => {
@@ -281,7 +282,7 @@ const SplitViewsList = memo(function SplitViewsList() {
               </button>
               <button
                 type="button"
-                aria-label="Remove side-by-side"
+                aria-label={t('Remove side-by-side')}
                 onClick={(e) => { e.stopPropagation(); removeSplitView(sv.id) }}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden size-5 items-center justify-center rounded-md text-muted-foreground/50 hover:bg-accent hover:text-foreground group-hover/sv:flex"
               >
@@ -305,14 +306,14 @@ const SplitViewsList = memo(function SplitViewsList() {
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
               onClick={handleRemove}
             >
-              <IconX className="size-3.5" /> Remove
+              <IconX className="size-3.5" /> {t('Remove')}
             </button>
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
               onClick={handleSwap}
             >
-              <IconArrowsExchange className="size-3.5" /> Swap sides
+              <IconArrowsExchange className="size-3.5" /> {t('Swap sides')}
             </button>
             <div className="my-1 border-t border-border/50" />
             <button
@@ -320,14 +321,14 @@ const SplitViewsList = memo(function SplitViewsList() {
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
               onClick={() => handleReplace('left')}
             >
-              <IconReplace className="size-3.5" /> Replace left
+              <IconReplace className="size-3.5" /> {t('Replace left')}
             </button>
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
               onClick={() => handleReplace('right')}
             >
-              <IconReplace className="size-3.5" /> Replace right
+              <IconReplace className="size-3.5" /> {t('Replace right')}
             </button>
           </div>
         </>
@@ -345,7 +346,7 @@ const PendingReplaceHint = memo(function PendingReplaceHint() {
       <span>Click a thread to replace {pending.side} panel</span>
       <button
         type="button"
-        aria-label="Cancel replace"
+        aria-label={t('Cancel replace')}
         onClick={() => useTaskStore.setState({ pendingSplitReplace: null })}
         className="ml-1 rounded p-0.5 hover:bg-primary/20"
       >
@@ -369,7 +370,7 @@ const PinnedThreadsList = memo(function PinnedThreadsList({ tasks, selectedTaskI
   return (
     <div className="flex flex-col">
       <div className="px-3 py-2">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Pinned</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Pinned')}</span>
       </div>
       <ul className="flex min-w-0 flex-col gap-0 px-2 pb-1">
         {tasks.map((task) => (
@@ -564,7 +565,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       {onCollapse && (
         <button
           type="button"
-          aria-label="Collapse sidebar"
+          aria-label={t('Collapse sidebar')}
           onClick={onCollapse}
           className="absolute right-2 top-1 z-20 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
@@ -585,7 +586,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize sidebar"
+        aria-label={t('Resize sidebar')}
         tabIndex={0}
         onMouseDown={handleResizeStart}
         className={cn('absolute top-0 z-10 h-full w-1 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors', isRight ? 'left-0' : 'right-0')}
@@ -601,20 +602,20 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       />
       {/* Project-independent chats: run in a neutral workspace, stored locally */}
       <div className="flex items-center justify-between px-3 pt-0 pb-2">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('sidebar.chats')}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Chats')}</span>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={handleNewChat}
-              aria-label={t('sidebar.newChat')}
+              aria-label={t('New Chat')}
               tabIndex={0}
               className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <IconPlus size={13} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">{t('sidebar.newChat')}</TooltipContent>
+          <TooltipContent side="bottom">{t('New Chat')}</TooltipContent>
         </Tooltip>
       </div>
       {chatTasks.length > 0 && (
@@ -635,7 +636,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       )}
       <SidebarDivider />
       <div className="flex items-center justify-between px-3 pt-2 pb-2">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('sidebar.projects')}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Projects')}</span>
         <div className="flex shrink-0 items-center gap-1">
           <SortDropdown sort={sort} onChange={handleSortChange} />
           <AddProjectDropdown onCloneFromGitHub={onCloneFromGitHub} />
@@ -652,17 +653,17 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
                     <IconFolderOpen size={20} stroke={1.5} className="text-muted-foreground/70" />
                   </div>
                   <div>
-                    <p className="text-[12px] font-medium text-muted-foreground">{t('sidebar.noProjects')}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{t('sidebar.importHint')}</p>
+                    <p className="text-[12px] font-medium text-muted-foreground">{t('No projects yet')}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{t('Import a folder to start working with Prime Agent')}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setNewProjectOpen(true)}
-                    aria-label="Import project folder"
+                    aria-label={t('Import project folder')}
                     tabIndex={0}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    <IconPlus size={12} /> {t('sidebar.importProject')}
+                    <IconPlus size={12} /> {t('Import Project')}
                   </button>
                 </li>
               )}

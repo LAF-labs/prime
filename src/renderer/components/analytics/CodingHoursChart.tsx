@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import type { AnalyticsEvent } from '@/types/analytics'
@@ -9,7 +10,7 @@ export const CodingHoursChart = ({ events }: { events: AnalyticsEvent[] }) => {
   const total = useMemo(() => computeTotalCodingHours(events), [events])
 
   return (
-    <ChartCard title="Coding hours">
+    <ChartCard title={t('Coding hours')}>
       <StatRow label="Total hours" value={total} />
       {data.length === 0 ? (
         <EmptyChart message="No session data yet" />

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useRef, useState } from 'react'
 import { IconX, IconGripHorizontal } from '@tabler/icons-react'
 import { useDebugStore } from '@/stores/debugStore'
@@ -55,7 +56,7 @@ export const DebugPanel = memo(function DebugPanel() {
 
       {/* Tab bar + close */}
       <div className="flex items-center border-b border-border/50 px-3">
-        <div className="flex items-center gap-0.5" role="tablist" aria-label="Debug panel tabs">
+        <div className="flex items-center gap-0.5" role="tablist" aria-label={t('Debug panel tabs')}>
           {TABS.map((tab) => (
             <button
               key={tab}
@@ -86,7 +87,7 @@ export const DebugPanel = memo(function DebugPanel() {
                 <IconX className="size-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Close</TooltipContent>
+            <TooltipContent side="bottom">{t('Close')}</TooltipContent>
           </Tooltip>
         </div>
       </div>

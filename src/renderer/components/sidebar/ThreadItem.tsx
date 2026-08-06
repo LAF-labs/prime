@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { IconPencil, IconTrash, IconHistory, IconGitBranch, IconLayoutColumns, IconArrowsSplit, IconPin, IconPinnedOff, IconArrowUp, IconArrowDown, IconCopy, IconGitFork, IconX } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -216,7 +217,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex shrink-0">
-                <IconHistory className="size-3 text-muted-foreground/70" aria-label="Resumed from history" />
+                <IconHistory className="size-3 text-muted-foreground/70" aria-label={t('Resumed from history')} />
               </span>
             </TooltipTrigger>
             <TooltipContent side="right">From history — agent reconnects on next send</TooltipContent>
@@ -225,16 +226,16 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
         {task.worktreePath && !task.isArchived && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <IconGitBranch className="size-3 shrink-0 text-muted-foreground/70" aria-label="Worktree thread" />
+              <IconGitBranch className="size-3 shrink-0 text-muted-foreground/70" aria-label={t('Worktree thread')} />
             </TooltipTrigger>
-            <TooltipContent side="top">Worktree</TooltipContent>
+            <TooltipContent side="top">{t('Worktree')}</TooltipContent>
           </Tooltip>
         )}
         {isInSplit && (
-          <IconLayoutColumns className="size-3 shrink-0 text-muted-foreground/70" aria-label="In side-by-side" />
+          <IconLayoutColumns className="size-3 shrink-0 text-muted-foreground/70" aria-label={t('In side-by-side')} />
         )}
         {isPinned && !isInSplit && (
-          <IconPin className="size-3 shrink-0 text-muted-foreground/60" aria-label="Pinned" />
+          <IconPin className="size-3 shrink-0 text-muted-foreground/60" aria-label={t('Pinned')} />
         )}
         {editing ? (
           <input
@@ -260,14 +261,14 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
           </kbd>
         ) : task.isDraft ? (
           <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground group-hover/thread:hidden" aria-hidden="true">
-            Draft
+            {t('Draft')}
           </span>
         ) : (
           <>
             {isNotified && (
               <span
                 className="size-1.5 shrink-0 rounded-full bg-orange-400"
-                aria-label="New activity"
+                aria-label={t('New activity')}
               />
             )}
             <span className="shrink-0 text-[11px] leading-none tabular-nums text-muted-foreground">
@@ -284,14 +285,14 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Delete thread"
+                  aria-label={t('Delete thread')}
                   onClick={(e) => { e.stopPropagation(); onDelete() }}
                   className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/15 hover:text-destructive focus-visible:ring-1 focus-visible:ring-ring outline-none"
                 >
                   <IconTrash className="size-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">Delete thread</TooltipContent>
+              <TooltipContent side="top">{t('Delete thread')}</TooltipContent>
             </Tooltip>
           </span>
         )}
@@ -305,21 +306,21 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
         >
           {confirmDelete ? (
             <>
-              <p className="px-3 py-1.5 text-[13px] text-muted-foreground">Delete this thread?</p>
+              <p className="px-3 py-1.5 text-[13px] text-muted-foreground">{t('Delete this thread?')}</p>
               <div className="flex gap-1 px-2 pb-1.5">
                 <button
                   type="button"
                   className="flex-1 rounded-md bg-destructive/90 px-2 py-1 text-[13px] font-medium text-white hover:bg-destructive transition-colors"
                   onClick={handleConfirmDelete}
                 >
-                  Delete
+                  {t('Delete')}
                 </button>
                 <button
                   type="button"
                   className="flex-1 rounded-md border border-border px-2 py-1 text-[13px] text-foreground hover:bg-accent transition-colors"
                   onClick={handleCancelDelete}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
             </>
@@ -332,7 +333,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                     onClick={handleRenameClick}
                   >
-                    <IconPencil className="size-3.5" /> Rename
+                    <IconPencil className="size-3.5" /> {t('Rename')}
                   </button>
                   <button
                     type="button"
@@ -347,7 +348,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                     onClick={handleFork}
                   >
-                    <IconGitFork className="size-3.5" /> Fork thread
+                    <IconGitFork className="size-3.5" /> {t('Fork thread')}
                   </button>
                   <div className="my-1 border-t border-border/50" />
                   <button
@@ -355,14 +356,14 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                     onClick={handleCopyThreadId}
                   >
-                    <IconCopy className="size-3.5" /> Copy Thread ID
+                    <IconCopy className="size-3.5" /> {t('Copy Thread ID')}
                   </button>
                   <button
                     type="button"
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                     onClick={handleCopySessionId}
                   >
-                    <IconCopy className="size-3.5" /> Copy Session ID
+                    <IconCopy className="size-3.5" /> {t('Copy Session ID')}
                   </button>
                   <div className="my-1 border-t border-border/50" />
                   {isInSplit ? (
@@ -371,7 +372,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                       onClick={handleUnsplit}
                     >
-                      <IconArrowsSplit className="size-3.5" /> Remove side-by-side
+                      <IconArrowsSplit className="size-3.5" /> {t('Remove side-by-side')}
                     </button>
                   ) : (
                     <button
@@ -379,7 +380,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                       onClick={handleNewSplitView}
                     >
-                      <IconLayoutColumns className="size-3.5" /> Open side-by-side
+                      <IconLayoutColumns className="size-3.5" /> {t('Open side-by-side')}
                     </button>
                   )}
                   <div className="my-1 border-t border-border/50" />
@@ -391,7 +392,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                           className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                           onClick={() => { onMoveUp?.(); setCtxMenu(null) }}
                         >
-                          <IconArrowUp className="size-3.5" /> Move Up
+                          <IconArrowUp className="size-3.5" /> {t('Move Up')}
                         </button>
                       )}
                       {canMoveDown && (
@@ -400,7 +401,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                           className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                           onClick={() => { onMoveDown?.(); setCtxMenu(null) }}
                         >
-                          <IconArrowDown className="size-3.5" /> Move Down
+                          <IconArrowDown className="size-3.5" /> {t('Move Down')}
                         </button>
                       )}
                       <div className="my-1 border-t border-border/50" />
@@ -413,7 +414,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10"
                 onClick={handleDeleteClick}
               >
-                <IconTrash className="size-3.5" /> Delete
+                <IconTrash className="size-3.5" /> {t('Delete')}
               </button>
             </>
           )}

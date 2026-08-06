@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect } from 'react'
 import { IconEdit, IconTrash, IconArchive, IconMessagePlus, IconFolderOpen, IconPalette, IconMessage, IconCopy, IconArrowUp, IconArrowDown, IconListTree } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -108,7 +109,7 @@ export const ProjectItem = memo(function ProjectItem({
                 <IconEdit className="size-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">New thread</TooltipContent>
+            <TooltipContent side="top">{t('New thread')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -122,7 +123,7 @@ export const ProjectItem = memo(function ProjectItem({
                 <IconTrash className="size-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Remove project</TooltipContent>
+            <TooltipContent side="top">{t('Remove project')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -131,29 +132,29 @@ export const ProjectItem = memo(function ProjectItem({
         <div ref={ctxRef} className="fixed z-[300] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={() => { onNewThread(); setCtxMenu(null) }}>
-            <IconMessagePlus className="size-3.5" /> New Thread
+            <IconMessagePlus className="size-3.5" /> {t('New Thread')}
           </button>
           <div className="my-1 border-t border-border/50" />
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={() => { ipc.openUrl(cwd); setCtxMenu(null) }}>
-            <IconFolderOpen className="size-3.5" /> Open in Finder
+            <IconFolderOpen className="size-3.5" /> {t('Open in Finder')}
           </button>
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={() => { useFileTreeStore.getState().setOpen(true); void useFileTreeStore.getState().loadRoot(cwd); setCtxMenu(null) }}>
-            <IconListTree className="size-3.5" /> Open File Tree
+            <IconListTree className="size-3.5" /> {t('Open File Tree')}
           </button>
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={() => { void navigator.clipboard.writeText(cwd); setCtxMenu(null) }}>
-            <IconCopy className="size-3.5" /> Copy Path
+            <IconCopy className="size-3.5" /> {t('Copy Path')}
           </button>
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-            aria-label="Change project icon"
+            aria-label={t('Change project icon')}
             onClick={() => { setIconPickerOpen(true); setCtxMenu(null) }}>
-            <IconPalette className="size-3.5" /> Change Icon
+            <IconPalette className="size-3.5" /> {t('Change Icon')}
           </button>
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={() => { onArchiveThreads(); setCtxMenu(null) }}>
-            <IconArchive className="size-3.5" /> Archive Threads
+            <IconArchive className="size-3.5" /> {t('Archive Threads')}
           </button>
           {(canMoveUp || canMoveDown) && (
             <>
@@ -162,14 +163,14 @@ export const ProjectItem = memo(function ProjectItem({
                 <button type="button"
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                   onClick={() => { onMoveUp(); setCtxMenu(null) }}>
-                  <IconArrowUp className="size-3.5" /> Move Up
+                  <IconArrowUp className="size-3.5" /> {t('Move Up')}
                 </button>
               )}
               {canMoveDown && (
                 <button type="button"
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
                   onClick={() => { onMoveDown(); setCtxMenu(null) }}>
-                  <IconArrowDown className="size-3.5" /> Move Down
+                  <IconArrowDown className="size-3.5" /> {t('Move Down')}
                 </button>
               )}
             </>
@@ -177,7 +178,7 @@ export const ProjectItem = memo(function ProjectItem({
           <div className="my-1 border-t border-border/50" />
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10"
             onClick={() => { onRemoveProject(); setCtxMenu(null) }}>
-            <IconTrash className="size-3.5" /> Delete
+            <IconTrash className="size-3.5" /> {t('Delete')}
           </button>
         </div>
       )}
@@ -227,7 +228,7 @@ export const ProjectItem = memo(function ProjectItem({
       {expanded && tasks.length === 0 && (
         <div className="flex items-center gap-2 px-2 py-2">
           <IconMessage className="size-3.5 text-muted-foreground/50" aria-hidden />
-          <span className="text-[12px] text-muted-foreground/60">No threads yet</span>
+          <span className="text-[12px] text-muted-foreground/60">{t('No threads yet')}</span>
         </div>
       )}
     </li>

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { parsePatchFiles } from '@pierre/diffs'
 import { FileDiff, Virtualizer } from '@pierre/diffs/react'
@@ -145,7 +146,7 @@ export function DiffViewer({ diff, taskId, workspace, onRefreshDiff }: DiffViewe
   }, [hovered, parsedFiles, selectedFileIdx, handleStage, handleOpenInEditor, handleToggleViewedByIdx])
 
   if (!diff.trim() || parsedFiles.length === 0) {
-    return <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">No changes yet</div>
+    return <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">{t('No changes yet')}</div>
   }
 
   return (

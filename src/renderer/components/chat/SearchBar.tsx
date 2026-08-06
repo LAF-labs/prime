@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useRef } from 'react'
 import { IconSearch, IconChevronUp, IconChevronDown, IconX } from '@tabler/icons-react'
 
@@ -57,7 +58,7 @@ export const SearchBar = memo(function SearchBar({
     <div
       className="flex items-center gap-1.5 border-b border-border/50 bg-card/95 px-3 py-1.5 backdrop-blur-sm"
       role="search"
-      aria-label="Search messages"
+      aria-label={t('Search messages')}
     >
       <IconSearch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <input
@@ -66,8 +67,8 @@ export const SearchBar = memo(function SearchBar({
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        placeholder="Search messages…"
-        aria-label="Search messages"
+        placeholder={t('Search messages…')}
+        aria-label={t('Search messages')}
         className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
       />
       {hasQuery && (
@@ -79,7 +80,7 @@ export const SearchBar = memo(function SearchBar({
         type="button"
         onClick={onPrevious}
         disabled={matchCount === 0}
-        aria-label="Previous match"
+        aria-label={t('Previous match')}
         tabIndex={0}
         className="rounded p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
       >
@@ -89,7 +90,7 @@ export const SearchBar = memo(function SearchBar({
         type="button"
         onClick={onNext}
         disabled={matchCount === 0}
-        aria-label="Next match"
+        aria-label={t('Next match')}
         tabIndex={0}
         className="rounded p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
       >
@@ -98,7 +99,7 @@ export const SearchBar = memo(function SearchBar({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close search"
+        aria-label={t('Close search')}
         tabIndex={0}
         className="rounded p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground"
       >

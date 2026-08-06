@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { IconCopy, IconCheck, IconGitFork, IconMessageCircle, IconHistory, IconAlertTriangle } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -98,7 +99,7 @@ const TurnChip = memo(function TurnChip({
           <button
             type="button"
             onClick={handleRollback}
-            aria-label="Rollback to this turn"
+            aria-label={t('Rollback to this turn')}
             className={cn(
               'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors',
               'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60',
@@ -203,7 +204,7 @@ export const AssistantTextRow = memo(function AssistantTextRow({ row }: { row: A
                 <IconGitFork className="size-3" aria-hidden />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[11px]">Fork thread</TooltipContent>
+            <TooltipContent side="bottom" className="text-[11px]">{t('Fork thread')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -211,7 +212,7 @@ export const AssistantTextRow = memo(function AssistantTextRow({ row }: { row: A
                 <IconMessageCircle className="size-3" aria-hidden />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[11px]">Side question (/btw)</TooltipContent>
+            <TooltipContent side="bottom" className="text-[11px]">{t('Side question (/btw)')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

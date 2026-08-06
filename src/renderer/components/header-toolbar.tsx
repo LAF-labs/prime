@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useCallback, useEffect, useState, memo, useRef } from "react"
 import {
   IconGitCompare,
@@ -50,7 +51,7 @@ const SplitToggleButton = memo(function SplitToggleButton() {
             ref={btnRef}
             type="button"
             data-testid="toggle-split-button"
-            aria-label="Toggle side-by-side"
+            aria-label={t('Toggle side-by-side')}
             aria-pressed={isSplit}
             onClick={handleClick}
             className={cn(
@@ -89,7 +90,7 @@ const FileTreeToggleButton = memo(function FileTreeToggleButton() {
         <button
           type="button"
           data-testid="toggle-file-tree-button"
-          aria-label="Toggle file tree"
+          aria-label={t('Toggle file tree')}
           aria-pressed={isOpen}
           onClick={toggle}
           className={cn(
@@ -102,7 +103,7 @@ const FileTreeToggleButton = memo(function FileTreeToggleButton() {
           <IconFolderOpen className="size-3.5" aria-hidden />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">File tree</TooltipContent>
+      <TooltipContent side="bottom">{t('File tree')}</TooltipContent>
     </Tooltip>
   )
 })
@@ -196,7 +197,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
                 <button
                   type="button"
                   data-testid="toggle-terminal-button"
-                  aria-label="Toggle terminal"
+                  aria-label={t('Toggle terminal')}
                   aria-pressed={terminalOpen}
                   onClick={() => toggleTerminal(selectedTaskId)}
                   className={cn(
@@ -209,7 +210,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
                   <IconTerminal2 className="size-3.5" aria-hidden />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Terminal</TooltipContent>
+              <TooltipContent side="bottom">{t('Terminal')}</TooltipContent>
             </Tooltip>
           </>
         )}
@@ -228,7 +229,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
             <button
               type="button"
               data-testid="git-init-button"
-              aria-label="Initialize Git repository"
+              aria-label={t('Initialize Git repository')}
               disabled={isInitializing}
               onClick={handleInitGit}
               className={cn(
@@ -241,7 +242,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
               {isInitializing ? "Initializing…" : "Initialize Git"}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Initialize a git repository</TooltipContent>
+          <TooltipContent side="bottom">{t('Initialize a git repository')}</TooltipContent>
         </Tooltip>
       )}
 
@@ -270,7 +271,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
               <button
                 type="button"
                 data-testid="toggle-diff-button"
-                aria-label="Toggle diff panel"
+                aria-label={t('Toggle diff panel')}
                 aria-pressed={sidePanelOpen}
                 onClick={onToggleSidePanel}
                 className={cn(
@@ -304,7 +305,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
                 )}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Files changed</TooltipContent>
+            <TooltipContent side="bottom">{t('Files changed')}</TooltipContent>
           </Tooltip>
           <ErrorBoundary fallback={null}>
             <GitActionsGroup workspace={workspace} />

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useCallback } from 'react'
 import { IconGitBranch, IconAlertTriangle, IconLoader2 } from '@tabler/icons-react'
 import {
@@ -38,7 +39,7 @@ export const WorktreeCleanupDialog = () => {
           <DialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>
-                Branch <code className="rounded bg-muted px-1 py-0.5 text-[12px] font-medium text-foreground/80">worktree-{pending.branch}</code>
+                {t('Branch')} <code className="rounded bg-muted px-1 py-0.5 text-[12px] font-medium text-foreground/80">worktree-{pending.branch}</code>
               </p>
               {isLoading && (
                 <p className="flex items-center gap-1.5 text-muted-foreground">
@@ -49,11 +50,11 @@ export const WorktreeCleanupDialog = () => {
               {hasChanges && (
                 <p className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                   <IconAlertTriangle className="size-3.5 shrink-0" aria-hidden />
-                  This worktree has uncommitted changes that will be lost if removed.
+                  {t('This worktree has uncommitted changes that will be lost if removed.')}
                 </p>
               )}
               {!isLoading && !hasChanges && (
-                <p className="text-muted-foreground">No uncommitted changes detected.</p>
+                <p className="text-muted-foreground">{t('No uncommitted changes detected.')}</p>
               )}
             </div>
           </DialogDescription>
@@ -61,7 +62,7 @@ export const WorktreeCleanupDialog = () => {
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={handleCancel} className="flex-1">
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               variant="destructive"

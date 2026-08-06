@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useCallback, useState, useRef, memo } from "react"
 import {
   IconLayoutSidebarLeftExpand,
@@ -84,7 +85,7 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
             <button
               type="button"
               data-testid="toggle-sidebar-button"
-              aria-label="Toggle sidebar"
+              aria-label={t('Toggle sidebar')}
               aria-pressed={!isSidebarCollapsed}
               onClick={onToggleSidebar}
               className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -159,17 +160,17 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
               <TooltipTrigger asChild>
                 <IconGitBranch
                   className="size-3.5 shrink-0 text-violet-500 dark:text-violet-400"
-                  aria-label="Worktree thread"
+                  aria-label={t('Worktree thread')}
                 />
               </TooltipTrigger>
-              <TooltipContent side="bottom">Worktree</TooltipContent>
+              <TooltipContent side="bottom">{t('Worktree')}</TooltipContent>
             </Tooltip>
           )}
         </>
       ) : pendingWorkspace ? (
         <>
           <Sep />
-          <span className="text-[13px] text-muted-foreground">New thread</span>
+          <span className="text-[13px] text-muted-foreground">{t('New thread')}</span>
         </>
       ) : !workspace ? (
         <>

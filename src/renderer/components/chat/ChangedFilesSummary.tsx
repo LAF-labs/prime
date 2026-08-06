@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useMemo, useState, useCallback } from 'react'
 import {
   IconChevronRight,
@@ -213,7 +214,7 @@ export const ChangedFilesSummary = memo(function ChangedFilesSummary({ row }: { 
             onClick={handleViewDiff}
             className="rounded-md border border-input bg-popover px-2 py-0.5 text-[12px] font-medium text-foreground shadow-xs/5 transition-colors hover:bg-accent/50"
           >
-            View diff
+            {t('View diff')}
           </button>
         </div>
       </div>

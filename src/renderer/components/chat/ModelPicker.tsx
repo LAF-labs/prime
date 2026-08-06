@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect } from 'react'
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react'
 import { useSettingsStore, type ModelOption } from '@/stores/settingsStore'
@@ -65,10 +66,10 @@ export const ModelPicker = memo(function ModelPicker() {
         onClick={handleRetry}
         style={isShaking ? { animation: 'var(--animate-shake)' } : undefined}
         className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-[12px] text-destructive/80 transition-colors hover:text-destructive"
-        aria-label="Retry loading models"
+        aria-label={t('Retry loading models')}
       >
         <IconRefresh className="size-3" />
-        <span>Retry</span>
+        <span>{t('Retry')}</span>
       </button>
     )
     return (

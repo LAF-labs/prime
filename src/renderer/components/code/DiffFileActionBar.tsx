@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useRef } from 'react'
 import { IconChevronDown, IconChevronRight, IconPlus, IconCheck, IconArrowBackUp, IconExternalLink, IconSquare, IconSquareCheck } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -48,12 +49,12 @@ export const DiffFileActionBar = ({
         <div className="ml-1 flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" onClick={onRevert} aria-label="Revert changes"
+              <button type="button" onClick={onRevert} aria-label={t('Revert changes')}
                 className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive">
                 <IconArrowBackUp className="size-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Revert changes</TooltipContent>
+            <TooltipContent side="top">{t('Revert changes')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -69,12 +70,12 @@ export const DiffFileActionBar = ({
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" onClick={onOpenInEditor} aria-label="Open in editor"
+              <button type="button" onClick={onOpenInEditor} aria-label={t('Open in editor')}
                 className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground">
                 <IconExternalLink className="size-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Open in editor</TooltipContent>
+            <TooltipContent side="top">{t('Open in editor')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -83,7 +84,7 @@ export const DiffFileActionBar = ({
                   ? 'flex size-5 items-center justify-center rounded text-emerald-500 transition-colors hover:bg-emerald-500/10 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none'
                   : 'flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none'
                 }>
-                <span className="sr-only">Mark viewed</span>
+                <span className="sr-only">{t('Mark viewed')}</span>
                 {viewed ? <IconSquareCheck className="size-3" /> : <IconSquare className="size-3" />}
               </button>
             </TooltipTrigger>
@@ -94,8 +95,8 @@ export const DiffFileActionBar = ({
       {revertPending && (
         <div className="flex items-center gap-2 border-t border-border bg-destructive/5 px-2 py-1">
           <span className="flex-1 text-[10px] text-destructive">Discard changes to {shortName}?</span>
-          <button type="button" onClick={onCancelRevert} className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent">Cancel</button>
-          <button type="button" onClick={onConfirmRevert} className="rounded bg-destructive px-1.5 py-0.5 text-[10px] text-white hover:bg-destructive/90">Revert</button>
+          <button type="button" onClick={onCancelRevert} className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent">{t('Cancel')}</button>
+          <button type="button" onClick={onConfirmRevert} className="rounded bg-destructive px-1.5 py-0.5 text-[10px] text-white hover:bg-destructive/90">{t('Revert')}</button>
         </div>
       )}
     </div>

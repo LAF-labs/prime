@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useCallback } from 'react'
 import {
   IconCheck, IconAlertCircle, IconChevronDown, IconLoader2,
@@ -89,11 +90,11 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
     <>
       <SectionHeader section="general" />
 
-      <SettingsGrid label={t('settings.language')} description={t('settings.language.desc')}>
+      <SettingsGrid label={t('Language')} description={t('App display language')}>
         <SettingsCard>
-          <SettingRow label={t('settings.language')} description={t('settings.language.desc')}>
+          <SettingRow label={t('Language')} description={t('App display language')}>
             <div className="flex gap-1.5">
-              {([['system', t('settings.language.system')], ['en', t('settings.language.en')], ['ko', t('settings.language.ko')]] as const).map(([value, label]) => (
+              {([['system', t('System')], ['en', t('English')], ['ko', t('한국어')]] as const).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -123,7 +124,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                 data-testid="settings-cli-path-input"
                 onChange={handleCliPathChange}
                 placeholder="prime-agent"
-                aria-label="Path to prime-agent binary"
+                aria-label={t('Path to prime-agent binary')}
                 className="flex h-7 w-full flex-1 rounded-md border border-input bg-background/50 px-2.5 font-mono text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               <Tooltip>
@@ -131,13 +132,13 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   <button
                     type="button"
                     onClick={handleBrowseCli}
-                    aria-label="Browse for prime-agent binary"
+                    aria-label={t('Browse for prime-agent binary')}
                     className="shrink-0 rounded-md border border-input px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    Browse
+                    {t('Browse')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Browse filesystem</TooltipContent>
+                <TooltipContent side="top">{t('Browse filesystem')}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -145,14 +146,14 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                     type="button"
                     onClick={handleAutoDetect}
                     disabled={isDetecting}
-                    aria-label="Auto-detect prime-agent path"
+                    aria-label={t('Auto-detect prime-agent path')}
                     className="flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
                     {isDetecting ? <IconLoader2 className="size-3 animate-spin" /> : <IconSearch className="size-3" />}
                     Detect
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Auto-detect from PATH</TooltipContent>
+                <TooltipContent side="top">{t('Auto-detect from PATH')}</TooltipContent>
               </Tooltip>
             </div>
             <div className="mt-1.5 flex items-center gap-2">
@@ -161,16 +162,16 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   <button
                     type="button"
                     onClick={handleTestCli}
-                    aria-label="Test CLI connection"
+                    aria-label={t('Test CLI connection')}
                     className="rounded-md border border-input px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    Test
+                    {t('Test')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Test connection to prime-agent</TooltipContent>
+                <TooltipContent side="top">{t('Test connection to prime-agent')}</TooltipContent>
               </Tooltip>
-              {cliStatus === 'ok' && <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400"><IconCheck className="size-3" /> Connected</span>}
-              {cliStatus === 'fail' && <span className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400"><IconAlertCircle className="size-3" /> Failed</span>}
+              {cliStatus === 'ok' && <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400"><IconCheck className="size-3" /> {t('Connected')}</span>}
+              {cliStatus === 'fail' && <span className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400"><IconAlertCircle className="size-3" /> {t('Failed')}</span>}
             </div>
           </div>
         </SettingsCard>
@@ -185,14 +186,14 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   value={draft.defaultModel ?? currentModelId ?? ''}
                   onChange={handleModelChange}
                   disabled={modelsLoading || availableModels.length === 0}
-                  aria-label="Select default AI model"
+                  aria-label={t('Select default AI model')}
                   className={cn(
                     'flex h-7 w-full appearance-none rounded-md border border-input bg-background/50 px-2.5 pr-7 text-xs',
                     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                     'disabled:cursor-not-allowed disabled:opacity-50',
                   )}
                 >
-                  {availableModels.length === 0 && !modelsLoading && <option value="">No models loaded</option>}
+                  {availableModels.length === 0 && !modelsLoading && <option value="">{t('No models loaded')}</option>}
                   {modelsLoading && <option value="">Loading…</option>}
                   {availableModels.map((m) => <option key={m.modelId} value={m.modelId}>{m.name}</option>)}
                 </select>
@@ -204,13 +205,13 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                     type="button"
                     onClick={handleRefreshModels}
                     disabled={modelsLoading}
-                    aria-label="Refresh available models"
+                    aria-label={t('Refresh available models')}
                     className="flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
                     {modelsLoading ? <IconLoader2 className="size-3 animate-spin" /> : <IconRefresh className="size-3" />}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Refresh model list</TooltipContent>
+                <TooltipContent side="top">{t('Refresh model list')}</TooltipContent>
               </Tooltip>
             </div>
             {modelsError && <span className="mt-1 flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400"><IconAlertCircle className="size-3" /> {modelsError}</span>}
@@ -221,11 +222,11 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
       <SettingsGrid label="Workspace" description="Permissions, worktrees, and sandbox">
         <SettingsCard>
           <SettingRow label="Auto-approve" description="Skip permission prompts for tool calls">
-            <Switch checked={draft.autoApprove ?? false} onCheckedChange={handleAutoApproveChange} aria-label="Toggle auto-approve permissions" />
+            <Switch checked={draft.autoApprove ?? false} onCheckedChange={handleAutoApproveChange} aria-label={t('Toggle auto-approve permissions')} />
           </SettingRow>
           <Divider />
           <SettingRow label="Respect .gitignore" description="Hide gitignored files from @ mentions">
-            <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label="Toggle respect gitignore" />
+            <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label={t('Toggle respect gitignore')} />
           </SettingRow>
           <Divider />
           <SettingRow label="Use worktrees" description="Isolate threads in .laf-agent/worktrees/">
@@ -233,7 +234,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               checked={draft.projectPrefs?.[activeWorkspace ?? '']?.worktreeEnabled ?? false}
               onCheckedChange={handleWorktreeChange}
               disabled={!activeWorkspace}
-              aria-label="Toggle worktrees for new threads"
+              aria-label={t('Toggle worktrees for new threads')}
             />
           </SettingRow>
           <Divider />
@@ -242,7 +243,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               checked={draft.projectPrefs?.[activeWorkspace ?? '']?.tightSandbox ?? true}
               onCheckedChange={handleSandboxChange}
               disabled={!activeWorkspace}
-              aria-label="Toggle tight sandbox"
+              aria-label={t('Toggle tight sandbox')}
             />
           </SettingRow>
         </SettingsCard>
@@ -251,7 +252,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
       <SettingsGrid label="Notifications" description="Background alerts and sounds">
         <SettingsCard>
           <SettingRow label="Desktop notifications" description="Notify when agent finishes or needs approval">
-            <Switch checked={draft.notifications ?? true} onCheckedChange={handleNotificationsChange} aria-label="Toggle desktop notifications" />
+            <Switch checked={draft.notifications ?? true} onCheckedChange={handleNotificationsChange} aria-label={t('Toggle desktop notifications')} />
           </SettingRow>
           <Divider />
           <SettingRow label="Notification sound" description="Play a chime on notification">
@@ -259,7 +260,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               checked={draft.soundNotifications ?? true}
               onCheckedChange={handleSoundChange}
               disabled={!(draft.notifications ?? true)}
-              aria-label="Toggle notification sound"
+              aria-label={t('Toggle notification sound')}
             />
           </SettingRow>
         </SettingsCard>

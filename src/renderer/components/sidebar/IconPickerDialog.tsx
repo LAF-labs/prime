@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useEffect, useMemo, useCallback } from 'react'
 import { IconSearch, IconRefresh, IconPhoto, IconChevronDown } from '@tabler/icons-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -586,7 +587,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[520px] gap-0 p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-4 pb-3">
-          <DialogTitle className="text-sm font-medium">Change Icon</DialogTitle>
+          <DialogTitle className="text-sm font-medium">{t('Change Icon')}</DialogTitle>
         </DialogHeader>
 
         {/* Tabs */}
@@ -601,7 +602,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
-            Frameworks
+            {t('Frameworks')}
           </button>
           <button
             type="button"
@@ -613,7 +614,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
-            Emoji
+            {t('Emoji')}
           </button>
           <button
             type="button"
@@ -812,7 +813,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-center">
                       <IconPhoto className="size-6 text-muted-foreground/30" aria-hidden />
-                      <span className="text-[10px] text-muted-foreground/50 leading-tight">Select a file to preview</span>
+                      <span className="text-[10px] text-muted-foreground/50 leading-tight">{t('Select a file to preview')}</span>
                     </div>
                   )}
                 </div>
@@ -829,7 +830,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
               className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <IconRefresh className="size-3" aria-hidden />
-              Reset
+              {t('Reset')}
             </button>
             <button
               type="button"
@@ -838,7 +839,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
               aria-label="Apply selected icon"
               className="flex h-7 items-center rounded-md bg-primary px-3 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              Apply
+              {t('Apply')}
             </button>
           </div>
         </div>

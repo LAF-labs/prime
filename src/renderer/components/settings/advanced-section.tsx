@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useEffect, useCallback } from 'react'
 import { IconTrash, IconRefresh, IconChartBar } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -82,7 +83,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             <Switch
               checked={draft.analyticsEnabled ?? true}
               onCheckedChange={handleAnalyticsToggle}
-              aria-label="Toggle anonymous analytics"
+              aria-label={t('Toggle anonymous analytics')}
             />
           </SettingRow>
         </SettingsCard>
@@ -94,7 +95,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             <Switch
               checked={draft.aiCommitMessages ?? true}
               onCheckedChange={handleAiCommitToggle}
-              aria-label="Toggle AI commit messages"
+              aria-label={t('Toggle AI commit messages')}
             />
           </SettingRow>
           <Divider />
@@ -102,7 +103,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             <Switch
               checked={draft.coAuthor ?? true}
               onCheckedChange={handleCoAuthorToggle}
-              aria-label="Toggle co-author trailer"
+              aria-label={t('Toggle co-author trailer')}
             />
           </SettingRow>
           <Divider />
@@ -110,7 +111,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             <Switch
               checked={draft.coAuthorJsonReport ?? true}
               onCheckedChange={handleReportToggle}
-              aria-label="Toggle task completion report"
+              aria-label={t('Toggle task completion report')}
             />
           </SettingRow>
         </SettingsCard>
@@ -127,7 +128,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
               value={draft.btwMaxChars ?? BTW_DEFAULT_CHARS}
               onChange={handleBtwCharsChange}
               className="w-20 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
-              aria-label="Max btw question characters"
+              aria-label={t('Max btw question characters')}
             />
           </SettingRow>
         </SettingsCard>
@@ -141,14 +142,14 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
                 <button
                   type="button"
                   onClick={() => setIsConfirmHistoryOpen(true)}
-                  aria-label="Clear chat history"
+                  aria-label={t('Clear chat history')}
                   className="flex items-center gap-1.5 rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
                 >
                   <IconTrash className="size-3" />
-                  Clear
+                  {t('Clear')}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">Permanently delete all threads</TooltipContent>
+              <TooltipContent side="top">{t('Permanently delete all threads')}</TooltipContent>
             </Tooltip>
           </SettingRow>
           <Divider />
@@ -158,14 +159,14 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
                 <button
                   type="button"
                   onClick={() => setIsConfirmAnalyticsOpen(true)}
-                  aria-label="Clear analytics data"
+                  aria-label={t('Clear analytics data')}
                   className="flex items-center gap-1.5 rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
                 >
                   <IconChartBar className="size-3" />
-                  Clear
+                  {t('Clear')}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">Delete local usage statistics</TooltipContent>
+              <TooltipContent side="top">{t('Delete local usage statistics')}</TooltipContent>
             </Tooltip>
           </SettingRow>
           <Divider />
@@ -175,14 +176,14 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
                 <button
                   type="button"
                   onClick={handleReplayOnboarding}
-                  aria-label="Replay onboarding wizard"
+                  aria-label={t('Replay onboarding wizard')}
                   className="flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <IconRefresh className="size-3" />
-                  Replay
+                  {t('Replay')}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">Run setup wizard again</TooltipContent>
+              <TooltipContent side="top">{t('Run setup wizard again')}</TooltipContent>
             </Tooltip>
           </SettingRow>
         </SettingsCard>
@@ -191,7 +192,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
       <ConfirmDialog
         open={isConfirmHistoryOpen}
         onOpenChange={setIsConfirmHistoryOpen}
-        title="Clear conversation history?"
+        title={t('Clear conversation history?')}
         description="This permanently deletes all conversation threads. Your settings, onboarding state, and preferences are preserved. This action cannot be undone."
         confirmLabel="Clear history"
         onConfirm={handleClearHistory}
@@ -199,7 +200,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
       <ConfirmDialog
         open={isConfirmAnalyticsOpen}
         onOpenChange={setIsConfirmAnalyticsOpen}
-        title="Clear analytics data?"
+        title={t('Clear analytics data?')}
         description="This permanently deletes all local usage statistics. This action cannot be undone."
         confirmLabel="Clear analytics"
         onConfirm={handleClearAnalytics}

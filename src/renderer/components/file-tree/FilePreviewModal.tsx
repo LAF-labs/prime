@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { IconX, IconExternalLink, IconCode, IconPhoto } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -219,7 +220,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
                 <IconExternalLink className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Open in editor</TooltipContent>
+            <TooltipContent side="bottom">{t('Open in editor')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -231,7 +232,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
                 <IconX className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Close (Esc)</TooltipContent>
+            <TooltipContent side="bottom">{t('Close (Esc)')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -292,7 +293,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
 
           {!loading && content === null && base64 === null && (
             <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground">Could not read file.</p>
+              <p className="text-sm text-muted-foreground">{t('Could not read file.')}</p>
             </div>
           )}
         </div>
@@ -325,7 +326,7 @@ const CodeView = memo(function CodeView({ content, ext }: { content: string; ext
 
 const CsvView = memo(function CsvView({ content }: { content: string }) {
   const rows = parseCsv(content)
-  if (rows.length === 0) return <p className="p-4 text-sm text-muted-foreground">Empty file</p>
+  if (rows.length === 0) return <p className="p-4 text-sm text-muted-foreground">{t('Empty file')}</p>
   const [header, ...body] = rows
 
   return (

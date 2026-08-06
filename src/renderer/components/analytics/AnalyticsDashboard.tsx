@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo, lazy, Suspense } from 'react'
 import { IconArrowLeft, IconChartBar } from '@tabler/icons-react'
 import { useAnalyticsStore, type TimeRange } from '@/stores/analyticsStore'
@@ -53,14 +54,14 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
           size="sm"
           onClick={handleBack}
           className="gap-1.5 text-muted-foreground hover:text-foreground"
-          aria-label="Back to chat"
+          aria-label={t('Back to chat')}
         >
           <IconArrowLeft size={16} stroke={1.5} />
-          Back
+          {t('Back')}
         </Button>
         <div className="flex items-center gap-2">
           <IconChartBar size={18} stroke={1.5} className="text-primary" />
-          <h1 className="text-[15px] font-semibold">Analytics</h1>
+          <h1 className="text-[15px] font-semibold">{t('Analytics')}</h1>
         </div>
         <div className="ml-auto flex items-center gap-1 rounded-lg bg-muted/40 p-0.5">
           {RANGES.map((r) => (
@@ -84,12 +85,12 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
       <ScrollArea className="min-h-0 flex-1">
         <div className="p-5">
           {!isLoaded ? (
-            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">Loading analytics...</div>
+            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">{t('Loading analytics...')}</div>
           ) : isEmpty ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <IconChartBar size={40} stroke={1} className="mb-3 text-muted-foreground/40" />
-              <p className="text-sm font-medium text-muted-foreground">No analytics data yet</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">Start using LAF Agent and your usage stats will appear here</p>
+              <p className="text-sm font-medium text-muted-foreground">{t('No analytics data yet')}</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">{t('Start using LAF Agent and your usage stats will appear here')}</p>
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import { IconCheck, IconCode, IconListCheck, IconRobot } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -141,7 +142,7 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
       >
         <div className="flex items-center justify-between px-3 py-2.5 text-[12px]">
           <span className="font-mono text-muted-foreground">/{kind} {query}</span>
-          <span className="text-muted-foreground/70">No matches</span>
+          <span className="text-muted-foreground/70">{t('No matches')}</span>
         </div>
         <div className="border-t border-border/40 px-3 py-1.5 text-[10px] text-muted-foreground/70">
           esc to cancel

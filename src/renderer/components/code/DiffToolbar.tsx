@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { IconColumns, IconLayoutRows, IconTextWrap, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -54,26 +55,26 @@ export const DiffToolbar = ({
     <div className="flex items-center rounded-md border border-border overflow-hidden">
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" onClick={() => onDiffStyleChange('unified')} aria-label="Unified view"
+          <button type="button" onClick={() => onDiffStyleChange('unified')} aria-label={t('Unified view')}
             className={cn('flex h-6 w-6 items-center justify-center transition-colors', diffStyle === 'unified' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground')}>
             <IconLayoutRows className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Unified view</TooltipContent>
+        <TooltipContent side="bottom">{t('Unified view')}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" onClick={() => onDiffStyleChange('split')} aria-label="Split view"
+          <button type="button" onClick={() => onDiffStyleChange('split')} aria-label={t('Split view')}
             className={cn('flex h-6 w-6 items-center justify-center transition-colors', diffStyle === 'split' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground')}>
             <IconColumns className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Split view</TooltipContent>
+        <TooltipContent side="bottom">{t('Split view')}</TooltipContent>
       </Tooltip>
     </div>
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" onClick={onWordWrapToggle} aria-label="Toggle word wrap"
+        <button type="button" onClick={onWordWrapToggle} aria-label={t('Toggle word wrap')}
           className={cn('flex h-6 w-6 items-center justify-center rounded-md transition-colors', wordWrap ? 'bg-accent text-foreground' : 'text-muted-foreground/70 hover:text-foreground')}>
           <IconTextWrap className="size-3.5" />
         </button>

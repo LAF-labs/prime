@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo, useState, useCallback } from 'react'
 import {
   IconRefresh, IconTrash, IconAlertTriangle, IconTerminal2,
@@ -268,7 +269,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 <IconCpu className={cn('size-5', isHot ? 'text-amber-400' : 'text-primary')} />
               </div>
               <div>
-                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">Tracked total</p>
+                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">{t('Tracked total')}</p>
                 <p className={cn(
                   'font-mono text-[24px] font-bold tabular-nums leading-tight',
                   isHot ? 'text-amber-400' : 'text-foreground',
@@ -285,16 +286,16 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                   onChange={(e) => setAutoRefresh(e.target.checked)}
                   className="size-3 cursor-pointer accent-primary"
                 />
-                Auto-refresh
+                {t('Auto-refresh')}
               </label>
               <button
                 type="button"
                 onClick={handleManualRefresh}
                 className="flex items-center gap-1.5 rounded-lg border border-border/50 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="Refresh memory report"
+                aria-label={t('Refresh memory report')}
               >
                 <IconRefresh className="size-3" />
-                Refresh
+                {t('Refresh')}
               </button>
             </div>
           </SettingsCard>
@@ -304,7 +305,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3">
               <IconFlame className="mt-0.5 size-4 shrink-0 text-amber-400" />
               <div>
-                <p className="text-[12px] font-medium text-amber-300">High memory usage</p>
+                <p className="text-[12px] font-medium text-amber-300">{t('High memory usage')}</p>
                 <p className="mt-0.5 text-[11px] leading-relaxed text-amber-200/70">
                   Renderer is holding {report ? formatBytes(report.grandTotal) : ''} across threads, drafts, and debug buffers.
                   Purge soft-deleted threads or clear debug buffers below.
@@ -427,7 +428,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           {!report || report.threads.length === 0 ? (
             <div className="flex flex-col items-center gap-1.5 py-6 text-center">
               <IconMessage className="size-5 text-muted-foreground/30" />
-              <p className="text-[11.5px] text-muted-foreground/60">No live threads</p>
+              <p className="text-[11.5px] text-muted-foreground/60">{t('No live threads')}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-0.5 py-1">
@@ -463,7 +464,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
               value={scrollback}
               onChange={(e) => updateDraft({ terminalScrollback: clampScrollback(Number(e.target.value) || DEFAULT_SCROLLBACK) })}
               className="w-24 rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs tabular-nums text-foreground outline-none focus:ring-1 focus:ring-ring"
-              aria-label="Terminal scrollback lines"
+              aria-label={t('Terminal scrollback lines')}
             />
           </SettingRow>
           <Divider />
@@ -480,7 +481,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
               onCheckedChange={(checked) =>
                 updateDraft({ terminalAutoCloseIdleMins: checked ? DEFAULT_IDLE_MINS : null })
               }
-              aria-label="Toggle idle terminal auto-close"
+              aria-label={t('Toggle idle terminal auto-close')}
             />
           </SettingRow>
           {idleEnabled && (
@@ -501,7 +502,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                     updateDraft({ terminalAutoCloseIdleMins: n })
                   }}
                   className="w-20 rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs tabular-nums text-foreground outline-none focus:ring-1 focus:ring-ring"
-                  aria-label="Idle threshold in minutes"
+                  aria-label={t('Idle threshold in minutes')}
                 />
               </SettingRow>
             </>
@@ -525,10 +526,10 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
               disabled={!report || report.softDeletedCount === 0}
               onClick={() => setIsPurgeOpen(true)}
               className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Purge all soft-deleted threads now"
+              aria-label={t('Purge all soft-deleted threads now')}
             >
               <IconTrash className="size-3" />
-              Purge now
+              {t('Purge now')}
             </button>
           </SettingRow>
           <Divider />
@@ -545,10 +546,10 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
               disabled={!report || (report.debugLogCount === 0 && report.jsDebugLogCount === 0)}
               onClick={handleClearDebug}
               className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Clear debug log buffers"
+              aria-label={t('Clear debug log buffers')}
             >
               <IconBug className="size-3" />
-              Clear
+              {t('Clear')}
             </button>
           </SettingRow>
         </SettingsCard>
@@ -562,7 +563,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
       <ConfirmDialog
         open={isPurgeOpen}
         onOpenChange={setIsPurgeOpen}
-        title="Purge soft-deleted threads?"
+        title={t('Purge soft-deleted threads?')}
         description="Permanently removes every soft-deleted thread immediately. Restoration from the Archives section will no longer be possible."
         confirmLabel="Purge now"
         onConfirm={handlePurgeSoft}

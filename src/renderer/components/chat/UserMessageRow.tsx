@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useCallback, useContext, useMemo, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { IconCopy, IconCheck, IconPhoto, IconFileText, IconFile, IconRobot, IconBolt, IconGitFork, IconX } from '@tabler/icons-react'
@@ -119,7 +120,7 @@ const AttachmentPill = memo(function AttachmentPill({ name, type, src }: { name:
             onKeyDown={(e) => e.key === 'Escape' && setShowPreview(false)}
             role="dialog"
             aria-modal="true"
-            aria-label="Image preview"
+            aria-label={t('Image preview')}
             tabIndex={-1}
             ref={(el) => el?.focus()}
           >
@@ -127,7 +128,7 @@ const AttachmentPill = memo(function AttachmentPill({ name, type, src }: { name:
               type="button"
               onClick={(e) => { e.stopPropagation(); setShowPreview(false) }}
               className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-black/50 text-white/80 transition-colors hover:bg-black/70 hover:text-white"
-              aria-label="Close preview"
+              aria-label={t('Close preview')}
             >
               <IconX className="size-5" />
             </button>
@@ -223,7 +224,7 @@ export const UserMessageRow = memo(function UserMessageRow({ row }: { row: UserM
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  Fork thread
+                  {t('Fork thread')}
                 </TooltipContent>
               </Tooltip>
             )}

@@ -1,5 +1,5 @@
 mod commands;
-mod connection;
+pub(crate) mod connection;
 pub mod types;
 
 #[cfg(test)]

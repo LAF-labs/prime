@@ -242,6 +242,12 @@ export const ipc = {
     invoke('auth_set_api_key', { provider, key }),
   authListProviders: (): Promise<Array<{ name: string; kind: string; isCustom: boolean; baseUrl?: string | null; modelCount: number }>> =>
     invoke('auth_list_providers'),
+  kernelStatus: (): Promise<{ ready: boolean; venvPath: string; hasUv: boolean }> =>
+    invoke('kernel_status'),
+  kernelSetup: (): Promise<void> =>
+    invoke('kernel_setup'),
+  onKernelSetupProgress: (cb: (data: { line: string }) => void): UnsubscribeFn =>
+    tauriListen('kernel_setup_progress', cb),
   disableSerperWebsearch: (): Promise<boolean> =>
     invoke('disable_serper_websearch'),
   repairCustomProviders: (): Promise<number> =>

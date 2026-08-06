@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useRef } from 'react'
 import { IconTrash } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
@@ -29,7 +30,7 @@ export function TerminalOutput({ lines, onClear }: TerminalOutputProps) {
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {lines.length === 0 ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-            No terminal output yet
+            {t('No terminal output yet')}
           </div>
         ) : (
           <pre className="font-mono text-[11px] leading-5 whitespace-pre-wrap break-all">

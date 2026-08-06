@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 /**
  * Checkpoint Timeline — displays per-turn checkpoints for a task.
  * Allows viewing diffs between turns and reverting to a previous state.
@@ -85,7 +86,7 @@ export const CheckpointTimeline = memo(function CheckpointTimeline({ taskId, onV
       <div className="flex items-center justify-between px-3 py-1.5">
         <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground/60">
           <IconCamera className="size-3" />
-          <span>Checkpoints</span>
+          <span>{t('Checkpoints')}</span>
           {checkpoints.length > 0 && (
             <span className="text-muted-foreground/40">({checkpoints.length})</span>
           )}
@@ -133,7 +134,7 @@ export const CheckpointTimeline = memo(function CheckpointTimeline({ taskId, onV
                     <div className="font-medium">Turn {cp.turn}</div>
                     <div className="text-muted-foreground">{cp.message || 'No commit message'}</div>
                     <div className="text-muted-foreground/60">{relativeTime(cp.timestamp)}</div>
-                    {idx > 0 && <div className="mt-1 text-blue-400">Click to view turn diff</div>}
+                    {idx > 0 && <div className="mt-1 text-blue-400">{t('Click to view turn diff')}</div>}
                   </div>
                 </TooltipContent>
               </Tooltip>

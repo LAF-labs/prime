@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { IconMessageCircleQuestion, IconX, IconCheck } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -84,7 +85,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
       onClick={handleDismiss}
       role="dialog"
       aria-modal="true"
-      aria-label="Side question"
+      aria-label={t('Side question')}
       style={{ pointerEvents: 'auto' }}
     >
       <div
@@ -101,7 +102,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
           <button
             onClick={handleDismiss}
             className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Dismiss side question"
+            aria-label={t('Dismiss side question')}
           >
             <IconX className="size-3.5" />
           </button>
@@ -122,7 +123,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
           ) : (
             <div className="flex items-center gap-2 py-4">
               <div className="size-1.5 animate-pulse rounded-full bg-yellow-500/60" />
-              <span className="text-[12px] text-muted-foreground">Thinking...</span>
+              <span className="text-[12px] text-muted-foreground">{t('Thinking...')}</span>
             </div>
           )}
         </div>
@@ -143,7 +144,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
         {/* Footer hint */}
         <div className="shrink-0 border-t border-border/30 px-4 py-1.5">
           <span className="text-[11px] text-muted-foreground/60">
-            Press <kbd className="rounded-sm bg-muted px-1 py-0.5 text-[10px] font-mono">Esc</kbd> to dismiss
+            {t('Press')} <kbd className="rounded-sm bg-muted px-1 py-0.5 text-[10px] font-mono">{t('Esc')}</kbd> to dismiss
           </span>
         </div>
       </div>

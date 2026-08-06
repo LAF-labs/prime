@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useRef } from 'react'
 import { IconChevronRight, IconChevronDown, IconRefresh } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -32,7 +33,7 @@ export const DiffSummaryPanel = ({ taskId, collapsed, onToggle }: DiffSummaryPan
         <button
           type="button"
           onClick={onToggle}
-          aria-label="Expand agent summary"
+          aria-label={t('Expand agent summary')}
           className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-foreground"
         >
           <IconChevronRight className="size-3.5 rotate-180" />
@@ -50,16 +51,16 @@ export const DiffSummaryPanel = ({ taskId, collapsed, onToggle }: DiffSummaryPan
         <button
           type="button"
           onClick={onToggle}
-          aria-label="Collapse agent summary"
+          aria-label={t('Collapse agent summary')}
           className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground"
         >
           <IconChevronDown className="size-3.5" />
         </button>
-        <span className="flex-1 text-[11px] font-medium text-foreground">Agent summary</span>
+        <span className="flex-1 text-[11px] font-medium text-foreground">{t('Agent summary')}</span>
         <button
           type="button"
           onClick={handleRefresh}
-          aria-label="Refresh agent summary"
+          aria-label={t('Refresh agent summary')}
           className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground"
         >
           <IconRefresh className="size-3" />
@@ -72,7 +73,7 @@ export const DiffSummaryPanel = ({ taskId, collapsed, onToggle }: DiffSummaryPan
           </div>
         ) : (
           <div className="p-3 text-[12px] text-muted-foreground italic">
-            No agent summary yet.
+            {t('No agent summary yet.')}
           </div>
         )}
       </div>

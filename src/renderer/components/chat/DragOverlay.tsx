@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -82,10 +83,10 @@ export const DragOverlay = memo(function DragOverlay({ visible }: DragOverlayPro
       </svg>
       <CuteCat />
       <span className="text-sm font-medium text-foreground/60">
-        Drop files here
+        {t('Drop files here')}
       </span>
       <span className="text-sm text-muted-foreground">
-        Images, code, documents
+        {t('Images, code, documents')}
       </span>
       <style>{`
         @keyframes dash-march {

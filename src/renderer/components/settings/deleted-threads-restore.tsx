@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo } from 'react'
 import { IconTrash, IconRestore } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -54,10 +55,10 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
               className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
             >
               <IconTrash className="size-3" />
-              <span>Delete all</span>
+              <span>{t('Delete all')}</span>
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">Delete all threads in this project</TooltipContent>
+          <TooltipContent side="top">{t('Delete all threads in this project')}</TooltipContent>
         </Tooltip>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -79,7 +80,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
                     <IconRestore className="size-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Restore</TooltipContent>
+                <TooltipContent side="top">{t('Restore')}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -92,7 +93,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
                     <IconTrash className="size-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Delete permanently</TooltipContent>
+                <TooltipContent side="top">{t('Delete permanently')}</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -113,8 +114,8 @@ export const DeletedThreadsRestore = () => {
           <div className="flex size-9 items-center justify-center rounded-xl bg-muted/30">
             <IconTrash className="size-4 text-muted-foreground/70" />
           </div>
-          <p className="text-[13px] font-medium text-muted-foreground">No deleted threads</p>
-          <p className="text-[11px] text-muted-foreground">Deleted threads appear here for 2 days before permanent removal</p>
+          <p className="text-[13px] font-medium text-muted-foreground">{t('No deleted threads')}</p>
+          <p className="text-[11px] text-muted-foreground">{t('Deleted threads appear here for 2 days before permanent removal')}</p>
         </div>
       </div>
     )
@@ -131,7 +132,7 @@ export const DeletedThreadsRestore = () => {
     <div className={cn('rounded-xl border border-border/50 bg-card/70 shadow-sm overflow-hidden')}>
       <div className="border-b border-border/60 px-5 py-3">
         <p className="text-[12px] font-medium text-foreground/80">{entries.length} deleted {entries.length === 1 ? 'thread' : 'threads'}</p>
-        <p className="text-[11px] text-muted-foreground">Permanently removed after 2 days</p>
+        <p className="text-[11px] text-muted-foreground">{t('Permanently removed after 2 days')}</p>
       </div>
       <div className="divide-y divide-border/20">
         {[...grouped.entries()].map(([ws, items]) => (

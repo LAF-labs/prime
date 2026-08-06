@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo } from 'react'
 import { IconPaperclip } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -72,14 +73,14 @@ export const ChatToolbar = memo(function ChatToolbar({
             <button
               type="button"
               onClick={onFilePickerClick}
-              aria-label="Attach files"
+              aria-label={t('Attach files')}
               data-testid="attach-files-button"
               className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted/60 hover:text-muted-foreground/70"
             >
               <IconPaperclip className="size-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-[11px]">Attach files or images</TooltipContent>
+          <TooltipContent side="top" className="text-[11px]">{t('Attach files or images')}</TooltipContent>
         </Tooltip>
         <BranchSelector workspace={workspace ?? null} isWorktree={isWorktree} />
         <input
@@ -101,7 +102,7 @@ export const ChatToolbar = memo(function ChatToolbar({
               <button
                 type="button"
                 onClick={onPause}
-                aria-label="Pause agent (Escape)"
+                aria-label={t('Pause agent (Escape)')}
                 data-testid="pause-button"
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full text-white transition-all duration-150 hover:scale-105',
@@ -115,7 +116,7 @@ export const ChatToolbar = memo(function ChatToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px]">
-              Pause agent <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">Esc</kbd>
+              {t('Pause agent')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{t('Esc')}</kbd>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -138,14 +139,14 @@ export const ChatToolbar = memo(function ChatToolbar({
                   <path d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 {hasQueuedMessages && (
-                  <span className="absolute -top-1 -right-1 flex size-3 items-center justify-center rounded-full bg-amber-500" aria-label="Messages queued">
+                  <span className="absolute -top-1 -right-1 flex size-3 items-center justify-center rounded-full bg-amber-500" aria-label={t('Messages queued')}>
                     <span className="size-1.5 rounded-full bg-white" />
                   </span>
                 )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px]">
-              Send message <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">⏎</kbd>
+              {t('Send message')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">⏎</kbd>
             </TooltipContent>
           </Tooltip>
         )}

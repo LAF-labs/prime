@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useRef, useEffect } from 'react'
 import { IconChevronDown, IconCode, IconFolder, IconTerminal2 } from '@tabler/icons-react'
 import { toast } from 'sonner'
@@ -152,7 +153,7 @@ export function OpenInEditorGroup({ workspace }: { workspace: string }) {
       {rest.length > 0 && (
         <>
           <div className="pointer-events-none relative z-[2] w-px bg-border" />
-          <button type="button" aria-label="More editors" onClick={() => setMenuOpen((v) => !v)}
+          <button type="button" aria-label={t('More editors')} onClick={() => setMenuOpen((v) => !v)}
             className="inline-flex size-7 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground">
             <IconChevronDown className="size-3.5" aria-hidden />
           </button>

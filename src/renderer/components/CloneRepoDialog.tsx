@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   IconGitFork,
@@ -117,10 +118,10 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <IconGitFork className="size-5 text-primary" aria-hidden />
-            Clone repository
+            {t('Clone repository')}
           </DialogTitle>
           <DialogDescription>
-            Paste an HTTPS or SSH URL and pick a destination folder.
+            {t('Paste an HTTPS or SSH URL and pick a destination folder.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -130,7 +131,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
               htmlFor="clone-url"
               className="text-[12px] font-medium text-muted-foreground"
             >
-              Repository URL
+              {t('Repository URL')}
             </label>
             <Input
               ref={urlInputRef}
@@ -140,7 +141,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
               value={url}
               onChange={(e) => { setUrl(e.target.value); setError(null) }}
               disabled={isCloning}
-              aria-label="Repository URL"
+              aria-label={t('Repository URL')}
               autoComplete="off"
               spellCheck={false}
             />
@@ -151,13 +152,13 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
               htmlFor="clone-path"
               className="text-[12px] font-medium text-muted-foreground"
             >
-              Clone to
+              {t('Clone to')}
             </label>
             <div className="flex gap-2">
               <Input
                 id="clone-path"
                 type="text"
-                placeholder="Pick a folder…"
+                placeholder={t('Pick a folder…')}
                 value={displayPath}
                 onChange={(e) => {
                   setTargetDir(e.target.value)
@@ -165,7 +166,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
                   setError(null)
                 }}
                 disabled={isCloning}
-                aria-label="Target directory"
+                aria-label={t('Target directory')}
                 className="flex-1"
                 autoComplete="off"
                 spellCheck={false}
@@ -176,7 +177,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
                 size="default"
                 onClick={handlePickFolder}
                 disabled={isCloning}
-                aria-label="Browse for folder"
+                aria-label={t('Browse for folder')}
                 tabIndex={0}
               >
                 <IconFolder className="size-4" aria-hidden />
@@ -202,7 +203,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
             onClick={handleClose}
             disabled={isCloning}
           >
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button
             size="sm"

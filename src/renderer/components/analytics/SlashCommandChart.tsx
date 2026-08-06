@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { AnalyticsEvent } from '@/types/analytics'
@@ -21,14 +22,14 @@ export const SlashCommandChart = ({ events }: { events: AnalyticsEvent[] }) => {
 
   if (sorted.length === 0) {
     return (
-      <ChartCard title="Slash commands by mode">
+      <ChartCard title={t('Slash commands by mode')}>
         <EmptyChart message="No slash command data yet" />
       </ChartCard>
     )
   }
 
   return (
-    <ChartCard title="Slash commands by mode">
+    <ChartCard title={t('Slash commands by mode')}>
       <ResponsiveContainer width="100%" height={Math.max(100, sorted.length * 28 + 40)}>
         <BarChart data={sorted} layout="vertical" margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <XAxis type="number" tick={{ fontSize: 10 }} />

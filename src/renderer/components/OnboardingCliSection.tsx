@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect } from 'react'
 import {
   IconCircleCheck, IconExternalLink, IconFolderOpen,
@@ -67,7 +68,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           </p>
         </div>
         {detectState !== 'detecting' && (
-          <button type="button" onClick={detect} aria-label="Retry CLI detection" tabIndex={0}
+          <button type="button" onClick={detect} aria-label={t('Retry CLI detection')} tabIndex={0}
             className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground/70">
             <IconRefresh size={14} />
           </button>
@@ -101,14 +102,14 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           <div className="flex gap-1.5">
             <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/prime-agent"
               className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/40" />
-            <button type="button" onClick={handleBrowse} aria-label="Browse for prime-agent" tabIndex={0}
+            <button type="button" onClick={handleBrowse} aria-label={t('Browse for prime-agent')} tabIndex={0}
               className="rounded-lg border border-border px-2.5 py-2 text-muted-foreground transition-colors hover:text-foreground/70">
               <IconFolderOpen size={16} />
             </button>
           </div>
           <a href="https://github.com/PrimeIntellect-ai/prime-agent#readme" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
             className="flex items-center justify-center gap-1.5 text-[12px] text-primary transition-colors hover:text-primary">
-            Full installation guide <IconExternalLink size={12} />
+            {t('Full installation guide')} <IconExternalLink size={12} />
           </a>
         </div>
       )}

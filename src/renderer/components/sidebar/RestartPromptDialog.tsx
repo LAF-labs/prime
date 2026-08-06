@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useCallback, useState } from 'react'
 import { IconRefresh, IconLoader2 } from '@tabler/icons-react'
 import {
@@ -38,7 +39,7 @@ export const RestartPromptDialog = () => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <IconRefresh className="size-5 text-primary" aria-hidden />
-            Update ready
+            {t('Update ready')}
           </DialogTitle>
           <DialogDescription>
             {updateInfo?.version
@@ -48,7 +49,7 @@ export const RestartPromptDialog = () => {
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={handleDismiss} disabled={isRestarting}>
-            Later
+            {t('Later')}
           </Button>
           <Button size="sm" onClick={handleRestart} disabled={isRestarting}>
             {isRestarting ? (

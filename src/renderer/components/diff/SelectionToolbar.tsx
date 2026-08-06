@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IconCopy, IconCheck, IconPencilPlus, IconMessagePlus } from '@tabler/icons-react'
@@ -123,7 +124,7 @@ export const SelectionToolbar = memo(function SelectionToolbar({ containerRef, w
     <div
       ref={toolbarRef}
       role="toolbar"
-      aria-label="Selection actions"
+      aria-label={t('Selection actions')}
       style={{
         position: 'fixed',
         left: toolbar.x,
@@ -158,14 +159,14 @@ export const SelectionToolbar = memo(function SelectionToolbar({ containerRef, w
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Add to chat input"
+            aria-label={t('Add to chat input')}
             onClick={handleAddToChat}
             className="flex items-center justify-center px-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <IconPencilPlus className="size-3.5 shrink-0" strokeWidth={1.75} />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-[11px]">Add to chat</TooltipContent>
+        <TooltipContent side="bottom" className="text-[11px]">{t('Add to chat')}</TooltipContent>
       </Tooltip>
 
       <div className="my-1.5 w-px bg-border/60 shrink-0" />
@@ -175,14 +176,14 @@ export const SelectionToolbar = memo(function SelectionToolbar({ containerRef, w
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Start new thread with selection"
+            aria-label={t('Start new thread with selection')}
             onClick={handleNewThread}
             className="flex items-center justify-center rounded-r-[7px] px-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <IconMessagePlus className="size-3.5 shrink-0" strokeWidth={1.75} />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-[11px]">New thread</TooltipContent>
+        <TooltipContent side="bottom" className="text-[11px]">{t('New thread')}</TooltipContent>
       </Tooltip>
     </div>,
     document.body

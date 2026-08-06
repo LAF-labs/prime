@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useState, useRef, memo } from "react"
 import {
   IconUser,
@@ -100,7 +101,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-red-600/70 dark:text-red-400/70 transition-colors hover:bg-red-500/5 hover:text-red-600 dark:hover:text-red-400"
                 >
-                  <IconLogout className="size-3.5" /> Logout
+                  <IconLogout className="size-3.5" /> {t('Logout')}
                 </button>
               </div>
             </>
@@ -114,7 +115,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-foreground/60 transition-colors hover:bg-muted/30 hover:text-foreground/90"
               >
-                <IconLogin className="size-3.5" /> Login to Prime Agent
+                <IconLogin className="size-3.5" /> {t('Login to Prime Agent')}
               </button>
               <button
                 type="button"

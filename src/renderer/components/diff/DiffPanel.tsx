@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { parsePatchFiles, type FileDiffMetadata } from '@pierre/diffs'
 import { FileDiff, Virtualizer } from '@pierre/diffs/react'
@@ -141,7 +142,7 @@ export const DiffPanel = memo(function DiffPanel() {
 
       {/* Toolbar */}
       <div className="flex items-center gap-1.5 border-b border-border/50 px-3 py-1 shrink-0">
-        <span className="text-[11px] font-medium text-muted-foreground">Files Changed</span>
+        <span className="text-[11px] font-medium text-muted-foreground">{t('Files Changed')}</span>
         <span className="text-[10px] text-muted-foreground">
           {parsedFiles.length} file{parsedFiles.length !== 1 ? 's' : ''}
         </span>
@@ -173,7 +174,7 @@ export const DiffPanel = memo(function DiffPanel() {
               <IconRefresh className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Refresh diff</TooltipContent>
+          <TooltipContent side="bottom">{t('Refresh diff')}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -189,7 +190,7 @@ export const DiffPanel = memo(function DiffPanel() {
               <IconLayoutRows className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Unified view</TooltipContent>
+          <TooltipContent side="bottom">{t('Unified view')}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -204,7 +205,7 @@ export const DiffPanel = memo(function DiffPanel() {
               <IconColumns className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Split view</TooltipContent>
+          <TooltipContent side="bottom">{t('Split view')}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -219,7 +220,7 @@ export const DiffPanel = memo(function DiffPanel() {
               <IconTextWrap className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Toggle word wrap</TooltipContent>
+          <TooltipContent side="bottom">{t('Toggle word wrap')}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -233,7 +234,7 @@ export const DiffPanel = memo(function DiffPanel() {
               <IconX className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Close</TooltipContent>
+          <TooltipContent side="bottom">{t('Close')}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -317,13 +318,13 @@ export const DiffPanel = memo(function DiffPanel() {
                     onClick={handleRevertSelected}
                     data-testid="diff-revert-button"
                     className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:text-red-400 hover:bg-red-400/10 transition-colors"
-                    aria-label="Revert selected files"
+                    aria-label={t('Revert selected files')}
                   >
                     <IconArrowBackUp className="size-3" />
-                    Revert
+                    {t('Revert')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Revert selected files</TooltipContent>
+                <TooltipContent side="top">{t('Revert selected files')}</TooltipContent>
               </Tooltip>
             </div>
           )}

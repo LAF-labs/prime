@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useMemo } from 'react'
 import {
   IconChevronDown, IconChevronRight, IconCheck, IconX, IconBolt, IconPlayerStop,
@@ -122,7 +123,7 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ toolCalls, inline
         {completedCount > 0 && runningCount === 0 && failedCount === 0 && cancelledCount === 0 && (
           <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
             <IconCheck className="size-2.5" strokeWidth={3} />
-            Done
+            {t('Done')}
           </span>
         )}
       </button>

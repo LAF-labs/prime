@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect } from 'react'
 import { IconCircleCheck, IconLoader2, IconUser } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
@@ -50,11 +51,11 @@ export const OnboardingAuthSection = ({ bin, isCliReady, onAuthChange }: Onboard
           )}
         </div>
         <div className="flex-1 text-left">
-          <p className="text-[13px] font-medium text-foreground/90">{t('onboarding.auth.title')}</p>
+          <p className="text-[13px] font-medium text-foreground/90">{t('AI provider')}</p>
           <p className="text-[11px] text-muted-foreground">
-            {authState === 'checking' && t('onboarding.auth.checking')}
-            {authState === 'authenticated' && t('onboarding.auth.connected')}
-            {authState === 'not-authenticated' && t('onboarding.auth.pick')}
+            {authState === 'checking' && t('Checking...')}
+            {authState === 'authenticated' && t('Connected')}
+            {authState === 'not-authenticated' && t('Pick a provider and add its API key')}
           </p>
         </div>
         {authState === 'authenticated' && authAccountType && (
@@ -67,7 +68,7 @@ export const OnboardingAuthSection = ({ bin, isCliReady, onAuthChange }: Onboard
         <div className="flex flex-col gap-3 px-5 py-4">
           <ProviderKeyManager onChange={checkAuth} showConfigured={false} />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {t('onboarding.auth.storageHint')}
+            {t('Keys are stored locally in ~/.prime/agent/auth.json; custom endpoints in models.json. Nothing is sent anywhere except the provider you choose.')}
           </p>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { IconRobot, IconBolt, IconCode, IconListCheck, IconX, IconAlignLeft } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -379,7 +380,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
   if (totalItems === 0) {
     return (
       <div className="absolute bottom-full left-0 right-0 z-[300] mb-2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl ring-1 ring-black/5 dark:ring-white/5 floating-panel">
-        <p className="px-3 py-3 text-xs text-muted-foreground">No files found</p>
+        <p className="px-3 py-3 text-xs text-muted-foreground">{t('No files found')}</p>
       </div>
     )
   }
@@ -388,12 +389,12 @@ export const FileMentionPicker = memo(function FileMentionPicker({
     <div
       className="absolute bottom-full left-0 right-0 z-[300] mb-2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl ring-1 ring-black/5 dark:ring-white/5 floating-panel"
       role="listbox"
-      aria-label="File mentions"
+      aria-label={t('File mentions')}
     >
       <div className="flex items-center justify-end px-2 pt-1.5">
         <button
           type="button"
-          aria-label="Close panel"
+          aria-label={t('Close panel')}
           tabIndex={0}
           onMouseDown={(e) => { e.preventDefault(); onDismiss() }}
           className="flex size-6 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"

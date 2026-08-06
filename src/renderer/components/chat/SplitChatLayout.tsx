@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useRef, useState, useEffect } from 'react'
 import { useTaskStore } from '@/stores/taskStore'
 import { ChatPanel } from './ChatPanel'
@@ -67,7 +68,7 @@ export const SplitChatLayout = memo(function SplitChatLayout() {
         style={{ flexBasis: leftWidth, maxWidth: leftWidth }}
         onMouseDown={handleFocusLeft}
         role="region"
-        aria-label="Left chat panel"
+        aria-label={t('Left chat panel')}
       >
         <SplitPanelHeader taskId={left} isFocused={focusedPanel === 'left'} side="left" onClose={closeSplit} onFocus={handleFocusLeft} />
         <ChatPanel taskId={left} />
@@ -80,7 +81,7 @@ export const SplitChatLayout = memo(function SplitChatLayout() {
         style={{ flexBasis: rightWidth, maxWidth: rightWidth }}
         onMouseDown={handleFocusRight}
         role="region"
-        aria-label="Right chat panel"
+        aria-label={t('Right chat panel')}
       >
         <SplitPanelHeader taskId={right} isFocused={focusedPanel === 'right'} side="right" onClose={closeSplit} onFocus={handleFocusRight} />
         <ChatPanel taskId={right} />

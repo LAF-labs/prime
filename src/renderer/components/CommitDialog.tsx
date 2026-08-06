@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { IconLoader2, IconSparkles, IconGitBranch, IconArrowUp } from '@tabler/icons-react'
 import {
@@ -221,7 +222,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
       <DialogContent className="max-w-lg" showCloseButton>
         <DialogHeader>
-          <DialogTitle>Commit changes</DialogTitle>
+          <DialogTitle>{t('Commit changes')}</DialogTitle>
           <DialogDescription>
             Review and confirm your commit. Leave the message blank to auto-generate one.
           </DialogDescription>
@@ -232,7 +233,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
           <div className="space-y-3 rounded-lg border border-input bg-muted/40 p-3 text-xs">
             {/* Branch row */}
             <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
-              <span className="text-muted-foreground">Branch</span>
+              <span className="text-muted-foreground">{t('Branch')}</span>
               <span className="flex items-center justify-between gap-2">
                 <span className="font-medium">{branch ?? '(detached HEAD)'}</span>
                 {isDefaultBranch && (
@@ -257,7 +258,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
                       }}
                     />
                   )}
-                  <span className="text-muted-foreground">Files</span>
+                  <span className="text-muted-foreground">{t('Files')}</span>
                   {!allSelected && !isEditingFiles && (
                     <span className="text-muted-foreground">
                       ({selectedFiles.length} of {files.length})
@@ -281,7 +282,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
                   <span>Loading files…</span>
                 </div>
               ) : files.length === 0 ? (
-                <p className="font-medium text-muted-foreground py-2">No changes</p>
+                <p className="font-medium text-muted-foreground py-2">{t('No changes')}</p>
               ) : (
                 <div className="space-y-2">
                   <div className="max-h-44 overflow-y-auto rounded-md border border-input bg-background">
@@ -317,7 +318,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
                             </span>
                             <span className="shrink-0">
                               {isExcluded ? (
-                                <span className="text-muted-foreground">Excluded</span>
+                                <span className="text-muted-foreground">{t('Excluded')}</span>
                               ) : (
                                 <>
                                   <span className="text-emerald-600 dark:text-emerald-400">+{file.insertions}</span>
@@ -345,7 +346,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
           {/* Commit message */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Commit message (optional)</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('Commit message (optional)')}</p>
               {aiCommitMessages && (
                 <button
                   type="button"
@@ -370,7 +371,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
                   handleCommit()
                 }
               }}
-              placeholder="Leave empty to auto-generate"
+              placeholder={t('Leave empty to auto-generate')}
               rows={3}
               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
             />
@@ -381,7 +382,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                 <IconGitBranch className="size-3" />
-                New branch name
+                {t('New branch name')}
               </p>
               <input
                 type="text"
@@ -402,7 +403,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
 
         <DialogFooter className="flex-wrap">
           <Button variant="outline" size="sm" onClick={handleClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button
             variant="outline"
@@ -421,7 +422,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
             className="whitespace-nowrap"
           >
             <IconArrowUp className="size-3" />
-            Commit & Push
+            {t('Commit & Push')}
           </Button>
           <Button
             size="sm"

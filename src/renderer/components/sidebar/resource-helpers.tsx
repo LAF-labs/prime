@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useRef, type ElementType } from 'react'
 import {
   IconChevronRight, IconFolderCode, IconCircle,
@@ -115,7 +116,7 @@ export const InlineSearch = ({ value, onChange, onClose }: { value: string; onCh
       <IconSearch className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground/70 pointer-events-none" />
       <input ref={ref} type="text" value={value} onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') { onChange(''); onClose() } }}
-        placeholder="Filter…"
+        placeholder={t('Filter…')}
         className="h-6 w-full rounded-md bg-muted/30 pl-6 pr-6 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:bg-muted/50 transition-colors"
       />
       {value && (

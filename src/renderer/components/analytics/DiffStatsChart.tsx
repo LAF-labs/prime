@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { AnalyticsEvent } from '@/types/analytics'
@@ -11,7 +12,7 @@ export const DiffStatsChart = ({ diffEvents, fileEvents }: { diffEvents: Analyti
   const filesEdited = useMemo(() => computeTotalFilesEdited(fileEvents), [fileEvents])
 
   return (
-    <ChartCard title="Code changes">
+    <ChartCard title={t('Code changes')}>
       <div className="mb-2 grid grid-cols-3 gap-2">
         <StatRow label="Additions" value={`+${additions}`} color="text-emerald-600 dark:text-emerald-500" />
         <StatRow label="Deletions" value={`-${deletions}`} color="text-red-600 dark:text-red-400" />

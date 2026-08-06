@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import type { AnalyticsEvent } from '@/types/analytics'
@@ -30,7 +31,7 @@ export const TokensChart = ({ events, modelEvents = [] }: TokensChartProps) => {
   )
 
   return (
-    <ChartCard title="Token usage">
+    <ChartCard title={t('Token usage')}>
       <div className="flex flex-col gap-1 mb-2">
         <StatRow label="Total tokens" value={fmtTokens(total)} />
         {estimatedCost > 0 && (

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   IconLoader2, IconKey, IconAlertTriangle, IconRouter, IconSettings2,
@@ -141,14 +142,14 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                   </p>
                   <p className="truncate text-[10px] text-muted-foreground">
                     {p.isCustom
-                      ? `${p.baseUrl ?? ''} · ${p.modelCount}${t('providers.models')}`
-                      : p.kind === 'oauth' ? 'OAuth' : t('providers.apiKey')}
+                      ? `${p.baseUrl ?? ''} · ${p.modelCount}${t(' models')}`
+                      : p.kind === 'oauth' ? 'OAuth' : t('API key')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleRemove(p.name)}
-                  aria-label={`${t('providers.remove')} ${p.name}`}
+                  aria-label={`${t('Remove')} ${p.name}`}
                   className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <IconTrash size={13} />
@@ -157,7 +158,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
             ))}
           </ul>
         ) : (
-          <p className="text-[11px] text-muted-foreground">{t('providers.none')}</p>
+          <p className="text-[11px] text-muted-foreground">{t('No providers configured yet.')}</p>
         )
       )}
 
@@ -168,7 +169,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
             key={p.id}
             type="button"
             onClick={() => handleSelect(p.id)}
-            aria-label={`${p.label} ${t('providers.apiKey')}`}
+            aria-label={`${p.label} ${t('API key')}`}
             aria-pressed={selectedId === p.id}
             className={cn(
               'flex flex-col items-center justify-center gap-2 rounded-lg border px-2 py-4 transition-colors',
@@ -184,7 +185,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
         <button
           type="button"
           onClick={() => handleSelect('__endpoint')}
-          aria-label={t('providers.otherEndpoint')}
+          aria-label={t('Other OpenAI-compatible endpoint')}
           aria-pressed={isEndpointMode}
           className={cn(
             'flex flex-col items-center justify-center gap-2 rounded-lg border px-2 py-4 transition-colors',
@@ -194,7 +195,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
           )}
         >
           <IconSettings2 size={22} />
-          <span className="text-center text-[11px] font-medium leading-tight">{t('providers.custom')}</span>
+          <span className="text-center text-[11px] font-medium leading-tight">{t('Other')}</span>
         </button>
       </div>
 
@@ -208,8 +209,8 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                   type="text"
                   value={endpointQuery}
                   onChange={(e) => setEndpointQuery(e.target.value)}
-                  placeholder={t('providers.searchEndpoint')}
-                  aria-label={t('providers.searchEndpoint')}
+                  placeholder={t('Search providers (DeepSeek, MiniMax, Groq, Ollama…)')}
+                  aria-label={t('Search providers (DeepSeek, MiniMax, Groq, Ollama…)')}
                   className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring"
                 />
               </div>
@@ -237,7 +238,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                 value={customBaseUrl}
                 onChange={(e) => setCustomBaseUrl(e.target.value)}
                 placeholder="https://api.example.com/v1"
-                aria-label={t('providers.baseUrl')}
+                aria-label={t('OpenAI-compatible base URL')}
                 className="h-10 rounded-lg border border-border bg-background px-3 font-mono text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring"
               />
             </>
@@ -249,7 +250,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
               onChange={(e) => setApiKey(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleConnect() }}
               placeholder={activePlaceholder}
-              aria-label={t('providers.apiKey')}
+              aria-label={t('API key')}
               className="h-10 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring"
             />
             <button
@@ -259,12 +260,12 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
               className="flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {isConnecting ? <IconLoader2 size={14} className="animate-spin" /> : <IconKey size={14} />}
-              {isConnecting ? t('providers.verifying') : t('providers.connect')}
+              {isConnecting ? t('Verifying…') : t('Connect')}
             </button>
           </div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              {isEndpointMode ? t('providers.discoverHint') : t('providers.verifyHint')}
+              {isEndpointMode ? t('Models are discovered automatically from the endpoint — just paste the key.') : t('The key is verified against the provider before saving.')}
             </p>
             {keysUrl && (
               <a
@@ -274,7 +275,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                 tabIndex={0}
                 className="flex shrink-0 items-center gap-1 text-[11px] text-primary transition-colors hover:underline"
               >
-                {t('providers.getKey')} <IconExternalLink size={11} />
+                {t('Get a key')} <IconExternalLink size={11} />
               </a>
             )}
           </div>

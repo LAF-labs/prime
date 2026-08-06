@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { AnalyticsEvent } from '@/types/analytics'
@@ -9,14 +10,14 @@ export const ProjectStatsChart = ({ threadEvents, messageEvents }: { threadEvent
 
   if (data.length === 0) {
     return (
-      <ChartCard title="Projects" className="lg:col-span-2">
+      <ChartCard title={t('Projects')} className="lg:col-span-2">
         <EmptyChart message="No project data yet" />
       </ChartCard>
     )
   }
 
   return (
-    <ChartCard title="Projects" className="lg:col-span-2">
+    <ChartCard title={t('Projects')} className="lg:col-span-2">
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 32 + 30)}>
         <BarChart data={data} layout="vertical" margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <XAxis type="number" tick={{ fontSize: 10 }} />

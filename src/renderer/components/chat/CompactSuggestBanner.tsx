@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useState } from 'react'
 import { IconWriting, IconArrowRight } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -52,7 +53,7 @@ export const CompactSuggestBanner = memo(function CompactSuggestBanner({
           type="button"
           onClick={handleStartBuilding}
           disabled={isSwitching}
-          aria-label="Implement now with fresh context"
+          aria-label={t('Implement now with fresh context')}
           className="inline-flex items-center gap-0.5 text-teal-500/80 underline decoration-teal-500/30 underline-offset-2 transition-colors hover:text-teal-500 hover:decoration-teal-500/50 disabled:opacity-50"
         >
           {isSwitching ? 'Switching…' : 'Implement now with fresh context'}

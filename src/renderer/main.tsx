@@ -1,5 +1,6 @@
 import '@fontsource-variable/dm-sans'
 import React from 'react'
+import { LocaleBoundary } from '@/components/LocaleBoundary'
 import ReactDOM from 'react-dom/client'
 import { App } from './App'
 import '../tailwind.css'
@@ -66,7 +67,7 @@ class ErrorBoundary extends React.Component<
         color: '#e0e0e0', background: '#0D0D0D',
       }}>
         <div style={{ fontSize: '32px', marginBottom: '4px' }}>⚠️</div>
-        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>LAF Agent failed to start</h2>
+        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{t('LAF Agent failed to start')}</h2>
         <p style={{ fontSize: '13px', color: '#888', maxWidth: '360px', margin: 0, lineHeight: 1.5 }}>
           This usually happens when app data gets corrupted. You can reset it to start fresh, or try reloading.
         </p>
@@ -81,7 +82,7 @@ class ErrorBoundary extends React.Component<
               border: '1px solid #333', background: 'transparent', color: '#ccc', cursor: 'pointer',
             }}
           >
-            Reload
+            {t('Reload')}
           </button>
           {!this.state.showRecovery ? (
             <button
@@ -91,7 +92,7 @@ class ErrorBoundary extends React.Component<
                 border: '1px solid #dc2626', background: 'transparent', color: '#ef4444', cursor: 'pointer',
               }}
             >
-              Reset app data
+              {t('Reset app data')}
             </button>
           ) : (
             <button
@@ -141,6 +142,7 @@ window.addEventListener('keydown', (e) => {
 
 // Install JS debug interceptors (console, errors, fetch/XHR) before React renders
 import { installJsInterceptors } from './lib/jsInterceptors'
+import { t } from '@/lib/i18n'
 installJsInterceptors()
 
 // Safety net: persist thread history before the window closes.
@@ -157,7 +159,9 @@ window.addEventListener('beforeunload', () => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <LocaleBoundary>
+        <App />
+      </LocaleBoundary>
     </ErrorBoundary>
   </React.StrictMode>,
 )

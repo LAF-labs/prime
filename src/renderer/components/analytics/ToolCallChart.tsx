@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useMemo } from 'react'
 import type { AnalyticsEvent } from '@/types/analytics'
 import { computeToolCallBreakdown, computeTotalToolCalls } from '@/lib/analytics-aggregators'
@@ -8,7 +9,7 @@ export const ToolCallChart = ({ events }: { events: AnalyticsEvent[] }) => {
   const data = useMemo(() => computeToolCallBreakdown(events), [events])
   const total = useMemo(() => computeTotalToolCalls(events), [events])
   return (
-    <ChartCard title="Tool calls">
+    <ChartCard title={t('Tool calls')}>
       <StatRow label="Total tool calls" value={total} />
       <HorizontalBarSection data={data} fill="#ec4899" emptyMessage="No tool call data yet" />
     </ChartCard>

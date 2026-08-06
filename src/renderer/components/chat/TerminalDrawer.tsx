@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react'
 import {
   IconLayoutColumns,
@@ -537,7 +538,7 @@ export const TerminalDrawer = memo(function TerminalDrawer({
           onMouseDown={handleDragStart}
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize terminal"
+          aria-label={t('Resize terminal')}
         />
 
       {/* Header bar */}
@@ -578,7 +579,7 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                 {hasActivity && !isActive && (
                   <span
                     className="size-1.5 shrink-0 rounded-full bg-green-400"
-                    aria-label="Has new output"
+                    aria-label={t('Has new output')}
                   />
                 )}
                 {tabs.length > 1 && (
@@ -612,7 +613,7 @@ export const TerminalDrawer = memo(function TerminalDrawer({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Clear terminal"
+                  aria-label={t('Clear terminal')}
                   data-testid="terminal-clear-button"
                   onClick={handleClear}
                   className="rounded p-1 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
@@ -620,13 +621,13 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                   <IconClearAll className="size-3.5" aria-hidden />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Clear</TooltipContent>
+              <TooltipContent side="bottom">{t('Clear')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Split terminal"
+                  aria-label={t('Split terminal')}
                   data-testid="terminal-split-button"
                   onClick={handleSplit}
                   className="rounded p-1 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
@@ -634,13 +635,13 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                   <IconLayoutColumns className="size-3.5" aria-hidden />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Split</TooltipContent>
+              <TooltipContent side="bottom">{t('Split')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="New terminal"
+                  aria-label={t('New terminal')}
                   data-testid="terminal-new-button"
                   onClick={handleNew}
                   className="rounded p-1 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
@@ -648,14 +649,14 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                   <IconPlus className="size-3.5" aria-hidden />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">New</TooltipContent>
+              <TooltipContent side="bottom">{t('New')}</TooltipContent>
             </Tooltip>
             {onClose && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="Close terminal panel"
+                    aria-label={t('Close terminal panel')}
                     data-testid="terminal-close-panel-button"
                     onClick={onClose}
                     className="rounded p-1 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
@@ -663,7 +664,7 @@ export const TerminalDrawer = memo(function TerminalDrawer({
                     <IconX className="size-3.5" aria-hidden />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Close panel</TooltipContent>
+                <TooltipContent side="bottom">{t('Close panel')}</TooltipContent>
               </Tooltip>
             )}
         </div>

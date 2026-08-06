@@ -168,6 +168,20 @@ pub(crate) fn composite_model_id(model: &Value) -> Option<String> {
     Some(format!("{provider}/{id}"))
 }
 
+/// PATH for agent subprocesses: the sidecar directory first, so prime-agent
+/// finds the `uv` we ship before any system copy, then the usual user paths so
+/// tools it spawns (git, node, npx) resolve as they would in a shell.
+pub(crate) fn agent_path_env(launch: &AgentLaunch) -> String {
+    let system = std::env::var("PATH").unwrap_or_default();
+    let sidecar_dir = std::path::Path::new(&launch.program)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string());
+    match sidecar_dir {
+        Some(dir) => format!("{dir}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
+        None => format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
+    }
+}
+
 /// Locate the bundled permission-gate extension. Checked relative to the
 /// resource dir in production and to `src-tauri/` in dev.
 fn gate_extension_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
@@ -393,13 +407,12 @@ pub(crate) async fn run_rpc_connection(
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .env(
-            "PATH",
-            format!(
-                "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{}",
-                std::env::var("PATH").unwrap_or_default()
-            ),
-        )
+        .env("PATH", agent_path_env(&launch))
+        // prime-agent provisions its Python kernel with uv, which we ship in
+        // the sidecar. The flag is a fallback for installs that resolve an
+        // external prime-agent: without it a GUI session can never install uv,
+        // because the interactive consent prompt only exists on a TTY.
+        .env("PRIME_AGENT_INSTALL_UV", "1")
         .spawn()
         .map_err(|e| format!("Failed to spawn prime-agent: {e}"))?;
 

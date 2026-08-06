@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { IconX } from '@tabler/icons-react'
 
 /** Shared panel shell used by all slash panels */
@@ -8,7 +9,7 @@ export function PanelShell({ children, onDismiss }: { children: React.ReactNode;
         <div className="flex items-center justify-end px-2 pt-1.5">
           <button
             type="button"
-            aria-label="Close panel"
+            aria-label={t('Close panel')}
             tabIndex={0}
             onMouseDown={(e) => { e.preventDefault(); onDismiss() }}
             className="flex size-6 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"

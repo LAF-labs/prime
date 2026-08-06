@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
 import { IconX } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -70,7 +71,7 @@ export const SplitPanelHeader = memo(function SplitPanelHeader({
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Close panel"
+            aria-label={t('Close panel')}
             onClick={handleClose}
             className={cn(
               'inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-all',
@@ -81,7 +82,7 @@ export const SplitPanelHeader = memo(function SplitPanelHeader({
             <IconX className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Close panel</TooltipContent>
+        <TooltipContent side="bottom">{t('Close panel')}</TooltipContent>
       </Tooltip>
       {isFocused && (
         <div className="absolute inset-x-0 bottom-0 h-[1.5px] bg-primary/70" />

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useRef, useState } from 'react'
 import { IconCopy, IconCheck } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -36,7 +37,7 @@ export const ThreadIdCaption = memo(function ThreadIdCaption({ taskId }: ThreadI
     >
       {/* Thread ID */}
       <span className="flex items-center gap-1.5">
-        <span className="select-none uppercase tracking-wider">Thread ID</span>
+        <span className="select-none uppercase tracking-wider">{t('Thread ID')}</span>
         <span
           className="select-text font-mono tabular-nums text-muted-foreground/80"
           title={taskId}
@@ -49,7 +50,7 @@ export const ThreadIdCaption = memo(function ThreadIdCaption({ taskId }: ThreadI
       {/* Session ID (only shown when available) */}
       {sessionId && (
         <span className="flex items-center gap-1.5">
-          <span className="select-none uppercase tracking-wider">Session</span>
+          <span className="select-none uppercase tracking-wider">{t('Session')}</span>
           <span
             className="select-text font-mono tabular-nums text-muted-foreground/80"
             title={sessionId}

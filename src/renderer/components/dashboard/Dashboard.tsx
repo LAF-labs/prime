@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useCallback, useMemo } from 'react'
 import { IconRobot, IconPlus, IconFolderOpen } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
@@ -72,13 +73,13 @@ export const Dashboard = memo(function Dashboard() {
       <ScrollArea className="min-h-0 flex-1">
         <div className="p-6">
           <div className="mb-5 flex items-center gap-3">
-            <h1 data-testid="dashboard-heading" className="text-lg font-semibold">Dashboard</h1>
+            <h1 data-testid="dashboard-heading" className="text-lg font-semibold">{t('Dashboard')}</h1>
             <Badge variant="secondary" className="text-[10px]">
               {taskCount} task{taskCount !== 1 ? 's' : ''}
             </Badge>
             <Button size="sm" className="ml-auto gap-1.5" onClick={handleNewThread} data-testid="dashboard-new-thread-button">
               <IconPlus className="h-3.5 w-3.5" />
-              New Thread
+              {t('New Thread')}
             </Button>
           </div>
 
@@ -86,15 +87,15 @@ export const Dashboard = memo(function Dashboard() {
             <Empty>
               <EmptyHeader>
                 <IconRobot className="mb-4 h-10 w-10 text-muted-foreground/70" />
-                <EmptyTitle>No threads yet</EmptyTitle>
+                <EmptyTitle>{t('No threads yet')}</EmptyTitle>
                 <EmptyDescription>
-                  Import a project folder to start a new thread with Prime Agent.
+                  {t('Import a project folder to start a new thread with Prime Agent.')}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button onClick={handleNewThread} className="gap-1.5">
                   <IconFolderOpen className="h-4 w-4" />
-                  New thread
+                  {t('New thread')}
                 </Button>
               </EmptyContent>
             </Empty>
@@ -118,7 +119,7 @@ export const Dashboard = memo(function Dashboard() {
           <div className="flex w-[280px] shrink-0 flex-col">
             <div className="px-4 py-3">
               <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Activity
+                {t('Activity')}
               </h2>
             </div>
             <ScrollArea className="min-h-0 flex-1">

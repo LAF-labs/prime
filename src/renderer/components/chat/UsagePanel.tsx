@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { useTaskStore } from '@/stores/taskStore'
@@ -27,11 +28,11 @@ export const UsagePanel = memo(function UsagePanel({ onDismiss }: { onDismiss: (
   return (
     <PanelShell onDismiss={onDismiss}>
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">Token Usage</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{t('Token Usage')}</span>
       </div>
       <div className="mx-3 mb-1 rounded-lg bg-muted/30 px-3 py-2">
         <div className="flex items-baseline justify-between">
-          <span className="text-[12px] text-muted-foreground">Total context used</span>
+          <span className="text-[12px] text-muted-foreground">{t('Total context used')}</span>
           <span className="text-[13px] font-medium text-foreground">{formatTokens(totalUsed)} / {formatTokens(totalSize)}</span>
         </div>
         {totalSize > 0 && (
@@ -68,7 +69,7 @@ export const UsagePanel = memo(function UsagePanel({ onDismiss }: { onDismiss: (
           })}
         </ul>
       ) : (
-        <p className="px-3 py-3 text-xs text-muted-foreground/70">No usage data yet</p>
+        <p className="px-3 py-3 text-xs text-muted-foreground/70">{t('No usage data yet')}</p>
       )}
     </PanelShell>
   )

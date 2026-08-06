@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState } from 'react'
 import { IconDownload, IconRefresh, IconLoader2 } from '@tabler/icons-react'
 import { useUpdateStore } from '@/stores/updateStore'
@@ -72,7 +73,7 @@ export const UpdatesCard = () => {
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             <IconDownload className="size-3" />
-            Update now
+            {t('Update now')}
           </button>
         )}
         {status === 'ready' && (
@@ -83,7 +84,7 @@ export const UpdatesCard = () => {
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             <IconRefresh className="size-3" />
-            Restart
+            {t('Restart')}
           </button>
         )}
         {(status === 'idle' || status === 'error') && (

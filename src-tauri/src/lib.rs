@@ -6,7 +6,7 @@ extern crate objc;
 
 pub mod commands;
 
-use commands::{rpc, analytics, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
+use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -559,6 +559,8 @@ pub fn run() {
             fs_ops::auth_set_custom_provider,
             fs_ops::repair_custom_providers,
             fs_ops::disable_serper_websearch,
+            kernel_setup::kernel_status,
+            kernel_setup::kernel_setup,
             fs_ops::auth_list_providers,
             provider_discovery::provider_discover_models,
             fs_ops::auth_remove_provider,

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { IconRefresh } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -79,10 +80,10 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
           type="button"
           onClick={handleRetry}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Retry loading models"
+          aria-label={t('Retry loading models')}
         >
           <IconRefresh className="size-3" />
-          Retry
+          {t('Retry')}
         </button>
       </div>
     </PanelShell>
@@ -91,7 +92,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
   return (
     <PanelShell onDismiss={onDismiss}>
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Models</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('Models')}</span>
       </div>
       {models.length > 5 && (
         <div className="px-3 pb-1">
@@ -100,7 +101,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search models…"
+            placeholder={t('Search models…')}
             autoFocus
             className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80"
           />

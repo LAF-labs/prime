@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { memo, useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { useResizeHandle } from '@/hooks/useResizeHandle'
@@ -40,7 +41,7 @@ export const SplitDivider = memo(function SplitDivider({
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize panels"
+      aria-label={t('Resize panels')}
       tabIndex={0}
       onMouseDown={onMouseDown}
       onDoubleClick={onReset}

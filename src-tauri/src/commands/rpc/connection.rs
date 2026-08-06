@@ -122,13 +122,13 @@ pub(crate) fn tool_title(tool_name: &str, args: &Value) -> String {
 
 /// Wrap plain text as an ACP-style tool-call content array so the existing
 /// ToolCallDisplay component renders it unchanged.
-fn text_content(text: &str) -> Value {
+pub(crate) fn text_content(text: &str) -> Value {
     json!([{ "type": "content", "content": { "type": "text", "text": text } }])
 }
 
 /// Extract the concatenated text out of a prime-agent tool result
 /// (`{content: [{type: "text", text}, ...]}`).
-fn result_text(result: &Value) -> String {
+pub(crate) fn result_text(result: &Value) -> String {
     result
         .get("content")
         .and_then(|c| c.as_array())
@@ -173,9 +173,12 @@ pub(crate) fn composite_model_id(model: &Value) -> Option<String> {
 /// tools it spawns (git, node, npx) resolve as they would in a shell.
 pub(crate) fn agent_path_env(launch: &AgentLaunch) -> String {
     let system = std::env::var("PATH").unwrap_or_default();
+    // A bare program name has an empty parent, and an empty PATH entry means
+    // "current directory" on POSIX — never put one there.
     let sidecar_dir = std::path::Path::new(&launch.program)
         .parent()
-        .map(|p| p.to_string_lossy().to_string());
+        .map(|p| p.to_string_lossy().to_string())
+        .filter(|d| !d.is_empty());
     match sidecar_dir {
         Some(dir) => format!("{dir}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),
         None => format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{system}"),

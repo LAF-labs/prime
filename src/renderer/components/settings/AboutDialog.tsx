@@ -90,6 +90,15 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
           <p className="mt-1 text-center text-[10px] text-muted-foreground/60">
             Powered by Prime Agent (PrimeIntellect-ai/prime-agent)
           </p>
+          <a
+            href="https://github.com/LAF-labs/prime/blob/main/THIRD-PARTY-NOTICES.md"
+            onClick={handleExternalLinkClick}
+            onKeyDown={handleExternalLinkKeyDown}
+            tabIndex={0}
+            className="mt-1 text-center text-[10px] text-muted-foreground/60 transition-colors hover:text-muted-foreground hover:underline"
+          >
+            {t('Third-party notices')}
+          </a>
 
           {/* Update status */}
           <div className="mt-4 flex flex-col items-center gap-2">

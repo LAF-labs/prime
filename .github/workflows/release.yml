@@ -1,0 +1,87 @@
+name: Release
+
+# Builds, signs, and notarizes a macOS DMG, then publishes it as a draft
+# release. Triggered by pushing a v* tag, or manually.
+#
+# Required repository secrets (all of them, or the signing step fails):
+#   APPLE_CERTIFICATE          base64 of a Developer ID Application .p12
+#   APPLE_CERTIFICATE_PASSWORD password for that .p12
+#   APPLE_SIGNING_IDENTITY     e.g. "Developer ID Application: LAF (TEAMID)"
+#   APPLE_ID                   Apple ID used for notarization
+#   APPLE_PASSWORD             app-specific password for that Apple ID
+#   APPLE_TEAM_ID              10-character team id
+# Optional, to re-enable auto-update:
+#   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  macos:
+    # Apple Silicon runner: the sidecar ships arm64 native modules.
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The sidecar bundles this exact Node binary, so the runner's version
+      # is what users get.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the prime-agent sidecar
+        run: bash scripts/build-sidecar.sh
+
+      - name: Typecheck and test
+        run: |
+          bunx tsc --noEmit
+          bun run test:ui
+          cargo test --lib --manifest-path src-tauri/Cargo.toml
+
+      - name: Build, sign, and notarize
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'LAF Agent ${{ github.ref_name }}'
+          releaseDraft: true
+          prerelease: false
+          args: --target aarch64-apple-darwin
+
+      # Signing the .app is not enough: the bundled Node, uv, and every
+      # native .node module are separate Mach-O binaries that Gatekeeper
+      # checks individually. tauri-action signs the outer bundle, so verify
+      # the whole tree rather than discovering the gap on a user's machine.
+      - name: Verify the signature covers the bundled runtime
+        run: |
+          APP="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/LAF Agent.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          spctl -a -vv "$APP"

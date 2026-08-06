@@ -23,7 +23,10 @@
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "decorations": true,
-        "trafficLightPosition": { "x": 14, "y": 22 },
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 22
+        },
         "transparent": false,
         "zoomHotkeysEnabled": false
       }
@@ -34,9 +37,21 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "deb", "appimage", "nsis"],
-    "resources": ["resources/**/*"],
-    "icon": ["icons/prod/icon.png", "icons/prod/icon.icns", "icons/prod/icon.ico"],
+    "targets": [
+      "app",
+      "dmg",
+      "deb",
+      "appimage",
+      "nsis"
+    ],
+    "resources": [
+      "resources/**/*"
+    ],
+    "icon": [
+      "icons/prod/icon.png",
+      "icons/prod/icon.icns",
+      "icons/prod/icon.ico"
+    ],
     "macOS": {
       "minimumSystemVersion": "11.0",
       "signingIdentity": null,

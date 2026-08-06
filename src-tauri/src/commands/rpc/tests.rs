@@ -558,3 +558,119 @@ fn resolve_model_different_workspace_ignores_project_pref() {
     let result = resolve_initial_model(None, "/other-ws", &settings);
     assert_eq!(result, Some("global-model".to_string()));
 }
+
+// ── RPC event translation ───────────────────────────────────────
+//
+// The connection layer is what turns prime-agent's RPC stream into the
+// events the renderer consumes. These lock down the shapes the UI depends
+// on, which nothing else in the suite covers.
+
+#[test]
+fn result_text_concatenates_only_text_blocks() {
+    let result = serde_json::json!({
+        "content": [
+            { "type": "text", "text": "first" },
+            { "type": "image", "data": "ignored" },
+            { "type": "text", "text": "second" },
+        ]
+    });
+    assert_eq!(connection::result_text(&result), "first\nsecond");
+}
+
+#[test]
+fn result_text_is_empty_without_content() {
+    assert_eq!(connection::result_text(&serde_json::json!({})), "");
+}
+
+#[test]
+fn text_content_wraps_in_the_acp_shape_the_ui_renders() {
+    let v = connection::text_content("hello");
+    assert_eq!(v[0]["type"], "content");
+    assert_eq!(v[0]["content"]["type"], "text");
+    assert_eq!(v[0]["content"]["text"], "hello");
+}
+
+#[test]
+fn tool_title_falls_back_to_the_tool_name() {
+    // No recognizable argument: the title must still identify the tool
+    // rather than render as an empty row.
+    assert_eq!(connection::tool_title("mystery", &serde_json::json!({})), "mystery");
+    assert_eq!(connection::tool_title("bash", &serde_json::json!({ "command": "  " })), "bash");
+}
+
+#[test]
+fn tool_title_truncates_long_commands() {
+    let long = "x".repeat(500);
+    let title = connection::tool_title("bash", &serde_json::json!({ "command": long }));
+    assert!(title.chars().count() <= 201, "got {} chars", title.chars().count());
+    assert!(title.ends_with('…'));
+}
+
+#[test]
+fn tool_title_uses_the_first_line_of_an_ipython_cell() {
+    let args = serde_json::json!({ "code": "import os\nprint(os.getcwd())" });
+    assert_eq!(connection::tool_title("ipython", &args), "ipython: import os");
+}
+
+#[test]
+fn tool_title_reads_any_of_the_path_argument_spellings() {
+    for key in ["path", "file_path", "filePath"] {
+        let args = serde_json::json!({ key: "/tmp/a.rs" });
+        assert_eq!(connection::tool_title("edit", &args), "edit: /tmp/a.rs");
+    }
+}
+
+#[test]
+fn map_model_requires_an_id() {
+    assert!(connection::map_model(&serde_json::json!({ "provider": "openai" })).is_none());
+}
+
+#[test]
+fn map_model_defaults_an_unknown_provider() {
+    let mapped = connection::map_model(&serde_json::json!({ "id": "m1" })).unwrap();
+    assert_eq!(mapped["modelId"], "unknown/m1");
+    // Name falls back to the id so the picker never shows a blank row.
+    assert_eq!(mapped["name"], "m1");
+}
+
+#[test]
+fn composite_model_id_needs_both_halves() {
+    assert!(connection::composite_model_id(&serde_json::json!({ "id": "m" })).is_none());
+    assert!(connection::composite_model_id(&serde_json::json!({ "provider": "p" })).is_none());
+}
+
+#[test]
+fn agent_path_env_puts_the_sidecar_first() {
+    // prime-agent finds uv by scanning PATH, so the bundled copy has to win
+    // over any system install.
+    let launch = crate::commands::agent_launch::AgentLaunch {
+        program: "/Apps/LAF.app/Contents/Resources/resources/prime-agent/node".to_string(),
+        prefix_args: vec![],
+    };
+    let path = connection::agent_path_env(&launch);
+    assert!(path.starts_with("/Apps/LAF.app/Contents/Resources/resources/prime-agent:"));
+    assert!(path.contains("/usr/bin"));
+}
+
+#[test]
+fn agent_path_env_survives_a_bare_program_name() {
+    let launch = crate::commands::agent_launch::AgentLaunch {
+        program: "prime-agent".to_string(),
+        prefix_args: vec![],
+    };
+    let path = connection::agent_path_env(&launch);
+    assert!(path.starts_with("/opt/homebrew/bin:"));
+}
+
+#[test]
+fn prompt_payload_carries_multiple_images() {
+    let atts = vec![
+        AttachmentData { base64: "a".into(), mime_type: "image/png".into(), name: None },
+        AttachmentData { base64: "b".into(), mime_type: "image/jpeg".into(), name: None },
+    ];
+    let payload = build_prompt_payload("look".to_string(), &atts, true);
+    let images = payload["images"].as_array().unwrap();
+    assert_eq!(images.len(), 2);
+    assert_eq!(images[1]["mimeType"], "image/jpeg");
+    assert_eq!(payload["streamingBehavior"], "steer");
+}

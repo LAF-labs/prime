@@ -491,4 +491,5 @@ export const ko: Record<string, string> = {
   'Preparing the agent runtime…': '에이전트 런타임 준비 중…',
   'Setup did not finish.': '설정이 완료되지 않았습니다.',
   'Set up': '설정',
+  'Third-party notices': '서드파티 고지',
 }

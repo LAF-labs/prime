@@ -416,6 +416,8 @@ pub fn run() {
         .plugin({
             let mut log_builder = tauri_plugin_log::Builder::new()
                 .targets({
+                    // `mut` is only exercised by the debug-only Webview push below.
+                    #[cfg_attr(not(debug_assertions), allow(unused_mut))]
                     let mut targets = vec![
                         tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                         tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: None }),

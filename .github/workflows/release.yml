@@ -103,6 +103,19 @@ jobs:
           esac
           echo "TAURI_SIGNING_PRIVATE_KEY=$KEY" >> "$GITHUB_ENV"
 
+      # Sign a throwaway file before spending 15 minutes on the build. A
+      # corrupted secret (paste mangling survives the normalizer above) fails
+      # here in seconds with the same decode path the bundler uses.
+      - name: Prove the signing key can sign
+        run: |
+          echo "probe" > /tmp/sign-probe.txt
+          bunx tauri signer sign \
+            --private-key "$TAURI_SIGNING_PRIVATE_KEY" \
+            --password "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" \
+            /tmp/sign-probe.txt
+        env:
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
       - name: Build, sign updater artifacts, and publish draft
         uses: tauri-apps/tauri-action@v0
         env:

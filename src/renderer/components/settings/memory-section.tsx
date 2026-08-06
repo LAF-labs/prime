@@ -257,7 +257,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
       <SectionHeader section="memory" />
 
       {/* ── Overview ──────────────────────────────────────────────── */}
-      <SettingsGrid label="Overview" description="Live snapshot of renderer-side memory">
+      <SettingsGrid label={t('Overview')} description={t('Live snapshot of renderer-side memory')}>
         <div className="space-y-3">
           {/* Hero total + controls */}
           <SettingsCard className="flex items-center justify-between gap-4">
@@ -317,14 +317,14 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           {/* Stat cards grid */}
           <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
             <StatCard
-              label="Live threads"
+              label={t('Live threads')}
               value={report ? `${report.threads.length}` : '—'}
               hint={report ? `${formatBytes(report.threadsTotal)} held` : undefined}
               icon={IconMessage}
               accentClass="bg-primary"
             />
             <StatCard
-              label="Archived"
+              label={t('Archived')}
               value={report ? `${report.archivedMetaCount}` : '—'}
               hint={report
                 ? report.archivedMetaCount > 0
@@ -335,14 +335,14 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
               accentClass="bg-violet-500"
             />
             <StatCard
-              label="Soft-deleted"
+              label={t('Soft-deleted')}
               value={report ? `${report.softDeletedCount}` : '—'}
               hint={report ? `${formatBytes(report.softDeleted)} pending purge` : undefined}
               icon={IconTrash}
               accentClass="bg-amber-500"
             />
             <StatCard
-              label="Open PTYs"
+              label={t('Open PTYs')}
               value={ptyCount === null ? '—' : `${ptyCount}`}
               hint={ptyCount !== null && ptyCount > 0
                 ? `~${formatBytes(ptyScrollbackEstimate)} scrollback`
@@ -352,7 +352,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
             />
             {heap && (
               <StatCard
-                label="JS heap"
+                label={t('JS heap')}
                 value={formatBytes(heap.used)}
                 hint={`of ${formatBytes(heap.total)} allocated`}
                 icon={IconCpu}
@@ -365,53 +365,53 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
 
       {/* ── Breakdown ─────────────────────────────────────────────── */}
       {report && report.grandTotal > 0 && (
-        <SettingsGrid label="Breakdown" description="Where memory goes">
+        <SettingsGrid label={t('Breakdown')} description={t('Where memory goes')}>
           <SettingsCard>
             <div className="space-y-0.5 py-1">
               <CategoryRow
-                label="Messages"
+                label={t('Messages')}
                 bytes={report.threads.reduce((s, t) => s + t.messages, 0)}
                 total={report.grandTotal}
                 accentClass="bg-primary"
                 icon={IconMessage}
               />
               <CategoryRow
-                label="Tool calls"
+                label={t('Tool calls')}
                 bytes={report.threads.reduce((s, t) => s + t.toolCalls, 0)}
                 total={report.grandTotal}
                 accentClass="bg-violet-500"
                 icon={IconTool}
               />
               <CategoryRow
-                label="Live turn"
+                label={t('Live turn')}
                 bytes={report.threads.reduce((s, t) => s + t.liveTurn, 0)}
                 total={report.grandTotal}
                 accentClass="bg-emerald-500"
                 icon={IconPlayerPlay}
               />
               <CategoryRow
-                label="Queued"
+                label={t('Queued')}
                 bytes={report.threads.reduce((s, t) => s + t.queued, 0)}
                 total={report.grandTotal}
                 accentClass="bg-sky-500"
                 icon={IconStack2}
               />
               <CategoryRow
-                label="Soft-deleted"
+                label={t('Soft-deleted')}
                 bytes={report.softDeleted}
                 total={report.grandTotal}
                 accentClass="bg-amber-500"
                 icon={IconTrash}
               />
               <CategoryRow
-                label="Drafts"
+                label={t('Drafts')}
                 bytes={report.drafts}
                 total={report.grandTotal}
                 accentClass="bg-pink-500"
                 icon={IconNote}
               />
               <CategoryRow
-                label="Debug buffers"
+                label={t('Debug buffers')}
                 bytes={debugLogTotal}
                 total={report.grandTotal}
                 accentClass="bg-orange-500"
@@ -423,7 +423,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
       )}
 
       {/* ── Per-thread ────────────────────────────────────────────── */}
-      <SettingsGrid label="Per-thread" description="Click a row to open">
+      <SettingsGrid label={t('Per-thread')} description={t('Click a row to open')}>
         <SettingsCard>
           {!report || report.threads.length === 0 ? (
             <div className="flex flex-col items-center gap-1.5 py-6 text-center">
@@ -446,10 +446,10 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
       </SettingsGrid>
 
       {/* ── Terminal ──────────────────────────────────────────────── */}
-      <SettingsGrid label="Terminal" description="Tune memory held by terminal tabs">
+      <SettingsGrid label={t('Terminal')} description={t('Tune memory held by terminal tabs')}>
         <SettingsCard>
           <SettingRow
-            label="Scrollback lines"
+            label={t('Scrollback lines')}
             description={
               ptyCount !== null && ptyCount > 0
                 ? `${ptyCount} terminal${ptyCount === 1 ? '' : 's'} open · roughly ${formatBytes(ptyScrollbackEstimate)} held in scrollback at this setting.`
@@ -469,7 +469,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           </SettingRow>
           <Divider />
           <SettingRow
-            label="Auto-close idle background tabs"
+            label={t('Auto-close idle background tabs')}
             description={
               idleEnabled
                 ? `Closes background terminal tabs after ${idleMins} minute${idleMins === 1 ? '' : 's'} of no PTY activity. The active tab is never closed.`
@@ -488,8 +488,8 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
             <>
               <Divider />
               <SettingRow
-                label="Idle threshold"
-                description="Minutes of no terminal output before a background tab is auto-closed."
+                label={t('Idle threshold')}
+                description={t('Minutes of no terminal output before a background tab is auto-closed.')}
               >
                 <input
                   type="number"
@@ -511,10 +511,10 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
       </SettingsGrid>
 
       {/* ── Reclaim ───────────────────────────────────────────────── */}
-      <SettingsGrid label="Reclaim" description="Free held memory">
+      <SettingsGrid label={t('Reclaim')} description={t('Free held memory')}>
         <SettingsCard>
           <SettingRow
-            label="Purge soft-deleted threads"
+            label={t('Purge soft-deleted threads')}
             description={
               report && report.softDeletedCount > 0
                 ? `${report.softDeletedCount} thread${report.softDeletedCount === 1 ? '' : 's'} (${formatBytes(report.softDeleted)}) waiting up to 48 hours.`
@@ -534,11 +534,11 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           </SettingRow>
           <Divider />
           <SettingRow
-            label="Clear debug log buffers"
+            label={t('Clear debug log buffers')}
             description={
               report
                 ? `${report.debugLogCount + report.jsDebugLogCount} captured entries (${formatBytes(debugLogTotal)}).`
-                : 'Drops the in-memory ACP and JS console capture buffers.'
+                : 'Drops the in-memory agent and JS console capture buffers.'
             }
           >
             <button
@@ -564,7 +564,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
         open={isPurgeOpen}
         onOpenChange={setIsPurgeOpen}
         title={t('Purge soft-deleted threads?')}
-        description="Permanently removes every soft-deleted thread immediately. Restoration from the Archives section will no longer be possible."
+        description={t('Permanently removes every soft-deleted thread immediately. Restoration from the Archives section will no longer be possible.')}
         confirmLabel="Purge now"
         onConfirm={handlePurgeSoft}
       />

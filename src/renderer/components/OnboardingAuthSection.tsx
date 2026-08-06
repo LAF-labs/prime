@@ -1,11 +1,10 @@
-import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect } from 'react'
 import { IconCircleCheck, IconLoader2, IconUser } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { ProviderKeyManager } from '@/components/ProviderKeyManager'
-import { type AuthState, accountTypeLabel } from '@/components/onboarding-shared'
+import type { AuthState } from '@/components/onboarding-shared'
 
 interface OnboardingAuthSectionProps {
   bin: string
@@ -60,7 +59,7 @@ export const OnboardingAuthSection = ({ bin, isCliReady, onAuthChange }: Onboard
         </div>
         {authState === 'authenticated' && authAccountType && (
           <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-            {accountTypeLabel(authAccountType)}
+            {authAccountType}
           </span>
         )}
       </div>

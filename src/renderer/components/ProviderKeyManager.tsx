@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   IconLoader2, IconKey, IconAlertTriangle, IconRouter, IconSettings2,

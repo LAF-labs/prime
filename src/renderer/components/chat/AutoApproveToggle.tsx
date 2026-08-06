@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { IconChevronDown, IconHandStop, IconMessageQuestion } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'

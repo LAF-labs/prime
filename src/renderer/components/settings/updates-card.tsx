@@ -63,7 +63,7 @@ export const UpdatesCard = () => {
   })()
 
   return (
-    <SettingRow label="Software updates" description={statusText}>
+    <SettingRow label={t('Software updates')} description={statusText}>
       <div className="flex items-center gap-2">
         {status === 'available' && (
           <button

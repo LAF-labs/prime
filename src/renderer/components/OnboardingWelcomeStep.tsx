@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { IconStack2, IconArrowRight } from '@tabler/icons-react'
 import { FEATURES, type Step } from '@/components/onboarding-shared'
 import { useT } from '@/lib/i18n'

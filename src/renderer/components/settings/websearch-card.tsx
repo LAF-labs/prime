@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { memo } from 'react'
 import { IconWorldSearch, IconFileText, IconInfoCircle } from '@tabler/icons-react'
 import { useT } from '@/lib/i18n'

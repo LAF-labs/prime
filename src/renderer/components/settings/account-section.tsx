@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useT } from '@/lib/i18n'

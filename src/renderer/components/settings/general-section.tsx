@@ -1,4 +1,3 @@
-import { t } from '@/lib/i18n'
 import { memo, useState, useCallback } from 'react'
 import {
   IconCheck, IconAlertCircle, IconChevronDown, IconLoader2,
@@ -115,7 +114,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Connection" description="Path to the prime-agent binary">
+      <SettingsGrid label={t('Connection')} description={t('Path to the prime-agent binary')}>
         <SettingsCard>
           <div className="py-1">
             <div className="flex gap-2">
@@ -177,7 +176,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Model" description="Default AI model for new threads">
+      <SettingsGrid label={t('Model')} description={t('Default AI model for new threads')}>
         <SettingsCard>
           <div className="py-1">
             <div className="flex gap-2">
@@ -219,17 +218,17 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Workspace" description="Permissions, worktrees, and sandbox">
+      <SettingsGrid label={t('Workspace')} description={t('Permissions, worktrees, and sandbox')}>
         <SettingsCard>
-          <SettingRow label="Auto-approve" description="Skip permission prompts for tool calls">
+          <SettingRow label={t('Auto-approve')} description={t('Skip permission prompts for tool calls')}>
             <Switch checked={draft.autoApprove ?? false} onCheckedChange={handleAutoApproveChange} aria-label={t('Toggle auto-approve permissions')} />
           </SettingRow>
           <Divider />
-          <SettingRow label="Respect .gitignore" description="Hide gitignored files from @ mentions">
+          <SettingRow label={t('Respect .gitignore')} description={t('Hide gitignored files from @ mentions')}>
             <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label={t('Toggle respect gitignore')} />
           </SettingRow>
           <Divider />
-          <SettingRow label="Use worktrees" description="Isolate threads in .laf-agent/worktrees/">
+          <SettingRow label={t('Use worktrees')} description={t('Isolate threads in .laf-agent/worktrees/')}>
             <Switch
               checked={draft.projectPrefs?.[activeWorkspace ?? '']?.worktreeEnabled ?? false}
               onCheckedChange={handleWorktreeChange}
@@ -238,7 +237,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
             />
           </SettingRow>
           <Divider />
-          <SettingRow label="Tight sandbox" description="Restrict agent to project directory">
+          <SettingRow label={t('Tight sandbox')} description={t('Restrict agent to project directory')}>
             <Switch
               checked={draft.projectPrefs?.[activeWorkspace ?? '']?.tightSandbox ?? true}
               onCheckedChange={handleSandboxChange}
@@ -249,13 +248,13 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Notifications" description="Background alerts and sounds">
+      <SettingsGrid label={t('Notifications')} description={t('Background alerts and sounds')}>
         <SettingsCard>
-          <SettingRow label="Desktop notifications" description="Notify when agent finishes or needs approval">
+          <SettingRow label={t('Desktop notifications')} description={t('Notify when agent finishes or needs approval')}>
             <Switch checked={draft.notifications ?? true} onCheckedChange={handleNotificationsChange} aria-label={t('Toggle desktop notifications')} />
           </SettingRow>
           <Divider />
-          <SettingRow label="Notification sound" description="Play a chime on notification">
+          <SettingRow label={t('Notification sound')} description={t('Play a chime on notification')}>
             <Switch
               checked={draft.soundNotifications ?? true}
               onCheckedChange={handleSoundChange}
@@ -266,7 +265,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Updates" description="Check for new versions">
+      <SettingsGrid label={t('Updates')} description={t('Check for new versions')}>
         <SettingsCard>
           <UpdatesCard />
         </SettingsCard>

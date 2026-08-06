@@ -159,7 +159,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
       <SectionHeader section="appearance" />
 
       {/* ── Look & feel ─────────────────────────────────────── */}
-      <SettingsGrid label="Look & feel" description="Theme, icon, and color scheme">
+      <SettingsGrid label={t('Look & feel')} description={t('Theme, icon, and color scheme')}>
         <SettingsCard>
           {/* App icon row */}
           <div className="flex items-center justify-between gap-4 py-2.5">
@@ -225,10 +225,10 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
       </SettingsGrid>
 
       {/* ── Display ─────────────────────────────────────────── */}
-      <SettingsGrid label="Display" description="Font size and layout">
+      <SettingsGrid label={t('Display')} description={t('Font size and layout')}>
         <SettingsCard>
           {/* Language */}
-          <SettingRow label="Language" description="App display language — 'System' follows the OS">
+          <SettingRow label={t('Language')} description={t("App display language — 'System' follows the OS")}>
             <div className="flex gap-1.5">
               {([['system', 'System'], ['en', 'English'], ['ko', '한국어']] as const).map(([value, label]) => (
                 <button
@@ -323,7 +323,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
           <Divider />
 
           {/* Sidebar position */}
-          <SettingRow label="Sidebar position" description="Place the sidebar on the left or right">
+          <SettingRow label={t('Sidebar position')} description={t('Place the sidebar on the left or right')}>
             <div className="flex gap-1.5">
               {(['left', 'right'] as const).map((pos) => (
                 <button
@@ -347,11 +347,11 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
       </SettingsGrid>
 
       {/* ── Chat layout ─────────────────────────────────────── */}
-      <SettingsGrid label="Chat layout" description="How tool activity appears in threads">
+      <SettingsGrid label={t('Chat layout')} description={t('How tool activity appears in threads')}>
         <SettingsCard>
           <SettingRow
-            label="Inline tool calls"
-            description="Show each tool entry between paragraphs at the moment the agent ran it. When off, tool activity collapses into a single card after the assistant's reply."
+            label={t('Inline tool calls')}
+            description={t("Show each tool entry between paragraphs at the moment the agent ran it. When off, tool activity collapses into a single card after the assistant's reply.")}
           >
             <Switch
               checked={draft.inlineToolCalls !== false}

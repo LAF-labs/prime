@@ -47,10 +47,6 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     refreshDbSize()
   }, [clearAnalytics, refreshDbSize])
 
-  const handleAnalyticsToggle = useCallback((checked: boolean) => {
-    updateDraft({ analyticsEnabled: checked })
-  }, [updateDraft])
-
   const handleAiCommitToggle = useCallback((checked: boolean) => {
     updateDraft({ aiCommitMessages: checked })
   }, [updateDraft])
@@ -77,21 +73,9 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     <>
       <SectionHeader section="advanced" />
 
-      <SettingsGrid label="Privacy" description="Anonymous usage data">
+      <SettingsGrid label={t('Git')} description={t('Commit trailers and reports')}>
         <SettingsCard>
-          <SettingRow label="Share anonymous usage data" description="Feature usage and app version only. No code or file paths.">
-            <Switch
-              checked={draft.analyticsEnabled ?? true}
-              onCheckedChange={handleAnalyticsToggle}
-              aria-label={t('Toggle anonymous analytics')}
-            />
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
-
-      <SettingsGrid label="Git" description="Commit trailers and reports">
-        <SettingsCard>
-          <SettingRow label="AI commit messages" description="Show a sparkle button to draft a commit message from the diff">
+          <SettingRow label={t('AI commit messages')} description={t('Show a sparkle button to draft a commit message from the diff')}>
             <Switch
               checked={draft.aiCommitMessages ?? true}
               onCheckedChange={handleAiCommitToggle}
@@ -99,7 +83,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             />
           </SettingRow>
           <Divider />
-          <SettingRow label="Co-authored-by LAF Agent" description="Append trailer to every commit">
+          <SettingRow label={t('Co-authored-by LAF Agent')} description={t('Append trailer to every commit')}>
             <Switch
               checked={draft.coAuthor ?? true}
               onCheckedChange={handleCoAuthorToggle}
@@ -107,7 +91,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             />
           </SettingRow>
           <Divider />
-          <SettingRow label="Task completion report" description="Summary card when a task finishes">
+          <SettingRow label={t('Task completion report')} description={t('Summary card when a task finishes')}>
             <Switch
               checked={draft.coAuthorJsonReport ?? true}
               onCheckedChange={handleReportToggle}
@@ -117,9 +101,9 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Side questions" description="/btw character limit">
+      <SettingsGrid label={t('Side questions')} description={t('/btw character limit')}>
         <SettingsCard>
-          <SettingRow label="Max question length" description="Character limit for /btw questions">
+          <SettingRow label={t('Max question length')} description={t('Character limit for /btw questions')}>
             <input
               type="number"
               min={BTW_MIN_CHARS}
@@ -134,9 +118,9 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label="Data" description="Clear history and analytics">
+      <SettingsGrid label={t('Data')} description={t('Clear history and analytics')}>
         <SettingsCard>
-          <SettingRow label="Conversation history" description="Clear all threads without resetting settings">
+          <SettingRow label={t('Conversation history')} description={t('Clear all threads without resetting settings')}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -153,7 +137,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             </Tooltip>
           </SettingRow>
           <Divider />
-          <SettingRow label="Analytics data" description={`Local stats on disk (${formatBytes(analyticsSize)})`}>
+          <SettingRow label={t('Analytics data')} description={`Local stats on disk (${formatBytes(analyticsSize)})`}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -170,7 +154,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             </Tooltip>
           </SettingRow>
           <Divider />
-          <SettingRow label="Replay onboarding" description="Run the setup wizard again">
+          <SettingRow label={t('Replay onboarding')} description={t('Run the setup wizard again')}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -193,7 +177,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         open={isConfirmHistoryOpen}
         onOpenChange={setIsConfirmHistoryOpen}
         title={t('Clear conversation history?')}
-        description="This permanently deletes all conversation threads. Your settings, onboarding state, and preferences are preserved. This action cannot be undone."
+        description={t('This permanently deletes all conversation threads. Your settings, onboarding state, and preferences are preserved. This action cannot be undone.')}
         confirmLabel="Clear history"
         onConfirm={handleClearHistory}
       />
@@ -201,7 +185,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         open={isConfirmAnalyticsOpen}
         onOpenChange={setIsConfirmAnalyticsOpen}
         title={t('Clear analytics data?')}
-        description="This permanently deletes all local usage statistics. This action cannot be undone."
+        description={t('This permanently deletes all local usage statistics. This action cannot be undone.')}
         confirmLabel="Clear analytics"
         onConfirm={handleClearAnalytics}
       />

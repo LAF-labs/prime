@@ -14,6 +14,7 @@ pub mod git_history;
 pub mod git_pr;
 pub mod git_stack;
 pub mod git_utils;
+pub mod kernel_sandbox;
 pub mod kernel_setup;
 pub mod agent_resources;
 pub mod resource_watcher;

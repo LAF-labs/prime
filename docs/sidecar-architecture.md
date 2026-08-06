@@ -80,15 +80,32 @@ layers on top of the approval prompt:
    workspace and temp dirs; `~/.ssh`, `~/.aws`, `~/.gnupg`, and `auth.json`
    are unreadable. Verified end to end: a model-issued `bash` writing to
    `$HOME` returns `Operation not permitted`.
+3. **OS-level confinement of `ipython`** (`src-tauri/src/commands/kernel_sandbox.rs`).
+   The kernel is a long-lived process the harness spawns itself, out of the
+   gate's reach — but `PRIME_AGENT_KERNEL_PYTHON` lets us substitute the
+   interpreter, so we point it at a wrapper that re-execs the venv python
+   under a generated Seatbelt profile. Same write scope, same credential
+   denials. Verified: workspace write succeeds, `$HOME` write and `auth.json`
+   read both raise `PermissionError`, network still works, and the harness's
+   own interpreter validation (ipykernel, prime-agent-runtime, default
+   packages) passes through the wrapper.
 
 Not covered, and stated in the UI rather than buried here:
 
-- **`ipython`** — the other built-in tool runs in the kernel process, spawned
-  outside the wrapper. Prompt-gated only. Closing this means launching the
-  kernel itself under the sandbox; it is the next piece of work.
-- **Network** — deliberately open. A domain allowlist routes traffic through a
-  proxy and breaks npm, pip, and git for every project.
-- **Reads** — only credential directories are denied.
+- **Network** — deliberately open for both tools. A domain allowlist routes
+  traffic through a proxy and breaks npm, pip, and git for every project.
+- **Reads** — only credential files are denied; the rest of the disk is
+  readable.
+- **Non-macOS** — the kernel profile is `sandbox-exec`, so on Linux and
+  Windows the kernel runs unconfined and the approval prompt is the only
+  control. (`bash` is still confined on Linux via bubblewrap.)
+
+The profile is `(allow default)` with targeted denials rather than
+`(deny default)` with an allow-list. A deny-default profile for CPython means
+enumerating every dylib, locale file, and framework it touches — derivable
+only by bisecting against a running kernel, and brittle across Python
+versions. Paths enter the profile as `-D` parameters, never by string
+interpolation, so no path can alter the policy's structure.
 
 The approval prompt remains the real control. This narrows the blast radius
 when a user approves something they misread; it does not make untrusted

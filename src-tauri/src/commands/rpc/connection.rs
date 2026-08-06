@@ -398,6 +398,24 @@ pub(crate) async fn run_rpc_connection(
     cmd.env("LAF_WORKSPACE", &workspace);
     if tight_sandbox {
         cmd.env("LAF_TIGHT_SANDBOX", "1");
+        // The gate can only reach `bash`. `ipython` runs in a kernel process
+        // the harness spawns itself, so confine it at the interpreter: point
+        // PRIME_AGENT_KERNEL_PYTHON at a wrapper that re-execs the venv python
+        // under a Seatbelt profile. Skipped until the kernel is bootstrapped —
+        // setting the override makes the harness skip its own bootstrap, and
+        // that bootstrap is our code, not the model's.
+        match crate::commands::kernel_sandbox::wrapper_for(&workspace) {
+            Ok(Some(wrapper)) => {
+                cmd.env("PRIME_AGENT_KERNEL_PYTHON", &wrapper);
+                // Byte-code caching would need writes inside the venv, which
+                // the profile denies — and a writable venv is a persistence
+                // vector we would rather not open.
+                cmd.env("PYTHONDONTWRITEBYTECODE", "1");
+                log::info!("[RPC] kernel confined via {}", wrapper.display());
+            }
+            Ok(None) => log::info!("[RPC] kernel sandbox unavailable (not bootstrapped, or not macOS)"),
+            Err(e) => log::warn!("[RPC] could not build the kernel sandbox, running unconfined: {e}"),
+        }
     }
     let mut child = cmd
         .current_dir(&workspace)

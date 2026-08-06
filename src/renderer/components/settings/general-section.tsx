@@ -237,7 +237,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
             />
           </SettingRow>
           <Divider />
-          <SettingRow label={t('Tight sandbox')} description={t('Confine file writes and shell commands to this project. Python and network access are not confined.')}>
+          <SettingRow label={t('Tight sandbox')} description={t('Confine file writes, shell commands, and Python to this project, and keep credentials unreadable. Network access is not restricted.')}>
             <Switch
               checked={draft.projectPrefs?.[activeWorkspace ?? '']?.tightSandbox ?? true}
               onCheckedChange={handleSandboxChange}

@@ -26,6 +26,8 @@ vi.mock('@/lib/history-store', () => ({
   loadSoftDeleted: vi.fn().mockResolvedValue([]),
   loadBackup: vi.fn().mockResolvedValue({ threads: [], projects: [], softDeleted: [] }),
   saveThreads: vi.fn().mockResolvedValue(undefined),
+  saveStreamingSnapshots: vi.fn().mockResolvedValue(undefined),
+  loadStreamingSnapshots: vi.fn().mockResolvedValue({}),
   saveSoftDeleted: vi.fn().mockResolvedValue(undefined),
   saveUiState: vi.fn().mockResolvedValue(undefined),
   toArchivedTasks: vi.fn().mockReturnValue([]),
@@ -1328,13 +1330,14 @@ describe('persistHistory', () => {
     useTaskStore.getState().upsertTask(makeTask())
     useTaskStore.setState({ projectNames: { '/ws': 'My Project' } })
     useTaskStore.getState().persistHistory()
-    expect(saveThreads).toHaveBeenCalledWith(
+    expect(saveThreads).toHaveBeenLastCalledWith(
       expect.objectContaining({ 'task-1': expect.any(Object) }),
       expect.objectContaining({ '/ws': 'My Project' }),
       expect.any(Object),
       expect.any(Array),
       expect.any(Object),
       expect.any(Set),
+      expect.any(Set), // thinIds — the storage-flip gate
     )
   })
 })

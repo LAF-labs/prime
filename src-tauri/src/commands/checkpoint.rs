@@ -254,12 +254,94 @@ pub fn checkpoint_revert(
     }
 
     let ref_name = format!("{REF_PREFIX}{task_id}/{turn}");
+
+    // Forced revert with a dirty tree: stash first. A hard reset destroys
+    // uncommitted work with no way back, and "the user clicked force" is not
+    // the same as "the user wanted their edits gone forever" — the stash
+    // makes the destructive path recoverable (`git stash pop`).
+    if force.unwrap_or(false) {
+        let dirty = {
+            let statuses = repo.statuses(None)?;
+            statuses.iter().any(|s| {
+                !s.status().is_empty() && s.status() != git2::Status::IGNORED
+            })
+        };
+        if dirty {
+            let sig = repo
+                .signature()
+                .or_else(|_| git2::Signature::now("LAF Agent", "agent@local"))?;
+            let mut repo = Repository::discover(&cwd)?; // stash_save needs &mut
+            match repo.stash_save(
+                &sig,
+                &format!("laf-agent: before revert to checkpoint turn {turn}"),
+                Some(git2::StashFlags::INCLUDE_UNTRACKED),
+            ) {
+                Ok(_) => log::info!("[checkpoint] stashed dirty tree before forced revert"),
+                Err(e) => log::warn!("[checkpoint] could not stash before revert: {e}"),
+            }
+        }
+    }
+
     let commit = repo.find_reference(&ref_name)?.peel_to_commit()?;
 
     // Reset HEAD to the checkpoint commit (hard reset)
     repo.reset(commit.as_object(), git2::ResetType::Hard, None)?;
 
     Ok(())
+}
+
+/// Delete checkpoint refs older than `keep_days`, across all tasks.
+///
+/// One ref lands per turn and only thread deletion ever removed them, so a
+/// year of heavy use leaks tens of thousands of refs — each one pinning its
+/// commit against `git gc` forever. Age comes from the ref's own reflog entry
+/// (refs are lightweight; the target commit's date says nothing about when
+/// the checkpoint was taken).
+#[tauri::command]
+pub fn checkpoint_prune(cwd: String, keep_days: u32) -> Result<u32, AppError> {
+    let repo = Repository::discover(&cwd)?;
+    let cutoff = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+        - (keep_days as i64) * 24 * 60 * 60;
+
+    let mut deleted: u32 = 0;
+    let names: Vec<String> = repo
+        .references_glob(&format!("{REF_PREFIX}*"))?
+        .filter_map(|r| r.ok())
+        .filter_map(|r| r.name().map(String::from))
+        .collect();
+    for name in names {
+        let taken_at = repo
+            .reflog(&name)
+            .ok()
+            .and_then(|log| log.get(0).map(|e| e.committer().when().seconds()));
+        // `<=` so a keep_days horizon lands exactly on its boundary — and so
+        // keep_days=0 (used by tests) really does mean "everything".
+        let expired = match taken_at {
+            Some(t) => t <= cutoff,
+            // No reflog — fall back to the target commit's time rather than
+            // keeping the ref forever.
+            None => repo
+                .find_reference(&name)
+                .ok()
+                .and_then(|r| r.peel_to_commit().ok())
+                .map(|c| c.time().seconds() <= cutoff)
+                .unwrap_or(false),
+        };
+        if expired {
+            if let Ok(mut reference) = repo.find_reference(&name) {
+                if reference.delete().is_ok() {
+                    deleted += 1;
+                }
+            }
+        }
+    }
+    if deleted > 0 {
+        log::info!("[checkpoint] pruned {deleted} checkpoint ref(s) older than {keep_days}d");
+    }
+    Ok(deleted)
 }
 
 /// Delete all checkpoints for a task (cleanup on thread delete).
@@ -334,5 +416,59 @@ mod tests {
         };
         let json = serde_json::to_string(&stat).unwrap();
         assert!(json.contains("\"path\":\"src/main.rs\""));
+    }
+}
+
+#[cfg(test)]
+mod prune_tests {
+    use super::*;
+    use git2::Repository;
+
+    fn repo_with_commit() -> (tempfile::TempDir, Repository) {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+        {
+            let sig = git2::Signature::now("t", "t@t").unwrap();
+            let tree_id = { let mut idx = repo.index().unwrap(); idx.write_tree().unwrap() };
+            let tree = repo.find_tree(tree_id).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[]).unwrap();
+        }
+        (dir, repo)
+    }
+
+    /// Refs created just now must survive; the point is a horizon, not a wipe.
+    #[test]
+    fn fresh_checkpoints_survive_pruning() {
+        let (dir, repo) = repo_with_commit();
+        let oid = repo.head().unwrap().peel_to_commit().unwrap().id();
+        repo.reference("refs/laf-agent/cp/task-a/1", oid, true, "cp").unwrap();
+        repo.reference("refs/laf-agent/cp/task-a/2", oid, true, "cp").unwrap();
+
+        let deleted = checkpoint_prune(dir.path().to_string_lossy().into_owned(), 30).unwrap();
+        assert_eq!(deleted, 0);
+        assert!(repo.find_reference("refs/laf-agent/cp/task-a/1").is_ok());
+    }
+
+    /// keep_days=0 makes everything expired — the deletion path itself.
+    #[test]
+    fn expired_checkpoints_are_deleted() {
+        let (dir, repo) = repo_with_commit();
+        let oid = repo.head().unwrap().peel_to_commit().unwrap().id();
+        repo.reference("refs/laf-agent/cp/task-b/1", oid, true, "cp").unwrap();
+
+        let deleted = checkpoint_prune(dir.path().to_string_lossy().into_owned(), 0).unwrap();
+        assert_eq!(deleted, 1);
+        assert!(repo.find_reference("refs/laf-agent/cp/task-b/1").is_err());
+    }
+
+    /// Only our namespace: a user's own refs are never ours to expire.
+    #[test]
+    fn pruning_never_touches_foreign_refs() {
+        let (dir, repo) = repo_with_commit();
+        let oid = repo.head().unwrap().peel_to_commit().unwrap().id();
+        repo.reference("refs/heads/feature-x", oid, true, "user branch").unwrap();
+
+        checkpoint_prune(dir.path().to_string_lossy().into_owned(), 0).unwrap();
+        assert!(repo.find_reference("refs/heads/feature-x").is_ok());
     }
 }

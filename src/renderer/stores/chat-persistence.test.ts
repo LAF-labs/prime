@@ -35,6 +35,8 @@ vi.mock('@/lib/history-store', () => ({
   loadBackup: vi.fn().mockResolvedValue({ threads: [], projects: [], softDeleted: [] }),
   saveThreads: vi.fn().mockResolvedValue(undefined),
   saveSoftDeleted: vi.fn().mockResolvedValue(undefined),
+  saveStreamingSnapshots: vi.fn().mockResolvedValue(undefined),
+  loadStreamingSnapshots: vi.fn().mockResolvedValue({}),
   toArchivedTasks: vi.fn().mockReturnValue([]),
   clearHistory: vi.fn().mockResolvedValue(undefined),
 }))
@@ -572,323 +574,131 @@ describe('persistHistory — write guard', () => {
 // FIX 3: persistHistory saves in-flight streaming chunks
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('persistHistory — streaming chunk preservation', () => {
-  it('includes streaming chunk as partial assistant message in saved data', () => {
+describe('persistHistory — streaming crash recovery snapshots', () => {
+  const streamingState = (taskId: string, over: Record<string, unknown> = {}) => ({
+    tasks: {
+      [taskId]: makeTask({
+        id: taskId,
+        status: 'running',
+        messages: [makeMessage({ role: 'user', content: 'do something' })],
+      }),
+    },
+    streamingChunks: { [taskId]: 'partial response so far...' },
+    thinkingChunks: {},
+    liveToolCalls: {},
+    liveToolSplits: {},
+    archivedMeta: {},
+    projects: ['/projects/test'],
+    projectNames: {},
+    projectIds: { '/projects/test': 'p1' },
+    softDeleted: {},
+    threadOrders: {},
+    ...over,
+  })
+
+  it('writes the in-flight chunk to the snapshot store, not into the thread blob', () => {
+    // The old approach appended the partial into the thread and re-serialized
+    // the whole conversation every ten seconds mid-turn — O(history) writes.
     const taskId = 'streaming-task'
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'do something' })],
-        }),
-      },
-      streamingChunks: { [taskId]: 'partial response so far...' },
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
+    useTaskStore.setState(streamingState(taskId))
 
     useTaskStore.getState().persistHistory()
 
-    // saveThreads should have been called with the streaming chunk appended
-    expect(historyStore.saveThreads).toHaveBeenCalledTimes(1)
-    const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    const savedTask = savedTasks[taskId]
-    expect(savedTask.messages).toHaveLength(2)
-    expect(savedTask.messages[1].role).toBe('assistant')
-    expect(savedTask.messages[1].content).toBe('partial response so far...')
-  })
-
-  it('includes thinking chunks in the partial assistant message', () => {
-    const taskId = 'thinking-task'
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'think about this' })],
-        }),
-      },
-      streamingChunks: { [taskId]: 'response text' },
-      thinkingChunks: { [taskId]: 'internal reasoning...' },
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
-
-    useTaskStore.getState().persistHistory()
-
-    const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    const partialMsg = savedTasks[taskId].messages[1]
-    expect(partialMsg.thinking).toBe('internal reasoning...')
-  })
-
-  it('includes live tool calls in the partial assistant message', () => {
-    const taskId = 'tool-task'
-    const toolCall: ToolCall = {
-      toolCallId: 'tc-1',
-      title: 'Edit file',
-      kind: 'edit',
-      status: 'in_progress',
-      locations: [{ path: 'src/main.ts' }],
-    }
-    const toolSplit: ToolCallSplit = { toolCallId: 'tc-1', at: 10 }
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'edit the file' })],
-        }),
-      },
-      streamingChunks: { [taskId]: 'I will edit' },
-      thinkingChunks: {},
-      liveToolCalls: { [taskId]: [toolCall] },
-      liveToolSplits: { [taskId]: [toolSplit] },
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
-
-    useTaskStore.getState().persistHistory()
-
-    const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    const partialMsg = savedTasks[taskId].messages[1]
-    expect(partialMsg.toolCalls).toHaveLength(1)
-    expect(partialMsg.toolCalls![0].toolCallId).toBe('tc-1')
-    expect(partialMsg.toolCallSplits).toHaveLength(1)
-    expect(partialMsg.toolCallSplits![0].at).toBe(10)
-  })
-
-  it('does not append partial message when streaming chunk is empty', () => {
-    const taskId = 'no-chunk-task'
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'waiting' })],
-        }),
-      },
-      streamingChunks: { [taskId]: '' },
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
-
-    useTaskStore.getState().persistHistory()
-
-    const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    expect(savedTasks[taskId].messages).toHaveLength(1) // only the user message
-  })
-
-  it('does not append partial message for non-running tasks', () => {
-    const taskId = 'paused-task'
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'paused',
-          messages: [makeMessage({ role: 'user', content: 'done' })],
-        }),
-      },
-      streamingChunks: { [taskId]: 'leftover chunk' },
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
-
-    useTaskStore.getState().persistHistory()
-
+    const snapshots = vi.mocked(historyStore.saveStreamingSnapshots).mock.calls[0][0]
+    expect(snapshots[taskId].content).toBe('partial response so far...')
+    // The thread itself is saved without the partial appended.
     const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
     expect(savedTasks[taskId].messages).toHaveLength(1)
   })
 
-  it('does not mutate the original tasks in the store', () => {
-    const taskId = 'immutable-task'
-    const originalMessages = [makeMessage({ role: 'user', content: 'original' })]
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: originalMessages,
-        }),
-      },
-      streamingChunks: { [taskId]: 'streaming...' },
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
+  it('carries thinking and live tool calls in the snapshot', () => {
+    const taskId = 'streaming-task'
+    const tc = { toolCallId: 'tc1', title: 'bash: ls', kind: 'execute', status: 'in_progress' }
+    useTaskStore.setState(streamingState(taskId, {
+      thinkingChunks: { [taskId]: 'thinking hard' },
+      liveToolCalls: { [taskId]: [tc] },
+    }))
 
     useTaskStore.getState().persistHistory()
 
-    // Original store state should be unchanged
-    const storeTask = useTaskStore.getState().tasks[taskId]
-    expect(storeTask.messages).toHaveLength(1)
-    expect(storeTask.messages).toBe(originalMessages) // same reference
+    const snap = vi.mocked(historyStore.saveStreamingSnapshots).mock.calls[0][0][taskId]
+    expect(snap.thinking).toBe('thinking hard')
+    expect(snap.toolCalls).toHaveLength(1)
   })
 
-  it('handles multiple tasks with different streaming states', () => {
-    const runningId = 'running-1'
-    const pausedId = 'paused-1'
-    const completedId = 'completed-1'
-
-    useTaskStore.setState({
-      tasks: {
-        [runningId]: makeTask({
-          id: runningId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'q1' })],
-        }),
-        [pausedId]: makeTask({
-          id: pausedId,
-          status: 'paused',
-          messages: [
-            makeMessage({ role: 'user', content: 'q2' }),
-            makeMessage({ role: 'assistant', content: 'a2', timestamp: '2026-01-01T00:00:02Z' }),
-          ],
-        }),
-        [completedId]: makeTask({
-          id: completedId,
-          status: 'completed',
-          messages: [
-            makeMessage({ role: 'user', content: 'q3' }),
-            makeMessage({ role: 'assistant', content: 'a3', timestamp: '2026-01-01T00:00:02Z' }),
-          ],
-        }),
-      },
-      streamingChunks: {
-        [runningId]: 'streaming for running',
-        [pausedId]: 'stale chunk for paused',
-        [completedId]: 'stale chunk for completed',
-      },
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
+  it('writes an empty snapshot map when nothing is streaming, clearing stale ones', () => {
+    // Turn end persists with no chunks; writing {} is what clears the
+    // previous snapshot so it cannot be replayed after a completed turn.
+    const taskId = 'done-task'
+    useTaskStore.setState(streamingState(taskId, { streamingChunks: {} }))
 
     useTaskStore.getState().persistHistory()
 
-    const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    // Only the running task should have the partial message appended
-    expect(savedTasks[runningId].messages).toHaveLength(2)
-    expect(savedTasks[runningId].messages[1].content).toBe('streaming for running')
-    // Paused and completed should NOT have extra messages
-    expect(savedTasks[pausedId].messages).toHaveLength(2)
-    expect(savedTasks[completedId].messages).toHaveLength(2)
+    expect(vi.mocked(historyStore.saveStreamingSnapshots)).toHaveBeenCalledWith({})
+  })
+
+  it('ignores chunks for tasks that are not running', () => {
+    const taskId = 'paused-task'
+    const state = streamingState(taskId)
+    state.tasks[taskId] = makeTask({ id: taskId, status: 'paused', messages: [makeMessage({ content: 'hi' })] })
+    useTaskStore.setState(state)
+
+    useTaskStore.getState().persistHistory()
+
+    expect(vi.mocked(historyStore.saveStreamingSnapshots)).toHaveBeenCalledWith({})
+  })
+
+  it('does not mutate the tasks in the store', () => {
+    const taskId = 'streaming-task'
+    useTaskStore.setState(streamingState(taskId))
+    const before = useTaskStore.getState().tasks[taskId].messages.length
+
+    useTaskStore.getState().persistHistory()
+
+    expect(useTaskStore.getState().tasks[taskId].messages).toHaveLength(before)
   })
 
   it('still saves thread metadata to SQLite for tasks with messages', () => {
-    const taskId = 'sqlite-meta-task'
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'hi' })],
-        }),
-      },
-      streamingChunks: { [taskId]: 'chunk' },
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
+    const taskId = 'streaming-task'
+    useTaskStore.setState(streamingState(taskId))
 
     useTaskStore.getState().persistHistory()
 
-    // SQLite saveThread should be called with the original task (not the one with partial msg)
-    expect(threadDb.saveThread).toHaveBeenCalledWith(
-      expect.objectContaining({ id: taskId }),
-    )
-  })
-
-  it('handles task with no streaming chunk key at all', () => {
-    const taskId = 'no-key-task'
-
-    useTaskStore.setState({
-      tasks: {
-        [taskId]: makeTask({
-          id: taskId,
-          status: 'running',
-          messages: [makeMessage({ role: 'user', content: 'hi' })],
-        }),
-      },
-      streamingChunks: {}, // no entry for this task
-      thinkingChunks: {},
-      liveToolCalls: {},
-      liveToolSplits: {},
-      archivedMeta: {},
-      projects: ['/projects/test'],
-      projectNames: {},
-      projectIds: { '/projects/test': 'p1' },
-      softDeleted: {},
-      threadOrders: {},
-    })
-
-    useTaskStore.getState().persistHistory()
-
-    const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    expect(savedTasks[taskId].messages).toHaveLength(1) // no partial appended
+    expect(vi.mocked(threadDb.saveThread)).toHaveBeenCalled()
   })
 })
 
+describe('persistHistory — thin index gating', () => {
+  it('writes full messages until the SQLite backfill is confirmed', () => {
+    // Thinning before the messages are provably in SQLite would make the
+    // thin entry the only copy — i.e. no copy.
+    useTaskStore.setState({
+      historyLoaded: true,
+      sqliteReady: false,
+      tasks: { t1: makeTask({ id: 't1', messages: [makeMessage({ content: 'hello' })] }) },
+      archivedMeta: {},
+    })
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SCENARIO: Full dev restart simulation
-// ═══════════════════════════════════════════════════════════════════════════
+    useTaskStore.getState().persistHistory()
+
+    const thinIds = vi.mocked(historyStore.saveThreads).mock.calls[0][6]
+    expect(thinIds?.size ?? 0).toBe(0)
+  })
+
+  it('marks every live thread thin once the backfill has run', () => {
+    useTaskStore.setState({
+      historyLoaded: true,
+      sqliteReady: true,
+      tasks: { t1: makeTask({ id: 't1', messages: [makeMessage({ content: 'hello' })] }) },
+      archivedMeta: {},
+    })
+
+    useTaskStore.getState().persistHistory()
+
+    const thinIds = vi.mocked(historyStore.saveThreads).mock.calls[0][6]
+    expect(thinIds?.has('t1')).toBe(true)
+  })
+})
 
 describe('dev restart scenario — end-to-end', () => {
   it('simulates: streaming → dev restart → messages restored from JSON', async () => {
@@ -921,11 +731,13 @@ describe('dev restart scenario — end-to-end', () => {
     // persistHistory is called (mid-turn persist or before-unload)
     useTaskStore.getState().persistHistory()
 
-    // Verify the saved data includes the partial message
+    // The partial goes to the constant-size snapshot store; the thread blob
+    // is saved without it (the whole point of the storage flip).
+    const snap = vi.mocked(historyStore.saveStreamingSnapshots).mock.calls[0][0][taskId]
+    expect(snap.content).toBe('partial second response...')
+    expect(snap.thinking).toBe('thinking about it')
     const savedTasks = vi.mocked(historyStore.saveThreads).mock.calls[0][0]
-    expect(savedTasks[taskId].messages).toHaveLength(3)
-    expect(savedTasks[taskId].messages[2].content).toBe('partial second response...')
-    expect(savedTasks[taskId].messages[2].thinking).toBe('thinking about it')
+    expect(savedTasks[taskId].messages).toHaveLength(2)
 
     // PHASE 2: Simulate app restart — backend returns empty, frontend loads from history
     vi.clearAllMocks()
@@ -958,7 +770,6 @@ describe('dev restart scenario — end-to-end', () => {
       messages: [
         { role: 'user', content: 'build a feature', timestamp: '2026-01-01T00:00:01Z' },
         { role: 'assistant', content: 'first response', timestamp: '2026-01-01T00:00:02Z' },
-        { role: 'assistant', content: 'partial second response...', timestamp: '2026-01-01T00:00:03Z', thinking: 'thinking about it' },
       ],
     })
 
@@ -970,8 +781,8 @@ describe('dev restart scenario — end-to-end', () => {
           name: 'Test Task',
           workspace: '/projects/test',
           createdAt: '2026-01-01T00:00:00Z',
-          lastActivityAt: '2026-01-01T00:00:03Z',
-          messageCount: 3,
+          lastActivityAt: '2026-01-01T00:00:02Z',
+          messageCount: 2,
         },
       },
     })
@@ -985,11 +796,11 @@ describe('dev restart scenario — end-to-end', () => {
     })
 
     const hydrated = useTaskStore.getState().tasks[taskId]
-    expect(hydrated.messages).toHaveLength(3)
+    // The committed conversation is back; the in-flight partial is the
+    // snapshot replay's job during loadTasks, not hydration's.
+    expect(hydrated.messages).toHaveLength(2)
     expect(hydrated.messages[0].content).toBe('build a feature')
     expect(hydrated.messages[1].content).toBe('first response')
-    expect(hydrated.messages[2].content).toBe('partial second response...')
-    expect(hydrated.messages[2].thinking).toBe('thinking about it')
     expect(hydrated.isArchived).toBe(true)
   })
 

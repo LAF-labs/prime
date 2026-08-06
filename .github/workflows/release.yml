@@ -94,6 +94,10 @@ jobs:
             echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set — the updater cannot sign, and unsigned manifests are refused by the app."
             exit 1
           fi
+          # GitHub's secret storage can normalize line endings; a stray CR at
+          # the end of the base64 line corrupts the key's kdf bytes and
+          # surfaces as "scrypt parameters too high". Scrub CRs either way.
+          KEY=$(printf '%s' "$KEY" | tr -d '\r')
           case "$KEY" in
             untrusted*) KEY=$(printf '%s' "$KEY" | base64 | tr -d '\n') ;;
           esac

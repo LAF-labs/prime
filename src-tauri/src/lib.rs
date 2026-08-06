@@ -707,6 +707,7 @@ pub fn run() {
             // Analytics
             analytics::analytics_save,
             analytics::analytics_load,
+            analytics::analytics_prune,
             analytics::analytics_clear,
             analytics::analytics_db_size,
             analytics::analytics_coding_hours_by_day,
@@ -743,6 +744,7 @@ pub fn run() {
             checkpoint::checkpoint_diff,
             checkpoint::checkpoint_revert,
             checkpoint::checkpoint_cleanup,
+            checkpoint::checkpoint_prune,
             // Git History
             git_history::git_commit_history,
             git_history::git_commit_diff,

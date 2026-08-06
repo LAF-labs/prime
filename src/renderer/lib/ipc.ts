@@ -119,6 +119,12 @@ export const ipc = {
   /** Move a damaged store aside instead of letting it be overwritten. */
   historyQuarantine: (name: string): Promise<string | null> =>
     invoke('history_quarantine', { name }),
+  /** Delete checkpoint refs older than keepDays in one repo. Maintenance. */
+  checkpointPrune: (cwd: string, keepDays: number): Promise<number> =>
+    invoke('checkpoint_prune', { cwd, keepDays }),
+  /** Delete analytics events older than keepDays. Maintenance. */
+  analyticsPrune: (keepDays: number): Promise<number> =>
+    invoke('analytics_prune', { keepDays }),
   gitDetect: (path: string): Promise<boolean> =>
     invoke('git_detect', { path }),
   gitInit: (path: string): Promise<void> =>

@@ -24,6 +24,9 @@ interface SavedThreadLike {
   workspace: string
   createdAt: string
   messages: SavedMessageLike[]
+  /** Present on thin index entries, where `messages` is empty. */
+  lastActivityAt?: string
+  messageCount?: number
   parentTaskId?: string
   worktreePath?: string
   originalWorkspace?: string
@@ -85,14 +88,16 @@ const mergeThreadsFromDb = async (
 }
 
 const projectMeta = (t: SavedThreadLike): ArchivedThreadMeta => {
-  const last = t.messages.length > 0 ? t.messages[t.messages.length - 1].timestamp : t.createdAt
+  // Thin index entries carry no messages; their explicit fields are the truth.
+  const last = t.lastActivityAt
+    ?? (t.messages.length > 0 ? t.messages[t.messages.length - 1].timestamp : t.createdAt)
   return {
     id: t.id,
     name: t.name,
     workspace: t.workspace,
     createdAt: t.createdAt,
     lastActivityAt: last,
-    messageCount: t.messages.length,
+    messageCount: t.messageCount ?? t.messages.length,
     ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
     ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
     ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
@@ -136,6 +141,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: {},
   archivedMeta: {},
   historyLoaded: false,
+  sqliteReady: false,
   projects: [],
   projectIds: {},
   projectNames: {},
@@ -1162,6 +1168,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         ])
         const softDeletedIds = new Set(savedSoftDeleted.map((sd) => sd.task.id))
         const archivedMeta: Record<string, ArchivedThreadMeta> = {}
+        const liveNeedingDb: string[] = []
         for (const saved of savedThreads) {
           if (softDeletedIds.has(saved.id)) continue
           if (tasks[saved.id]) {
@@ -1172,7 +1179,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             // the backend likely lost assistant responses on restart. Prefer
             // the richer persisted message history in that case.
             let savedMessages: TaskMessage[] | null = null
-            if (saved.messages.length > live.messages.length) {
+            const savedCount = saved.messageCount ?? saved.messages.length
+            if (saved.messages.length === 0 && savedCount > live.messages.length) {
+              // Thin entry with more history than the backend kept: the
+              // messages live in SQLite now. Remember the id; hydrated in one
+              // batch after the loop.
+              liveNeedingDb.push(saved.id)
+            } else if (saved.messages.length > live.messages.length) {
               savedMessages = saved.messages.map((m) => ({
                 role: m.role as TaskMessage['role'],
                 content: m.content,
@@ -1276,6 +1289,42 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             delete archivedMeta[id]
           }
         }
+        // Thin index entries for live threads: pull the conversation back out
+        // of SQLite in one batch. This is the read half of the storage flip.
+        await Promise.all(liveNeedingDb.map(async (id) => {
+          try {
+            const full = await threadDb.loadFullThread(id)
+            if (full && tasks[id] && full.messages.length > tasks[id].messages.length) {
+              tasks[id] = { ...tasks[id], messages: full.messages }
+            }
+          } catch { /* keep whatever the backend gave us */ }
+        }))
+
+        // Streaming crash recovery: replay the constant-size partial that the
+        // mid-turn persist keeps per streaming thread, so a crash or dev
+        // reload keeps the text that was on screen.
+        try {
+          const snapshots = await historyStore.loadStreamingSnapshots()
+          for (const [id, snap] of Object.entries(snapshots)) {
+            const t = tasks[id]
+            if (!t) continue
+            const last = t.messages[t.messages.length - 1]
+            // Skip when the real turn_end already superseded the partial.
+            if (last && last.role === 'assistant' && last.content === snap.content) continue
+            tasks[id] = {
+              ...t,
+              messages: [...t.messages, {
+                role: 'assistant',
+                content: snap.content,
+                timestamp: snap.timestamp,
+                ...(snap.thinking ? { thinking: snap.thinking } : {}),
+                ...(snap.toolCalls?.length ? { toolCalls: snap.toolCalls } : {}),
+                ...(snap.toolCallSplits?.length ? { toolCallSplits: snap.toolCallSplits } : {}),
+              }],
+            }
+          }
+        } catch { /* recovery is best-effort */ }
+
         // SQLite holds the message bodies and is the only store that survives a
         // damaged history.json. Fold in anything it knows about that the JSON
         // index does not, so a lost index costs a reload rather than the
@@ -1293,6 +1342,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         threadDb.migrateFromJsonHistory(historyStore.loadThreads).then((result) => {
           if (result.migrated > 0) {
             console.info(`[thread-db] Migrated ${result.migrated} threads from JSON to SQLite (${result.skipped} already existed, ${result.failed} failed)`)
+          }
+          // Backfill is confirmed (or was already complete): from here on the
+          // JSON index may be written thin. A failed migration leaves the flag
+          // down and the legacy full format keeps flowing — safe, just big.
+          if (result.failed === 0) {
+            useTaskStore.setState({ sqliteReady: true })
           }
         }).catch(() => {})
       } catch (err) {
@@ -1500,7 +1555,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   persistHistory: () => {
-    const { tasks, projectNames, projectIds, softDeleted, projects, threadOrders, archivedMeta, streamingChunks, thinkingChunks, liveToolCalls, liveToolSplits, historyLoaded } = get()
+    const { tasks, projectNames, projectIds, softDeleted, projects, threadOrders, archivedMeta, streamingChunks, thinkingChunks, liveToolCalls, liveToolSplits, historyLoaded, sqliteReady } = get()
     // Writing before we know what is on disk deletes it. Agent events reach
     // every window, including one whose own load is still in flight, so this
     // guard is what stops a second window from erasing the archive.
@@ -1509,11 +1564,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // Without this set, saveThreads would drop every archived thread that
     // isn't currently inflated in `tasks`.
     const keepArchivedIds = new Set(Object.keys(archivedMeta))
-    // For mid-turn persistence: if a task is currently streaming, append the
-    // in-flight chunk as a partial assistant message so it survives a dev
-    // hot-reload or crash. The partial message is only written to the JSON
-    // history store (not SQLite) and will be superseded by the real turn_end.
-    let tasksToSave = tasks
+
+    // Threads whose messages are confirmed in SQLite are written as thin
+    // index entries. Until the one-time backfill has finished this session,
+    // everything stays in the legacy full format — thinning before the
+    // messages are provably elsewhere would be data loss with extra steps.
+    const thinIds: Set<string> = sqliteReady ? new Set(Object.keys(tasks)) : new Set()
+
+    // Streaming crash recovery: one constant-size partial message per
+    // streaming thread, in its own store key. This replaces the old approach
+    // of appending the partial into the thread blob, which re-serialized the
+    // entire conversation every ten seconds mid-turn.
+    const snapshots: Record<string, import('@/lib/history-store').SavedMessage> = {}
     for (const [taskId, chunk] of Object.entries(streamingChunks)) {
       if (!chunk) continue
       const task = tasks[taskId]
@@ -1521,24 +1583,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const thinking = thinkingChunks[taskId] ?? ''
       const tools = liveToolCalls[taskId] ?? []
       const splits = liveToolSplits[taskId] ?? []
-      // Lazily clone the tasks map only if we have streaming content to save
-      if (tasksToSave === tasks) tasksToSave = { ...tasks }
-      tasksToSave[taskId] = {
-        ...task,
-        messages: [
-          ...task.messages,
-          {
-            role: 'assistant' as const,
-            content: chunk,
-            timestamp: new Date().toISOString(),
-            ...(thinking ? { thinking } : {}),
-            ...(tools.length > 0 ? { toolCalls: tools } : {}),
-            ...(splits.length > 0 ? { toolCallSplits: splits } : {}),
-          },
-        ],
+      snapshots[taskId] = {
+        role: 'assistant',
+        content: chunk,
+        timestamp: new Date().toISOString(),
+        ...(thinking ? { thinking } : {}),
+        ...(tools.length > 0 ? { toolCalls: tools } : {}),
+        ...(splits.length > 0 ? { toolCallSplits: splits } : {}),
       }
     }
-    historyStore.saveThreads(tasksToSave, projectNames, projectIds, projects, threadOrders, keepArchivedIds).catch((err) => {
+    // Written even when empty: turn end is what clears the previous snapshot.
+    historyStore.saveStreamingSnapshots(snapshots).catch(() => {})
+
+    historyStore.saveThreads(tasks, projectNames, projectIds, projects, threadOrders, keepArchivedIds, thinIds).catch((err) => {
       console.warn('[persistHistory] saveThreads failed:', err)
     })
     historyStore.saveSoftDeleted(Object.values(softDeleted)).catch((err) => {

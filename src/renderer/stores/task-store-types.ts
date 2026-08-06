@@ -45,6 +45,12 @@ export interface TaskStore {
    * theoretical one.
    */
   historyLoaded: boolean
+  /**
+   * True once the one-time JSON→SQLite backfill has confirmed every persisted
+   * message is in the database. Only then may `persistHistory` write thin
+   * index entries; before that, thinning would drop the only copy.
+   */
+  sqliteReady: boolean
   projects: string[]           // workspace paths
   /** Maps workspace path → stable UUID for project identity */
   projectIds: Record<string, string>

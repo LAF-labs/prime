@@ -9,7 +9,7 @@ import type { AgentTask, TaskMessage, ToolCall, ToolCallSplit, SoftDeletedThread
 
 // ── Persisted types ──────────────────────────────────────────────
 
-interface SavedMessage {
+export interface SavedMessage {
   role: string
   content: string
   timestamp: string
@@ -25,7 +25,17 @@ interface SavedThread {
   name: string
   workspace: string
   createdAt: string
+  /**
+   * Empty for threads written as thin index entries — the messages live in
+   * SQLite, and `lastActivityAt`/`messageCount` carry what the sidebar needs.
+   * Full only for legacy entries and for sessions where the SQLite backfill
+   * has not yet been confirmed.
+   */
   messages: SavedMessage[]
+  /** Timestamp of the last message; authoritative when `messages` is thin. */
+  lastActivityAt?: string
+  /** Message count; authoritative when `messages` is thin. */
+  messageCount?: number
   parentTaskId?: string
   worktreePath?: string
   originalWorkspace?: string
@@ -130,18 +140,25 @@ export async function loadThreadsMeta(): Promise<ArchivedThreadMeta[]> {
 /** Load a single persisted thread by id. Returns null if not found. */
 export async function loadThread(id: string): Promise<SavedThread | null> {
   const threads = await loadThreads()
-  return threads.find((t) => t.id === id) ?? null
+  const found = threads.find((t) => t.id === id) ?? null
+  // A thin index entry knows the thread exists but holds no messages —
+  // callers hydrating content must fall through to SQLite or the backup.
+  if (found && found.messages.length === 0 && (found.messageCount ?? 0) > 0) {
+    return null
+  }
+  return found
 }
 
 const toMeta = (t: SavedThread): ArchivedThreadMeta => {
-  const last = t.messages.length > 0 ? t.messages[t.messages.length - 1].timestamp : t.createdAt
+  const last = t.lastActivityAt
+    ?? (t.messages.length > 0 ? t.messages[t.messages.length - 1].timestamp : t.createdAt)
   return {
     id: t.id,
     name: t.name,
     workspace: t.workspace,
     createdAt: t.createdAt,
     lastActivityAt: last,
-    messageCount: t.messages.length,
+    messageCount: t.messageCount ?? t.messages.length,
     ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
     ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
     ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
@@ -170,6 +187,8 @@ export async function saveThreads(
   orderedProjects: string[] = [],
   threadOrders: Record<string, string[]> = {},
   keepArchivedIds: ReadonlySet<string> = new Set(),
+  /** Ids whose messages are confirmed present in SQLite — written thin. */
+  thinIds: ReadonlySet<string> = new Set(),
 ): Promise<void> {
   const store = await getStore()
   // Read first so we don't lose archived threads that were never inflated
@@ -187,17 +206,32 @@ export async function saveThreads(
   for (const t of Object.values(tasks)) {
     if (t.messages.length === 0) continue
     liveIds.add(t.id)
-    merged.set(t.id, {
+    // Thin by default: the messages live in SQLite (saved per message as they
+    // land), so the index carries only what the sidebar needs. This is what
+    // turns the every-10-seconds full-history rewrite — hundreds of MB for a
+    // heavy year, with a corruption window that grew with it — into a small
+    // constant-size write. Full serialization remains only for sessions where
+    // the SQLite backfill has not been confirmed yet.
+    const base = {
       id: t.id,
       name: t.name,
       workspace: t.workspace,
       createdAt: t.createdAt,
-      messages: t.messages.map(toSavedMessage),
       ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
       ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
       ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
       ...(t.projectId ? { projectId: t.projectId } : {}),
-    })
+    }
+    if (thinIds.has(t.id)) {
+      merged.set(t.id, {
+        ...base,
+        messages: [],
+        lastActivityAt: t.messages[t.messages.length - 1].timestamp,
+        messageCount: t.messages.length,
+      })
+    } else {
+      merged.set(t.id, { ...base, messages: t.messages.map(toSavedMessage) })
+    }
   }
 
   const threads: SavedThread[] = Array.from(merged.values())
@@ -400,6 +434,36 @@ export async function loadBackup(): Promise<BackupData> {
   } catch {
     return { threads: [], projects: [], softDeleted: [] }
   }
+}
+
+// ── Streaming crash recovery ─────────────────────────────────────
+
+/**
+ * The in-flight chunk of each streaming turn, persisted separately.
+ *
+ * Thin index entries carry no messages, so the old trick of appending the
+ * partial assistant message into the thread blob is gone — and it was the
+ * expensive part anyway, re-serializing the whole conversation every ten
+ * seconds mid-turn. This map holds exactly one partial message per streaming
+ * thread: constant-size, overwritten on each mid-turn persist, cleared when
+ * the turn ends. On startup it is replayed so a crash or dev reload keeps
+ * the text that was on screen.
+ */
+export async function saveStreamingSnapshots(
+  snapshots: Record<string, SavedMessage>,
+): Promise<void> {
+  const store = await getStore()
+  _selfWriteCount++
+  try {
+    await store.set('streaming', snapshots)
+  } finally {
+    setTimeout(() => { _selfWriteCount-- }, 1000)
+  }
+}
+
+export async function loadStreamingSnapshots(): Promise<Record<string, SavedMessage>> {
+  const store = await getStore()
+  return (await store.get<Record<string, SavedMessage>>('streaming')) ?? {}
 }
 
 // ── Cross-window sync ─────────────────────────────────────────

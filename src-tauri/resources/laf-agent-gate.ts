@@ -12,6 +12,8 @@
  * so this extension stays approval-mode-agnostic.
  */
 
+import { realpathSync } from "node:fs";
+import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const READ_ONLY_TOOLS = new Set([
@@ -41,19 +43,66 @@ function summarize(toolName: string, input: Record<string, unknown>): string {
 	return summary;
 }
 
-const WORKSPACE = process.env.LAF_WORKSPACE ?? "";
 const TIGHT_SANDBOX = process.env.LAF_TIGHT_SANDBOX === "1";
 const PATH_KEYS = ["path", "file_path", "filePath"] as const;
 
-/** True when a file-path argument escapes the workspace. */
+// Canonicalize the workspace itself once, so a workspace reached through a
+// symlink (e.g. /tmp on macOS → /private/tmp) compares correctly.
+const WORKSPACE = (() => {
+	const raw = process.env.LAF_WORKSPACE ?? "";
+	if (!raw) return "";
+	try {
+		return realpathSync(raw);
+	} catch {
+		return raw;
+	}
+})();
+
+/**
+ * Resolve a path the way the filesystem will, not the way the string looks:
+ * make it absolute against the workspace, collapse `.`/`..`, and resolve
+ * symlinks through the deepest ancestor that exists (the leaf may be a file
+ * the tool is about to create).
+ */
+function canonicalize(value: string): string {
+	const absolute = isAbsolute(value) ? resolvePath(value) : resolvePath(WORKSPACE, value);
+	// Walk up to the nearest existing ancestor, realpath it, then re-append
+	// the non-existent tail. This defeats `dir-symlink/newfile` escapes while
+	// still allowing writes to files that don't exist yet.
+	let existing = absolute;
+	let tail = "";
+	for (;;) {
+		try {
+			const real = realpathSync(existing);
+			return tail ? resolvePath(real, tail) : real;
+		} catch {
+			const parent = dirname(existing);
+			if (parent === existing) return absolute; // hit the root; give up cleanly
+			tail = tail ? `${existing.slice(parent.length + 1)}/${tail}` : existing.slice(parent.length + 1);
+			existing = parent;
+		}
+	}
+}
+
+function isInsideWorkspace(canonical: string): boolean {
+	return canonical === WORKSPACE || canonical.startsWith(`${WORKSPACE}/`);
+}
+
+/**
+ * True when a file-path argument escapes the workspace.
+ *
+ * Scope, honestly stated: this checks the *file-path arguments* of tools like
+ * edit/write. It cannot see inside `bash` commands or `ipython` code — those
+ * always go through the approval dialog instead (they are not in
+ * READ_ONLY_TOOLS). Real process-level confinement is the Seatbelt profile's
+ * job, not this function's.
+ */
 function escapesWorkspace(input: Record<string, unknown>): string | null {
 	if (!TIGHT_SANDBOX || !WORKSPACE) return null;
 	for (const key of PATH_KEYS) {
 		const value = input[key];
-		if (typeof value !== "string" || !value.startsWith("/")) continue;
-		if (!value.startsWith(WORKSPACE.endsWith("/") ? WORKSPACE : `${WORKSPACE}/`) && value !== WORKSPACE) {
-			return value;
-		}
+		if (typeof value !== "string" || value.length === 0) continue;
+		if (!isInsideWorkspace(canonicalize(value))) return value;
 	}
 	return null;
 }

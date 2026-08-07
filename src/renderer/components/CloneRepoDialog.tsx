@@ -34,6 +34,17 @@ const extractRepoName = (url: string): string => {
   return lastSegment || 'repo'
 }
 
+/** Report the outcome of a backgrounded clone via a native notification. */
+const notifyCloneResult = (title: string, body: string): void => {
+  import('@tauri-apps/plugin-notification')
+    .then(({ isPermissionGranted, sendNotification }) =>
+      isPermissionGranted().then((granted) => {
+        if (granted) sendNotification({ title, body })
+      }),
+    )
+    .catch(() => {})
+}
+
 export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) => {
   const [url, setUrl] = useState('')
   const [targetDir, setTargetDir] = useState('')
@@ -65,8 +76,16 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
   const isValidUrl = url.trim().length > 0 && GIT_URL_PATTERN.test(url.trim())
   const canClone = isValidUrl && targetDir.trim().length > 0 && !isCloning
 
+  // Whether the user closed the dialog while a clone was still running.
+  // The clone subprocess (`git clone` via the backend) exposes no abort
+  // handle, so closing lets it finish in the background and its outcome is
+  // reported through a native notification instead of the dialog.
+  const isBackgroundedRef = useRef(false)
+
   const handleClose = useCallback(() => {
-    if (isCloning) return
+    if (isCloning) {
+      isBackgroundedRef.current = true
+    }
     onOpenChange(false)
   }, [isCloning, onOpenChange])
 
@@ -83,17 +102,31 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
     if (!canClone) return
     setIsCloning(true)
     setError(null)
+    isBackgroundedRef.current = false
+    const cloneUrl = url.trim()
+    const repoName = extractRepoName(cloneUrl)
     try {
-      const clonedPath = await ipc.gitClone(url.trim(), targetDir.trim())
+      const clonedPath = await ipc.gitClone(cloneUrl, targetDir.trim())
       const store = useTaskStore.getState()
       store.addProject(clonedPath)
       store.setPendingWorkspace(clonedPath)
       ipc.addRecentProject(clonedPath).catch(() => {})
       ipc.rebuildRecentMenu().catch(() => {})
-      onOpenChange(false)
+      if (isBackgroundedRef.current) {
+        notifyCloneResult(
+          t('Clone finished'),
+          t('{repo} was cloned and added to your projects.', { repo: repoName }),
+        )
+      } else {
+        onOpenChange(false)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      setError(message)
+      if (isBackgroundedRef.current) {
+        notifyCloneResult(t('Clone failed'), message)
+      } else {
+        setError(message)
+      }
     } finally {
       setIsCloning(false)
     }
@@ -114,7 +147,7 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
-      <DialogContent className="max-w-md" showCloseButton={!isCloning}>
+      <DialogContent className="max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <IconGitFork className="size-5 text-primary" aria-hidden />
@@ -201,9 +234,8 @@ export const CloneRepoDialog = ({ open, onOpenChange }: CloneRepoDialogProps) =>
             variant="ghost"
             size="sm"
             onClick={handleClose}
-            disabled={isCloning}
           >
-            {t('Cancel')}
+            {isCloning ? t('Continue in background') : t('Cancel')}
           </Button>
           <Button
             size="sm"

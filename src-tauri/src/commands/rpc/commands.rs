@@ -920,7 +920,7 @@ pub fn compact_context(
 }
 
 #[tauri::command]
-pub fn list_models(
+pub async fn list_models(
     app: tauri::AppHandle,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
     agent_bin: Option<String>,
@@ -931,14 +931,14 @@ pub fn list_models(
     };
     let launch = resolve_launch(&app, &bin);
 
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(query_models_blocking(&launch));
-    });
-
-    let (available, current) = rx
-        .recv_timeout(std::time::Duration::from_secs(35))
-        .map_err(|e| format!("list_models timed out or channel closed: {e}"))??;
+    // The probe itself is blocking (spawns the agent and reads stdio), so it
+    // runs on the blocking pool. The command stays async: a sync command doing
+    // `recv_timeout(35s)` froze the webview's invoke thread for the duration.
+    let handle = tauri::async_runtime::spawn_blocking(move || query_models_blocking(&launch));
+    let (available, current) = tokio::time::timeout(std::time::Duration::from_secs(35), handle)
+        .await
+        .map_err(|_| "list_models timed out after 35s".to_string())?
+        .map_err(|e| format!("list_models probe task failed: {e}"))??;
     Ok(serde_json::json!({
         "availableModels": available,
         "currentModelId": current,

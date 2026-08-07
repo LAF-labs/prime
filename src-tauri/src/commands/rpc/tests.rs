@@ -347,6 +347,21 @@ fn tool_title_and_kind_mapping() {
     assert_eq!(connection::tool_kind("mystery"), "other");
 }
 
+/// `tool_title` used to call `String::truncate(200)`, which slices at a byte
+/// index and panics when byte 200 lands inside a multi-byte character — any
+/// long Korean command or path did exactly that.
+#[test]
+fn tool_title_truncates_long_korean_titles_without_panicking() {
+    // "가" is 3 bytes: the "bash: " prefix (6 bytes) plus 64 chars puts byte
+    // 200 mid-character, the exact panic case.
+    let command = "가".repeat(300);
+    let args = serde_json::json!({ "command": command });
+    let title = connection::tool_title("bash", &args);
+    assert!(title.ends_with('…'));
+    assert_eq!(title.chars().count(), 201); // 200 kept + ellipsis
+    assert!(title.starts_with("bash: 가"));
+}
+
 // ── AttachmentData deserialization (fix #14) ─────────────────────
 
 #[test]

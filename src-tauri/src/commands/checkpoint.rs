@@ -277,7 +277,15 @@ pub fn checkpoint_revert(
                 Some(git2::StashFlags::INCLUDE_UNTRACKED),
             ) {
                 Ok(_) => log::info!("[checkpoint] stashed dirty tree before forced revert"),
-                Err(e) => log::warn!("[checkpoint] could not stash before revert: {e}"),
+                // A failed stash means the hard reset would destroy the
+                // uncommitted work with no way back. Abort instead of
+                // proceeding — the whole point of the stash is that "force"
+                // never silently costs the user their edits.
+                Err(e) => {
+                    return Err(AppError::Other(format!(
+                        "Revert aborted to protect your uncommitted changes: the safety stash failed ({e}). Commit or stash your changes manually, then try again."
+                    )));
+                }
             }
         }
     }

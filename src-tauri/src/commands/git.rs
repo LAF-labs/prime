@@ -772,6 +772,47 @@ fn validate_worktree_slug(slug: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Canonicalize a path for a containment check, resolving through the nearest
+/// existing ancestor when the path itself does not (fully) exist yet.
+///
+/// The old `if let Ok(canonical) = path.canonicalize()` pattern silently
+/// skipped validation whenever canonicalization failed — i.e. exactly when the
+/// path was attacker-shaped (nonexistent, dangling) — turning the containment
+/// check into a no-op. This fails closed: if no ancestor can be resolved, the
+/// caller rejects the operation.
+fn canonicalize_for_containment(path: &Path) -> Result<std::path::PathBuf, AppError> {
+    if let Ok(canonical) = path.canonicalize() {
+        return Ok(canonical);
+    }
+    let mut current = path;
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    loop {
+        let Some(parent) = current.parent() else {
+            return Err(AppError::Other(format!(
+                "Cannot validate path (no resolvable ancestor): {}",
+                path.display()
+            )));
+        };
+        // `file_name()` is None for `..` / root components — refuse rather
+        // than guess what the unresolvable component points at.
+        let Some(name) = current.file_name() else {
+            return Err(AppError::Other(format!(
+                "Cannot validate path (unresolvable component): {}",
+                path.display()
+            )));
+        };
+        tail.push(name.to_os_string());
+        if let Ok(base) = parent.canonicalize() {
+            let mut out = base;
+            for component in tail.iter().rev() {
+                out.push(component);
+            }
+            return Ok(out);
+        }
+        current = parent;
+    }
+}
+
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeResult {
@@ -814,14 +855,12 @@ pub fn git_worktree_remove(cwd: String, worktree_path: String) -> Result<(), App
         return Err(AppError::Other(format!("Workspace is not a directory: {cwd}")));
     }
     Repository::discover(&cwd).map_err(|_| AppError::Other(format!("Not a git repository: {cwd}")))?;
-    // Validate worktree_path is under the cwd's .laf-agent/worktrees/ directory
-    if let (Ok(canonical_cwd), Ok(canonical_wt)) = (
-        Path::new(&cwd).canonicalize(),
-        Path::new(&worktree_path).canonicalize(),
-    ) {
-        if !canonical_wt.starts_with(&canonical_cwd) {
-            return Err(AppError::Other("Worktree path must be within the workspace".to_string()));
-        }
+    // Validate worktree_path is under the workspace. Fail closed: a path that
+    // cannot be canonicalized is rejected, not waved through.
+    let canonical_cwd = Path::new(&cwd).canonicalize()?;
+    let canonical_wt = canonicalize_for_containment(Path::new(&worktree_path))?;
+    if !canonical_wt.starts_with(&canonical_cwd) {
+        return Err(AppError::Other("Worktree path must be within the workspace".to_string()));
     }
     let output = Command::new("git")
         .args(["worktree", "remove", "--force", &worktree_path])
@@ -869,11 +908,11 @@ pub fn git_worktree_setup(
     let wt_path = Path::new(&worktree_path);
     // Validate cwd is a git repository
     let repo = Repository::discover(&cwd)?;
-    // Validate worktree_path is under cwd
-    if let Ok(canonical_wt) = wt_path.canonicalize() {
-        if !canonical_wt.starts_with(&cwd_path) {
-            return Err(AppError::Other("Worktree path must be within the workspace".to_string()));
-        }
+    // Validate worktree_path is under cwd. Fail closed: a path that cannot be
+    // canonicalized is rejected, not waved through.
+    let canonical_wt = canonicalize_for_containment(wt_path)?;
+    if !canonical_wt.starts_with(&cwd_path) {
+        return Err(AppError::Other("Worktree path must be within the workspace".to_string()));
     }
     let mut symlink_count: u32 = 0;
     let mut copied_files: Vec<String> = Vec::new();
@@ -891,6 +930,23 @@ pub fn git_worktree_setup(
         // Create parent dirs in worktree
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
+        }
+        // Idempotent on re-run: a symlink already pointing at the source
+        // counts as done; a stale symlink is replaced; anything else at the
+        // target (a real file or directory) is left alone. Without this,
+        // re-running setup died on EEXIST halfway through.
+        if let Ok(meta) = std::fs::symlink_metadata(&target) {
+            if !meta.file_type().is_symlink() {
+                continue;
+            }
+            if std::fs::read_link(&target).map(|dest| dest == source).unwrap_or(false) {
+                symlink_count += 1;
+                continue;
+            }
+            // On Windows a directory symlink is removed with remove_dir.
+            if std::fs::remove_file(&target).is_err() {
+                std::fs::remove_dir(&target)?;
+            }
         }
         #[cfg(unix)]
         std::os::unix::fs::symlink(&source, &target)?;

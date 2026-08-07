@@ -62,8 +62,14 @@ pub fn harness_info(app: tauri::AppHandle) -> Result<Option<HarnessInfo>, AppErr
 }
 
 /// Paths that should never be readable from the frontend, regardless of workspace.
+///
+/// This guards only the generic read commands (`read_text_file`,
+/// `read_file_base64`). The dedicated `auth_*` commands below read
+/// `~/.prime/agent/auth.json` through `std::fs` directly and are unaffected.
 const SENSITIVE_PATH_PREFIXES: &[&str] = &[
     ".ssh/", ".gnupg/", ".aws/", ".config/gh/", ".netrc",
+    ".prime/agent/auth.json", ".docker/config.json", ".kube/", ".npmrc",
+    ".git-credentials", ".config/gcloud/",
 ];
 
 /// Returns true if the path points to a known sensitive location under the user's home.

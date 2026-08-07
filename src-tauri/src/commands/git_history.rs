@@ -255,27 +255,43 @@ pub fn git_commit_diff(cwd: String, oid: String) -> Result<String, AppError> {
 }
 
 /// List git stashes for a repository.
+///
+/// Deliberately shells out instead of using `repo.stash_foreach`: git2's
+/// callback bridge calls `.to_str().unwrap()` on the stash message, so a
+/// non-UTF-8 message (legacy EUC-KR repos) panics inside the FFI callback —
+/// and with `panic = "abort"` in the release profile that takes down the
+/// whole app. Parsing `git stash list` output lossily cannot abort.
 #[tauri::command]
 pub fn git_stash_list(cwd: String) -> Result<Vec<StashEntry>, AppError> {
-    let mut repo = Repository::discover(&cwd)?;
-    let mut stashes: Vec<StashEntry> = Vec::new();
+    // Keep the same validation and error shape as the git2 path.
+    Repository::discover(&cwd)?;
 
-    repo.stash_foreach(|index, message, oid| {
-        stashes.push(StashEntry {
-            index,
-            message: message.to_string(),
-            oid: oid.to_string(),
-            timestamp: 0, // filled below
-        });
-        true
-    })?;
-
-    // Fill timestamps in a second pass to avoid borrow conflict
-    for stash in &mut stashes {
-        if let Ok(commit) = repo.find_commit(git2::Oid::from_str(&stash.oid).unwrap_or(git2::Oid::zero())) {
-            stash.timestamp = commit.time().seconds();
-        }
+    let output = std::process::Command::new("git")
+        .args(["-C", &cwd, "stash", "list", "--format=%H%x1f%ct%x1f%gs"])
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::Other(format!("git stash list failed: {}", stderr.trim())));
     }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let stashes = text
+        .lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let mut parts = line.splitn(3, '\u{1f}');
+            let oid = parts.next()?.trim();
+            if oid.is_empty() {
+                return None;
+            }
+            let timestamp = parts
+                .next()
+                .and_then(|s| s.trim().parse::<i64>().ok())
+                .unwrap_or(0);
+            let message = parts.next().unwrap_or("").to_string();
+            Some(StashEntry { index, message, oid: oid.to_string(), timestamp })
+        })
+        .collect();
 
     Ok(stashes)
 }

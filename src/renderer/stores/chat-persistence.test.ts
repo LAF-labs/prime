@@ -75,7 +75,7 @@ import { useTaskStore } from './taskStore'
 import { claimTurn } from '@/lib/turn-ownership'
 import * as historyStore from '@/lib/history-store'
 import * as threadDb from '@/lib/thread-db'
-import type { AgentTask, TaskMessage, ToolCall, ToolCallSplit } from '@/types'
+import type { AgentTask, TaskMessage } from '@/types'
 
 const makeTask = (overrides?: Partial<AgentTask>): AgentTask => ({
   id: 'task-1',

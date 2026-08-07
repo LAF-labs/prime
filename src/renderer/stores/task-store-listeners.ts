@@ -12,6 +12,7 @@ import { t as msg } from '@/lib/i18n'
 import { attempt } from '@/lib/ipc-report'
 import { record } from '@/lib/analytics-collector'
 import { consumeTurnClaim, releaseTurn } from '@/lib/turn-ownership'
+import { syncPlanEnforcement } from '@/lib/plan-enforcement'
 import {
   EMPTY_SNAPSHOT, snapshotOf, spendDelta, providerOf,
   type SessionStats, type SpendSnapshot,
@@ -627,6 +628,14 @@ export function initTaskListeners(): () => void {
 
   const unsub10 = ipc.onSessionInit(({ taskId, sessionId, sessionFile, models, modes }) => {
     console.log('[session_init] received', { taskId, sessionId, models, modes })
+    // Re-arm plan-mode enforcement: the /plan-guard flag lives in the gate
+    // extension's process, so a restarted agent comes back with it off even
+    // though the UI still shows plan mode. session_init is the reconnect
+    // signal, so this closes that window.
+    if (taskId && taskId !== '__probe__') {
+      const modeId = useTaskStore.getState().taskModes[taskId] ?? useSettingsStore.getState().currentModeId
+      void syncPlanEnforcement(taskId, modeId ?? null)
+    }
     // Store the agent CLI session ID for this task
     if (sessionId && taskId && taskId !== '__probe__') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

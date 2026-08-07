@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { MOD_PREFIX } from '@/lib/platform'
 import { useEffect, useCallback, useState, useRef, memo } from "react"
 import {
   IconLayoutSidebarLeftExpand,
@@ -18,14 +19,12 @@ interface HeaderBreadcrumbProps {
   isSidebarCollapsed: boolean
   onToggleSidebar: () => void
   sidebarPosition: "left" | "right"
-  isMac: boolean
 }
 
 export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
   isSidebarCollapsed,
   onToggleSidebar,
   sidebarPosition,
-  isMac,
 }: HeaderBreadcrumbProps) {
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId)
   const taskName = useTaskStore((s) =>
@@ -100,7 +99,7 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
           <TooltipContent side="bottom">
             Toggle sidebar{" "}
             <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">
-              {isMac ? "⌘" : "Ctrl+"}B
+              {MOD_PREFIX}B
             </kbd>
           </TooltipContent>
         </Tooltip>

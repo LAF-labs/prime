@@ -28,7 +28,7 @@ export const WorktreeCleanupDialog = () => {
 
   const isLoading = pending.hasChanges === null
   const hasChanges = pending.hasChanges === true
-  const actionLabel = pending.action === 'archive' ? 'Close' : 'Delete'
+  const isArchive = pending.action === 'archive'
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) handleCancel() }}>
@@ -36,7 +36,7 @@ export const WorktreeCleanupDialog = () => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <IconGitBranch className="size-5 text-violet-500" aria-hidden />
-            {actionLabel} worktree thread
+            {isArchive ? t('Close worktree thread') : t('Delete worktree thread')}
           </DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
@@ -46,7 +46,7 @@ export const WorktreeCleanupDialog = () => {
               {isLoading && (
                 <p className="flex items-center gap-1.5 text-muted-foreground">
                   <IconLoader2 className="size-3.5 animate-spin" aria-hidden />
-                  Checking for uncommitted changes…
+                  {t('Checking for uncommitted changes…')}
                 </p>
               )}
               {hasChanges && (
@@ -85,7 +85,7 @@ export const WorktreeCleanupDialog = () => {
               disabled={isLoading}
               className="flex-1"
             >
-              {actionLabel} &amp; remove worktree
+              {isArchive ? t('Close & remove worktree') : t('Delete & remove worktree')}
             </Button>
           </div>
           <Button
@@ -95,7 +95,7 @@ export const WorktreeCleanupDialog = () => {
             disabled={isLoading}
             className="w-full text-muted-foreground"
           >
-            {actionLabel} thread, keep worktree on disk
+            {isArchive ? t('Close thread, keep worktree on disk') : t('Delete thread, keep worktree on disk')}
           </Button>
         </DialogFooter>
       </DialogContent>

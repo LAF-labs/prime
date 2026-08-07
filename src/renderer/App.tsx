@@ -54,6 +54,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
 import { useZoomLimit } from "@/hooks/useZoomLimit";
 import { resolveLocale, useI18nStore, useT } from "@/lib/i18n";
+import { MOD_PREFIX } from "@/lib/platform";
 import { UpdateAvailableDialog } from "@/components/UpdateAvailableDialog";
 import { WhatsNewDialog } from "@/components/WhatsNewDialog";
 import { CHANGELOG, isNewerVersion } from "@/lib/changelog";
@@ -216,7 +217,7 @@ function EmptyState() {
         </button>
         {!hasProjects && (
           <p className="text-[11px] text-muted-foreground">
-            {t('Or press')} <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘O</kbd> to open a folder
+            {t('Or press')} <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px]">{MOD_PREFIX}O</kbd> {t('to open a folder')}
           </p>
         )}
 

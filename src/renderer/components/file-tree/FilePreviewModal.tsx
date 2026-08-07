@@ -200,6 +200,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
                 <button
                   type="button"
                   onClick={() => setSvgShowSource((v) => !v)}
+                  aria-label={svgShowSource ? t('Preview') : t('View source')}
                   className={cn(
                     'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
                     svgShowSource ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -208,7 +209,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
                   {svgShowSource ? <IconPhoto className="size-3.5" /> : <IconCode className="size-3.5" />}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">{svgShowSource ? 'Preview' : 'View source'}</TooltipContent>
+              <TooltipContent side="bottom">{svgShowSource ? t('Preview') : t('View source')}</TooltipContent>
             </Tooltip>
           )}
           <Tooltip>
@@ -216,6 +217,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
               <button
                 type="button"
                 onClick={() => ipc.openInEditor(filePath, getPreferredEditor()).catch(() => {})}
+                aria-label={t('Open in editor')}
                 className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <IconExternalLink className="size-3.5" />
@@ -228,6 +230,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
               <button
                 type="button"
                 onClick={onClose}
+                aria-label={t('Close (Esc)')}
                 className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <IconX className="size-3.5" />

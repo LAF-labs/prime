@@ -11,6 +11,7 @@ import {
   IconGitBranch, IconAt,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
+import { IS_MAC } from '@/lib/platform'
 
 interface ContextMenuProps {
   x: number
@@ -174,17 +175,17 @@ export const TreeContextMenu = memo(function TreeContextMenu({
   const items: MenuItem[] = []
 
   // New file/folder (always available)
-  items.push({ label: 'New File', icon: <IconFile className="size-3.5" />, shortcut: '⌘N', action: handleNewFile })
-  items.push({ label: 'New Folder', icon: <IconFolder className="size-3.5" />, shortcut: '⇧⌘N', action: handleNewFolder, separator: true })
+  items.push({ label: t('New File'), icon: <IconFile className="size-3.5" />, shortcut: IS_MAC ? '⌘N' : 'Ctrl+N', action: handleNewFile })
+  items.push({ label: t('New Folder'), icon: <IconFolder className="size-3.5" />, shortcut: IS_MAC ? '⇧⌘N' : 'Ctrl+Shift+N', action: handleNewFolder, separator: true })
 
   if (entry) {
     // Reveal / Open
-    items.push({ label: 'Reveal in Finder', icon: <IconExternalLink className="size-3.5" />, shortcut: '⌥⌘R', action: handleReveal })
-    items.push({ label: 'Open in Terminal', icon: <IconTerminal className="size-3.5" />, action: handleOpenTerminal, separator: true })
+    items.push({ label: t('Reveal in Finder'), icon: <IconExternalLink className="size-3.5" />, shortcut: IS_MAC ? '⌥⌘R' : 'Ctrl+Alt+R', action: handleReveal })
+    items.push({ label: t('Open in Terminal'), icon: <IconTerminal className="size-3.5" />, action: handleOpenTerminal, separator: true })
 
     // Find in folder (for directories)
     if (entry.isDir) {
-      items.push({ label: 'Find in Folder...', icon: <IconSearch className="size-3.5" />, shortcut: '⌥⌘⇧F', action: () => {
+      items.push({ label: t('Find in Folder...'), icon: <IconSearch className="size-3.5" />, shortcut: IS_MAC ? '⌥⌘⇧F' : 'Ctrl+Alt+Shift+F', action: () => {
         const absPath = `${workspace}/${entry.path}`
         invoke('open_finder_search', { path: absPath }).catch(() => {
           invoke('reveal_in_finder', { workspace, relPath: entry.path }).catch(console.error)
@@ -194,21 +195,21 @@ export const TreeContextMenu = memo(function TreeContextMenu({
     }
 
     // Mention in Chat
-    items.push({ label: 'Mention in Chat', icon: <IconAt className="size-3.5" />, action: handleMentionInChat, separator: true })
+    items.push({ label: t('Mention in Chat'), icon: <IconAt className="size-3.5" />, action: handleMentionInChat, separator: true })
 
     // Copy path
-    items.push({ label: 'Copy Path', icon: <IconCopy className="size-3.5" />, shortcut: '⌥⌘C', action: handleCopyPath })
-    items.push({ label: 'Copy Relative Path', icon: <IconCopy className="size-3.5" />, shortcut: '⌥⇧⌘C', action: handleCopyRelPath, separator: true })
+    items.push({ label: t('Copy Path'), icon: <IconCopy className="size-3.5" />, shortcut: IS_MAC ? '⌥⌘C' : 'Ctrl+Alt+C', action: handleCopyPath })
+    items.push({ label: t('Copy Relative Path'), icon: <IconCopy className="size-3.5" />, shortcut: IS_MAC ? '⌥⇧⌘C' : 'Ctrl+Alt+Shift+C', action: handleCopyRelPath, separator: true })
 
     // Gitignore
-    items.push({ label: 'Add to .gitignore', icon: <IconGitBranch className="size-3.5" />, action: handleAddToGitignore, separator: true })
+    items.push({ label: t('Add to .gitignore'), icon: <IconGitBranch className="size-3.5" />, action: handleAddToGitignore, separator: true })
 
     // Rename / Trash
-    items.push({ label: 'Rename', icon: <IconPencil className="size-3.5" />, shortcut: 'F2', action: handleRename })
-    items.push({ label: 'Trash', icon: <IconTrash className="size-3.5" />, action: handleTrash })
+    items.push({ label: t('Rename'), icon: <IconPencil className="size-3.5" />, shortcut: 'F2', action: handleRename })
+    items.push({ label: t('Trash'), icon: <IconTrash className="size-3.5" />, action: handleTrash })
   } else {
     // Background context menu
-    items.push({ label: 'Open in Terminal', icon: <IconTerminal className="size-3.5" />, action: handleOpenTerminal })
+    items.push({ label: t('Open in Terminal'), icon: <IconTerminal className="size-3.5" />, action: handleOpenTerminal })
   }
 
   return (

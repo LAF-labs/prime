@@ -123,10 +123,11 @@ export const SettingsPanel = () => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return null
     return SEARCHABLE_SETTINGS.filter((item) => {
-      const haystack = `${item.label} ${item.description} ${item.keywords}`.toLowerCase()
+      // Include the translated label/description so search works in Korean too.
+      const haystack = `${item.label} ${item.description} ${item.keywords} ${t(item.label)} ${t(item.description)}`.toLowerCase()
       return q.split(/\s+/).every((word) => haystack.includes(word))
     })
-  }, [searchQuery])
+  }, [searchQuery, t])
 
   const handleSearchResultClick = useCallback((targetSection: Section) => {
     setSection(targetSection)
@@ -183,8 +184,8 @@ export const SettingsPanel = () => {
                   >
                     {navItem && <navItem.icon className="size-3.5 shrink-0 text-muted-foreground/60" />}
                     <div className="min-w-0">
-                      <p className="text-[12px] font-medium text-foreground">{item.label}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">{item.description}</p>
+                      <p className="text-[12px] font-medium text-foreground">{t(item.label)}</p>
+                      <p className="truncate text-[10px] text-muted-foreground">{t(item.description)}</p>
                     </div>
                   </button>
                 )
@@ -196,7 +197,7 @@ export const SettingsPanel = () => {
               {navGroups.map(({ group, items }, groupIdx) => (
                 <div key={group} className={cn(groupIdx > 0 && 'mt-2.5')}>
                   <p className="mb-1 px-2 text-[12px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {NAV_GROUP_LABELS[group]}
+                    {t(NAV_GROUP_LABELS[group])}
                   </p>
                   {items.map((item) => (
                     <button
@@ -212,7 +213,7 @@ export const SettingsPanel = () => {
                       )}
                     >
                       <item.icon className={cn('size-4 shrink-0', section === item.id ? 'text-foreground' : 'opacity-60')} />
-                      <span className="text-[14px] leading-tight">{item.label}</span>
+                      <span className="text-[14px] leading-tight">{t(item.label)}</span>
                     </button>
                   ))}
                 </div>
@@ -254,7 +255,7 @@ export const SettingsPanel = () => {
             <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
               <span>{t('Settings')}</span>
               <span className="text-muted-foreground/40">/</span>
-              <span className="text-foreground/80 font-medium">{searchResults !== null ? 'Search' : NAV.find((n) => n.id === section)?.label}</span>
+              <span className="text-foreground/80 font-medium">{searchResults !== null ? t('Search') : t(NAV.find((n) => n.id === section)?.label ?? '')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Tooltip>
@@ -284,7 +285,7 @@ export const SettingsPanel = () => {
                 {hasDirtyState && (
                   <IconCircleFilled className="absolute -right-1 -top-1 size-2.5 text-amber-400" />
                 )}
-                Save changes
+                {t('Save changes')}
               </button>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -303,11 +304,18 @@ export const SettingsPanel = () => {
                 searchResults.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-16 text-center">
                     <IconSearch className="size-5 text-muted-foreground/40" />
-                    <p className="text-[13px] text-muted-foreground">No settings match "{searchQuery}"</p>
+                    <p className="text-[13px] text-muted-foreground">{t('No settings match "{query}"', { query: searchQuery })}</p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="mt-1 rounded-lg border border-border/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      {t('Clear search')}
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <p className="mb-3 text-[12px] text-muted-foreground">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</p>
+                    <p className="mb-3 text-[12px] text-muted-foreground">{searchResults.length === 1 ? t('1 result') : t('{count} results', { count: searchResults.length })}</p>
                     {searchResults.map((item) => {
                       const navItem = NAV.find((n) => n.id === item.section)
                       return (
@@ -318,10 +326,10 @@ export const SettingsPanel = () => {
                         >
                           {navItem && <navItem.icon className="size-4 shrink-0 text-muted-foreground/60" />}
                           <div className="min-w-0 flex-1">
-                            <p className="text-[13px] font-medium text-foreground">{item.label}</p>
-                            <p className="text-[11px] text-muted-foreground">{item.description}</p>
+                            <p className="text-[13px] font-medium text-foreground">{t(item.label)}</p>
+                            <p className="text-[11px] text-muted-foreground">{t(item.description)}</p>
                           </div>
-                          <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{navItem?.label}</span>
+                          <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{t(navItem?.label ?? '')}</span>
                         </button>
                       )
                     })}
@@ -375,7 +383,7 @@ export const SettingsPanel = () => {
               {t('Unsaved changes')}
             </DialogTitle>
             <DialogDescription>
-              You have unsaved settings changes. Do you want to save them before leaving?
+              {t('You have unsaved settings changes. Do you want to save them before leaving?')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

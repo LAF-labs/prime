@@ -3,6 +3,7 @@ import { memo } from 'react'
 import { IconPaperclip, IconHistory } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { MOD_KEY } from '@/lib/platform'
 import { BranchSelector } from './BranchSelector'
 import { ModelPicker } from './ModelPicker'
 import { PlanToggle } from './PlanToggle'
@@ -18,9 +19,7 @@ const ToolbarGroup = ({ children, className }: { children: React.ReactNode; clas
 /** Thin dot separator within a group */
 const Dot = () => <span className="mx-0.5 size-[3px] shrink-0 rounded-full bg-border" aria-hidden />
 
-/** Detect macOS for keyboard shortcut labels */
-const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent)
-const MOD_KEY = IS_MAC ? '⌘' : 'Ctrl'
+
 
 interface ChatToolbarProps {
   isPlanMode: boolean
@@ -150,7 +149,7 @@ export const ChatToolbar = memo(function ChatToolbar({
                 type="button"
                 onClick={onSend}
                 disabled={!canSend}
-                aria-label={isRunning ? 'Queue message (Enter)' : 'Send message (Enter)'}
+                aria-label={isRunning ? t('Queue message (Enter)') : t('Send message (Enter)')}
                 data-testid="send-button"
                 className={cn(
                   'relative flex h-8 w-8 items-center justify-center rounded-full text-white transition-all duration-200 ease-out',

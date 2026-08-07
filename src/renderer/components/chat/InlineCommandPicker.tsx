@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { MOD_PREFIX } from '@/lib/platform'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import { IconCheck, IconCode, IconListCheck, IconRobot } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
@@ -196,13 +197,13 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
         })}
       </ul>
       <div className="flex items-center justify-between border-t border-border/40 px-3 py-1.5 text-[10px] text-muted-foreground/70">
-        <span>↑↓ navigate · ↵ commit · esc cancel</span>
+        <span>↑↓ {t('navigate')} · ↵ {t('commit')} · esc {t('cancel')}</span>
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); onDismiss(); useTaskStore.getState().setSettingsOpen(true) }}
           className="rounded-md px-1.5 py-0.5 font-mono text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          Open full picker · ⌘,
+          {t('Open full picker')} · {MOD_PREFIX},
         </button>
       </div>
     </div>

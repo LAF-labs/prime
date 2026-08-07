@@ -3,8 +3,9 @@ import { memo, useState, useCallback } from 'react'
 import { IconSearch } from '@tabler/icons-react'
 import { SectionHeader, SettingsCard, SettingsGrid } from './settings-shared'
 
-const IS_MAC = navigator.platform.toUpperCase().includes('MAC')
-const MOD = IS_MAC ? '\u2318' : 'Ctrl'
+import { IS_MAC, MOD_KEY } from '@/lib/platform'
+
+const MOD = MOD_KEY
 const SHIFT = IS_MAC ? '\u21E7' : 'Shift'
 
 interface KeymapEntry { command: string; keys: string; group: string }

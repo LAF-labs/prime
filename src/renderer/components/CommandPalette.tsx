@@ -26,6 +26,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useDiffStore } from '@/stores/diffStore'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { MOD_PREFIX } from '@/lib/platform'
 import {
   buildSnippet, formatMessageTimestamp, isSearchableQuery,
   MESSAGE_SEARCH_DEBOUNCE_MS, MESSAGE_SEARCH_LIMIT,
@@ -59,10 +60,11 @@ const sectionLabelFor = (cat: CommandItem['category']): SectionKey => {
   if (cat === 'message') return 'messages'
   return null
 }
-const sectionTitle: Record<Exclude<SectionKey, null>, string> = {
-  'recent-threads': 'Recent threads',
-  'recent-commands': 'Recent commands',
-  messages: 'Messages',
+// Evaluated per render (not at module load) so a locale switch applies.
+const sectionTitleFor = (key: Exclude<SectionKey, null>): string => {
+  if (key === 'recent-threads') return t('Recent threads')
+  if (key === 'recent-commands') return t('Recent commands')
+  return t('Messages')
 }
 
 interface MessageHit {
@@ -231,7 +233,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         result.push({
           id: `recent-command:${cmd}`,
           label: cmd,
-          description: 'Slash command',
+          description: t('Slash command'),
           icon: <IconSlash className="size-3.5" />,
           action: () => {
             window.dispatchEvent(new CustomEvent('laf-agent:prefill-chat-input', { detail: cmd }))
@@ -248,8 +250,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       if (currentTask.status === 'running') {
         const pauseItem: CommandItem = {
           id: 'action:pause-task',
-          label: 'Pause Agent',
-          description: 'Pause the running agent',
+          label: t('Pause Agent'),
+          description: t('Pause the running agent'),
           shortcut: 'Esc',
           icon: <IconPlayerPause className="size-3.5" />,
           action: () => { void ipc.pauseTask(currentTask.id); onClose() },
@@ -257,8 +259,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         }
         const cancelItem: CommandItem = {
           id: 'action:cancel-task',
-          label: 'Cancel Agent',
-          description: 'Stop and cancel the running agent',
+          label: t('Cancel Agent'),
+          description: t('Stop and cancel the running agent'),
           icon: <IconPlayerStop className="size-3.5" />,
           action: () => { void ipc.cancelTask(currentTask.id); onClose() },
           category: 'action',
@@ -279,18 +281,18 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
     const panelCommands: CommandItem[] = [
       {
         id: 'panel:toggle-diff',
-        label: 'Toggle Diff Panel',
-        description: diffOpen ? 'Close diff panel' : 'Open diff panel',
-        shortcut: '⌘D',
+        label: t('Toggle Diff Panel'),
+        description: diffOpen ? t('Close diff panel') : t('Open diff panel'),
+        shortcut: `${MOD_PREFIX}D`,
         icon: <IconCode className="size-3.5" />,
         action: () => { setDiffOpen(!diffOpen); onClose() },
         category: 'panel',
       },
       {
         id: 'panel:toggle-terminal',
-        label: 'Toggle Terminal',
-        description: 'Show or hide the terminal drawer',
-        shortcut: '⌘J',
+        label: t('Toggle Terminal'),
+        description: t('Show or hide the terminal drawer'),
+        shortcut: `${MOD_PREFIX}J`,
         icon: <IconTerminal2 className="size-3.5" />,
         action: () => {
           // Dispatch keyboard event to trigger the existing terminal toggle
@@ -301,8 +303,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'panel:toggle-split',
-        label: 'Toggle Side-by-Side',
-        shortcut: '⌘\\',
+        label: t('Toggle Side-by-Side'),
+        shortcut: `${MOD_PREFIX}\\`,
         icon: <IconLayoutColumns className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', metaKey: true }))
@@ -320,8 +322,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
     const gitCommands: CommandItem[] = [
       {
         id: 'git:commit',
-        label: 'Git: Commit',
-        description: 'Open commit dialog',
+        label: t('Git: Commit'),
+        description: t('Open commit dialog'),
         icon: <IconGitCommit className="size-3.5" />,
         action: () => {
           // Emit event to open commit dialog
@@ -332,8 +334,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'git:push',
-        label: 'Git: Push',
-        description: 'Push current branch to remote',
+        label: t('Git: Push'),
+        description: t('Push current branch to remote'),
         icon: <IconArrowUp className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:git-push'))
@@ -343,8 +345,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'git:pull',
-        label: 'Git: Pull',
-        description: 'Pull latest from remote',
+        label: t('Git: Pull'),
+        description: t('Pull latest from remote'),
         icon: <IconArrowDown className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:git-pull'))
@@ -354,8 +356,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'git:fetch',
-        label: 'Git: Fetch',
-        description: 'Fetch remote refs',
+        label: t('Git: Fetch'),
+        description: t('Fetch remote refs'),
         icon: <IconRefresh className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:git-fetch'))
@@ -365,8 +367,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'git:stash',
-        label: 'Git: Stash Changes',
-        description: 'Stash uncommitted changes',
+        label: t('Git: Stash Changes'),
+        description: t('Stash uncommitted changes'),
         icon: <IconArchive className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:git-stash'))
@@ -376,8 +378,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'git:history',
-        label: 'Git: Show History',
-        description: 'View commit history',
+        label: t('Git: Show History'),
+        description: t('View commit history'),
         icon: <IconHistory className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:show-git-history'))
@@ -395,9 +397,9 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
     const actions: CommandItem[] = [
       {
         id: 'action:new-thread',
-        label: 'New Thread',
-        description: 'Start a new conversation',
-        shortcut: '⌘N',
+        label: t('New Thread'),
+        description: t('Start a new conversation'),
+        shortcut: `${MOD_PREFIX}N`,
         icon: <IconPlus className="size-3.5" />,
         action: () => {
           const ws = useSettingsStore.getState().activeWorkspace
@@ -409,24 +411,24 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'action:settings',
-        label: 'Open Settings',
-        shortcut: '⌘,',
+        label: t('Open Settings'),
+        shortcut: `${MOD_PREFIX},`,
         icon: <IconSettings className="size-3.5" />,
         action: () => { setSettingsOpen(true); onClose() },
         category: 'action',
       },
       {
         id: 'action:dashboard',
-        label: 'Analytics Dashboard',
-        description: 'View usage analytics',
+        label: t('Analytics Dashboard'),
+        description: t('View usage analytics'),
         icon: <IconChartBar className="size-3.5" />,
         action: () => { setView('dashboard'); onClose() },
         category: 'action',
       },
       {
         id: 'action:model-picker',
-        label: 'Switch Model',
-        description: 'Change the AI model',
+        label: t('Switch Model'),
+        description: t('Change the AI model'),
         icon: <IconBrain className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:open-model-picker'))
@@ -436,8 +438,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'action:shortcuts',
-        label: 'Keyboard Shortcuts',
-        description: 'View all keyboard shortcuts',
+        label: t('Keyboard Shortcuts'),
+        description: t('View all keyboard shortcuts'),
         icon: <IconKeyboard className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:show-shortcuts'))
@@ -447,8 +449,8 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       },
       {
         id: 'action:fork-thread',
-        label: 'Fork Thread',
-        description: 'Fork current thread into a new conversation',
+        label: t('Fork Thread'),
+        description: t('Fork current thread into a new conversation'),
         icon: <IconCopy className="size-3.5" />,
         action: () => {
           window.dispatchEvent(new CustomEvent('laf-agent:fork-thread'))
@@ -481,7 +483,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       result.push({
         id: `archived:${meta.id}`,
         label: meta.name,
-        description: `${meta.workspace.split('/').pop()} · archived`,
+        description: `${meta.workspace.split('/').pop()} · ${t('archived')}`,
         icon: <IconHistory className="size-3.5 text-muted-foreground/50" />,
         action: () => {
           void hydrateArchivedTask(meta.id).then((ok) => {
@@ -620,7 +622,7 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
               <div key={item.id}>
                 {showHeader && (
                   <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
-                    {sectionTitle[thisSection]}
+                    {sectionTitleFor(thisSection)}
                   </div>
                 )}
                 <button
@@ -683,16 +685,16 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
         {/* Footer hint — always visible. Right-flush kbd caps. */}
         <div className="flex items-center justify-end gap-2 border-t border-border/40 px-4 py-2 text-[12px] text-muted-foreground/60">
           <kbd className="rounded border border-border/40 bg-muted/20 px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd>
-          <span>navigate</span>
+          <span>{t('navigate')}</span>
           <span className="opacity-50">·</span>
           <kbd className="rounded border border-border/40 bg-muted/20 px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>
-          <span>select</span>
+          <span>{t('select')}</span>
           <span className="opacity-50">·</span>
           <kbd className="rounded border border-border/40 bg-muted/20 px-1.5 py-0.5 font-mono text-[10px]">esc</kbd>
-          <span>close</span>
+          <span>{t('close')}</span>
           <span className="opacity-50">·</span>
           <span className="tabular-nums">
-            {items.length} {items.length === 1 ? 'result' : 'results'}
+            {items.length === 1 ? t('1 result') : t('{count} results', { count: items.length })}
           </span>
         </div>
       </div>

@@ -79,8 +79,8 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
     try {
       await withGitToast(label, action, {
         successDetail: (result) => typeof result === 'string' && result.includes('Already up to date')
-          ? 'Already up to date'
-          : 'Done',
+          ? t('Already up to date')
+          : t('Done'),
       })
     } catch {
       // Error toast already shown by withGitToast
@@ -95,10 +95,10 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
       setDefaultBranchConfirm({
         open: true,
         action: 'push',
-        onContinue: () => void runGitAction('push', () => ipc.gitPush(workspace), 'Push'),
+        onContinue: () => void runGitAction('push', () => ipc.gitPush(workspace), t('Push')),
       })
     } else {
-      void runGitAction('push', () => ipc.gitPush(workspace), 'Push')
+      void runGitAction('push', () => ipc.gitPush(workspace), t('Push'))
     }
   }, [gitStatus, workspace, runGitAction])
 
@@ -145,12 +145,12 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
   // Smart disabled states
   const pushDisabled = busy || (gitStatus ? (!gitStatus.isDirty && gitStatus.aheadCount === 0) : false)
   const pushHint = gitStatus && !gitStatus.isDirty && gitStatus.aheadCount === 0
-    ? 'No local commits to push'
+    ? t('No local commits to push')
     : gitStatus && gitStatus.behindCount > 0
-      ? 'Branch is behind upstream. Pull first.'
+      ? t('Branch is behind upstream. Pull first.')
       : undefined
   const commitDisabled = busy || (gitStatus ? !gitStatus.isDirty : false)
-  const commitHint = gitStatus && !gitStatus.isDirty ? 'Worktree is clean' : undefined
+  const commitHint = gitStatus && !gitStatus.isDirty ? t('Worktree is clean') : undefined
 
   // PR creation needs a GitHub/GitLab remote and a non-default branch to
   // merge from. remoteUrl === null means "still fetching" — stay optimistic
@@ -183,21 +183,21 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
       {/* Dropdown menu */}
       {menuOpen && (
         <div className="absolute right-0 top-7 z-[200] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg">
-          <GitMenuItem icon={IconGitCommit} label="Commit" loading={activeAction === 'commit'} disabled={commitDisabled}
+          <GitMenuItem icon={IconGitCommit} label={t('Commit')} loading={activeAction === 'commit'} disabled={commitDisabled}
             hint={commitHint}
             onClick={() => { setMenuOpen(false); setCommitDialogOpen(true) }} />
-          <GitMenuItem icon={IconArrowUp} label="Push" loading={activeAction === 'push'} disabled={pushDisabled}
+          <GitMenuItem icon={IconArrowUp} label={t('Push')} loading={activeAction === 'push'} disabled={pushDisabled}
             hint={pushHint}
             onClick={handlePush} />
-          <GitMenuItem icon={IconArrowDown} label="Pull" loading={activeAction === 'pull'} disabled={busy}
-            onClick={() => void runGitAction('pull', () => ipc.gitPull(workspace), 'Pull')} />
-          <GitMenuItem icon={IconRefresh} label="Fetch" loading={activeAction === 'fetch'} disabled={busy}
-            onClick={() => void runGitAction('fetch', () => ipc.gitFetch(workspace), 'Fetch')} />
+          <GitMenuItem icon={IconArrowDown} label={t('Pull')} loading={activeAction === 'pull'} disabled={busy}
+            onClick={() => void runGitAction('pull', () => ipc.gitPull(workspace), t('Pull'))} />
+          <GitMenuItem icon={IconRefresh} label={t('Fetch')} loading={activeAction === 'fetch'} disabled={busy}
+            onClick={() => void runGitAction('fetch', () => ipc.gitFetch(workspace), t('Fetch'))} />
           <div className="mx-2 my-1 border-t border-border/40" />
           <GitMenuItem icon={IconGitPullRequest} label={t('Create Pull Request')} loading={false} disabled={prDisabled}
             hint={prHint}
             onClick={() => { setMenuOpen(false); setPrDialogOpen(true) }} />
-          <GitMenuItem icon={IconCloudUpload} label="Publish" loading={false} disabled={busy}
+          <GitMenuItem icon={IconCloudUpload} label={t('Publish')} loading={false} disabled={busy}
             onClick={handleOpenPublish} />
           {remoteUrl === '' ? (
             <Tooltip>

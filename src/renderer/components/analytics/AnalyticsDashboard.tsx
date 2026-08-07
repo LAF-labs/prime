@@ -76,7 +76,7 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {r.label}
+              {t(r.label)}
             </button>
           ))}
         </div>

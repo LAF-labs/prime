@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { MOD_KEY } from '@/lib/platform'
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { IconLoader2, IconPlug, IconWorld } from '@tabler/icons-react'
 import {
@@ -294,7 +295,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
 
         <DialogFooter>
           <span className="text-[10px] text-muted-foreground/70 sm:mr-auto sm:self-center">
-            ESC to cancel · ⌘↵ to add
+            {t('Esc to cancel · {mod}↵ to add', { mod: MOD_KEY })}
           </span>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t('Cancel')}

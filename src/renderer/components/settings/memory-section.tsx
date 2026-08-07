@@ -111,68 +111,88 @@ const ThreadRow = ({ thread, total }: { thread: ThreadMemoryBreakdown; total: nu
   const setSelectedTask = useTaskStore((s) => s.setSelectedTask)
   const setSettingsOpen = useTaskStore((s) => s.setSettingsOpen)
   const softDeleteTask = useTaskStore((s) => s.softDeleteTask)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const pct = total > 0 ? Math.min(100, (thread.total / total) * 100) : 0
   const isHot = thread.total >= HOT_THREAD_BYTES
+  const threadName = thread.name || t('Untitled thread')
 
   const handleOpen = useCallback(() => {
     setSettingsOpen(false)
     setSelectedTask(thread.taskId)
   }, [setSelectedTask, setSettingsOpen, thread.taskId])
 
-  const handleDelete = useCallback((e: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+    setIsDeleteOpen(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(() => {
     softDeleteTask(thread.taskId)
   }, [softDeleteTask, thread.taskId])
 
   return (
-    <button
-      type="button"
-      onClick={handleOpen}
-      className={cn(
-        'group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-all',
-        'hover:border-border/40 hover:bg-accent/30',
-        isHot && 'border-amber-500/20 bg-amber-500/5',
-      )}
-      aria-label={`Open thread: ${thread.name || 'Untitled thread'}`}
-    >
-      <StatusBadge status={thread.status} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-medium text-foreground">
-          {thread.name || 'Untitled thread'}
-          {thread.isArchived && (
-            <span className="ml-1.5 text-[10px] text-muted-foreground/50">(archived)</span>
-          )}
-        </p>
-        <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/70">
-          {thread.messageCount} msg
-          {thread.toolCalls > 0 && ` · ${formatBytes(thread.toolCalls)} tools`}
-          {thread.liveTurn > 0 && ` · ${formatBytes(thread.liveTurn)} live`}
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted/40">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all duration-300',
-              isHot ? 'bg-amber-500' : 'bg-primary/70',
+    <>
+      <div
+        // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- the row hosts a nested delete <button>; nested interactive content is invalid inside <button>
+        role="button"
+        tabIndex={0}
+        onClick={handleOpen}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpen() } }}
+        className={cn(
+          'group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-all',
+          'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          'hover:border-border/40 hover:bg-accent/30',
+          isHot && 'border-amber-500/20 bg-amber-500/5',
+        )}
+        aria-label={t('Open thread: {name}', { name: threadName })}
+      >
+        <StatusBadge status={thread.status} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12px] font-medium text-foreground">
+            {threadName}
+            {thread.isArchived && (
+              <span className="ml-1.5 text-[10px] text-muted-foreground/50">({t('archived')})</span>
             )}
-            style={{ width: `${pct}%` }}
-          />
+          </p>
+          <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/70">
+            {thread.messageCount} msg
+            {thread.toolCalls > 0 && ` · ${formatBytes(thread.toolCalls)} tools`}
+            {thread.liveTurn > 0 && ` · ${formatBytes(thread.liveTurn)} live`}
+          </p>
         </div>
-        <span className="w-16 shrink-0 text-right font-mono text-[11.5px] font-medium tabular-nums text-foreground/80">
-          {formatBytes(thread.total)}
-        </span>
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="size-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground/30 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-          aria-label={`Delete thread: ${thread.name || 'Untitled thread'}`}
-        >
-          <IconTrash className="size-3.5" />
-        </button>
-        <IconChevronRight className="size-3 shrink-0 text-muted-foreground/30 transition-colors group-hover:text-muted-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted/40">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-300',
+                isHot ? 'bg-amber-500' : 'bg-primary/70',
+              )}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="w-16 shrink-0 text-right font-mono text-[11.5px] font-medium tabular-nums text-foreground/80">
+            {formatBytes(thread.total)}
+          </span>
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className="size-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground/30 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+            aria-label={t('Delete thread: {name}', { name: threadName })}
+          >
+            <IconTrash className="size-3.5" />
+          </button>
+          <IconChevronRight className="size-3 shrink-0 text-muted-foreground/30 transition-colors group-hover:text-muted-foreground" />
+        </div>
       </div>
-    </button>
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title={t('Delete this thread?')}
+        description={t('"{name}" moves to Archives and is permanently removed after 2 days.', { name: threadName })}
+        confirmLabel={t('Delete')}
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   )
 }
 
@@ -565,7 +585,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
         onOpenChange={setIsPurgeOpen}
         title={t('Purge soft-deleted threads?')}
         description={t('Permanently removes every soft-deleted thread immediately. Restoration from the Archives section will no longer be possible.')}
-        confirmLabel="Purge now"
+        confirmLabel={t('Purge now')}
         onConfirm={handlePurgeSoft}
       />
     </>

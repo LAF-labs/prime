@@ -44,6 +44,7 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
               <button
                 type="button"
                 onClick={() => ipc.openInEditor(filePath, getPreferredEditor()).catch(() => {})}
+                aria-label={t('Open in editor')}
                 className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <IconExternalLink className="size-3.5" />
@@ -56,6 +57,7 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
               <button
                 type="button"
                 onClick={onClose}
+                aria-label={t('Close')}
                 className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <IconX className="size-3.5" />

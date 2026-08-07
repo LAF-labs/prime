@@ -141,7 +141,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                   </p>
                   <p className="truncate text-[10px] text-muted-foreground">
                     {p.isCustom
-                      ? `${p.baseUrl ?? ''} · ${p.modelCount}${t(' models')}`
+                      ? `${p.baseUrl ?? ''} · ${t('{count} models', { count: p.modelCount })}`
                       : p.kind === 'oauth' ? 'OAuth' : t('API key')}
                   </p>
                 </div>

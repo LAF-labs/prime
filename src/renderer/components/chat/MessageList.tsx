@@ -70,21 +70,32 @@ export const MessageList = memo(function MessageList({
   /** True while we're waiting for the virtualizer to settle after a thread switch */
   const pendingScrollRef = useRef<'bottom' | number | null>(null)
 
-  // Save scroll position when switching away from a thread
+  // Save scroll position when switching away from a thread. A thread left at
+  // the bottom saves `null` (clears the entry) so its next open follows the
+  // latest message; anywhere else saves the offset for restoration.
   useEffect(() => {
     const prevId = prevTaskIdRef.current
     if (prevId === taskId) return
     // Save the old thread's scroll position
     if (prevId && parentRef.current) {
-      useTaskStore.getState().saveScrollPosition(prevId, parentRef.current.scrollTop)
+      const el = parentRef.current
+      const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < AUTO_SCROLL_THRESHOLD
+      useTaskStore.getState().saveScrollPosition(prevId, wasAtBottom ? null : el.scrollTop)
     }
     prevTaskIdRef.current = taskId
     // Reset stable timeline state for the new thread
     stableStateRef.current = EMPTY_STABLE_STATE
-    // Always scroll to bottom when switching threads
     if (!taskId) return
-    isNearBottomRef.current = true
-    pendingScrollRef.current = 'bottom'
+    // Restore the saved position if the thread has one; otherwise (first open,
+    // or it was at the bottom when left) jump to the latest message.
+    const saved = useTaskStore.getState().scrollPositions[taskId]
+    if (saved !== undefined) {
+      isNearBottomRef.current = false
+      pendingScrollRef.current = saved
+    } else {
+      isNearBottomRef.current = true
+      pendingScrollRef.current = 'bottom'
+    }
   }, [taskId])
 
   // Save scroll position on unmount (e.g., switching to dashboard/analytics)
@@ -100,7 +111,9 @@ export const MessageList = memo(function MessageList({
       // eslint-disable-next-line react-hooks/exhaustive-deps -- ditto
       if (id && parentRef.current) {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- ditto
-        useTaskStore.getState().saveScrollPosition(id, parentRef.current.scrollTop)
+        const el = parentRef.current
+        const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < AUTO_SCROLL_THRESHOLD
+        useTaskStore.getState().saveScrollPosition(id, wasAtBottom ? null : el.scrollTop)
       }
     }
   }, [])

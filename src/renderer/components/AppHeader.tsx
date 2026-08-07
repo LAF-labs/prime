@@ -7,19 +7,7 @@ import { HeaderBreadcrumb } from "@/components/header-breadcrumb"
 import { HeaderToolbar } from "@/components/header-toolbar"
 import { HeaderGhostToolbar } from "@/components/header-ghost-toolbar"
 import { cn } from "@/lib/utils"
-
-// ── Platform detection ───────────────────────────────────────
-type AppPlatform = "macos" | "windows" | "linux"
-
-const detectPlatform = (): AppPlatform => {
-  const ua = navigator.userAgent.toLowerCase()
-  if (ua.includes("mac")) return "macos"
-  if (ua.includes("win")) return "windows"
-  return "linux"
-}
-
-const PLATFORM = detectPlatform()
-const IS_MAC = PLATFORM === "macos"
+import { IS_MAC } from "@/lib/platform"
 
 // ── Window drag handler ──────────────────────────────────────
 const INTERACTIVE =
@@ -86,7 +74,6 @@ const AppHeaderInner = memo(function AppHeaderInner({
         isSidebarCollapsed={isSidebarCollapsed}
         onToggleSidebar={onToggleSidebar}
         sidebarPosition={sidebarPosition}
-        isMac={IS_MAC}
       />
 
       {/* Actions right */}

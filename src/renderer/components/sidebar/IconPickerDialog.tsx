@@ -640,7 +640,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                     <button
                       key={id}
                       type="button"
-                      aria-label={`Select ${FRAMEWORK_LABELS[id]} icon`}
+                      aria-label={t('Select {name} icon', { name: FRAMEWORK_LABELS[id] })}
                       tabIndex={0}
                       onClick={() => handleSelectFramework(id)}
                       className={cn(
@@ -677,10 +677,10 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                 <IconSearch className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
                 <input
                   type="text"
-                  placeholder="Search emojis…"
+                  placeholder={t('Search emojis…')}
                   value={emojiSearch}
                   onChange={(e) => setEmojiSearch(e.target.value)}
-                  aria-label="Search emojis by keyword"
+                  aria-label={t('Search emojis by keyword')}
                   className="h-7 w-full rounded-md border border-input bg-transparent pl-8 pr-3 text-[12px] outline-none placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
@@ -704,7 +704,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                           <button
                             key={emoji}
                             type="button"
-                            aria-label={`Select ${emoji} emoji`}
+                            aria-label={t('Select {emoji} emoji', { emoji })}
                             tabIndex={0}
                             onClick={() => handleSelectEmoji(emoji)}
                             className={cn(
@@ -753,10 +753,10 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                 <IconSearch className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
                 <input
                   type="text"
-                  placeholder="Search images..."
+                  placeholder={t('Search images...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search project image files"
+                  aria-label={t('Search project image files')}
                   className="h-7 w-full rounded-md border border-input bg-transparent pl-8 pr-3 text-[12px] outline-none placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
@@ -769,7 +769,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                       No image files found
                     </div>
                   ) : (
-                    <ul role="listbox" aria-label="Project image files">
+                    <ul role="listbox" aria-label={t('Project image files')}>
                       {filteredFiles.map((file) => (
                         <li key={file.path} role="option" aria-selected={selectedFile === file.path}>
                           <button
@@ -824,7 +824,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
             <button
               type="button"
               onClick={handleReset}
-              aria-label="Reset to auto-detect icon"
+              aria-label={t('Reset to auto-detect icon')}
               className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <IconRefresh className="size-3" aria-hidden />
@@ -834,7 +834,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
               type="button"
               onClick={activeTab === 'frameworks' ? handleConfirmFramework : activeTab === 'emoji' ? handleConfirmEmoji : handleConfirmFile}
               disabled={!canConfirm}
-              aria-label="Apply selected icon"
+              aria-label={t('Apply selected icon')}
               className="flex h-7 items-center rounded-md bg-primary px-3 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {t('Apply')}

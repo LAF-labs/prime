@@ -60,7 +60,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
           <TooltipTrigger asChild>
             <button
               type="button"
-              aria-label={`Delete all threads from ${displayName}`}
+              aria-label={t('Delete all threads from {project}', { project: displayName })}
               onClick={() => setIsConfirmDeleteAllOpen(true)}
               className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
             >
@@ -158,7 +158,7 @@ export const DeletedThreadsRestore = () => {
   return (
     <div className={cn('rounded-xl border border-border/50 bg-card/70 shadow-sm overflow-hidden')}>
       <div className="border-b border-border/60 px-5 py-3">
-        <p className="text-[12px] font-medium text-foreground/80">{entries.length} deleted {entries.length === 1 ? 'thread' : 'threads'}</p>
+        <p className="text-[12px] font-medium text-foreground/80">{entries.length === 1 ? t('1 deleted thread') : t('{count} deleted threads', { count: entries.length })}</p>
         <p className="text-[11px] text-muted-foreground">{t('Permanently removed after 2 days')}</p>
       </div>
       <div className="divide-y divide-border/20">

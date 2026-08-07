@@ -15,8 +15,7 @@ import { useModifierKeys } from '@/hooks/useModifierKeys'
 import { useMenuPosition } from '@/hooks/useMenuPosition'
 import { ProjectItem } from './ProjectItem'
 import { SidebarFooter } from './SidebarFooter'
-
-const IS_MAC = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('mac')
+import { IS_MAC, MOD_PREFIX } from '@/lib/platform'
 
 const _NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRight: boolean }) {
   const navIndex = useTaskStore((s) => s.navIndex)
@@ -25,7 +24,7 @@ const _NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRigh
   const navForward = useTaskStore((s) => s.navForward)
   const canBack = navIndex > 0
   const canForward = navIndex >= 0 && navIndex < navHistoryLen - 1
-  const modKey = IS_MAC ? '⌘' : 'Ctrl+'
+  const modKey = MOD_PREFIX
   // Mac left-sidebar: traffic lights occupy ~70px on left, nav sits right after them.
   // Mac right-sidebar / non-Mac: just hug the leading edge.
   const positionClass = IS_MAC && !isRight ? 'left-[68px] top-1' : 'left-2 top-1'

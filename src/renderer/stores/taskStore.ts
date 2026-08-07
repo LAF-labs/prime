@@ -1929,6 +1929,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set({ activeSplitId: null })
   },
   saveScrollPosition: (taskId, scrollTop) => {
+    if (scrollTop === null) {
+      if (!(taskId in get().scrollPositions)) return
+      set((s) => {
+        const next = { ...s.scrollPositions }
+        delete next[taskId]
+        return { scrollPositions: next }
+      })
+      return
+    }
     if (get().scrollPositions[taskId] === scrollTop) return
     set((s) => ({ scrollPositions: { ...s.scrollPositions, [taskId]: scrollTop } }))
   },

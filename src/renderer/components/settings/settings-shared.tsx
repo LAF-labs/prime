@@ -106,9 +106,9 @@ export const SectionHeader = ({ section }: { section: Section }) => {
     <div className="mb-4">
       <div className="flex items-center gap-2.5">
         <nav.icon className="size-5 text-primary" />
-        <h3 className="text-[16px] font-semibold text-foreground">{nav.label}</h3>
+        <h3 className="text-[16px] font-semibold text-foreground">{t(nav.label)}</h3>
       </div>
-      <p className="mt-0.5 text-[12px] text-muted-foreground">{nav.sectionDescription}</p>
+      <p className="mt-0.5 text-[12px] text-muted-foreground">{t(nav.sectionDescription)}</p>
     </div>
   )
 }
@@ -144,6 +144,7 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void
   title: string
   description: string
+  /** Defaults to the translated "Confirm". */
   confirmLabel?: string
   /** May be async: the dialog awaits it, closes on success, and stays open with a failure toast on error. */
   onConfirm: () => void | Promise<void>
@@ -155,7 +156,7 @@ export const ConfirmDialog = ({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   onConfirm,
   isDestructive = true,
 }: ConfirmDialogProps) => {
@@ -202,7 +203,7 @@ export const ConfirmDialog = ({
             )}
           >
             {isLoading && <IconLoader2 className="size-3.5 animate-spin" aria-hidden />}
-            {confirmLabel}
+            {confirmLabel ?? t('Confirm')}
           </button>
         </DialogFooter>
       </DialogContent>

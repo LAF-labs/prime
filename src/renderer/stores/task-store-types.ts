@@ -241,8 +241,12 @@ export interface TaskStore {
   setFocusedPanel: (panel: 'left' | 'right') => void
   /** Deactivate split view without removing the saved pairing */
   closeSplit: () => void
-  /** Save scroll position for a thread (in-memory only) */
-  saveScrollPosition: (taskId: string, scrollTop: number) => void
+  /**
+   * Save scroll position for a thread (in-memory only). Pass `null` to clear
+   * the entry — used when the thread was left at the bottom, so the next open
+   * jumps to the latest message instead of restoring a stale offset.
+   */
+  saveScrollPosition: (taskId: string, scrollTop: number | null) => void
   /**
    * Truncate messages back to the assistant turn at `messageIndex`
    * (keeping the assistant message itself) and clear streaming state.

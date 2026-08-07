@@ -121,13 +121,13 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
             <TooltipTrigger asChild>
               <button
                 onClick={() => setIsExpanded((v) => !v)}
-                aria-label={isExpanded ? 'Collapse panel' : 'Expand to full width'}
+                aria-label={isExpanded ? t('Collapse panel') : t('Expand to full width')}
                 className="px-1.5 py-1.5 text-muted-foreground hover:text-foreground"
               >
                 {isExpanded ? <IconMinimize className="h-3 w-3" /> : <IconMaximize className="h-3 w-3" />}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">{isExpanded ? 'Collapse panel' : 'Expand to full width'}</TooltipContent>
+            <TooltipContent side="bottom">{isExpanded ? t('Collapse panel') : t('Expand to full width')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

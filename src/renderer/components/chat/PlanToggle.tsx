@@ -5,6 +5,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { syncPlanEnforcement } from '@/lib/plan-enforcement'
 
 const MODE_CODE = 'code' as const
 const MODE_PLAN = 'plan' as const
@@ -37,6 +38,14 @@ export const PlanToggle = memo(function PlanToggle() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
+
+  // Keep the gate extension's plan guard aligned with the UI mode: fires on
+  // toggle, on thread switch, and on mount. The prompt prefix (ChatPanel's
+  // applyPlanMode) stays as the first layer; this is the enforcement layer.
+  useEffect(() => {
+    if (!resolvedTaskId) return
+    void syncPlanEnforcement(resolvedTaskId, currentModeId)
+  }, [resolvedTaskId, currentModeId])
 
   const handleSelect = useCallback((modeId: string) => {
     if (modeId === currentModeId) {

@@ -19,12 +19,18 @@ import {
   IconPlayerPause, IconPlayerStop, IconGitCommit, IconArrowUp,
   IconArrowDown, IconRefresh, IconArchive, IconCopy, IconBrain,
   IconLayoutColumns, IconKeyboard, IconChartBar, IconSlash,
+  IconMessageSearch,
 } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useDiffStore } from '@/stores/diffStore'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import {
+  buildSnippet, formatMessageTimestamp, isSearchableQuery,
+  MESSAGE_SEARCH_DEBOUNCE_MS, MESSAGE_SEARCH_LIMIT,
+  type MessageSnippet,
+} from '@/lib/message-search'
 
 interface CommandPaletteProps {
   open: boolean
@@ -38,20 +44,33 @@ interface CommandItem {
   shortcut?: string
   icon: React.ReactNode
   action: () => void
-  category: 'thread' | 'project' | 'action' | 'git' | 'panel' | 'recent-thread' | 'recent-command'
+  category: 'thread' | 'project' | 'action' | 'git' | 'panel' | 'recent-thread' | 'recent-command' | 'message'
+  /** Highlighted excerpt for full-text message hits. */
+  snippet?: MessageSnippet
 }
 
 // Section label shown above a contiguous run of items with the same key.
-// Only used when the palette has no query (cold-open seed view).
-type SectionKey = 'recent-threads' | 'recent-commands' | null
+// Recent sections appear on cold open; the messages section appears while a
+// full-text query is active.
+type SectionKey = 'recent-threads' | 'recent-commands' | 'messages' | null
 const sectionLabelFor = (cat: CommandItem['category']): SectionKey => {
   if (cat === 'recent-thread') return 'recent-threads'
   if (cat === 'recent-command') return 'recent-commands'
+  if (cat === 'message') return 'messages'
   return null
 }
 const sectionTitle: Record<Exclude<SectionKey, null>, string> = {
   'recent-threads': 'Recent threads',
   'recent-commands': 'Recent commands',
+  messages: 'Messages',
+}
+
+interface MessageHit {
+  threadId: string
+  threadName: string
+  messageContent: string
+  messageTimestamp: string
+  rank: number
 }
 
 // ── Frecency tracking ────────────────────────────────────────────
@@ -153,6 +172,26 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
 
   const diffOpen = useDiffStore((s) => s.isOpen)
   const setDiffOpen = useDiffStore((s) => s.setOpen)
+
+  // ── Full-text message search (FTS5 over every stored message) ──
+  const [messageHits, setMessageHits] = useState<MessageHit[]>([])
+  const searchSeqRef = useRef(0) // Monotonic counter to discard stale responses
+
+  useEffect(() => {
+    const trimmed = query.trim()
+    const seq = ++searchSeqRef.current
+    if (!open || !isSearchableQuery(trimmed)) {
+      setMessageHits([])
+      return
+    }
+    const handle = setTimeout(() => {
+      ipc.threadDbSearch(trimmed, MESSAGE_SEARCH_LIMIT)
+        .then((rows) => { if (searchSeqRef.current === seq) setMessageHits(rows) })
+        // Quiet on failure: the section simply doesn't render.
+        .catch(() => { if (searchSeqRef.current === seq) setMessageHits([]) })
+    }, MESSAGE_SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(handle)
+  }, [query, open])
 
   // Build command items
   const items = useMemo((): CommandItem[] => {
@@ -476,8 +515,35 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
       return aIdx - bIdx
     })
 
+    // ── Message hits (full-text) ─────────────────────────────────
+    // Appended after the sort so the section stays contiguous at the bottom
+    // and keeps its header. Ranked by FTS5 already — no re-sorting here.
+    messageHits.forEach((hit, idx) => {
+      result.push({
+        id: `message:${hit.threadId}:${idx}`,
+        label: hit.threadName,
+        description: formatMessageTimestamp(hit.messageTimestamp),
+        snippet: buildSnippet(hit.messageContent, query),
+        icon: <IconMessageSearch className="size-3.5" />,
+        action: () => {
+          // Live threads open directly; everything else goes through the
+          // archived-hydration path, which loads the body from the thread DB.
+          if (tasks[hit.threadId]) {
+            setSelectedTask(hit.threadId)
+            setView('chat')
+          } else {
+            void hydrateArchivedTask(hit.threadId).then((ok) => {
+              if (ok) { setSelectedTask(hit.threadId); setView('chat') }
+            })
+          }
+          onClose()
+        },
+        category: 'message',
+      })
+    })
+
     return result.slice(0, 60)
-  }, [query, tasks, archivedMeta, projects, projectNames, selectedTaskId, diffOpen,
+  }, [query, tasks, archivedMeta, projects, projectNames, selectedTaskId, diffOpen, messageHits,
       setSelectedTask, setView, setPendingWorkspace, setSettingsOpen, setDiffOpen,
       hydrateArchivedTask, onClose])
 
@@ -573,7 +639,26 @@ export const CommandPalette = memo(function CommandPalette({ open, onClose }: Co
                   <span className={cn('shrink-0', isSelected ? 'text-background/80' : 'text-muted-foreground')}>
                     {item.icon}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px]">{item.label}</span>
+                  <span className="min-w-0 flex-1 text-[13px]">
+                    <span className="block truncate">{item.label}</span>
+                    {item.snippet && (
+                      <span className={cn(
+                        'block truncate text-[11px]',
+                        isSelected ? 'text-background/70' : 'text-muted-foreground/70',
+                      )}>
+                        {item.snippet.before}
+                        {item.snippet.match && (
+                          <span className={cn(
+                            'rounded-[3px] px-0.5 font-semibold',
+                            isSelected ? 'bg-background/20 text-background' : 'bg-amber-400/25 text-foreground',
+                          )}>
+                            {item.snippet.match}
+                          </span>
+                        )}
+                        {item.snippet.after}
+                      </span>
+                    )}
+                  </span>
                   {item.description && (
                     <span className={cn('shrink-0 max-w-[140px] truncate text-[11px]', isSelected ? 'text-background/60' : 'text-muted-foreground/50')}>
                       {item.description}

@@ -47,6 +47,62 @@ function summarize(toolName: string, input: Record<string, unknown>): string {
 const TIGHT_SANDBOX = process.env.LAF_TIGHT_SANDBOX === "1";
 const PATH_KEYS = ["path", "file_path", "filePath"] as const;
 
+// ── Plan-mode enforcement ────────────────────────────────────────────
+//
+// The app's plan mode used to be a prompt prefix only — a polite request the
+// model could ignore. This makes it a hard gate: while `planMode` is on,
+// mutating tool calls are blocked with an explanation instead of executed.
+// The app toggles it with the `/plan-guard` extension command (sent over the
+// RPC `prompt` path, which dispatches extension commands without a model
+// turn). The prompt prefix still ships with every plan-mode message, so this
+// is belt-and-braces, not a replacement.
+//
+// "Mutating" reuses the same classification the tight-sandbox path already
+// applies: tools that carry a file-path argument (write/edit/…), plus the
+// process-spawning tools whose effects the path check cannot see (bash,
+// ipython). Read-only tools and the gate's own research tools (web_fetch)
+// stay available so the model can actually build the plan.
+
+let planMode = false;
+
+/** Tools that execute arbitrary code — always mutating for plan purposes. */
+const EXEC_TOOLS = new Set(["bash", "ipython", "shell", "exec", "python"]);
+
+/** Research tools the plan guard must not block. */
+const PLAN_SAFE_TOOLS = new Set(["web_fetch", "web_search", "fetch", "search"]);
+
+function isMutatingForPlanMode(toolName: string, input: Record<string, unknown>): boolean {
+	if (READ_ONLY_TOOLS.has(toolName) || PLAN_SAFE_TOOLS.has(toolName)) return false;
+	if (EXEC_TOOLS.has(toolName)) return true;
+	for (const key of PATH_KEYS) {
+		const value = input[key];
+		if (typeof value === "string" && value.length > 0) return true;
+	}
+	// Defensive fallback for tools we don't know by name: block when the name
+	// itself declares a mutation.
+	return /write|edit|create|delete|remove|rename|move|patch|mkdir|apply/i.test(toolName);
+}
+
+function registerPlanGuard(pi: ExtensionAPI): void {
+	pi.registerCommand("plan-guard", {
+		description: "Enforce plan mode by blocking mutating tools (on | off | status)",
+		handler: async (args, ctx) => {
+			const arg = args.trim().toLowerCase();
+			// on/off stay silent: the app sends them programmatically on every
+			// mode toggle and a notification per toggle would be pure noise.
+			if (arg === "on") {
+				planMode = true;
+				return;
+			}
+			if (arg === "off") {
+				planMode = false;
+				return;
+			}
+			await ctx.ui.notify(`Plan guard is ${planMode ? "on" : "off"}.`, "info");
+		},
+	});
+}
+
 // Canonicalize the workspace itself once, so a workspace reached through a
 // symlink (e.g. /tmp on macOS → /private/tmp) compares correctly.
 const WORKSPACE = (() => {
@@ -223,6 +279,7 @@ function registerSandboxedBash(pi: ExtensionAPI): void {
 
 export default function (pi: ExtensionAPI) {
 	registerParityCommands(pi);
+	registerPlanGuard(pi);
 	registerNativeWebSearch(pi);
 	registerWebFetch(pi);
 
@@ -230,6 +287,19 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_call", async (event, ctx) => {
 		if (READ_ONLY_TOOLS.has(event.toolName)) return undefined;
+
+		// Plan mode: block mutations before anything else — no approval dialog
+		// can override a plan-mode block, and the reason tells the model what
+		// to do instead.
+		if (planMode && isMutatingForPlanMode(event.toolName, event.input as Record<string, unknown>)) {
+			return {
+				block: true,
+				reason:
+					`Plan mode is active: the '${event.toolName}' tool mutates files or runs commands and was blocked. ` +
+					"Do not attempt further mutations. Research with read-only tools and present a concrete, " +
+					"step-by-step plan; the user will switch out of plan mode to execute it.",
+			};
+		}
 
 		// Workspace sandbox: block file mutations outside the project outright.
 		const escaped = escapesWorkspace(event.input as Record<string, unknown>);

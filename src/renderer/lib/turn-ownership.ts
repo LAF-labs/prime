@@ -13,10 +13,21 @@
  */
 const claimed = new Set<string>()
 
+// Threads this window has EVER dispatched. Unlike `claimed` (consumed at
+// turn_end), this survives the turn — it scopes which streaming-snapshot
+// entries this window may write or clear. An idle second window used to
+// persist an empty snapshot map over the streaming window's in-flight
+// partial; ownership scoping is what stops that.
+const dispatchedHere = new Set<string>()
+
 /** Called by whichever window dispatched the message. */
 export const claimTurn = (taskId: string): void => {
   claimed.add(taskId)
+  dispatchedHere.add(taskId)
 }
+
+/** Threads whose streaming snapshots this window owns. */
+export const snapshotOwnedIds = (): ReadonlySet<string> => dispatchedHere
 
 /**
  * Whether this window started the turn that just ended.
@@ -39,4 +50,5 @@ export const releaseTurn = (taskId: string): void => {
  */
 export const rekeyTurnClaim = (fromTaskId: string, toTaskId: string): void => {
   if (claimed.delete(fromTaskId)) claimed.add(toTaskId)
+  if (dispatchedHere.delete(fromTaskId)) dispatchedHere.add(toTaskId)
 }

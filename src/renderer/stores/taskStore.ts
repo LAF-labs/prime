@@ -9,6 +9,7 @@ import * as threadDb from '@/lib/thread-db'
 import type { ArchivedThreadMeta } from '@/lib/history-store'
 import { useSettingsStore } from './settingsStore'
 import { sendTaskNotification } from '@/lib/notifications'
+import { snapshotOwnedIds } from '@/lib/turn-ownership'
 import type { TaskStore } from './task-store-types'
 
 interface SavedMessageLike {
@@ -125,7 +126,30 @@ const capSoftDeleted = (sd: Record<string, SoftDeletedThread>): Record<string, S
   const keep = sorted.slice(sorted.length - MAX_SOFT_DELETED)
   const result: Record<string, SoftDeletedThread> = {}
   for (const k of keep) result[k] = sd[k]
+  // Eviction from the soft-delete window IS the permanent delete — erase the
+  // evicted threads from SQLite too, or `mergeThreadsFromDb` resurrects them
+  // on the next launch (and "deleted" data would quietly outlive the UI).
+  eraseFromDb(sorted.slice(0, sorted.length - MAX_SOFT_DELETED))
   return result
+}
+
+// ── Thin-write eligibility ────────────────────────────────────────
+// Per-window bookkeeping for which threads may be written as thin index
+// entries. Module scope is correct here: persistHistory is also per-window.
+
+/** Threads whose JSON→SQLite backfill is still in flight (or failed).
+ *  Thinning their index entry before the messages are provably in SQLite
+ *  would leave the conversation in neither store. */
+const backfillPendingIds = new Set<string>()
+
+/** Threads the user explicitly emptied via `/clear`. Their empty state is
+ *  intentional and must be recorded even before `sqliteReady` — the
+ *  truncation has already been written through to SQLite. */
+const intentionallyClearedIds = new Set<string>()
+
+/** Mark a thread as intentionally emptied (called by the `/clear` handler). */
+export const markThreadCleared = (taskId: string): void => {
+  intentionallyClearedIds.add(taskId)
 }
 
 export type { TaskStore, BtwCheckpoint } from './task-store-types'
@@ -1297,7 +1321,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             if (full && tasks[id] && full.messages.length > tasks[id].messages.length) {
               tasks[id] = { ...tasks[id], messages: full.messages }
             }
-          } catch { /* keep whatever the backend gave us */ }
+          } catch {
+            // The read failed, so this task sits in memory with zero messages.
+            // Bar it from thin writes: saveThreads preserves its on-disk entry
+            // verbatim instead of overwriting it with an empty shell.
+            backfillPendingIds.add(id)
+          }
         }))
 
         // Streaming crash recovery: replay the constant-size partial that the
@@ -1305,12 +1334,40 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         // reload keeps the text that was on screen.
         try {
           const snapshots = await historyStore.loadStreamingSnapshots()
+          // A completed turn supersedes its snapshot, but not by exact match:
+          // the snapshot is up to 10 s stale while the final message carries
+          // the flushed remainder. Prefix containment (either direction) is
+          // the real "same turn" signal.
+          const supersedes = (last: { role: string; content: string } | undefined, snapContent: string): boolean =>
+            !!last && last.role === 'assistant'
+            && (last.content.startsWith(snapContent) || snapContent.startsWith(last.content))
+          const staleSnapshotIds: string[] = []
           for (const [id, snap] of Object.entries(snapshots)) {
             const t = tasks[id]
-            if (!t) continue
+            if (!t) {
+              // A real crash restart: the backend's in-memory task list is
+              // empty, so the thread is only archived metadata. Recover the
+              // partial into SQLite (the source of truth) — hydration will
+              // surface it when the thread is opened.
+              if (archivedMeta[id]) {
+                const snapMsg: TaskMessage = {
+                  role: 'assistant',
+                  content: snap.content,
+                  timestamp: snap.timestamp,
+                  ...(snap.thinking ? { thinking: snap.thinking } : {}),
+                  ...(snap.toolCalls?.length ? { toolCalls: snap.toolCalls as ToolCall[] } : {}),
+                }
+                threadDb.loadMessages(id).then((msgs) => {
+                  if (supersedes(msgs[msgs.length - 1], snap.content)) return
+                  return threadDb.saveMessage(id, snapMsg).then(() => {})
+                }).catch(() => {})
+                staleSnapshotIds.push(id)
+              }
+              continue
+            }
+            staleSnapshotIds.push(id)
             const last = t.messages[t.messages.length - 1]
-            // Skip when the real turn_end already superseded the partial.
-            if (last && last.role === 'assistant' && last.content === snap.content) continue
+            if (supersedes(last, snap.content)) continue
             tasks[id] = {
               ...t,
               messages: [...t.messages, {
@@ -1322,6 +1379,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 ...(snap.toolCallSplits?.length ? { toolCallSplits: snap.toolCallSplits } : {}),
               }],
             }
+          }
+          // Replayed (or superseded) snapshots are spent — clear them so the
+          // next reload doesn't append the same partial again.
+          if (staleSnapshotIds.length > 0) {
+            historyStore.saveStreamingSnapshots({}, new Set(staleSnapshotIds)).catch(() => {})
           }
         } catch { /* recovery is best-effort */ }
 
@@ -1491,11 +1553,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           ...(saved.projectId ? { projectId: saved.projectId } : {}),
         }
         // Backfill SQLite so future loads are faster and more reliable.
-        // Save thread metadata first (required FK for messages), then messages.
+        // Save thread metadata first (required FK for messages), then the
+        // messages in one batch. Until this resolves, the thread is barred
+        // from thin index writes — thinning while the backfill is mid-flight
+        // (or failed) would leave the messages in neither store.
+        backfillPendingIds.add(id)
         const backfillTask = task
         threadDb.saveThread(backfillTask).then(() =>
           threadDb.saveAllMessages(backfillTask.id, backfillTask.messages),
-        ).catch((err) => {
+        ).then(() => {
+          backfillPendingIds.delete(id)
+        }).catch((err) => {
+          // Deliberately NOT removed from backfillPendingIds: the entry keeps
+          // this thread on the legacy full-JSON format, which is where its
+          // messages still live.
           console.warn(`[hydrateArchivedTask] SQLite backfill failed for ${id}:`, err)
         })
       }
@@ -1569,15 +1640,30 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // index entries. Until the one-time backfill has finished this session,
     // everything stays in the legacy full format — thinning before the
     // messages are provably elsewhere would be data loss with extra steps.
-    const thinIds: Set<string> = sqliteReady ? new Set(Object.keys(tasks)) : new Set()
+    // Two per-thread exceptions: a thread whose own backfill is still in
+    // flight is never thinned (its messages are not provably in SQLite yet),
+    // and an intentionally /clear-ed thread is always thinned (its truncation
+    // has already been written through).
+    const thinIds: Set<string> = sqliteReady
+      ? new Set(Object.keys(tasks).filter((id) => !backfillPendingIds.has(id)))
+      : new Set()
+    for (const id of intentionallyClearedIds) {
+      if (tasks[id] && !backfillPendingIds.has(id)) thinIds.add(id)
+    }
 
     // Streaming crash recovery: one constant-size partial message per
     // streaming thread, in its own store key. This replaces the old approach
     // of appending the partial into the thread blob, which re-serialized the
     // entire conversation every ten seconds mid-turn.
     const snapshots: Record<string, import('@/lib/history-store').SavedMessage> = {}
+    // Events broadcast to every window, so a viewer window also accumulates
+    // streamingChunks — but only the dispatching window owns the snapshot
+    // lifecycle. Scoping both the writes and the clears to owned ids stops an
+    // idle window's autosave from erasing the streaming window's partial.
+    const ownedIds = snapshotOwnedIds()
     for (const [taskId, chunk] of Object.entries(streamingChunks)) {
       if (!chunk) continue
+      if (!ownedIds.has(taskId)) continue
       const task = tasks[taskId]
       if (!task || task.status !== 'running') continue
       const thinking = thinkingChunks[taskId] ?? ''
@@ -1592,8 +1678,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         ...(splits.length > 0 ? { toolCallSplits: splits } : {}),
       }
     }
-    // Written even when empty: turn end is what clears the previous snapshot.
-    historyStore.saveStreamingSnapshots(snapshots).catch(() => {})
+    // Written even when empty: turn end is what clears the previous snapshot
+    // (for the threads this window owns — other windows' entries survive).
+    historyStore.saveStreamingSnapshots(snapshots, ownedIds).catch(() => {})
 
     historyStore.saveThreads(tasks, projectNames, projectIds, projects, threadOrders, keepArchivedIds, thinIds).catch((err) => {
       console.warn('[persistHistory] saveThreads failed:', err)
@@ -1761,23 +1848,24 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       set({ btwCheckpoint: null })
       return
     }
-    if (keepTail) {
-      // Find the last user+assistant pair added after the checkpoint
-      const currentMessages = task.messages
-      const newMessages = currentMessages.slice(savedMessages.length)
-      const lastUser = [...newMessages].reverse().find((m) => m.role === 'user')
-      const lastAssistant = [...newMessages].reverse().find((m) => m.role === 'assistant')
-      const tail = [lastUser, lastAssistant].filter(Boolean) as import('@/types').TaskMessage[]
-      set((s) => ({
-        btwCheckpoint: null,
-        tasks: { ...s.tasks, [taskId]: { ...task, messages: [...savedMessages, ...tail] } },
-      }))
-    } else {
-      set((s) => ({
-        btwCheckpoint: null,
-        tasks: { ...s.tasks, [taskId]: { ...task, messages: [...savedMessages] } },
-      }))
-    }
+    const finalMessages = keepTail
+      ? (() => {
+          // Find the last user+assistant pair added after the checkpoint
+          const newMessages = task.messages.slice(savedMessages.length)
+          const lastUser = [...newMessages].reverse().find((m) => m.role === 'user')
+          const lastAssistant = [...newMessages].reverse().find((m) => m.role === 'assistant')
+          const tail = [lastUser, lastAssistant].filter(Boolean) as import('@/types').TaskMessage[]
+          return [...savedMessages, ...tail]
+        })()
+      : [...savedMessages]
+    set((s) => ({
+      btwCheckpoint: null,
+      tasks: { ...s.tasks, [taskId]: { ...task, messages: finalMessages } },
+    }))
+    // The tangent's discarded messages are a truncation like any other —
+    // SQLite must agree or they resurrect on the next launch.
+    attempt(t('Could not save the conversation'), threadDb.replaceMessages(taskId, finalMessages))
+    get().persistHistory()
   },
 
   createSplitView: (left, right) => {
@@ -1864,6 +1952,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       liveToolCalls: { ...s.liveToolCalls, [taskId]: [] },
       liveToolSplits: { ...s.liveToolSplits, [taskId]: [] },
     }))
+    // Write the truncation through to SQLite (the source of truth) — without
+    // this the dropped tail resurrects on the next launch, and anything sent
+    // after the rollback lands out of order behind it.
+    attempt(t('Could not save the conversation'), threadDb.replaceMessages(taskId, truncated))
     get().persistHistory()
   },
 }))

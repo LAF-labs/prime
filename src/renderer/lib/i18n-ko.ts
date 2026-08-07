@@ -751,6 +751,7 @@ export const ko: Record<string, string> = {
   'Could not save settings': '설정을 저장하지 못했습니다',
   'Could not delete the thread': '스레드를 삭제하지 못했습니다',
   'Could not save the conversation': '대화를 저장하지 못했습니다',
+  'Could not clear the conversation': '대화를 비우지 못했습니다',
   'Could not stage the file': '파일을 스테이징하지 못했습니다',
   'Could not revert the file': '파일을 되돌리지 못했습니다',
   'Could not change the app icon': '앱 아이콘을 바꾸지 못했습니다',

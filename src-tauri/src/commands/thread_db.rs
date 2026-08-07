@@ -132,6 +132,19 @@ fn dedupe_key(message: &DbMessage) -> String {
     )
 }
 
+/// Turn raw search-box input into a valid FTS5 query.
+///
+/// Every whitespace-separated token becomes a quoted phrase with internal
+/// quotes doubled, so FTS5 operators (`-`, `*`, `(`, `NEAR`, bare `AND`…)
+/// in user input match literally instead of erroring.
+fn fts5_phrase_query(input: &str) -> String {
+    input
+        .split_whitespace()
+        .map(|tok| format!("\"{}\"", tok.replace('"', "\"\"")))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -392,7 +405,11 @@ impl ThreadDatabase {
 
             let (write_tx, mut write_rx) = mpsc::channel::<WriteCommand>(256);
 
-            tokio::spawn(async move {
+            // tauri::async_runtime, not tokio::spawn: this constructor runs on
+            // the main thread during app setup where no tokio reactor is
+            // entered — tokio::spawn would panic exactly on the degraded-open
+            // path this fallback exists to survive.
+            tauri::async_runtime::spawn(async move {
                 while let Some(cmd) = write_rx.recv().await {
                     match cmd {
                         WriteCommand::Execute(op) => {
@@ -753,6 +770,45 @@ impl ThreadDatabase {
         .await
     }
 
+    /// Replace a thread's entire message list atomically.
+    ///
+    /// This is the truncation primitive: rollback, `/clear`, and tangent-mode
+    /// exit all shrink the in-memory conversation, and without a matching
+    /// SQLite write the removed messages resurrect on the next launch (the DB
+    /// is the source of truth). Deleting row-by-row keeps the FTS triggers in
+    /// sync, and re-inserting inside the same transaction preserves order via
+    /// the auto-increment id.
+    pub async fn replace_messages(
+        &self,
+        thread_id: &str,
+        messages: Vec<DbMessage>,
+    ) -> Result<(), ThreadDbError> {
+        let thread_id = thread_id.to_string();
+        self.write(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            tx.execute("DELETE FROM messages WHERE thread_id = ?1", [&thread_id])?;
+            for message in &messages {
+                let key = dedupe_key(message);
+                tx.execute(
+                    r#"INSERT OR IGNORE INTO messages (thread_id, role, content, timestamp, thinking, tool_calls, dedupe_key)
+                       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+                    rusqlite::params![
+                        thread_id,
+                        message.role,
+                        message.content,
+                        message.timestamp,
+                        message.thinking,
+                        message.tool_calls.as_ref().map(|tc| serde_json::to_string(tc).unwrap_or_default()),
+                        key,
+                    ],
+                )?;
+            }
+            tx.commit()?;
+            Ok(())
+        })
+        .await
+    }
+
     /// Delete ALL threads, messages, context, and FTS data. Used by "Clear conversation history".
     pub async fn clear_all(&self) -> Result<(), ThreadDbError> {
         self.write(move |conn| {
@@ -812,7 +868,9 @@ impl ThreadDatabase {
         let thread_id = thread_id.to_string();
         self.read(move |conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, thread_id, role, content, timestamp, thinking, tool_calls FROM messages WHERE thread_id = ?1 ORDER BY timestamp ASC",
+                // Secondary sort on id: timestamps have 1-second granularity,
+                // so insertion order is what breaks same-second ties.
+                "SELECT id, thread_id, role, content, timestamp, thinking, tool_calls FROM messages WHERE thread_id = ?1 ORDER BY timestamp ASC, id ASC",
             )?;
 
             let messages = stmt
@@ -837,12 +895,20 @@ impl ThreadDatabase {
     // ── Search ────────────────────────────────────────────────────────────────
 
     /// Full-text search across all message content (read path).
+    ///
+    /// The user's raw input is turned into quoted FTS5 phrase tokens first:
+    /// `C++`, `foo(bar)`, `-flag`, or an unbalanced quote are all valid things
+    /// to type into a search box, and all of them are syntax errors to FTS5's
+    /// query parser if passed through bare.
     pub async fn search_messages(
         &self,
         query: &str,
         limit: u32,
     ) -> Result<Vec<ThreadSearchResult>, ThreadDbError> {
-        let query = query.to_string();
+        let query = fts5_phrase_query(query);
+        if query.is_empty() {
+            return Ok(Vec::new());
+        }
         self.read(move |conn| {
             let mut stmt = conn.prepare(
                 r#"SELECT m.thread_id, t.name, m.content, m.timestamp, rank
@@ -1084,6 +1150,23 @@ pub async fn thread_db_save_message(
 }
 
 #[tauri::command]
+pub async fn thread_db_save_messages_batch(
+    state: State<'_, ThreadDbState>,
+    messages: Vec<DbMessage>,
+) -> Result<Vec<i64>, ThreadDbError> {
+    state.db.save_messages_batch(messages).await
+}
+
+#[tauri::command]
+pub async fn thread_db_replace_messages(
+    state: State<'_, ThreadDbState>,
+    thread_id: String,
+    messages: Vec<DbMessage>,
+) -> Result<(), ThreadDbError> {
+    state.db.replace_messages(&thread_id, messages).await
+}
+
+#[tauri::command]
 pub async fn thread_db_search(
     state: State<'_, ThreadDbState>,
     query: String,
@@ -1184,6 +1267,99 @@ mod tests {
         assert_eq!(loaded.name, "Renamed Thread");
         assert_eq!(loaded.status, "paused");
         assert_eq!(loaded.updated_at, "2024-01-02T00:00:00Z");
+    }
+
+    #[tokio::test]
+    async fn test_replace_messages_truncates_and_keeps_fts_in_sync() {
+        // Rollback//clear/tangent-exit shrink the conversation in memory;
+        // replace_messages is what makes the DB agree. Without it, the next
+        // launch resurrects the deleted tail from SQLite.
+        let db = ThreadDatabase::open_memory().unwrap();
+        let thread = DbThread {
+            id: "trunc-1".into(),
+            name: "t".into(),
+            workspace: "/tmp/p".into(),
+            status: "paused".into(),
+            created_at: "2024-01-01T00:00:00Z".into(),
+            updated_at: "2024-01-01T00:00:00Z".into(),
+            parent_thread_id: None,
+            auto_approve: false,
+            metadata: None,
+            message_count: 0,
+        };
+        db.save_thread(&thread).await.unwrap();
+        let mk = |i: usize, content: &str| DbMessage {
+            id: 0,
+            thread_id: "trunc-1".into(),
+            role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
+            content: content.into(),
+            timestamp: format!("2024-01-01T00:00:{:02}Z", i + 1),
+            thinking: None,
+            tool_calls: None,
+        };
+        for i in 0..4 {
+            db.save_message(&mk(i, &format!("keepable {}", i))).await.unwrap();
+        }
+
+        // Truncate to the first two messages.
+        db.replace_messages("trunc-1", vec![mk(0, "keepable 0"), mk(1, "keepable 1")])
+            .await
+            .unwrap();
+
+        let messages = db.load_messages("trunc-1").await.unwrap();
+        assert_eq!(messages.len(), 2, "tail must be gone after replace");
+        assert_eq!(messages[0].content, "keepable 0");
+        assert_eq!(messages[1].content, "keepable 1");
+        // The FTS triggers must have dropped the deleted rows too.
+        let hits = db.search_messages("keepable", 10).await.unwrap();
+        assert_eq!(hits.len(), 2, "FTS index must not retain truncated rows");
+
+        // Clearing to zero messages must also work (the `/clear` path).
+        db.replace_messages("trunc-1", vec![]).await.unwrap();
+        assert!(db.load_messages("trunc-1").await.unwrap().is_empty());
+        assert!(db.search_messages("keepable", 10).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_survives_fts5_operator_input() {
+        // `C++`, parens, dashes and unbalanced quotes are things people type
+        // into a search box, and raw FTS5 treats them all as query syntax.
+        let db = ThreadDatabase::open_memory().unwrap();
+        let thread = DbThread {
+            id: "fts-1".into(),
+            name: "t".into(),
+            workspace: "/tmp/p".into(),
+            status: "paused".into(),
+            created_at: "2024-01-01T00:00:00Z".into(),
+            updated_at: "2024-01-01T00:00:00Z".into(),
+            parent_thread_id: None,
+            auto_approve: false,
+            metadata: None,
+            message_count: 0,
+        };
+        db.save_thread(&thread).await.unwrap();
+        db.save_message(&DbMessage {
+            id: 0,
+            thread_id: "fts-1".into(),
+            role: "user".into(),
+            content: "please refactor foo(bar) in the C++ module".into(),
+            timestamp: "2024-01-01T00:00:01Z".into(),
+            thinking: None,
+            tool_calls: None,
+        })
+        .await
+        .unwrap();
+
+        // None of these may return an Err — they used to be FTS5 syntax errors.
+        for q in ["C++", "foo(bar)", "-flag", "\"unbalanced", "NEAR", "AND"] {
+            let r = db.search_messages(q, 10).await;
+            assert!(r.is_ok(), "query {q:?} must not be an FTS5 syntax error: {r:?}");
+        }
+        // And a quoted-operator query still matches literally.
+        let hits = db.search_messages("foo(bar)", 10).await.unwrap();
+        assert_eq!(hits.len(), 1, "operator-laden token should match literally");
+        // Empty input is a no-op, not an error.
+        assert!(db.search_messages("   ", 10).await.unwrap().is_empty());
     }
 
     #[tokio::test]

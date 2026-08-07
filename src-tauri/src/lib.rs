@@ -763,6 +763,8 @@ pub fn run() {
             thread_db::thread_db_messages,
             thread_db::thread_db_save_message,
             thread_db::thread_db_search,
+            thread_db::thread_db_save_messages_batch,
+            thread_db::thread_db_replace_messages,
             thread_db::thread_db_stats,
             thread_db::thread_db_clear_all,
             thread_db::thread_db_auto_archive,

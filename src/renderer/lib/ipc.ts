@@ -424,6 +424,10 @@ export const ipc = {
     invoke('thread_db_messages', { threadId }),
   threadDbSaveMessage: (message: { id: number; threadId: string; role: string; content: string; timestamp: string; thinking?: string; toolCalls?: unknown }): Promise<number> =>
     invoke('thread_db_save_message', { message }),
+  threadDbSaveMessagesBatch: (messages: Array<{ id: number; threadId: string; role: string; content: string; timestamp: string; thinking?: string; toolCalls?: unknown }>): Promise<number[]> =>
+    invoke('thread_db_save_messages_batch', { messages }),
+  threadDbReplaceMessages: (threadId: string, messages: Array<{ id: number; threadId: string; role: string; content: string; timestamp: string; thinking?: string; toolCalls?: unknown }>): Promise<void> =>
+    invoke('thread_db_replace_messages', { threadId, messages }),
   threadDbSearch: (query: string, limit?: number): Promise<Array<{ threadId: string; threadName: string; messageContent: string; messageTimestamp: string; rank: number }>> =>
     invoke('thread_db_search', { query, limit }),
   threadDbStats: (): Promise<{ totalThreads: number; totalMessages: number; threadsByWorkspace: Array<[string, number]> }> =>

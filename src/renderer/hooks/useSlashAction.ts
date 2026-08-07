@@ -1,6 +1,9 @@
 import { useCallback, useState } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useTaskStore } from '@/stores/taskStore'
+import { useTaskStore, markThreadCleared } from '@/stores/taskStore'
+import * as threadDb from '@/lib/thread-db'
+import { attempt } from '@/lib/ipc-report'
+import { t } from '@/lib/i18n'
 import { isPassthroughCommand, parseCommand, runRpcCommand, GUI_COMMANDS, RPC_COMMANDS } from '@/lib/agent-commands'
 import { useDebugStore } from '@/stores/debugStore'
 import { record } from '@/lib/analytics-collector'
@@ -67,6 +70,12 @@ export const useSlashAction = (): SlashActionResult => {
             return { tasks: { ...s.tasks, [selectedTaskId]: { ...task, messages: [] } } }
           })
           clearTurn(selectedTaskId)
+          // The clear must reach SQLite (source of truth) and the JSON index,
+          // or the "cleared" conversation resurrects verbatim on the next
+          // launch — for a command people use to remove sensitive content.
+          markThreadCleared(selectedTaskId)
+          attempt(t('Could not clear the conversation'), threadDb.replaceMessages(selectedTaskId, []))
+          useTaskStore.getState().persistHistory()
         }
         setPanel(null)
         return true

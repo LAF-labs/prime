@@ -203,8 +203,35 @@ export async function saveThreads(
   }
 
   // 2. Overwrite/insert entries for live tasks currently in memory.
+  const existingById = new Map(existing.map((t) => [t.id, t]))
   for (const t of Object.values(tasks)) {
-    if (t.messages.length === 0) continue
+    if (t.messages.length === 0) {
+      // Zero messages means one of two very different things. A thin-eligible
+      // task got here via an intentional `/clear` — record the empty state
+      // (thin entry, count 0) so the conversation does not resurrect. Any
+      // other empty task (draft, failed SQLite read) must not overwrite a
+      // message-bearing entry already on disk — keep it verbatim.
+      if (thinIds.has(t.id)) {
+        liveIds.add(t.id)
+        merged.set(t.id, {
+          id: t.id,
+          name: t.name,
+          workspace: t.workspace,
+          createdAt: t.createdAt,
+          messages: [],
+          lastActivityAt: t.createdAt,
+          messageCount: 0,
+          ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
+          ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
+          ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
+          ...(t.projectId ? { projectId: t.projectId } : {}),
+        })
+      } else {
+        const prior = existingById.get(t.id)
+        if (prior) merged.set(t.id, prior)
+      }
+      continue
+    }
     liveIds.add(t.id)
     // Thin by default: the messages live in SQLite (saved per message as they
     // land), so the index carries only what the sidebar needs. This is what
@@ -396,7 +423,7 @@ export interface BackupData {
 /** Create a backup of all persisted state */
 export async function createBackup(settings?: AppSettings): Promise<void> {
   const primary = await getStore()
-  const threads = (await primary.get<SavedThread[]>('threads')) ?? []
+  let threads = (await primary.get<SavedThread[]>('threads')) ?? []
   const projects = (await primary.get<SavedProject[]>('projects')) ?? []
   const softDeleted = (await primary.get<SoftDeletedThread[]>('softDeleted')) ?? []
   const backup = await getBackupStore()
@@ -412,6 +439,24 @@ export async function createBackup(settings?: AppSettings): Promise<void> {
       )
       return
     }
+  }
+
+  // Since the storage flip the primary's entries are mostly thin
+  // (messages: []) — copying them verbatim would replace the backup's last
+  // message-bearing copy of each thread with an empty shell. Keep the richer
+  // of the two per thread: the backup is a disaster-recovery artifact, and a
+  // stale full copy beats a fresh empty one. Intentional clears are the
+  // exception — a thin entry with messageCount 0 states "this thread is
+  // empty on purpose" and does overwrite.
+  {
+    const existing = (await backup.get<SavedThread[]>('threads')) ?? []
+    const existingById = new Map(existing.map((t) => [t.id, t]))
+    threads = threads.map((t) => {
+      if (t.messages.length > 0) return t
+      if ((t.messageCount ?? 0) === 0) return t
+      const prior = existingById.get(t.id)
+      return prior && prior.messages.length > 0 ? prior : t
+    })
   }
 
   await backup.set('threads', threads)
@@ -451,11 +496,22 @@ export async function loadBackup(): Promise<BackupData> {
  */
 export async function saveStreamingSnapshots(
   snapshots: Record<string, SavedMessage>,
+  /** Thread ids whose snapshot entries this window owns (it dispatched them).
+   *  Entries outside this set are preserved verbatim — an idle window's
+   *  autosave must not clear the streaming window's in-flight partial. */
+  ownedIds?: ReadonlySet<string>,
 ): Promise<void> {
   const store = await getStore()
+  let next = snapshots
+  if (ownedIds) {
+    const existing = (await store.get<Record<string, SavedMessage>>('streaming')) ?? {}
+    next = { ...existing }
+    for (const id of ownedIds) delete next[id]
+    Object.assign(next, snapshots)
+  }
   _selfWriteCount++
   try {
-    await store.set('streaming', snapshots)
+    await store.set('streaming', next)
   } finally {
     setTimeout(() => { _selfWriteCount-- }, 1000)
   }

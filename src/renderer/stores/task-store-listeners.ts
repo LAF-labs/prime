@@ -11,7 +11,7 @@ import type { TaskStore } from './task-store-types'
 import { t as msg } from '@/lib/i18n'
 import { attempt } from '@/lib/ipc-report'
 import { record } from '@/lib/analytics-collector'
-import { consumeTurnClaim } from '@/lib/turn-ownership'
+import { consumeTurnClaim, releaseTurn } from '@/lib/turn-ownership'
 import {
   EMPTY_SNAPSHOT, snapshotOf, spendDelta, providerOf,
   type SessionStats, type SpendSnapshot,
@@ -102,6 +102,26 @@ const throttledMidTurnPersist = (): void => {
   if (now - lastMidTurnPersistMs < MID_TURN_PERSIST_MS) return
   lastMidTurnPersistMs = now
   useTaskStore.getState().persistHistory()
+}
+
+/**
+ * Apply turn_end and write every message it appended through to SQLite.
+ *
+ * `applyTurnEnd` can add more than the assistant reply — refusal and
+ * connection-lost system notes ride along — and the refusal/watchdog paths
+ * used to skip persistence entirely. With the JSON index thin, a message that
+ * misses SQLite has no durable home, so the save must cover the exact delta
+ * on every path that ends a turn. Dedupe keys make re-saves no-ops.
+ */
+const applyTurnEndPersisting = (taskId: string, stopReason?: string, refusalRetry?: boolean): void => {
+  const before = useTaskStore.getState().tasks[taskId]?.messages.length ?? 0
+  useTaskStore.setState((s) => applyTurnEnd(s, taskId, stopReason, refusalRetry))
+  const after = useTaskStore.getState().tasks[taskId]
+  if (!after) return
+  const appended = after.messages.slice(before)
+  if (appended.length > 0) {
+    attempt(msg('Could not save the conversation'), threadDb.saveAllMessages(taskId, appended))
+  }
 }
 
 /**
@@ -221,7 +241,7 @@ export function initTaskListeners(): () => void {
       if (idle >= WATCHDOG_KILL_MS) {
         // Auto-clear: treat as a lost connection so the spinner disappears
         // and the user can send a new message.
-        useTaskStore.setState((s) => applyTurnEnd(s, taskId, 'connection_lost'))
+        applyTurnEndPersisting(taskId, 'connection_lost')
         useTaskStore.getState().persistHistory()
         delete lastActivityMs[taskId]
         useDebugStore.getState().addEntry({
@@ -402,7 +422,7 @@ export function initTaskListeners(): () => void {
       const alreadyRetried = !!refusalRetried[taskId]
 
       // Apply turn end with retry flag so the system message is appropriate
-      useTaskStore.setState((s) => applyTurnEnd(s, taskId, stopReason, !alreadyRetried))
+      applyTurnEndPersisting(taskId, stopReason, !alreadyRetried)
       useTaskStore.getState().persistHistory()
       throttledBackup()
 
@@ -452,8 +472,9 @@ export function initTaskListeners(): () => void {
     // every dollar — twice.
     const isDispatchingWindow = consumeTurnClaim(taskId)
 
-    // Use a single setState to avoid stale reads between getState() calls
-    useTaskStore.setState((s) => applyTurnEnd(s, taskId, stopReason))
+    // Single atomic apply (avoids stale reads between getState() calls),
+    // persisting every appended message — not just the assistant reply.
+    applyTurnEndPersisting(taskId, stopReason)
 
     if (isDispatchingWindow) void recordTurnSpend(taskId)
 
@@ -538,19 +559,6 @@ export function initTaskListeners(): () => void {
     useTaskStore.getState().persistHistory()
     throttledBackup()
 
-    // Incrementally save the new assistant message to SQLite (per-message
-    // granularity — survives crashes better than JSON bulk writes).
-    // Thread metadata is already saved by persistHistory above.
-    {
-      const t = useTaskStore.getState().tasks[taskId]
-      if (t && t.messages.length > 0) {
-        const lastMsg = t.messages[t.messages.length - 1]
-        if (lastMsg.role === 'assistant') {
-          attempt(msg('Could not save the conversation'), threadDb.saveMessage(taskId, lastMsg))
-        }
-      }
-    }
-
     // Send a native notification when the window is not focused and notifications are enabled
     const settings = useSettingsStore.getState().settings
     const task = useTaskStore.getState().tasks[taskId]
@@ -595,6 +603,9 @@ export function initTaskListeners(): () => void {
           messages: [...task.messages, userMsg],
         })
         useTaskStore.getState().clearTurn(taskId)
+        // Same contract as a hand-typed send (ChatPanel): the user message is
+        // written to SQLite at dispatch time, not left for a later bulk save.
+        attempt(msg('Could not save the conversation'), threadDb.saveMessage(taskId, userMsg))
         ipc.sendMessage(taskId, nextMsg.text, nextMsg.attachments ? [...nextMsg.attachments] : undefined)
       }
     }
@@ -693,17 +704,17 @@ export function initTaskListeners(): () => void {
   })
 
   const unsub12 = ipc.onTaskError(({ taskId, message, action }) => {
-    useTaskStore.setState((s) => {
-      const task = s.tasks[taskId]
-      if (!task) return s
-      const errorMsg: import('@/types').TaskMessage = {
+    const errorMsg: import('@/types').TaskMessage = {
         role: 'system' as const,
         content: `\u26a0\ufe0f ${message}`,
         timestamp: new Date().toISOString(),
         // Carried so the error card can offer the matching button rather than
         // leaving the user to work out where to go.
         ...(action && action !== 'none' ? { errorAction: action } : {}),
-      }
+    }
+    useTaskStore.setState((s) => {
+      const task = s.tasks[taskId]
+      if (!task) return s
       // Drop the dispatch snapshot — the turn is dead.
       const { [taskId]: _drop, ...remainingSnapshots } = s.dispatchSnapshots
       return {
@@ -715,6 +726,13 @@ export function initTaskListeners(): () => void {
         dispatchSnapshots: remainingSnapshots,
       }
     })
+    // The error note must survive a restart like any other message, and the
+    // turn claim must not linger — an errored turn never reaches turn_end,
+    // and a stale claim would double-count this thread's next turn.
+    if (useTaskStore.getState().tasks[taskId]) {
+      attempt(msg('Could not save the conversation'), threadDb.saveMessage(taskId, errorMsg))
+    }
+    releaseTurn(taskId)
     // Notify on errors while backgrounded
     const errSettings = useSettingsStore.getState().settings
     const errTask = useTaskStore.getState().tasks[taskId]

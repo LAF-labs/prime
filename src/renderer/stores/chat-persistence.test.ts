@@ -45,6 +45,7 @@ vi.mock('@/lib/thread-db', () => ({
   saveThread: vi.fn().mockResolvedValue(undefined),
   saveMessage: vi.fn().mockResolvedValue(undefined),
   saveAllMessages: vi.fn().mockResolvedValue(undefined),
+  replaceMessages: vi.fn().mockResolvedValue(undefined),
   loadFullThread: vi.fn().mockResolvedValue(null),
   loadMessages: vi.fn().mockResolvedValue([]),
   migrateFromJsonHistory: vi.fn().mockResolvedValue({ migrated: 0, skipped: 0, failed: 0 }),
@@ -71,6 +72,7 @@ vi.mock('./resourceStore', () => ({
 }))
 
 import { useTaskStore } from './taskStore'
+import { claimTurn } from '@/lib/turn-ownership'
 import * as historyStore from '@/lib/history-store'
 import * as threadDb from '@/lib/thread-db'
 import type { AgentTask, TaskMessage, ToolCall, ToolCallSplit } from '@/types'
@@ -601,6 +603,7 @@ describe('persistHistory — streaming crash recovery snapshots', () => {
     // the whole conversation every ten seconds mid-turn — O(history) writes.
     const taskId = 'streaming-task'
     useTaskStore.setState(streamingState(taskId))
+    claimTurn(taskId) // this window dispatched the turn — it owns the snapshot
 
     useTaskStore.getState().persistHistory()
 
@@ -618,6 +621,7 @@ describe('persistHistory — streaming crash recovery snapshots', () => {
       thinkingChunks: { [taskId]: 'thinking hard' },
       liveToolCalls: { [taskId]: [tc] },
     }))
+    claimTurn(taskId)
 
     useTaskStore.getState().persistHistory()
 
@@ -634,7 +638,7 @@ describe('persistHistory — streaming crash recovery snapshots', () => {
 
     useTaskStore.getState().persistHistory()
 
-    expect(vi.mocked(historyStore.saveStreamingSnapshots)).toHaveBeenCalledWith({})
+    expect(vi.mocked(historyStore.saveStreamingSnapshots).mock.calls[0][0]).toEqual({})
   })
 
   it('ignores chunks for tasks that are not running', () => {
@@ -642,10 +646,26 @@ describe('persistHistory — streaming crash recovery snapshots', () => {
     const state = streamingState(taskId)
     state.tasks[taskId] = makeTask({ id: taskId, status: 'paused', messages: [makeMessage({ content: 'hi' })] })
     useTaskStore.setState(state)
+    claimTurn(taskId)
 
     useTaskStore.getState().persistHistory()
 
-    expect(vi.mocked(historyStore.saveStreamingSnapshots)).toHaveBeenCalledWith({})
+    expect(vi.mocked(historyStore.saveStreamingSnapshots).mock.calls[0][0]).toEqual({})
+  })
+
+  it('does not write snapshots for threads this window never dispatched', () => {
+    // Events broadcast to every window, so a viewer window accumulates
+    // streamingChunks too — but only the dispatching window owns the
+    // snapshot. An idle window writing its (empty or stale) view used to
+    // erase the streaming window's partial.
+    const taskId = 'viewer-window-task'
+    useTaskStore.setState(streamingState(taskId)) // note: no claimTurn
+
+    useTaskStore.getState().persistHistory()
+
+    const [snapshots, ownedIds] = vi.mocked(historyStore.saveStreamingSnapshots).mock.calls[0]
+    expect(snapshots).toEqual({})
+    expect(ownedIds?.has(taskId)).toBe(false)
   })
 
   it('does not mutate the tasks in the store', () => {
@@ -728,6 +748,8 @@ describe('dev restart scenario — end-to-end', () => {
       threadOrders: {},
     })
 
+    // This window dispatched the running turn (snapshot ownership).
+    claimTurn(taskId)
     // persistHistory is called (mid-turn persist or before-unload)
     useTaskStore.getState().persistHistory()
 

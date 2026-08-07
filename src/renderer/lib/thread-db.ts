@@ -170,10 +170,20 @@ export async function saveMessage(threadId: string, msg: TaskMessage): Promise<n
 
 /** Save all messages for a thread (batch — used for initial sync from JSON) */
 export async function saveAllMessages(threadId: string, messages: TaskMessage[]): Promise<void> {
-  // Save messages sequentially to preserve order (auto-increment IDs)
-  for (const msg of messages) {
-    await saveMessage(threadId, msg)
-  }
+  if (messages.length === 0) return
+  // One transactional IPC round-trip instead of one per message — a long
+  // archived thread used to cost hundreds of sequential invokes here, which
+  // is exactly the window where quitting the app lost the backfill.
+  await ipc.threadDbSaveMessagesBatch(messages.map((m) => taskMessageToDbMessage(threadId, m)))
+}
+
+/** Atomically replace a thread's entire message list.
+ *
+ *  The truncation primitive: rollback, `/clear`, and tangent-mode exit shrink
+ *  the in-memory conversation, and SQLite (the source of truth) must agree or
+ *  the removed messages resurrect on the next launch. */
+export async function replaceMessages(threadId: string, messages: TaskMessage[]): Promise<void> {
+  await ipc.threadDbReplaceMessages(threadId, messages.map((m) => taskMessageToDbMessage(threadId, m)))
 }
 
 /** Save a complete thread (metadata + all messages) */
@@ -294,9 +304,12 @@ export async function migrateFromJsonHistory(
 
   for (const saved of threads) {
     try {
-      // Check if already in SQLite
+      // Skip only when the messages are actually there. A metadata-only row
+      // (persistHistory saves thread metadata for every in-memory task, and
+      // can run while this migration is mid-walk) must not count as migrated —
+      // that would flip `sqliteReady` with the messages in neither store.
       const existing = await loadThread(saved.id)
-      if (existing) {
+      if (existing && (existing.messageCount ?? 0) > 0) {
         skipped++
         continue
       }
@@ -321,18 +334,15 @@ export async function migrateFromJsonHistory(
       }
       await ipc.threadDbSave(dbThread)
 
-      // Save messages
-      for (const msg of saved.messages) {
-        const taskMsg: TaskMessage = {
-          role: msg.role as TaskMessage['role'],
-          content: msg.content,
-          timestamp: msg.timestamp,
-          ...(msg.thinking ? { thinking: msg.thinking } : {}),
-          ...(msg.toolCalls && msg.toolCalls.length > 0 ? { toolCalls: msg.toolCalls } : {}),
-          ...(msg.toolCallSplits && msg.toolCallSplits.length > 0 ? { toolCallSplits: msg.toolCallSplits } : {}),
-        }
-        await saveMessage(saved.id, taskMsg)
-      }
+      // Save messages in one transaction (dedupe keys make re-runs no-ops).
+      await saveAllMessages(saved.id, saved.messages.map((msg) => ({
+        role: msg.role as TaskMessage['role'],
+        content: msg.content,
+        timestamp: msg.timestamp,
+        ...(msg.thinking ? { thinking: msg.thinking } : {}),
+        ...(msg.toolCalls && msg.toolCalls.length > 0 ? { toolCalls: msg.toolCalls } : {}),
+        ...(msg.toolCallSplits && msg.toolCallSplits.length > 0 ? { toolCallSplits: msg.toolCallSplits } : {}),
+      })))
 
       migrated++
     } catch (err) {

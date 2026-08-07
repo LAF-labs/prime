@@ -184,9 +184,13 @@ async function dispatchToAgent(
       autoApprove,
       modeId: effectiveModeId,
       attachments,
+      // Always reuse the frontend's id (the backend honors existing_id for
+      // any create). Without this a draft thread got a NEW backend id: the
+      // draft entry lingered as a phantom "running" sidebar row, and the
+      // first user message sat in SQLite under an id no thread ever loads.
+      existingId: task.id,
       ...(isResumed
         ? {
-            existingId: task.id,
             ...(task.sessionFile ? { sessionFile: task.sessionFile } : {}),
             existingMessages: task.messages.map((m) => ({
               role: m.role,

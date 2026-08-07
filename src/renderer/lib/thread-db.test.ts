@@ -6,6 +6,8 @@ vi.mock('@/lib/ipc', () => ({
     threadDbStats: vi.fn(),
     threadDbSave: vi.fn(),
     threadDbSaveMessage: vi.fn(),
+    threadDbSaveMessagesBatch: vi.fn().mockResolvedValue([]),
+    threadDbReplaceMessages: vi.fn().mockResolvedValue(undefined),
     threadDbLoad: vi.fn(),
     threadDbMessages: vi.fn(),
     threadDbList: vi.fn(),
@@ -324,7 +326,9 @@ describe('saveFullThread', () => {
     await threadDb.saveFullThread(task)
 
     expect(ipc.threadDbSave).toHaveBeenCalledTimes(1)
-    expect(ipc.threadDbSaveMessage).toHaveBeenCalledTimes(2)
+    // Messages travel as one batched transaction, not one invoke per message.
+    expect(ipc.threadDbSaveMessagesBatch).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(ipc.threadDbSaveMessagesBatch).mock.calls[0][0]).toHaveLength(2)
   })
 
   it('skips message saving for empty thread', async () => {
@@ -353,11 +357,14 @@ describe('migrateFromJsonHistory', () => {
 
     expect(result).toEqual({ migrated: 1, skipped: 0, failed: 0 })
     expect(ipc.threadDbSave).toHaveBeenCalledTimes(1)
-    expect(ipc.threadDbSaveMessage).toHaveBeenCalledTimes(1)
+    expect(ipc.threadDbSaveMessagesBatch).toHaveBeenCalledTimes(1)
   })
 
   it('skips threads that already exist in SQLite', async () => {
-    vi.mocked(ipc.threadDbLoad).mockResolvedValue({ id: 't1', name: 'Existing', workspace: '/ws', status: 'completed', createdAt: '', updatedAt: '', autoApprove: false })
+    // A migrated thread has its messages in SQLite — messageCount > 0 is
+    // what "already exists" means. A metadata-only row (messageCount 0) is
+    // an artifact of persistHistory racing the migration and must NOT skip.
+    vi.mocked(ipc.threadDbLoad).mockResolvedValue({ id: 't1', name: 'Existing', workspace: '/ws', status: 'completed', createdAt: '', updatedAt: '', autoApprove: false, messageCount: 3 })
     vi.mocked(ipc.threadDbSave).mockResolvedValue(undefined)
 
     const loadFn = vi.fn().mockResolvedValue([
@@ -368,6 +375,22 @@ describe('migrateFromJsonHistory', () => {
 
     expect(result).toEqual({ migrated: 0, skipped: 1, failed: 0 })
     expect(ipc.threadDbSave).not.toHaveBeenCalled()
+  })
+
+  it('re-migrates a metadata-only row (persistHistory raced the migration)', async () => {
+    vi.mocked(ipc.threadDbLoad).mockResolvedValue({ id: 't1', name: 'Shell', workspace: '/ws', status: 'completed', createdAt: '', updatedAt: '', autoApprove: false, messageCount: 0 })
+    vi.mocked(ipc.threadDbSave).mockResolvedValue(undefined)
+
+    const loadFn = vi.fn().mockResolvedValue([
+      { id: 't1', name: 'Thread 1', workspace: '/ws', createdAt: '2026-01-01', messages: [
+        { role: 'user', content: 'hello', timestamp: '2026-01-01T00:00:01Z' },
+      ] },
+    ])
+
+    const result = await threadDb.migrateFromJsonHistory(loadFn)
+
+    expect(result).toEqual({ migrated: 1, skipped: 0, failed: 0 })
+    expect(ipc.threadDbSaveMessagesBatch).toHaveBeenCalledTimes(1)
   })
 
   it('counts failures without stopping migration', async () => {

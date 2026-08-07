@@ -37,6 +37,7 @@ vi.mock('@/lib/thread-db', () => ({
   saveThread: vi.fn().mockResolvedValue(undefined),
   saveMessage: vi.fn().mockResolvedValue(undefined),
   saveAllMessages: vi.fn().mockResolvedValue(undefined),
+  replaceMessages: vi.fn().mockResolvedValue(undefined),
   loadFullThread: vi.fn().mockResolvedValue(null),
   loadMessages: vi.fn().mockResolvedValue([]),
   migrateFromJsonHistory: vi.fn().mockResolvedValue({ migrated: 0, skipped: 0, failed: 0 }),

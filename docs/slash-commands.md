@@ -68,8 +68,10 @@ had, so muscle memory carries over.
 through a plain `prompt`, because `AgentSession` dispatches extension commands
 and expands `/skill:<name>` on any transport.
 
-The bundled gate extension registers `/reload`, `/system-prompt`, `/tree`, and
-`/import`. A project's own `.agent/` extensions and skills appear the same way.
+The bundled gate extension registers `/reload`, `/system-prompt`, `/tree`,
+`/import`, and `/plan-guard` (the plan-mode enforcement toggle the app drives
+automatically — see the note on `/plan` below). A project's own `.agent/`
+extensions and skills appear the same way.
 
 A name the agent advertises wins over ours, so a project can override a
 built-in command.
@@ -97,7 +99,10 @@ reply in an overlay. Escape discards the exchange; `/btw tail` keeps it. The
 agent sees full context, but the exchange is ephemeral by default.
 
 `/plan` switches mode optimistically on the client and applies a prefix to the
-next message, so it works before the agent has connected.
+next message, so it works before the agent has connected. Once a connection is
+live, the app additionally sends `/plan-guard on|off` to the gate extension,
+which hard-blocks mutating tools (write/edit-style tools, `bash`, `ipython`)
+while plan mode is on — the prefix asks, the guard enforces.
 
 `/close` and `/exit` archive rather than delete — the conversation stays
 readable and can be restored from Settings → Archives.

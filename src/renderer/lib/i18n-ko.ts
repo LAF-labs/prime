@@ -816,4 +816,49 @@ export const ko: Record<string, string> = {
   'Reference an entire directory': '디렉터리 전체를 참조합니다',
   'Mention an agent by name': '에이전트를 이름으로 언급합니다',
 
+  // ── Pull request creation ─────────────────────────────────────────
+  'Create Pull Request': '풀 리퀘스트 만들기',
+  'Create a pull request first…': '먼저 풀 리퀘스트 만들기…',
+  'The pull request was created.': '풀 리퀘스트를 만들었습니다.',
+  'Open a pull request for the current branch. Title and body are generated from the diff.':
+    '현재 브랜치로 풀 리퀘스트를 엽니다. 제목과 본문은 diff에서 자동 생성됩니다.',
+  'Checking repository state…': '저장소 상태 확인 중…',
+  'Could not read the repository': '저장소를 읽지 못했습니다',
+  'This branch already has an open pull request.': '이 브랜치에는 이미 열려 있는 풀 리퀘스트가 있습니다.',
+  'The origin remote is not GitHub or GitLab, so a pull request cannot be created from here.':
+    'origin 원격이 GitHub 또는 GitLab이 아니어서 여기서는 풀 리퀘스트를 만들 수 없습니다.',
+  'The origin remote is not GitHub or GitLab': 'origin 원격이 GitHub 또는 GitLab이 아닙니다',
+  'Already on the default branch — create a feature branch first':
+    '이미 기본 브랜치입니다 — 먼저 기능 브랜치를 만드세요',
+  'GitHub CLI (gh) is not installed. Install it with: brew install gh':
+    'GitHub CLI(gh)가 설치되어 있지 않습니다. 다음으로 설치하세요: brew install gh',
+  'GitLab CLI (glab) is not installed. Install it with: brew install glab':
+    'GitLab CLI(glab)가 설치되어 있지 않습니다. 다음으로 설치하세요: brew install glab',
+  'The GitHub CLI is not authenticated. Run "gh auth login" in a terminal first.':
+    'GitHub CLI가 인증되지 않았습니다. 먼저 터미널에서 "gh auth login"을 실행하세요.',
+  'The GitLab CLI is not authenticated. Run "glab auth login" in a terminal first.':
+    'GitLab CLI가 인증되지 않았습니다. 먼저 터미널에서 "glab auth login"을 실행하세요.',
+  'This repository has no other branch to use as the base.':
+    '이 저장소에는 base로 쓸 다른 브랜치가 없습니다.',
+  'Base branch': 'Base 브랜치',
+  'Head branch': 'Head 브랜치',
+  'The branch will be pushed to the remote before the pull request is created.':
+    '풀 리퀘스트를 만들기 전에 브랜치를 원격에 푸시합니다.',
+  Title: '제목',
+  Body: '본문',
+  Regenerate: '다시 생성',
+  'Generating…': '생성 중…',
+  'Creating…': '만드는 중…',
+  'Pull request title': '풀 리퀘스트 제목',
+  'Describe the change (markdown)': '변경사항을 설명하세요 (마크다운)',
+  'Could not generate PR content': 'PR 내용을 생성하지 못했습니다',
+  'you can write it manually.': '직접 작성할 수 있습니다.',
+  'Create as draft': '초안으로 만들기',
+  'A pull request for this branch already exists. Open it on the remote instead.':
+    '이 브랜치의 풀 리퀘스트가 이미 있습니다. 원격에서 열어 확인하세요.',
+  'Authenticate the CLI first (gh auth login / glab auth login), then try again.':
+    '먼저 CLI를 인증한 뒤(gh auth login / glab auth login) 다시 시도하세요.',
+  'Push the branch and make sure it has commits ahead of the base branch.':
+    '브랜치를 푸시하고 base 브랜치보다 앞선 커밋이 있는지 확인하세요.',
+
 }

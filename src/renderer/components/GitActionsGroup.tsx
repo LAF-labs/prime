@@ -1,11 +1,12 @@
 import { t } from '@/lib/i18n'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { IconGitCommit, IconChevronDown, IconArrowUp, IconArrowDown, IconRefresh, IconLoader2, IconCloudUpload } from '@tabler/icons-react'
+import { IconGitCommit, IconChevronDown, IconArrowUp, IconArrowDown, IconRefresh, IconLoader2, IconCloudUpload, IconGitPullRequest } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { CommitDialog } from '@/components/CommitDialog'
+import { CreatePrDialog } from '@/components/CreatePrDialog'
 import { PublishRepoDialog } from '@/components/PublishRepoDialog'
 import { DefaultBranchConfirmDialog, isDefaultBranch, type DefaultBranchAction } from '@/components/DefaultBranchConfirmDialog'
 import { withGitToast } from '@/lib/git-toast'
@@ -30,6 +31,7 @@ interface GitStatus {
 export function GitActionsGroup({ workspace }: { workspace: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [commitDialogOpen, setCommitDialogOpen] = useState(false)
+  const [prDialogOpen, setPrDialogOpen] = useState(false)
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [activeAction, setActiveAction] = useState<GitAction>(null)
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null)
@@ -150,6 +152,20 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
   const commitDisabled = busy || (gitStatus ? !gitStatus.isDirty : false)
   const commitHint = gitStatus && !gitStatus.isDirty ? 'Worktree is clean' : undefined
 
+  // PR creation needs a GitHub/GitLab remote and a non-default branch to
+  // merge from. remoteUrl === null means "still fetching" — stay optimistic
+  // and let the dialog surface any problem.
+  const hasPrRemote = remoteUrl === null || /github\.|gitlab\./i.test(remoteUrl)
+  const onDefaultBranch = gitStatus ? isDefaultBranch(gitStatus.branch) : false
+  const prDisabled = busy || remoteUrl === '' || !hasPrRemote || onDefaultBranch
+  const prHint = remoteUrl === ''
+    ? t('No remote configured — publish the repository first')
+    : !hasPrRemote
+      ? t('The origin remote is not GitHub or GitLab')
+      : onDefaultBranch
+        ? t('Already on the default branch — create a feature branch first')
+        : undefined
+
   return (
     <div ref={ref} data-testid="git-actions-group" className="relative">
       {/* Chevron — sits flush against the diff stats button on the left */}
@@ -178,6 +194,9 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
           <GitMenuItem icon={IconRefresh} label="Fetch" loading={activeAction === 'fetch'} disabled={busy}
             onClick={() => void runGitAction('fetch', () => ipc.gitFetch(workspace), 'Fetch')} />
           <div className="mx-2 my-1 border-t border-border/40" />
+          <GitMenuItem icon={IconGitPullRequest} label={t('Create Pull Request')} loading={false} disabled={prDisabled}
+            hint={prHint}
+            onClick={() => { setMenuOpen(false); setPrDialogOpen(true) }} />
           <GitMenuItem icon={IconCloudUpload} label="Publish" loading={false} disabled={busy}
             onClick={handleOpenPublish} />
           {remoteUrl === '' ? (
@@ -203,6 +222,13 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
       <CommitDialog
         open={commitDialogOpen}
         onOpenChange={setCommitDialogOpen}
+        workspace={workspace}
+      />
+
+      {/* Create pull request dialog */}
+      <CreatePrDialog
+        open={prDialogOpen}
+        onOpenChange={setPrDialogOpen}
         workspace={workspace}
       />
 

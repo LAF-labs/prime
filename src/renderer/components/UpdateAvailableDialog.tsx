@@ -1,5 +1,5 @@
 import { t } from '@/lib/i18n'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { IconDownload, IconLoader2, IconRefresh, IconSparkles } from '@tabler/icons-react'
 import {
   Dialog,
@@ -15,18 +15,31 @@ import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 export const UpdateAvailableDialog = () => {
   const { status, updateInfo, progress, dismissedVersion, downloadAndInstall, restart, dismissVersion } = useUpdateChecker()
   const [isRestarting, setIsRestarting] = useState(false)
+  // Closing the dialog mid-download hides it while the download keeps going —
+  // the updateStore tracks progress and Settings → Updates shows the state.
+  const [isBackgrounded, setIsBackgrounded] = useState(false)
 
   const isAvailable = status === 'available' && updateInfo !== null && dismissedVersion !== updateInfo.version
   const isDownloading = status === 'downloading'
   const isReady = status === 'ready'
-  const isOpen = isAvailable || isDownloading || isReady
+  const isOpen = (isAvailable || isDownloading || isReady) && !(isDownloading && isBackgrounded)
+
+  // Re-surface the dialog once the download finishes so the restart prompt
+  // is not lost behind a backgrounded download.
+  useEffect(() => {
+    if (!isDownloading) setIsBackgrounded(false)
+  }, [isDownloading])
 
   const downloadPercent = progress?.total
     ? Math.round((progress.downloaded / progress.total) * 100)
     : null
 
   const handleDismiss = useCallback(() => {
-    if (isDownloading || isRestarting) return
+    if (isRestarting) return
+    if (isDownloading) {
+      setIsBackgrounded(true)
+      return
+    }
     if (updateInfo?.version) {
       dismissVersion(updateInfo.version)
     }
@@ -97,10 +110,15 @@ export const UpdateAvailableDialog = () => {
               </Button>
             </>
           ) : isDownloading ? (
-            <Button variant="ghost" size="sm" disabled>
-              <IconLoader2 className="size-4 animate-spin" aria-hidden />
-              Downloading…
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" onClick={handleDismiss}>
+                {t('Continue in background')}
+              </Button>
+              <Button variant="ghost" size="sm" disabled>
+                <IconLoader2 className="size-4 animate-spin" aria-hidden />
+                Downloading…
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" size="sm" onClick={handleDismiss}>

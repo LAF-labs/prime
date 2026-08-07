@@ -32,11 +32,64 @@ impl Drop for PtyInstance {
         // id. Killing only that pid leaves whatever the user was running in
         // the terminal — a dev server, a build — alive with no terminal to
         // stop it from. Signal the group first, then reap the leader.
+        //
+        // The polling here must reap with `try_wait()`, not probe with
+        // `kill(pid, 0)`: we own the child, so until someone waits on it the
+        // exited shell stays a zombie and `kill(pid, 0)` keeps succeeding —
+        // which used to burn the full 500ms grace on every teardown.
+        #[cfg(unix)]
         if let Some(pid) = self.child.process_id() {
-            super::process_group::terminate_group(pid, std::time::Duration::from_millis(500));
+            super::process_group::signal_group_term(pid);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+            let mut exited = false;
+            while std::time::Instant::now() < deadline {
+                if matches!(self.child.try_wait(), Ok(Some(_))) {
+                    exited = true;
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            if !exited {
+                super::process_group::signal_group_kill(pid);
+            }
         }
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+/// Decode a chunk of a UTF-8 byte stream, carrying incomplete trailing
+/// sequences over to the next chunk.
+///
+/// A 16KB read routinely lands mid-character (Korean text, emoji, box-drawing
+/// output), and `from_utf8_lossy` on the raw chunk turns the split character
+/// into replacement characters. Same pattern as the agent stderr reader in
+/// `rpc/connection.rs`: an incomplete trailing sequence waits in `carry` for
+/// more bytes; genuinely invalid bytes are lossy-decoded so a broken stream
+/// still surfaces something.
+pub(crate) fn decode_utf8_chunk(carry: &mut Vec<u8>, chunk: &[u8]) -> String {
+    carry.extend_from_slice(chunk);
+    match std::str::from_utf8(carry) {
+        Ok(s) => {
+            let s = s.to_string();
+            carry.clear();
+            s
+        }
+        Err(e) if e.error_len().is_none() => {
+            // Only an incomplete sequence at the end: emit the valid prefix,
+            // keep the tail for the next read.
+            let good = e.valid_up_to();
+            let s = String::from_utf8_lossy(&carry[..good]).to_string();
+            carry.drain(..good);
+            s
+        }
+        Err(_) => {
+            // Genuinely invalid bytes mid-buffer: decode the lot lossily
+            // rather than stalling the stream.
+            let s = String::from_utf8_lossy(carry).to_string();
+            carry.clear();
+            s
+        }
     }
 }
 
@@ -131,6 +184,7 @@ pub fn pty_create(
     let event_window = window.clone();
     let reader_thread = std::thread::spawn(move || {
         let mut buf = [0u8; 16384];
+        let mut carry: Vec<u8> = Vec::new();
         loop {
             match reader.read(&mut buf) {
                 Ok(0) => {
@@ -138,7 +192,10 @@ pub fn pty_create(
                     break;
                 }
                 Ok(n) => {
-                    let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let data = decode_utf8_chunk(&mut carry, &buf[..n]);
+                    if data.is_empty() {
+                        continue;
+                    }
                     let _ = event_window.emit(
                         "pty_data",
                         PtyDataPayload { id: event_id.clone(), data },
@@ -237,4 +294,54 @@ pub fn pty_count(
     let label = window.label();
     let ptys = state.0.lock();
     ptys.get(label).map(|m| m.len() as u32).unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_utf8_chunk;
+
+    /// A multi-byte character split across two reads must come out whole,
+    /// not as replacement characters.
+    #[test]
+    fn split_multibyte_character_survives_chunk_boundary() {
+        let bytes = "안녕하세요".as_bytes(); // 15 bytes, 3 per character
+        let mut carry = Vec::new();
+        // Split mid-"녕": first chunk ends one byte into the character.
+        let first = decode_utf8_chunk(&mut carry, &bytes[..4]);
+        assert_eq!(first, "안");
+        assert_eq!(carry.len(), 1);
+        let second = decode_utf8_chunk(&mut carry, &bytes[4..]);
+        assert_eq!(second, "녕하세요");
+        assert!(carry.is_empty());
+    }
+
+    #[test]
+    fn emoji_split_across_three_chunks() {
+        let bytes = "🙂".as_bytes(); // 4 bytes
+        let mut carry = Vec::new();
+        assert_eq!(decode_utf8_chunk(&mut carry, &bytes[..1]), "");
+        assert_eq!(decode_utf8_chunk(&mut carry, &bytes[1..3]), "");
+        assert_eq!(decode_utf8_chunk(&mut carry, &bytes[3..]), "🙂");
+        assert!(carry.is_empty());
+    }
+
+    #[test]
+    fn plain_ascii_passes_through() {
+        let mut carry = Vec::new();
+        assert_eq!(decode_utf8_chunk(&mut carry, b"hello"), "hello");
+        assert!(carry.is_empty());
+    }
+
+    /// Genuinely invalid bytes must not wedge the carry buffer — the stream
+    /// keeps flowing, lossily.
+    #[test]
+    fn invalid_bytes_are_lossy_decoded_not_stalled() {
+        let mut carry = Vec::new();
+        let out = decode_utf8_chunk(&mut carry, &[b'a', 0xFF, b'b']);
+        assert!(out.starts_with('a') && out.ends_with('b'));
+        assert!(out.contains('\u{FFFD}'));
+        assert!(carry.is_empty());
+        // The next chunk decodes cleanly.
+        assert_eq!(decode_utf8_chunk(&mut carry, "다음".as_bytes()), "다음");
+    }
 }

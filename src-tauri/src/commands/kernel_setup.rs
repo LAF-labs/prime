@@ -102,10 +102,38 @@ pub async fn kernel_setup(app: tauri::AppHandle) -> Result<(), AppError> {
         });
     }
 
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| AppError::Other(format!("Kernel setup did not complete: {e}")))?;
+    // stdout is piped too, so it must be drained: an undrained pipe fills its
+    // ~64KB buffer, the bootstrapper blocks on write, and `wait()` below never
+    // returns. Nothing user-facing comes out here — just log it.
+    if let Some(stdout) = child.stdout.take() {
+        tokio::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let mut lines = BufReader::new(stdout).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let line = line.trim();
+                if !line.is_empty() {
+                    log::info!("[kernel stdout] {line}");
+                }
+            }
+        });
+    }
+
+    // Generous ceiling for a ~350 MB download on a slow connection. Without
+    // it, a wedged bootstrap (dead network mid-download, hung uv) leaves the
+    // setup step spinning forever with no way to recover.
+    const BOOTSTRAP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+    let status = match tokio::time::timeout(BOOTSTRAP_TIMEOUT, child.wait()).await {
+        Ok(result) => {
+            result.map_err(|e| AppError::Other(format!("Kernel setup did not complete: {e}")))?
+        }
+        Err(_) => {
+            let _ = child.kill().await;
+            return Err(AppError::Other(
+                "Kernel setup timed out after 10 minutes. Check your internet connection and try again."
+                    .into(),
+            ));
+        }
+    };
 
     if status.success() {
         Ok(())

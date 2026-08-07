@@ -128,8 +128,10 @@ pub(crate) fn tool_title(tool_name: &str, args: &Value) -> String {
         Some(t) if !t.trim().is_empty() => format!("{tool_name}: {}", t.trim()),
         _ => tool_name.to_string(),
     };
-    if t.len() > 200 {
-        t.truncate(200);
+    // `String::truncate` cuts at a byte index and panics mid-character, which
+    // any Korean or emoji tool title hits. Truncate by characters instead.
+    if t.chars().count() > 200 {
+        t = truncate_chars(&t, 200);
         t.push('…');
     }
     t
@@ -1019,7 +1021,12 @@ fn handle_extension_ui_request(ctx: &Arc<ReaderCtx>, event: &Value) {
                 _ => {
                     let first_line = title.lines().next().unwrap_or(title);
                     let mut t = first_line.to_string();
-                    if t.len() > 120 { t.truncate(120); t.push('…'); }
+                    // Byte-index truncation panics mid-character (Korean/emoji
+                    // permission titles); truncate by characters instead.
+                    if t.chars().count() > 120 {
+                        t = truncate_chars(&t, 120);
+                        t.push('…');
+                    }
                     (t, title.to_string())
                 }
             };

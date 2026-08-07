@@ -33,6 +33,34 @@ pub fn lead_new_group(cmd: &mut tokio::process::Command) {
     let _ = cmd;
 }
 
+/// Ask every process in `pid`'s group to exit, without waiting.
+///
+/// For callers that own the child handle and can reap it themselves
+/// (`try_wait()` in their own polling loop) — `terminate_group`'s liveness
+/// probe (`kill(pid, 0)`) keeps succeeding for an unreaped zombie, so an
+/// owning caller polling that way would always burn the full grace period.
+pub fn signal_group_term(pid: u32) {
+    #[cfg(unix)]
+    // SAFETY: kill(2) with a negative pid signals a process group. A stale
+    // group id yields ESRCH, which we ignore.
+    unsafe {
+        libc::kill(-(pid as i32), libc::SIGTERM);
+    }
+    #[cfg(not(unix))]
+    let _ = pid;
+}
+
+/// Force-kill every process in `pid`'s group. SIGKILL cannot be caught.
+pub fn signal_group_kill(pid: u32) {
+    #[cfg(unix)]
+    // SAFETY: same contract as `signal_group_term`.
+    unsafe {
+        libc::kill(-(pid as i32), libc::SIGKILL);
+    }
+    #[cfg(not(unix))]
+    let _ = pid;
+}
+
 /// Ask every process in `pid`'s group to exit, then insist.
 ///
 /// Returns once the leader is gone or the grace period expires. Callers run

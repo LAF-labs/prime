@@ -766,5 +766,11 @@ export const ko: Record<string, string> = {
   'Toggle usage statistics': '사용 통계 켜기/끄기',
   'Local stats for the dashboard. Nothing ever leaves this machine either way; off records nothing at all.':
     '대시보드용 로컬 통계입니다. 어느 쪽이든 이 기기 밖으로 나가지 않으며, 끄면 아무것도 기록하지 않습니다.',
+  // ── Background download / clone ──────────────────────────────────
+  'Continue in background': '백그라운드에서 계속',
+  'Clone finished': '클론 완료',
+  'Clone failed': '클론 실패',
+  '{repo} was cloned and added to your projects.':
+    '{repo} 저장소를 클론해서 프로젝트에 추가했습니다.',
 
 }

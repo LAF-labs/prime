@@ -4,6 +4,7 @@ import { IconGitCommit, IconChevronDown, IconArrowUp, IconArrowDown, IconRefresh
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { CommitDialog } from '@/components/CommitDialog'
 import { PublishRepoDialog } from '@/components/PublishRepoDialog'
 import { DefaultBranchConfirmDialog, isDefaultBranch, type DefaultBranchAction } from '@/components/DefaultBranchConfirmDialog'
@@ -37,6 +38,8 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
     action: DefaultBranchAction
     onContinue: () => void
   }>({ open: false, action: 'push', onContinue: () => {} })
+  // null = unknown (still fetching), '' = confirmed no remote
+  const [remoteUrl, setRemoteUrl] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const statusFetchRef = useRef(0) // Monotonic counter to discard stale fetches
 
@@ -48,6 +51,13 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
       if (statusFetchRef.current === fetchId) setGitStatus(status)
     }).catch(() => {
       if (statusFetchRef.current === fetchId) setGitStatus(null)
+    })
+    // Remote presence drives the GitHub item: without it the item silently
+    // did nothing. Disable it with a hint instead.
+    ipc.gitRemoteUrl(workspace).then((url) => {
+      if (statusFetchRef.current === fetchId) setRemoteUrl(url ?? '')
+    }).catch(() => {
+      if (statusFetchRef.current === fetchId) setRemoteUrl('')
     })
   }, [menuOpen, workspace])
 
@@ -93,17 +103,33 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
   const handleOpenGitHub = useCallback(async () => {
     setMenuOpen(false)
     try {
-      const [remoteUrl, branches] = await Promise.all([
+      const [freshRemoteUrl, branches] = await Promise.all([
         ipc.gitRemoteUrl(workspace),
         ipc.gitListBranches(workspace),
       ])
-      if (!remoteUrl) return
+      if (!freshRemoteUrl) {
+        // The item should be disabled in this case, but the state can be
+        // stale — never let the click silently do nothing.
+        toast.error(t('This repository has no remote'), {
+          description: t('Publish it first to open it on GitHub.'),
+        })
+        return
+      }
       const branch = branches.currentBranch
       const isDefault = !branch || branch === 'main' || branch === 'master'
-      ipc.openUrl(isDefault ? remoteUrl : `${remoteUrl}/tree/${branch}`)
+      ipc.openUrl(isDefault ? freshRemoteUrl : `${freshRemoteUrl}/tree/${branch}`)
     } catch {
-      try { const url = await ipc.gitRemoteUrl(workspace); if (url) ipc.openUrl(url) }
-      catch { /* no remote */ }
+      try {
+        const url = await ipc.gitRemoteUrl(workspace)
+        if (url) { ipc.openUrl(url); return }
+        toast.error(t('This repository has no remote'), {
+          description: t('Publish it first to open it on GitHub.'),
+        })
+      } catch (err) {
+        toast.error(t('Could not open the repository on GitHub'), {
+          description: err instanceof Error ? err.message : String(err),
+        })
+      }
     }
   }, [workspace])
 
@@ -154,10 +180,22 @@ export function GitActionsGroup({ workspace }: { workspace: string }) {
           <div className="mx-2 my-1 border-t border-border/40" />
           <GitMenuItem icon={IconCloudUpload} label="Publish" loading={false} disabled={busy}
             onClick={handleOpenPublish} />
-          <button type="button" onClick={() => void handleOpenGitHub()}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
-            <GitHubIcon /> GitHub
-          </button>
+          {remoteUrl === '' ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" disabled
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground opacity-50 transition-colors">
+                  <GitHubIcon /> GitHub
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-48 text-xs">{t('No remote configured — publish the repository first')}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button type="button" onClick={() => void handleOpenGitHub()}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
+              <GitHubIcon /> GitHub
+            </button>
+          )}
         </div>
       )}
 

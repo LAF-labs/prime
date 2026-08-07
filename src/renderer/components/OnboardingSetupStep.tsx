@@ -7,6 +7,7 @@ import { OnboardingCliSection } from '@/components/OnboardingCliSection'
 import { OnboardingAuthSection } from '@/components/OnboardingAuthSection'
 import { OnboardingKernelSection } from '@/components/OnboardingKernelSection'
 import { useT } from '@/lib/i18n'
+import { reportFailure } from '@/lib/ipc-report'
 import { withTimeout } from '@/lib/with-timeout'
 
 /** Detection reads the bundle and the PATH; anything slower than this is stuck. */
@@ -58,10 +59,18 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
 
   const finish = useCallback(async () => {
     const settings = useSettingsStore.getState().settings
-    await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice })
+    try {
+      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice })
+    } catch (err) {
+      // A silently rejected write here left a dead "Launch" button on first
+      // run — the wizard never advanced and never said why. Surface it and
+      // leave the button live so the user can retry.
+      reportFailure(t('Could not save settings'), err)
+      return
+    }
     useSettingsStore.getState().checkAuth()
     ipc.probeCapabilities().catch(() => {})
-  }, [bin, themeChoice])
+  }, [bin, themeChoice, t])
 
   return (
     <div className="flex w-full flex-col gap-6">

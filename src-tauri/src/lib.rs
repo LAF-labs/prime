@@ -602,6 +602,7 @@ pub fn run() {
             fs_ops::read_file_base64,
             fs_ops::is_directory,
             fs_ops::pick_folder,
+            fs_ops::pick_file,
             fs_ops::pick_image,
             fs_ops::export_text_file,
             fs_ops::open_in_editor,

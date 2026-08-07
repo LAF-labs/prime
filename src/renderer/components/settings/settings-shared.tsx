@@ -1,8 +1,9 @@
 import { t } from '@/lib/i18n'
 import { memo, useState } from 'react'
 import {
-  IconUser, IconSettings2, IconPaint, IconKeyboard, IconTool, IconArchive, IconActivity,
+  IconUser, IconSettings2, IconPaint, IconKeyboard, IconTool, IconArchive, IconActivity, IconLoader2,
 } from '@tabler/icons-react'
+import { reportFailure } from '@/lib/ipc-report'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
@@ -144,7 +145,8 @@ interface ConfirmDialogProps {
   title: string
   description: string
   confirmLabel?: string
-  onConfirm: () => void
+  /** May be async: the dialog awaits it, closes on success, and stays open with a failure toast on error. */
+  onConfirm: () => void | Promise<void>
   isDestructive?: boolean
 }
 
@@ -162,8 +164,12 @@ export const ConfirmDialog = ({
   const handleConfirm = async () => {
     setIsLoading(true)
     try {
-      onConfirm()
+      await onConfirm()
       onOpenChange(false)
+    } catch (err) {
+      // Closing on a failed destructive action would show it as done when it
+      // was not. Keep the dialog open so the user can retry or cancel.
+      reportFailure(title, err)
     } finally {
       setIsLoading(false)
     }
@@ -189,12 +195,13 @@ export const ConfirmDialog = ({
             disabled={isLoading}
             onClick={handleConfirm}
             className={cn(
-              'rounded-lg px-4 py-2 text-[13px] font-medium transition-colors disabled:opacity-50',
+              'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium transition-colors disabled:opacity-50',
               isDestructive
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90',
             )}
           >
+            {isLoading && <IconLoader2 className="size-3.5 animate-spin" aria-hidden />}
             {confirmLabel}
           </button>
         </DialogFooter>

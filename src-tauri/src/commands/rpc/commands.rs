@@ -112,6 +112,7 @@ pub fn task_create(
             content: params.prompt.clone(),
             timestamp: now.clone(),
             tool_calls: None,
+            tool_call_splits: None,
             thinking: None,
         });
     }
@@ -317,6 +318,7 @@ pub fn task_send_message(
             content: message.clone(),
             timestamp: now_rfc3339(),
             tool_calls: None,
+            tool_call_splits: None,
             thinking: None,
         });
         task.status = "running".to_string();
@@ -599,6 +601,7 @@ pub async fn task_fork(
                 content: format!("Forked from: {}", parent_name),
                 timestamp: now,
                 tool_calls: None,
+                tool_call_splits: None,
                 thinking: None,
             });
             msgs

@@ -1826,9 +1826,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       })
     }
     if (removeWorktree) {
-      void ipc.gitWorktreeRemove(originalWorkspace, worktreePath).catch((err) => {
-        console.warn('[worktree] Failed to remove worktree during cleanup:', err)
-      })
+      // The user explicitly chose the destructive branch of the cleanup
+      // dialog — a silent failure would leave a worktree they believe gone.
+      attempt(t('Could not remove the worktree'), ipc.gitWorktreeRemove(originalWorkspace, worktreePath))
     }
     get().persistHistory()
   },

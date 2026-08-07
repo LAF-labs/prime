@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
 import { useUpdateStore } from '@/stores/updateStore'
 import { t } from '@/lib/i18n'
 
@@ -71,9 +72,11 @@ export const useUpdateChecker = () => {
       useUpdateStore.getState().setStatus('ready')
     } catch (err) {
       console.error('[updater] download failed:', err)
-      useUpdateStore.getState().setError(
-        err instanceof Error ? err.message : t('Download failed'),
-      )
+      const detail = err instanceof Error ? err.message : t('Download failed')
+      useUpdateStore.getState().setError(detail)
+      // The update dialog closes on 'error' status — without a toast the
+      // download just silently vanished.
+      toast.error(t('Update download failed'), { description: detail })
     }
   }, [])
 

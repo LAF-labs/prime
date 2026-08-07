@@ -45,6 +45,12 @@ vi.mock('@/components/GitActionsGroup', () => ({
   GitActionsGroup: () => <div data-testid="git-actions-group" />,
 }))
 
+const mockReportFailure = vi.fn()
+vi.mock('@/lib/ipc-report', () => ({
+  reportFailure: (...args: unknown[]) => mockReportFailure(...args),
+  attempt: vi.fn(),
+}))
+
 import { HeaderToolbar } from './header-toolbar'
 
 beforeEach(() => {
@@ -103,5 +109,29 @@ describe('HeaderToolbar', () => {
       expect(screen.getByTestId('toggle-diff-button')).toBeInTheDocument()
     })
     expect(screen.queryByTestId('git-init-button')).not.toBeInTheDocument()
+  })
+
+  it('surfaces a git init failure instead of silently swallowing it', async () => {
+    mockGitDetect.mockResolvedValue(false)
+    mockGitInit.mockRejectedValue(new Error('permission denied'))
+    render(
+      <HeaderToolbar
+        workspace="/tmp/no-git"
+        sidePanelOpen={false}
+        onToggleSidePanel={vi.fn()}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('git-init-button')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByTestId('git-init-button'))
+    await waitFor(() => {
+      expect(mockReportFailure).toHaveBeenCalledWith(
+        'Could not initialize the git repository',
+        expect.any(Error),
+      )
+    })
+    // Still not a repo — the button stays for a retry.
+    expect(screen.getByTestId('git-init-button')).toBeInTheDocument()
   })
 })

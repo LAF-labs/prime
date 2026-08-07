@@ -285,7 +285,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
         <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2">
           <IconCircleCheck size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
           <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-            {t('providers.connected', { label: lastConnected.label, count: lastConnected.count })}
+            {t('{label} connected — {count} models available', { label: lastConnected.label, count: lastConnected.count })}
           </p>
         </div>
       )}

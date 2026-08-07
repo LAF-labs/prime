@@ -68,6 +68,24 @@ const defaultSettings: AppSettings = {
   inlineToolCalls: true,
 }
 
+/**
+ * Reset the user-tunable settings to their defaults while preserving state
+ * that "Restore defaults" must never wipe: onboarding completion (or the app
+ * falls back into the first-run wizard), theme, language, per-project prefs,
+ * the custom app icon, and the changelog cursor. This is the ONLY sanctioned
+ * way to build a "defaults" object — a plain `defaultSettings` copy silently
+ * drops those fields because `saveSettings` writes wholesale.
+ */
+export const buildRestoredDefaults = (current: AppSettings): AppSettings => ({
+  ...defaultSettings,
+  hasOnboardedV2: current.hasOnboardedV2,
+  theme: current.theme,
+  language: current.language,
+  projectPrefs: current.projectPrefs,
+  customAppIcon: current.customAppIcon,
+  lastSeenChangelogVersion: current.lastSeenChangelogVersion,
+})
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: defaultSettings,
   isLoaded: false,

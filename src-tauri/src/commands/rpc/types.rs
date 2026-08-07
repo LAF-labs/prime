@@ -25,6 +25,23 @@ pub struct ToolCallData {
     pub raw_input: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub raw_output: Option<Value>,
+    /// ISO timestamp of when the call first appeared (frontend-authored;
+    /// round-tripped so resumption keeps inline ordering data).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    /// ISO timestamp of when the call reached a terminal status.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
+}
+
+/// Anchor recording where a tool call appeared in the assistant prose stream
+/// (`at` is a UTF-16 offset into the message content). Authored by the
+/// frontend; carried through so resumption/fork keeps inline tool ordering.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolCallSplitData {
+    pub at: u64,
+    pub tool_call_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -35,6 +52,11 @@ pub struct TaskMessage {
     pub timestamp: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCallData>>,
+    /// Where each tool call sat in `content` during streaming. The frontend
+    /// sends this in `existing_messages` on resumption; dropping it here used
+    /// to silently discard inline tool ordering for resumed threads.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_splits: Option<Vec<ToolCallSplitData>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<String>,
 }

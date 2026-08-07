@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { useState, useEffect, useCallback } from 'react'
-import { IconX, IconFileCode, IconMaximize, IconMinimize, IconGitCommit, IconLoader2, IconSparkles } from '@tabler/icons-react'
+import { IconX, IconFileCode, IconMaximize, IconMinimize, IconGitCommit, IconLoader2, IconSparkles, IconAlertTriangle } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -17,6 +17,7 @@ interface CodePanelProps {
 export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps) {
   const [width, setWidth] = useState(380)
   const [diff, setDiff] = useState('')
+  const [diffError, setDiffError] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
   const [isCommitting, setIsCommitting] = useState(false)
@@ -28,13 +29,21 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
   const taskStatus = useTaskStore((s) => selectedTaskId ? s.tasks[selectedTaskId]?.status : undefined)
   const effectiveWorkspace = taskWorkspace ?? workspaceProp
 
+  // A failed diff fetch is not "No changes yet" — swallowing it rendered a
+  // dead connection as a clean worktree. Track the failure separately so the
+  // panel can say so and offer a retry.
   const fetchDiff = useCallback(() => {
+    const onError = (e: unknown) => {
+      setDiff('')
+      setDiffError(e instanceof Error ? e.message : String(e))
+    }
     if (selectedTaskId && taskWorkspace) {
-      ipc.getTaskDiff(selectedTaskId).then(setDiff).catch(() => setDiff(''))
+      ipc.getTaskDiff(selectedTaskId).then((d) => { setDiff(d); setDiffError(null) }).catch(onError)
     } else if (effectiveWorkspace) {
-      ipc.gitDiff(effectiveWorkspace).then(setDiff).catch(() => setDiff(''))
+      ipc.gitDiff(effectiveWorkspace).then((d) => { setDiff(d); setDiffError(null) }).catch(onError)
     } else {
       setDiff('')
+      setDiffError(null)
     }
   }, [selectedTaskId, taskWorkspace, effectiveWorkspace])
 
@@ -129,6 +138,24 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
             <TooltipContent side="bottom">{t('Close')}</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Diff load failure — distinct from the empty "No changes yet" state */}
+        {diffError !== null && (
+          <div className="flex items-start gap-2 border-b bg-destructive/10 px-3 py-2">
+            <IconAlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-destructive">{t('Could not load the diff')}</p>
+              <p className="truncate text-[10px] text-destructive/80">{diffError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchDiff}
+              className="shrink-0 rounded-md border border-destructive/30 px-2 py-0.5 text-[10px] font-medium text-destructive transition-colors hover:bg-destructive/15"
+            >
+              {t('Retry')}
+            </button>
+          </div>
+        )}
 
         {/* Diff content */}
         <div className="flex flex-1 min-h-0">

@@ -19,6 +19,7 @@ import { OpenInEditorGroup } from "@/components/OpenInEditorGroup"
 import { GitActionsGroup } from "@/components/GitActionsGroup"
 import { SplitThreadPicker } from "@/components/chat/SplitThreadPicker"
 import { ipc } from "@/lib/ipc"
+import { reportFailure } from "@/lib/ipc-report"
 import { cn } from "@/lib/utils"
 import { useFileTreeStore } from "@/stores/fileTreeStore"
 import type { TaskStatus } from "@/types"
@@ -172,8 +173,9 @@ export const HeaderToolbar = memo(function HeaderToolbar({
     try {
       await ipc.gitInit(workspace)
       setIsGitRepo(true)
-    } catch {
-      // Error is non-critical; user can retry
+    } catch (err) {
+      // The button just flickers back otherwise — say why it failed.
+      reportFailure(t('Could not initialize the git repository'), err)
     } finally {
       setIsInitializing(false)
     }

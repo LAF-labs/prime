@@ -289,7 +289,10 @@ export function App() {
   const theme = useSettingsStore((s) => s.settings.theme ?? 'dark');
   const sidebarPosition = useSettingsStore((s) => s.settings.sidebarPosition ?? 'left');
   const isRightSidebar = sidebarPosition === 'right';
-  const isUpdateDialogActive = useUpdateStore((s) => s.status !== 'idle');
+  // 'error' must count as inactive: a single failed background update check
+  // used to park the store on 'error' forever, permanently suppressing the
+  // What's New dialog behind a gate meant for live update UI.
+  const isUpdateDialogActive = useUpdateStore((s) => s.status !== 'idle' && s.status !== 'error');
   useKeyboardShortcuts();
   useSessionTracker();
   useZoomLimit();

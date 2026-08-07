@@ -1,11 +1,12 @@
 import { t } from '@/lib/i18n'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { IconTrash, IconRestore } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useProjectIcon } from '@/hooks/useProjectIcon'
 import { ProjectIcon } from '@/components/sidebar/ProjectIcon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { ConfirmDialog } from './settings-shared'
 import type { SoftDeletedThread } from '@/types'
 
 const HOUR_MS = 60 * 60 * 1000
@@ -33,10 +34,19 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
   const icon = useProjectIcon(workspace)
   const displayName = projectNames[workspace] ?? workspace.split('/').pop() ?? workspace
 
+  // This is the recovery screen: every delete here is unrecoverable, so both
+  // the per-row trash and "Delete all" go through an explicit confirmation.
+  const [isConfirmDeleteAllOpen, setIsConfirmDeleteAllOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
+
   const handleDeleteAll = () => {
     for (const [id] of items) {
       permanentlyDeleteTask(id)
     }
+  }
+
+  const handleDeleteOne = () => {
+    if (pendingDelete) permanentlyDeleteTask(pendingDelete.id)
   }
 
   return (
@@ -51,7 +61,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
             <button
               type="button"
               aria-label={`Delete all threads from ${displayName}`}
-              onClick={handleDeleteAll}
+              onClick={() => setIsConfirmDeleteAllOpen(true)}
               className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
             >
               <IconTrash className="size-3" />
@@ -87,7 +97,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
                   <button
                     type="button"
                     aria-label={`Permanently delete ${task.name}`}
-                    onClick={() => permanentlyDeleteTask(id)}
+                    onClick={() => setPendingDelete({ id, name: task.name })}
                     className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
                   >
                     <IconTrash className="size-3.5" />
@@ -99,6 +109,23 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
           </div>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={isConfirmDeleteAllOpen}
+        onOpenChange={setIsConfirmDeleteAllOpen}
+        title={t('Permanently delete all threads in {project}?', { project: displayName })}
+        description={t('This permanently deletes {count} deleted threads from this project. They can no longer be restored. This action cannot be undone.', { count: items.length })}
+        confirmLabel={t('Delete all')}
+        onConfirm={handleDeleteAll}
+      />
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        title={t('Permanently delete this thread?')}
+        description={t('"{name}" will be removed immediately and can no longer be restored. This action cannot be undone.', { name: pendingDelete?.name ?? '' })}
+        confirmLabel={t('Delete permanently')}
+        onConfirm={handleDeleteOne}
+      />
     </div>
   )
 })

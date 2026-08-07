@@ -5,6 +5,7 @@ import {
   IconLoader2, IconRefresh, IconTerminal, IconAlertTriangle,
 } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
+import { reportFailure } from '@/lib/ipc-report'
 import { cn } from '@/lib/utils'
 import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-external'
 import type { DetectState } from '@/components/onboarding-shared'
@@ -34,9 +35,15 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
     if (isCliReady) onCliReady(cliPath || manualPath || 'prime-agent')
   }, [isCliReady, cliPath, manualPath, onCliReady])
 
+  // The target is the prime-agent executable — a FILE. The folder picker
+  // could never select it, so Browse was a dead end on the recovery path.
   const handleBrowse = useCallback(async () => {
-    const picked = await ipc.pickFolder()
-    if (picked) setManualPath(picked)
+    try {
+      const picked = await ipc.pickFile()
+      if (picked) setManualPath(picked)
+    } catch (err) {
+      reportFailure(t('Could not open the file picker'), err)
+    }
   }, [])
 
   return (

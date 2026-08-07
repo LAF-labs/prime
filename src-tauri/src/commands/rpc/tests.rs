@@ -390,6 +390,7 @@ fn make_msg(role: &str, content: &str) -> TaskMessage {
         content: content.to_string(),
         timestamp: "2024-01-01T00:00:00Z".to_string(),
         tool_calls: None,
+        tool_call_splits: None,
         thinking: None,
     }
 }
@@ -482,30 +483,31 @@ fn sanitize_normalizes_in_progress_tool_calls() {
         content: "working on it".to_string(),
         timestamp: "t".to_string(),
         thinking: None,
+        tool_call_splits: None,
         tool_calls: Some(vec![
             ToolCallData {
                 tool_call_id: "tc-1".to_string(),
                 title: "edit file".to_string(),
                 status: "in_progress".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None,
+                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
             },
             ToolCallData {
                 tool_call_id: "tc-2".to_string(),
                 title: "read file".to_string(),
                 status: "pending".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None,
+                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
             },
             ToolCallData {
                 tool_call_id: "tc-3".to_string(),
                 title: "shell".to_string(),
                 status: "completed".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None,
+                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
             },
             ToolCallData {
                 tool_call_id: "tc-4".to_string(),
                 title: "run".to_string(),
                 status: "failed".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None,
+                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
             },
         ]),
     }];
@@ -525,6 +527,53 @@ fn sanitize_leaves_messages_without_tool_calls_untouched() {
     let mut msgs = vec![make_msg("user", "hi")];
     sanitize_forked_messages(&mut msgs);
     assert!(msgs[0].tool_calls.is_none());
+}
+
+// ── existing_messages round-trip (resumption keeps tool history) ────────
+
+#[test]
+fn existing_messages_round_trip_keeps_tool_calls_and_splits() {
+    // Exactly the shape ChatPanel sends in `existingMessages` on resumption:
+    // camelCase keys, tool calls with timestamps, and inline split anchors.
+    let json = r#"[
+        {
+            "role": "assistant",
+            "content": "Editing the file now.",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "toolCalls": [
+                {
+                    "toolCallId": "tc-1",
+                    "title": "Edit main.rs",
+                    "status": "completed",
+                    "kind": "edit",
+                    "createdAt": "2026-01-01T00:00:01Z",
+                    "completedAt": "2026-01-01T00:00:02Z"
+                }
+            ],
+            "toolCallSplits": [{ "at": 8, "toolCallId": "tc-1" }]
+        }
+    ]"#;
+    let msgs: Vec<TaskMessage> = serde_json::from_str(json).unwrap();
+    assert_eq!(msgs.len(), 1);
+
+    let calls = msgs[0].tool_calls.as_ref().expect("toolCalls must survive");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].tool_call_id, "tc-1");
+    assert_eq!(calls[0].status, "completed");
+    assert_eq!(calls[0].created_at.as_deref(), Some("2026-01-01T00:00:01Z"));
+    assert_eq!(calls[0].completed_at.as_deref(), Some("2026-01-01T00:00:02Z"));
+
+    let splits = msgs[0].tool_call_splits.as_ref().expect("toolCallSplits must survive");
+    assert_eq!(splits.len(), 1);
+    assert_eq!(splits[0].at, 8);
+    assert_eq!(splits[0].tool_call_id, "tc-1");
+
+    // And they flow back out camelCase on task_update serialization.
+    let out = serde_json::to_value(&msgs[0]).unwrap();
+    assert_eq!(out["toolCalls"][0]["toolCallId"], "tc-1");
+    assert_eq!(out["toolCalls"][0]["createdAt"], "2026-01-01T00:00:01Z");
+    assert_eq!(out["toolCallSplits"][0]["at"], 8);
+    assert_eq!(out["toolCallSplits"][0]["toolCallId"], "tc-1");
 }
 
 #[test]

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
 import { IconX, IconArrowLeft, IconBrandGithub, IconSearch, IconRotate, IconCircleFilled, IconAlertTriangle } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
-import { useSettingsStore } from '@/stores/settingsStore'
+import { useSettingsStore, buildRestoredDefaults } from '@/stores/settingsStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -21,14 +21,6 @@ import { KeymapSection } from './keymap-section'
 import { AdvancedSection } from './advanced-section'
 import { MemorySection } from './memory-section'
 import { ArchivesSection } from './archives-section'
-
-const defaultSettings: AppSettings = {
-  agentBin: 'prime-agent',
-  agentProfiles: [],
-  fontSize: 14,
-  chatFontSize: 14,
-  sidebarPosition: 'left',
-}
 
 /** Shallow compare two AppSettings objects to detect unsaved changes */
 const isDirty = (draft: AppSettings, saved: AppSettings): boolean =>
@@ -116,8 +108,11 @@ export const SettingsPanel = () => {
     setOpen(false)
   }, [settings, setOpen])
 
+  // Resets only the user-tunable fields; onboarding state, theme, language,
+  // project prefs, and the custom icon survive. A wholesale default object
+  // here once wiped `hasOnboardedV2` and dropped users back into the wizard.
   const handleRestoreDefaults = useCallback(() => {
-    setDraft(defaultSettings)
+    setDraft((d) => buildRestoredDefaults(d))
   }, [])
 
   const updateDraft = useCallback((patch: Partial<AppSettings>) => {

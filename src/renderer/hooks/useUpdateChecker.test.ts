@@ -17,6 +17,14 @@ vi.mock('@tauri-apps/plugin-process', () => ({
   relaunch: vi.fn().mockResolvedValue(undefined),
 }))
 
+const mockToastError = vi.fn()
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => mockToastError(...args),
+    success: vi.fn(),
+  },
+}))
+
 import { useUpdateStore } from '@/stores/updateStore'
 import { useUpdateChecker } from './useUpdateChecker'
 
@@ -74,6 +82,25 @@ describe('useUpdateChecker', () => {
     await waitFor(() => {
       expect(useUpdateStore.getState().error).toBe('Update check failed')
     })
+  })
+
+  it('shows a toast when the download fails, not just a silent error state', async () => {
+    mockDownloadAndInstall.mockRejectedValueOnce(new Error('disk full'))
+    mockCheck.mockResolvedValue({
+      version: '2.0.0',
+      downloadAndInstall: mockDownloadAndInstall,
+    })
+    const { result } = renderHook(() => useUpdateChecker())
+    await waitFor(() => {
+      expect(useUpdateStore.getState().status).toBe('available')
+    })
+    await result.current.downloadAndInstall()
+    expect(useUpdateStore.getState().status).toBe('error')
+    expect(useUpdateStore.getState().error).toBe('disk full')
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Update download failed',
+      expect.objectContaining({ description: 'disk full' }),
+    )
   })
 
   it('skips check when already downloading', async () => {

@@ -198,11 +198,9 @@ async function dispatchToAgent(
               timestamp: m.timestamp,
               ...(m.thinking ? { thinking: m.thinking } : {}),
               // Carry tool data through the resumption round-trip. The
-              // backend's TaskMessage struct doesn't model `toolCallSplits`,
-              // so the field is dropped at deserialization on the Rust side
-              // — but we still send it here so that any future backend
-              // version that adds the field will get it, and so the
-              // intent of the mapping is explicit.
+              // backend's TaskMessage struct models both fields (camelCase
+              // serde renames), so they survive into the task's message
+              // list and flow back out on task_update events.
               ...(m.toolCalls ? { toolCalls: m.toolCalls } : {}),
               ...(m.toolCallSplits ? { toolCallSplits: m.toolCallSplits } : {}),
             })),

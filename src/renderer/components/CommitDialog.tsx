@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { IconLoader2, IconSparkles, IconGitBranch, IconArrowUp } from '@tabler/icons-react'
+import { IconLoader2, IconSparkles, IconGitBranch, IconArrowUp, IconAlertTriangle } from '@tabler/icons-react'
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
   const [excludedFiles, setExcludedFiles] = useState<Set<string>>(new Set())
   const [isEditingFiles, setIsEditingFiles] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isCommitting, setIsCommitting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [branch, setBranch] = useState<string | null>(null)
@@ -47,17 +48,20 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
 
   const isDefaultBranch = branch ? DEFAULT_BRANCHES.includes(branch) : false
 
-  // Fetch changed files and branch when dialog opens
-  useEffect(() => {
-    if (!open) return
+  // Fetch changed files and branch. Extracted so the error state can retry.
+  const fetchDialogState = useCallback(() => {
     setIsLoading(true)
+    setLoadError(null)
 
-    // Fetch independently so one failure doesn't blank out the other
+    // Fetch independently so one failure doesn't blank out the other. A
+    // failed file listing is an ERROR, not "no changes" — rendering it as the
+    // empty state showed a clean tree over a dead git connection.
     const filesPromise = ipc.gitChangedFiles(workspace)
       .then((changedFiles) => setFiles(changedFiles))
       .catch((e) => {
         console.error('[CommitDialog] Failed to fetch changed files:', e)
         setFiles([])
+        setLoadError(e instanceof Error ? e.message : String(e))
       })
 
     const statusPromise = ipc.gitVcsStatus(workspace)
@@ -68,7 +72,11 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
       })
 
     Promise.all([filesPromise, statusPromise]).finally(() => setIsLoading(false))
-  }, [open, workspace])
+  }, [workspace])
+
+  useEffect(() => {
+    if (open) fetchDialogState()
+  }, [open, fetchDialogState])
 
   const selectedFiles = useMemo(
     () => files.filter((f) => !excludedFiles.has(f.path)),
@@ -240,7 +248,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
                 <span className="font-medium">{branch ?? '(detached HEAD)'}</span>
                 {isDefaultBranch && (
                   <span className="text-right text-xs text-orange-400">
-                    Warning: default refName
+                    {t('Warning: committing to the default branch')}
                   </span>
                 )}
               </span>
@@ -282,6 +290,20 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
                 <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
                   <IconLoader2 className="size-4 animate-spin" />
                   <span>Loading files…</span>
+                </div>
+              ) : loadError !== null ? (
+                <div className="flex flex-col gap-2 rounded-md bg-destructive/10 px-3 py-2.5">
+                  <p className="flex items-start gap-1.5 text-destructive">
+                    <IconAlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    <span>{t('Could not load the changed files')}: {loadError}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={fetchDialogState}
+                    className="self-start rounded-md border border-destructive/30 px-2 py-0.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/15"
+                  >
+                    {t('Retry')}
+                  </button>
                 </div>
               ) : files.length === 0 ? (
                 <p className="font-medium text-muted-foreground py-2">{t('No changes')}</p>
@@ -380,7 +402,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
             />
           </div>
 
-          {/* New branch input (shown when "Commit on new refName" is clicked) */}
+          {/* New branch input (shown when "Commit on new branch" is clicked) */}
           {showNewBranchInput && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -415,7 +437,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
             onClick={handleCommitOnNewBranch}
             className="whitespace-nowrap"
           >
-            {showNewBranchInput ? 'Confirm new branch' : 'Commit on new refName'}
+            {showNewBranchInput ? t('Confirm new branch') : t('Commit on new branch')}
           </Button>
           <Button
             variant="outline"

@@ -86,6 +86,9 @@ export const ipc = {
     invoke('task_set_auto_approve', { taskId, autoApprove }),
   pickFolder: (): Promise<string | null> =>
     invoke('pick_folder'),
+  /** Native open dialog for a single file of any type (e.g. an executable). */
+  pickFile: (): Promise<string | null> =>
+    invoke('pick_file'),
   pickImage: (): Promise<string | null> =>
     invoke('pick_image'),
   /** Native save dialog + write. Returns the path, or null on cancel. */

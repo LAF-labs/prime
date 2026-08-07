@@ -16,8 +16,9 @@ vi.mock('@/lib/history-store', () => ({
   loadBackup: vi.fn().mockResolvedValue({ threads: [], projects: [], softDeleted: [] }),
 }))
 
-import { useSettingsStore } from './settingsStore'
+import { useSettingsStore, buildRestoredDefaults } from './settingsStore'
 import { ipc } from '@/lib/ipc'
+import type { AppSettings } from '@/types'
 
 const defaultState = {
   settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13, sidebarPosition: 'left' as const },
@@ -258,6 +259,45 @@ describe('settingsStore', () => {
       vi.mocked(ipc.authStatus).mockRejectedValue(new Error('not logged in'))
       await useSettingsStore.getState().openLogin()
       expect(ipc.openTerminalWithCommand).toHaveBeenCalledWith('prime-agent login')
+    })
+  })
+
+  describe('buildRestoredDefaults', () => {
+    const current: AppSettings = {
+      agentBin: '/custom/bin/prime-agent',
+      agentProfiles: [],
+      fontSize: 22,
+      chatFontSize: 18,
+      sidebarPosition: 'right',
+      inlineToolCalls: false,
+      autoApprove: true,
+      hasOnboardedV2: true,
+      theme: 'light',
+      language: 'ko',
+      projectPrefs: { '/ws': { modelId: 'claude-4' } },
+      customAppIcon: 'data:image/png;base64,abc',
+      lastSeenChangelogVersion: '1.2.3',
+    }
+
+    it('resets user-tunable fields to the real store defaults', () => {
+      const restored = buildRestoredDefaults(current)
+      expect(restored.agentBin).toBe('prime-agent')
+      expect(restored.fontSize).toBe(19)
+      expect(restored.chatFontSize).toBe(15)
+      expect(restored.sidebarPosition).toBe('left')
+      expect(restored.inlineToolCalls).toBe(true)
+      expect(restored.autoApprove).toBeUndefined()
+    })
+
+    it('never wipes onboarding state, theme, language, project prefs, or the custom icon', () => {
+      const restored = buildRestoredDefaults(current)
+      // Losing hasOnboardedV2 drops the user back into the first-run wizard.
+      expect(restored.hasOnboardedV2).toBe(true)
+      expect(restored.theme).toBe('light')
+      expect(restored.language).toBe('ko')
+      expect(restored.projectPrefs).toEqual({ '/ws': { modelId: 'claude-4' } })
+      expect(restored.customAppIcon).toBe('data:image/png;base64,abc')
+      expect(restored.lastSeenChangelogVersion).toBe('1.2.3')
     })
   })
 })

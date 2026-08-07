@@ -142,6 +142,24 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Option<String> {
     rx.await.ok().flatten()
 }
 
+/// Pick a single file of any type (no filter). Used where the target is an
+/// executable or otherwise extension-less — `pick_folder` cannot select a
+/// file, and `pick_image` filters to images.
+#[tauri::command]
+pub async fn pick_file(app: tauri::AppHandle) -> Option<String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        app.dialog().file().pick_file(move |file| {
+            let _ = tx.send(file.map(|f| f.to_string()));
+        });
+    }));
+    if result.is_err() {
+        log::warn!("[fs] pick_file panicked (NSOpenPanel NULL) — returning None");
+        return None;
+    }
+    rx.await.ok().flatten()
+}
+
 /// Save user-provided text where the user chooses.
 ///
 /// This is the export path for conversations. Until it existed there was no

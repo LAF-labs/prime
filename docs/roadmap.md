@@ -81,3 +81,56 @@ large.
 Windows groundwork (Job Objects for process groups, ConPTY, sidecar Windows
 build, CI matrix) starts after Phase 4 — everything Phases 1–4 touch is
 exactly what gets ported, so starting earlier means doing the work twice.
+
+---
+
+# Round 2 — after the defect sweep (2026-08-08)
+
+Round 1 (Waves 1–5, all shipped) closed the P0/P1 findings from the
+four-track product audit: storage-layer data loss, Rust panics/hangs,
+trust-level UX defects, last-mile wiring (PR creation, rollback UI,
+regenerate, edit-resend, global search, enforced plan mode), and full
+Korean coverage with a regression test.
+
+The next order is set by the GUI↔harness RPC alignment audit: the bundled
+harness exposes ~45 in-session RPC commands and a daemon-mode session
+manager; the GUI uses roughly a third of the commands and translates 18
+event kinds. The gaps below are ranked impact-per-effort.
+
+## Wave 6 — RPC alignment finish (S/M, high)
+
+- Surface `/refine` outcomes: handle `refine_complete` / `refine_failed`
+  notifications and show the result in the thread.
+- Consume `thinking_level_changed` / `service_tier_changed` so the UI
+  reflects levels changed agent-side.
+- Settings toggles for `set_auto_compaction`, `set_auto_retry`,
+  `set_steering_mode` (applied at session start and on change).
+- Scheduled prompts UI over `list_schedules` / `add_schedule` /
+  `cancel_schedule` — the harness already runs them.
+
+**Gate:** every harness notification kind is either handled or explicitly
+listed as ignored with a reason; new toggles round-trip.
+
+## Wave 7 — Rust hygiene batch (P2 backlog, M)
+
+Main-thread stalls (`task_create` sleep, quit-path `recv_timeout`,
+window-close listener leak), thread_db reads without `spawn_blocking` +
+poisoned-lock recovery, same-second dedupe collapse, analytics lock/fsync
+hygiene + timestamp key truncation, watcher cap race, non-atomic
+`.gitignore`/`auth.json`/confy writes, error strings leaking absolute
+paths, debug_log IPC volume on the streaming hot path, agent-slot
+check-then-insert race, stuck `probe_running` guard.
+
+## Wave 8 — UX remainder (P2/P3, S/M)
+
+Thread-delete affordance unification + undo toast, commit-button contract
+unification (CodePanel vs CommitDialog), App.tsx async-listener cleanup
+under StrictMode, remaining empty-state CTAs.
+
+## Wave 9 — Competitive features (M/L, decide order with the owner)
+
+Permission granularity (rule list + edits-only mode), context inspector,
+menu-bar presence + global summon hotkey, MCP one-click gallery,
+hunk-level diff ops / comment-to-prompt, daemon-mode session manager
+(attach/detach, sessions that survive app restarts) as the long-term
+architecture step.

@@ -43,9 +43,11 @@ interface ChatInputProps {
   isCollapsed?: boolean
   onToggleCollapse?: () => void
   isWorktree?: boolean
+  checkpointsOpen?: boolean
+  onToggleCheckpoints?: () => void
 }
 
-export const ChatInput = memo(function ChatInput({ disabled, disabledReason, contextUsage, messageCount = 0, isRunning, isActive, taskId, initialValue, initialAttachments, initialFolderPaths, initialPastedChunks, initialMentionedFiles, autoFocus, hasQueuedMessages, onSendMessage, onPause, onDraftChange, onAttachmentsChange, onFolderPathsChange, onPastedChunksChange, onMentionedFilesChange, workspace, isCollapsed, onToggleCollapse, isWorktree }: ChatInputProps) {
+export const ChatInput = memo(function ChatInput({ disabled, disabledReason, contextUsage, messageCount = 0, isRunning, isActive, taskId, initialValue, initialAttachments, initialFolderPaths, initialPastedChunks, initialMentionedFiles, autoFocus, hasQueuedMessages, onSendMessage, onPause, onDraftChange, onAttachmentsChange, onFolderPathsChange, onPastedChunksChange, onMentionedFilesChange, workspace, isCollapsed, onToggleCollapse, isWorktree, checkpointsOpen, onToggleCheckpoints }: ChatInputProps) {
   const t = useT()
   const {
     value, setValue, textareaRef, containerRef, canSend,
@@ -262,6 +264,8 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
             workspace={workspace ?? null}
             isWorktree={isWorktree}
             isMetaHeld={isMetaHeld}
+            checkpointsOpen={checkpointsOpen}
+            onToggleCheckpoints={onToggleCheckpoints}
             fileInputRef={fileInputRef}
             onFilePickerClick={handleFilePickerClick}
             onFileInputChange={handleFileInputChange}

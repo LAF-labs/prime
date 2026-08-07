@@ -250,4 +250,17 @@ export interface TaskStore {
    * additionally invoke `ipc.checkpointRevert` to roll the files back.
    */
   rollbackToMessage: (taskId: string, messageIndex: number) => void
+  /**
+   * Drop `messages[messageIndex..]` (inclusive) and clear streaming state.
+   * `messageIndex === messages.length` is a permitted no-op truncation that
+   * still clears streaming state. Writes through to SQLite.
+   */
+  truncateFromMessage: (taskId: string, messageIndex: number) => void
+  /**
+   * Regenerate the assistant turn at `assistantMessageIndex`: truncate the
+   * conversation to just before the user message that produced it, then
+   * re-dispatch that message through the registered chat send pipeline
+   * (`@/lib/chat-resend`). No-op while the task is running.
+   */
+  regenerateTurn: (taskId: string, assistantMessageIndex: number) => void
 }

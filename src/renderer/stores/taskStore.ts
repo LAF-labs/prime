@@ -10,6 +10,7 @@ import type { ArchivedThreadMeta } from '@/lib/history-store'
 import { useSettingsStore } from './settingsStore'
 import { sendTaskNotification } from '@/lib/notifications'
 import { snapshotOwnedIds } from '@/lib/turn-ownership'
+import { resendMessage } from '@/lib/chat-resend'
 import type { TaskStore } from './task-store-types'
 
 interface SavedMessageLike {
@@ -1933,13 +1934,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   rollbackToMessage: (taskId, messageIndex) => {
-    const task = get().tasks[taskId]
-    if (!task) return
-    if (messageIndex < 0 || messageIndex >= task.messages.length) return
     // Keep messages up to and including the target assistant message —
     // rolling back "to here" means this turn is preserved and everything
     // after it is dropped.
-    const truncated = task.messages.slice(0, messageIndex + 1)
+    if (messageIndex < 0) return
+    get().truncateFromMessage(taskId, messageIndex + 1)
+  },
+
+  truncateFromMessage: (taskId, messageIndex) => {
+    const task = get().tasks[taskId]
+    if (!task) return
+    // `messageIndex === messages.length` is a permitted no-op truncation that
+    // still clears streaming state (rollback of the final turn relies on it).
+    if (messageIndex < 0 || messageIndex > task.messages.length) return
+    const truncated = task.messages.slice(0, messageIndex)
     set((s) => ({
       tasks: {
         ...s.tasks,
@@ -1957,6 +1965,28 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // after the rollback lands out of order behind it.
     attempt(t('Could not save the conversation'), threadDb.replaceMessages(taskId, truncated))
     get().persistHistory()
+  },
+
+  regenerateTurn: (taskId, assistantMessageIndex) => {
+    const task = get().tasks[taskId]
+    if (!task || task.status === 'running') return
+    // Find the user message that produced this assistant turn.
+    const start = Math.min(assistantMessageIndex, task.messages.length) - 1
+    let userIndex = -1
+    for (let i = start; i >= 0; i--) {
+      if (task.messages[i].role === 'user') {
+        userIndex = i
+        break
+      }
+    }
+    if (userIndex < 0) return
+    const content = task.messages[userIndex].content
+    if (!content) return
+    // Truncate to just before that user message, then re-dispatch its content
+    // through the same send pipeline ChatPanel uses — the conversation is
+    // identical up to this point, and a fresh answer streams in.
+    get().truncateFromMessage(taskId, userIndex)
+    void resendMessage(taskId, content)
   },
 }))
 

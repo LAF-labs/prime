@@ -20,6 +20,8 @@ export interface UserMessageRow {
   content: string
   timestamp: string
   questionAnswers?: { question: string; answer: string }[]
+  /** Index of the source TaskMessage in `task.messages`. Absent on live rows. */
+  messageIndex?: number
 }
 
 export type SystemMessageVariant = 'error' | 'info' | 'worktree' | 'connection_lost'
@@ -357,6 +359,7 @@ export function deriveTimeline(
         content: msg.content,
         timestamp: msg.timestamp,
         questionAnswers: msg.questionAnswers,
+        messageIndex: i,
       })
       continue
     }

@@ -11,6 +11,7 @@ import {
 } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Checkpoint {
@@ -73,11 +74,23 @@ export const CheckpointTimeline = memo(function CheckpointTimeline({ taskId, onV
       await ipc.checkpointRevert(taskId, turn, true)
       setRevertConfirm(null)
       void fetchCheckpoints()
-    } catch { /* ignore */ }
+    } catch (err) {
+      // The backend aborts a forced revert when its safety stash fails —
+      // surface that reason instead of failing silently.
+      const detail = err instanceof Error ? err.message : String(err)
+      setRevertConfirm(null)
+      toast.error(t('Could not revert to the checkpoint'), { description: detail })
+    }
   }, [taskId, fetchCheckpoints])
 
   if (checkpoints.length === 0 && !loading) {
-    return null // Don't render anything if no checkpoints exist
+    // Reached from the chat toolbar toggle — an explicit open deserves an
+    // answer, not a blank strip.
+    return (
+      <div className="border-b border-border/40 px-3 py-2 text-[11px] text-muted-foreground/60" data-testid="checkpoint-empty">
+        {t('No checkpoints yet — one is saved each time you send a message in a git repository.')}
+      </div>
+    )
   }
 
   return (

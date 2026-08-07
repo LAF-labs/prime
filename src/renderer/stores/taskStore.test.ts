@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockSetActiveWorkspace } = vi.hoisted(() => ({
+const { mockSetActiveWorkspace, mockResendMessage } = vi.hoisted(() => ({
   mockSetActiveWorkspace: vi.fn(),
+  mockResendMessage: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@/lib/chat-resend', () => ({
+  registerResendHandler: vi.fn(),
+  resendMessage: mockResendMessage,
 }))
 
 vi.mock('@/lib/ipc', () => ({
@@ -62,6 +68,7 @@ vi.mock('./resourceStore', () => ({
 }))
 
 import { useTaskStore, applyTurnEnd } from './taskStore'
+import * as threadDbMock from '@/lib/thread-db'
 import type { AgentTask } from '@/types'
 
 const makeTask = (overrides?: Partial<AgentTask>): AgentTask => ({
@@ -2784,5 +2791,133 @@ describe('rekeyDispatchSnapshot', () => {
     const before = useTaskStore.getState().dispatchSnapshots
     useTaskStore.getState().rekeyDispatchSnapshot('missing', 'real-1')
     expect(useTaskStore.getState().dispatchSnapshots).toBe(before)
+  })
+})
+
+// ── Conversation control: truncate / regenerate ────────────────────
+
+const conversation = () => [
+  { role: 'user' as const, content: 'first question', timestamp: 't0' },
+  { role: 'assistant' as const, content: 'first answer', timestamp: 't1' },
+  { role: 'user' as const, content: 'second question', timestamp: 't2' },
+  { role: 'assistant' as const, content: 'second answer', timestamp: 't3' },
+]
+
+describe('truncateFromMessage', () => {
+  beforeEach(() => {
+    vi.mocked(threadDbMock.replaceMessages).mockClear()
+  })
+
+  it('drops the message at the index and everything after it', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().truncateFromMessage('task-1', 2)
+    const messages = useTaskStore.getState().tasks['task-1'].messages
+    expect(messages.map((m) => m.content)).toEqual(['first question', 'first answer'])
+  })
+
+  it('allows truncating to empty (index 0)', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().truncateFromMessage('task-1', 0)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(0)
+  })
+
+  it('writes the truncation through to SQLite', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().truncateFromMessage('task-1', 1)
+    expect(threadDbMock.replaceMessages).toHaveBeenCalledWith(
+      'task-1',
+      [expect.objectContaining({ content: 'first question' })],
+    )
+  })
+
+  it('clears in-flight streaming state for the task', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.setState({
+      streamingChunks: { 'task-1': 'partial' },
+      thinkingChunks: { 'task-1': 'thinking' },
+    })
+    useTaskStore.getState().truncateFromMessage('task-1', 2)
+    expect(useTaskStore.getState().streamingChunks['task-1']).toBe('')
+    expect(useTaskStore.getState().thinkingChunks['task-1']).toBe('')
+  })
+
+  it('rejects out-of-range indices', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().truncateFromMessage('task-1', -1)
+    useTaskStore.getState().truncateFromMessage('task-1', 5)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(4)
+    expect(threadDbMock.replaceMessages).not.toHaveBeenCalled()
+  })
+
+  it('is a no-op for unknown tasks', () => {
+    useTaskStore.getState().truncateFromMessage('missing', 0)
+    expect(threadDbMock.replaceMessages).not.toHaveBeenCalled()
+  })
+})
+
+describe('rollbackToMessage keeps the target turn', () => {
+  it('keeps messages up to and including the index', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().rollbackToMessage('task-1', 1)
+    const messages = useTaskStore.getState().tasks['task-1'].messages
+    expect(messages.map((m) => m.content)).toEqual(['first question', 'first answer'])
+  })
+
+  it('rollback of the final message clears streaming state without dropping messages', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.setState({ streamingChunks: { 'task-1': 'leftover' } })
+    useTaskStore.getState().rollbackToMessage('task-1', 3)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(4)
+    expect(useTaskStore.getState().streamingChunks['task-1']).toBe('')
+  })
+
+  it('rejects negative indices', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().rollbackToMessage('task-1', -1)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(4)
+  })
+})
+
+describe('regenerateTurn', () => {
+  beforeEach(() => {
+    mockResendMessage.mockClear()
+  })
+
+  it('truncates to just before the preceding user message and re-dispatches it', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().regenerateTurn('task-1', 3)
+    const messages = useTaskStore.getState().tasks['task-1'].messages
+    // Conversation is identical up to the user message being re-sent.
+    expect(messages.map((m) => m.content)).toEqual(['first question', 'first answer'])
+    expect(mockResendMessage).toHaveBeenCalledTimes(1)
+    expect(mockResendMessage).toHaveBeenCalledWith('task-1', 'second question')
+  })
+
+  it('regenerating the first turn empties the thread and resends the first message', () => {
+    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
+    useTaskStore.getState().regenerateTurn('task-1', 1)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(0)
+    expect(mockResendMessage).toHaveBeenCalledWith('task-1', 'first question')
+  })
+
+  it('does nothing while the task is running', () => {
+    useTaskStore.getState().upsertTask(makeTask({ status: 'running', messages: conversation() }))
+    useTaskStore.getState().regenerateTurn('task-1', 3)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(4)
+    expect(mockResendMessage).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when no user message precedes the index', () => {
+    useTaskStore.getState().upsertTask(makeTask({
+      messages: [{ role: 'assistant' as const, content: 'orphan answer', timestamp: 't0' }],
+    }))
+    useTaskStore.getState().regenerateTurn('task-1', 0)
+    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(1)
+    expect(mockResendMessage).not.toHaveBeenCalled()
+  })
+
+  it('is a no-op for unknown tasks', () => {
+    useTaskStore.getState().regenerateTurn('missing', 1)
+    expect(mockResendMessage).not.toHaveBeenCalled()
   })
 })

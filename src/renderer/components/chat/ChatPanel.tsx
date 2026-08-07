@@ -19,9 +19,11 @@ import { BtwOverlay } from './BtwOverlay'
 import { PanelProvider } from './PanelContext'
 import { StickyTaskList } from './StickyTaskList'
 
+import { CheckpointTimeline } from '@/components/diff/CheckpointTimeline'
 import { useMessageSearch } from '@/hooks/useMessageSearch'
 import { ipc } from '@/lib/ipc'
 import { record } from '@/lib/analytics-collector'
+import { registerResendHandler } from '@/lib/chat-resend'
 import { claimTurn, releaseTurn, rekeyTurnClaim } from '@/lib/turn-ownership'
 import * as threadDb from '@/lib/thread-db'
 import {
@@ -153,6 +155,12 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
     toast.error(t('Could not send the message'), { description: detail })
   }
 }
+
+// Regenerate and edit-and-resend re-enter this exact dispatch pipeline
+// (checkpoint creation, dispatch snapshot, turn claim, SQLite persistence)
+// instead of duplicating it. Module-level registration: ChatPanel is always
+// loaded before any message row can render.
+registerResendHandler(sendMessageDirect)
 
 interface DispatchContext {
   task: AgentTask
@@ -363,6 +371,9 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
   const [isInputCollapsed, setIsInputCollapsed] = useState(false)
   const handleToggleCollapse = useCallback(() => setIsInputCollapsed((v) => !v), [])
 
+  const [checkpointsOpen, setCheckpointsOpen] = useState(false)
+  const handleToggleCheckpoints = useCallback(() => setCheckpointsOpen((v) => !v), [])
+
   const handlePermissionSelect = useCallback((optionId: string) => {
     const state = useTaskStore.getState()
     const task = resolvedTaskId ? state.tasks[resolvedTaskId] : null
@@ -441,6 +452,14 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
 
         <StickyTaskList taskId={resolvedTaskId} />
 
+        {checkpointsOpen && resolvedTaskId && (
+          <div className="shrink-0 px-4 sm:px-6">
+            <div className="mx-auto w-full min-w-0 max-w-3xl lg:max-w-4xl xl:max-w-5xl">
+              <CheckpointTimeline taskId={resolvedTaskId} />
+            </div>
+          </div>
+        )}
+
         <ChatInput
           disabled={inputDisabled}
           disabledReason={disabledReason}
@@ -456,6 +475,8 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
           isWorktree={isWorktree}
           isCollapsed={isInputCollapsed}
           onToggleCollapse={handleToggleCollapse}
+          checkpointsOpen={checkpointsOpen}
+          onToggleCheckpoints={handleToggleCheckpoints}
         />
       </div>
       {terminalOpen && taskWorkspace && resolvedTaskId && (

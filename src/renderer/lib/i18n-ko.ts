@@ -795,4 +795,25 @@ export const ko: Record<string, string> = {
   '{repo} was cloned and added to your projects.':
     '{repo} 저장소를 클론해서 프로젝트에 추가했습니다.',
 
+  // ── Conversation control (rollback / regenerate / edit-resend) ────
+  Rollback: '롤백',
+  Confirm: '확인',
+  'Reverts files + messages': '파일과 메시지를 되돌립니다',
+  'Reverts messages only': '메시지만 되돌립니다',
+  'Regenerate response': '응답 다시 생성',
+  'Edit and resend': '수정 후 다시 보내기',
+  'Checkpoint history': '체크포인트 기록',
+  'No checkpoints yet — one is saved each time you send a message in a git repository.':
+    '아직 체크포인트가 없습니다 — git 저장소에서 메시지를 보낼 때마다 하나씩 저장됩니다.',
+  'Could not revert to the checkpoint': '체크포인트로 되돌리지 못했습니다',
+
+  // ── Empty-thread splash ───────────────────────────────────────────
+  'Explain this codebase': '이 코드베이스를 설명해줘',
+  'Find and fix a bug': '버그를 찾아서 고쳐줘',
+  'Add tests for recent changes': '최근 변경 사항에 테스트를 추가해줘',
+  'Quick side question': '빠른 곁가지 질문',
+  'Mention a file for context': '컨텍스트로 쓸 파일을 언급합니다',
+  'Reference an entire directory': '디렉터리 전체를 참조합니다',
+  'Mention an agent by name': '에이전트를 이름으로 언급합니다',
+
 }

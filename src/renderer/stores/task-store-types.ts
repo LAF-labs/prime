@@ -85,6 +85,9 @@ export interface TaskStore {
   connectionStatus: ConnectionStatus
   /** Local dispatch snapshots per task — tracks optimistic UI state */
   dispatchSnapshots: Record<string, LocalDispatchSnapshot>
+  /** Per-task reasoning-effort level, kept in sync via thinking_level_changed
+   *  (the agent can change its own level, e.g. under goal autonomy). */
+  thinkingLevels: Record<string, string>
   terminalOpenTasks: Set<string>
   /** Workspace-level terminal open state (for PendingChat when no task is selected) */
   isWorkspaceTerminalOpen: boolean
@@ -172,6 +175,7 @@ export interface TaskStore {
   updatePlan: (taskId: string, plan: PlanStep[]) => void
   updateUsage: (taskId: string, used: number, size: number) => void
   updateCompactionStatus: (taskId: string, status: CompactionStatus, summary?: string) => void
+  setThinkingLevel: (taskId: string, level: string) => void
   clearTurn: (taskId: string) => void
   enqueueMessage: (taskId: string, message: string, attachments?: IpcAttachment[]) => void
   dequeueMessages: (taskId: string) => QueuedMessage[]

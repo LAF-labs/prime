@@ -58,6 +58,18 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
     updateDraft({ autoApprove: checked })
   }, [updateDraft])
 
+  const handleAutoCompactionChange = useCallback((checked: boolean) => {
+    updateDraft({ agentAutoCompaction: checked })
+  }, [updateDraft])
+
+  const handleAutoRetryChange = useCallback((checked: boolean) => {
+    updateDraft({ agentAutoRetry: checked })
+  }, [updateDraft])
+
+  const handleSteeringModeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateDraft({ steeringMode: e.target.value === 'all' ? 'all' : 'one-at-a-time' })
+  }, [updateDraft])
+
   const handleRespectGitignoreChange = useCallback((checked: boolean) => {
     updateDraft({ respectGitignore: checked })
   }, [updateDraft])
@@ -244,6 +256,30 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               disabled={!activeWorkspace}
               aria-label={t('Toggle tight sandbox')}
             />
+          </SettingRow>
+        </SettingsCard>
+      </SettingsGrid>
+
+      <SettingsGrid label={t('Agent behavior')} description={t('Session-level agent defaults, applied on connect')}>
+        <SettingsCard>
+          <SettingRow label={t('Auto-compaction')} description={t('Compact the context automatically when it fills up')}>
+            <Switch checked={draft.agentAutoCompaction ?? true} onCheckedChange={handleAutoCompactionChange} aria-label={t('Toggle auto-compaction')} />
+          </SettingRow>
+          <Divider />
+          <SettingRow label={t('Auto-retry')} description={t('Retry automatically on transient provider errors')}>
+            <Switch checked={draft.agentAutoRetry ?? true} onCheckedChange={handleAutoRetryChange} aria-label={t('Toggle auto-retry')} />
+          </SettingRow>
+          <Divider />
+          <SettingRow label={t('Queued message delivery')} description={t('Deliver queued messages one at a time, or all at once')}>
+            <select
+              value={draft.steeringMode ?? 'one-at-a-time'}
+              onChange={handleSteeringModeChange}
+              aria-label={t('Select queued message delivery')}
+              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
+            >
+              <option value="one-at-a-time">{t('One at a time')}</option>
+              <option value="all">{t('All at once')}</option>
+            </select>
           </SettingRow>
         </SettingsCard>
       </SettingsGrid>

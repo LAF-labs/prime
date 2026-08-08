@@ -188,6 +188,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   connected: false,
   connectionStatus: { phase: 'idle', attemptCount: 0, reconnectAttemptCount: 0, reconnectMaxAttempts: 5, hasConnected: false, connectedAt: null, disconnectedAt: null, lastError: null, lastErrorAt: null, nextRetryAt: null },
   dispatchSnapshots: {},
+  thinkingLevels: {},
   terminalOpenTasks: new Set<string>(),
   isWorkspaceTerminalOpen: false,
   pendingTerminalRequests: {},
@@ -837,6 +838,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         tasks: { ...state.tasks, [taskId]: { ...task, contextUsage: { used, size }, ...(resetCompaction ? { compactionStatus: 'idle' as const } : {}) } },
       }
     }),
+
+  setThinkingLevel: (taskId, level) => {
+    if (get().thinkingLevels[taskId] === level) return
+    set((s) => ({ thinkingLevels: { ...s.thinkingLevels, [taskId]: level } }))
+  },
 
   updateCompactionStatus: (taskId, status, _summary) => {
     set((state) => {

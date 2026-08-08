@@ -714,6 +714,29 @@ fn describe_exit(status: std::process::ExitStatus) -> String {
     }
 }
 
+/// Build the `refine_status` event for a `refine_complete`/`refine_failed`
+/// notification. Payload shapes verified against the bundled harness:
+/// complete carries `result.appliedEdits[].applied`, failed carries `error`.
+pub(crate) fn refine_status_payload(task_id: &str, event: &Value) -> Value {
+    let event_type = event.get("type").and_then(|v| v.as_str()).unwrap_or("");
+    if event_type == "refine_failed" {
+        let error = event.get("error").and_then(|v| v.as_str()).unwrap_or("unknown error");
+        return json!({ "taskId": task_id, "status": "failed", "error": error });
+    }
+    let applied = event
+        .get("result")
+        .and_then(|r| r.get("appliedEdits"))
+        .and_then(|a| a.as_array())
+        .map(|edits| {
+            edits
+                .iter()
+                .filter(|e| e.get("applied").and_then(|v| v.as_bool()).unwrap_or(false))
+                .count()
+        })
+        .unwrap_or(0);
+    json!({ "taskId": task_id, "status": "completed", "appliedCount": applied })
+}
+
 /// Dispatch one parsed stdout line from the agent.
 fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
     use tauri::Emitter;
@@ -873,8 +896,20 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
                 }));
             }
         }
-        "session_action_update" | "extension_error" => {
-            // Surfaced only in the debug panel (below).
+        "refine_complete" | "refine_failed" => {
+            // /refine passes through as a session command; without this its
+            // outcome never reached the UI at all.
+            let _ = app.emit("refine_status", refine_status_payload(tid, &event));
+        }
+        "thinking_level_changed" => {
+            // The agent can change its own reasoning effort (goal autonomy,
+            // cycling); mirror it so the UI's notion of the level stays true.
+            let level = event.get("level").and_then(|v| v.as_str()).unwrap_or("");
+            let _ = app.emit("thinking_level_changed", json!({ "taskId": tid, "level": level }));
+        }
+        "session_action_update" | "extension_error" | "service_tier_changed" => {
+            // Surfaced only in the debug panel (below). Service tiers have no
+            // GUI surface (the /fast dead end) — acknowledged, not lost.
         }
         "response" => {
             handle_rpc_response(ctx, &event);

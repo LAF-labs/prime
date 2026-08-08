@@ -113,6 +113,15 @@ pub struct AppSettings {
     /// can turn it off via Settings → Advanced.
     #[serde(default = "default_true")]
     pub analytics_enabled: bool,
+    /// Agent-behavior toggles, applied per session over RPC at session_init.
+    /// Defaults mirror the harness defaults so untouched settings send nothing.
+    #[serde(default = "default_true")]
+    pub agent_auto_compaction: bool,
+    #[serde(default = "default_true")]
+    pub agent_auto_retry: bool,
+    /// Queued-message steering: "one-at-a-time" (harness default) or "all".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steering_mode: Option<String>,
     /// Random UUID created on first opt-in and cleared on opt-out. Used as the
     /// PostHog `distinct_id` — never tied to OS identity, email, or machine ID.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -205,6 +214,9 @@ impl Default for AppSettings {
             project_prefs: None,
             has_onboarded_v2: false,
             analytics_enabled: true,
+            agent_auto_compaction: true,
+            agent_auto_retry: true,
+            steering_mode: None,
             analytics_anon_id: None,
             language: None,
             theme: default_theme(),

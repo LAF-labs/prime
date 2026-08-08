@@ -365,6 +365,10 @@ export const ipc = {
     tauriListen('subagent_update', cb),
   onCompactionStatus: (cb: (data: { taskId: string; status: string; summary: unknown }) => void): UnsubscribeFn =>
     tauriListen('compaction_status', cb),
+  onRefineStatus: (cb: (data: { taskId: string; status: 'completed' | 'failed'; appliedCount?: number; error?: string }) => void): UnsubscribeFn =>
+    tauriListen('refine_status', cb),
+  onThinkingLevelChanged: (cb: (data: { taskId: string; level: string }) => void): UnsubscribeFn =>
+    tauriListen('thinking_level_changed', cb),
   onEditorsUpdated: (cb: (bins: string[]) => void): UnsubscribeFn =>
     tauriListen('editors-updated', cb),
   onAgentResourcesChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>

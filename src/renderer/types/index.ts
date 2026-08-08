@@ -209,6 +209,12 @@ export interface AppSettings {
   aiCommitMessages?: boolean
   notifications?: boolean
   soundNotifications?: boolean
+  /** Agent auto-compaction (harness default: on). Applied per session over RPC. */
+  agentAutoCompaction?: boolean
+  /** Agent auto-retry on transient provider errors (harness default: on). */
+  agentAutoRetry?: boolean
+  /** Queued-message steering: 'one-at-a-time' (harness default) or 'all'. */
+  steeringMode?: 'one-at-a-time' | 'all'
   projectPrefs?: Record<string, ProjectPrefs>
   hasOnboardedV2?: boolean
   sidebarPosition?: SidebarPosition

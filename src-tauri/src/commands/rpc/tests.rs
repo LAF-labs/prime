@@ -1,5 +1,5 @@
 use super::*;
-use super::connection::{build_prompt_payload, strip_image_tags};
+use super::connection::{build_prompt_payload, refine_status_payload, strip_image_tags};
 
 // ── is_within_workspace: allowed paths ──────────────────────────
 
@@ -25,6 +25,40 @@ use super::connection::{build_prompt_payload, strip_image_tags};
 // ── Performance benchmarks ──────────────────────────────────────
 
 // ── Memory consumption tests ────────────────────────────────────
+
+// ── refine_status translation ───────────────────────────────────
+
+#[test]
+fn refine_complete_counts_only_applied_edits() {
+    let event = serde_json::json!({
+        "type": "refine_complete",
+        "result": { "appliedEdits": [
+            { "applied": true, "action": "add", "kind": "rule", "id": "a" },
+            { "applied": false, "action": "add", "kind": "rule", "id": "b" },
+            { "applied": true, "action": "update", "kind": "rule", "id": "c" },
+        ]},
+    });
+    let payload = refine_status_payload("t1", &event);
+    assert_eq!(payload["status"], "completed");
+    assert_eq!(payload["appliedCount"], 2);
+    assert_eq!(payload["taskId"], "t1");
+}
+
+#[test]
+fn refine_complete_with_no_edits_reports_zero() {
+    let event = serde_json::json!({ "type": "refine_complete" });
+    let payload = refine_status_payload("t1", &event);
+    assert_eq!(payload["status"], "completed");
+    assert_eq!(payload["appliedCount"], 0);
+}
+
+#[test]
+fn refine_failed_carries_the_error() {
+    let event = serde_json::json!({ "type": "refine_failed", "error": "no evidence found" });
+    let payload = refine_status_payload("t1", &event);
+    assert_eq!(payload["status"], "failed");
+    assert_eq!(payload["error"], "no evidence found");
+}
 
 // ── Settings integration tests ──────────────────────────────────
 #[test]

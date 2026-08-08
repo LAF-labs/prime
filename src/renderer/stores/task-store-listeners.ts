@@ -13,6 +13,7 @@ import { attempt } from '@/lib/ipc-report'
 import { record } from '@/lib/analytics-collector'
 import { consumeTurnClaim, releaseTurn } from '@/lib/turn-ownership'
 import { syncPlanEnforcement } from '@/lib/plan-enforcement'
+import { syncAgentBehavior } from '@/lib/agent-behavior'
 import {
   EMPTY_SNAPSHOT, snapshotOf, spendDelta, providerOf,
   type SessionStats, type SpendSnapshot,
@@ -635,6 +636,9 @@ export function initTaskListeners(): () => void {
     if (taskId && taskId !== '__probe__') {
       const modeId = useTaskStore.getState().taskModes[taskId] ?? useSettingsStore.getState().currentModeId
       void syncPlanEnforcement(taskId, modeId ?? null)
+      // Same lifecycle as the plan guard: behavior toggles live in the agent
+      // process and reset on every (re)spawn.
+      void syncAgentBehavior(taskId, useSettingsStore.getState().settings)
     }
     // Store the agent CLI session ID for this task
     if (sessionId && taskId && taskId !== '__probe__') {
@@ -770,9 +774,37 @@ export function initTaskListeners(): () => void {
     }
   })
 
+  const unsub14 = ipc.onRefineStatus(({ taskId, status, appliedCount, error }) => {
+    // /refine passes through as a session command; this is the only place its
+    // outcome becomes visible. Persist the note like any other message —
+    // with the thin JSON index, SQLite is its only durable home.
+    const task = useTaskStore.getState().tasks[taskId]
+    if (!task) return
+    const content = status === 'completed'
+      ? msg('✅ Refinement applied ({count} edit(s))', { count: String(appliedCount ?? 0) })
+      : msg('⚠️ Refinement failed: {error}', { error: error ?? msg('unknown error') })
+    const note: import('@/types').TaskMessage = {
+      role: 'system' as const,
+      content,
+      timestamp: new Date().toISOString(),
+    }
+    useTaskStore.setState((s) => {
+      const current = s.tasks[taskId]
+      if (!current) return s
+      return { tasks: { ...s.tasks, [taskId]: { ...current, messages: [...current.messages, note] } } }
+    })
+    attempt(msg('Could not save the conversation'), threadDb.saveMessage(taskId, note))
+  })
+
+  const unsub15 = ipc.onThinkingLevelChanged(({ taskId, level }) => {
+    // The agent can change its own reasoning effort (goal autonomy, cycling);
+    // without this the UI's notion of the level silently goes stale.
+    if (level) useTaskStore.getState().setThinkingLevel(taskId, level)
+  })
+
   return () => {
     clearInterval(watchdogInterval)
     unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12()
-    unsub13()
+    unsub13(); unsub14(); unsub15()
   }
 }

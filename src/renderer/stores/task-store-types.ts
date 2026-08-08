@@ -150,6 +150,8 @@ export interface TaskStore {
   /** Walk forward through history to a still-existing thread; no-op if none */
   navForward: () => void
   setView: (view: 'chat' | 'dashboard' | 'analytics') => void
+  /** Open a pending new-thread chat in the most relevant workspace (or the import-project sheet when there are no projects). */
+  startNewThread: () => void
   setNewProjectOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean, section?: string | null) => void
   addProject: (workspace: string) => void

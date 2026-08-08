@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { ipc } from '@/lib/ipc'
+import { generateAiCommitMessage } from '@/lib/git-commit-message'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { cn } from '@/lib/utils'
 import { withStackedGitToast } from '@/lib/git-toast'
@@ -99,11 +100,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
     if (isGenerating) return
     setIsGenerating(true)
     try {
-      const result = await ipc.gitGenerateCommitMessage(workspace)
-      const next = result.body.trim().length > 0
-        ? `${result.subject}\n\n${result.body}`
-        : result.subject
-      setCommitMsg(next)
+      setCommitMsg(await generateAiCommitMessage(workspace))
     } catch (e) {
       toast.error(t('Could not generate commit message'), {
         description: e instanceof Error ? e.message : String(e),
@@ -134,10 +131,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
         // Stage the selected files first so the AI generates a message
         // that matches exactly what will be committed (not the full worktree diff).
         await ipc.gitStageFiles(workspace, filePaths)
-        const generated = await ipc.gitGenerateCommitMessage(workspace)
-        const autoMsg = generated.body.trim().length > 0
-          ? `${generated.subject}\n\n${generated.body}`
-          : generated.subject
+        const autoMsg = await generateAiCommitMessage(workspace)
         await ipc.gitCommitFiles(workspace, autoMsg, filePaths)
       }
 
@@ -183,10 +177,7 @@ export function CommitDialog({ open, onOpenChange, workspace }: CommitDialogProp
         // Stage the selected files first so the AI generates a message
         // that matches exactly what will be committed.
         await ipc.gitStageFiles(workspace, filePaths)
-        const generated = await ipc.gitGenerateCommitMessage(workspace)
-        finalMsg = generated.body.trim().length > 0
-          ? `${generated.subject}\n\n${generated.body}`
-          : generated.subject
+        finalMsg = await generateAiCommitMessage(workspace)
       }
 
       // Reset and close immediately for better UX

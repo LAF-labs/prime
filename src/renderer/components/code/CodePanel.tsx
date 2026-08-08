@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
+import { generateAiCommitMessage } from '@/lib/git-commit-message'
 import { toast } from 'sonner'
 import { useResizeHandle } from '@/hooks/useResizeHandle'
 import { DiffViewer } from './DiffViewer'
@@ -60,13 +61,9 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
     if (!effectiveWorkspace || !hasChanges || isGenerating) return
     setIsGenerating(true)
     try {
-      const result = await ipc.gitGenerateCommitMessage(effectiveWorkspace)
-      const next = result.body.trim().length > 0
-        ? `${result.subject}\n\n${result.body}`
-        : result.subject
-      setCommitMsg(next)
+      setCommitMsg(await generateAiCommitMessage(effectiveWorkspace))
     } catch (e) {
-      toast.error('Could not generate commit message', {
+      toast.error(t('Could not generate commit message'), {
         description: e instanceof Error ? e.message : String(e),
       })
     } finally {
@@ -75,19 +72,22 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
   }, [effectiveWorkspace, hasChanges, isGenerating])
 
   const handleCommit = useCallback(async () => {
-    if (!commitMsg.trim() || !effectiveWorkspace) return
+    // Same contract as the commit dialog: with changes present the button is
+    // live, and a blank message auto-generates one.
+    if (!hasChanges || !effectiveWorkspace || isCommitting) return
     setIsCommitting(true)
     try {
-      await ipc.gitCommit(effectiveWorkspace, commitMsg.trim())
+      const message = commitMsg.trim() || await generateAiCommitMessage(effectiveWorkspace)
+      await ipc.gitCommit(effectiveWorkspace, message)
       setCommitMsg('')
-      toast.success('Committed')
+      toast.success(t('Committed'))
       fetchDiff()
     } catch (e) {
-      toast.error('Commit failed', { description: e instanceof Error ? e.message : String(e) })
+      toast.error(t('Commit failed'), { description: e instanceof Error ? e.message : String(e) })
     } finally {
       setIsCommitting(false)
     }
-  }, [commitMsg, effectiveWorkspace, fetchDiff])
+  }, [commitMsg, hasChanges, effectiveWorkspace, isCommitting, fetchDiff])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -175,7 +175,7 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
               onChange={(e) => setCommitMsg(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isCommitDisabled}
-              placeholder={hasChanges ? 'Commit message…' : 'No changes'}
+              placeholder={hasChanges ? t('Leave empty to auto-generate') : t('No changes')}
               aria-label={t('Commit message')}
               className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-[11px] outline-none placeholder:text-muted-foreground/60 focus:border-ring disabled:opacity-50 disabled:cursor-not-allowed"
             />
@@ -200,7 +200,7 @@ export function CodePanel({ onClose, workspace: workspaceProp }: CodePanelProps)
             <button
               type="button"
               onClick={() => void handleCommit()}
-              disabled={isCommitDisabled || !commitMsg.trim()}
+              disabled={isCommitDisabled}
               aria-label={t('Commit')}
               className="shrink-0 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
             >

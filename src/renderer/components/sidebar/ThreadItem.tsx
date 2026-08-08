@@ -85,7 +85,6 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState(task.name)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const ctxRef = useRef<HTMLDivElement>(null)
   const dot = STATUS_DOT[task.hasPendingQuestion ? 'pending_question' : task.status]
@@ -99,7 +98,6 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
     const handler = (e: MouseEvent) => {
       if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) {
         setCtxMenu(null)
-        setConfirmDelete(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -118,30 +116,21 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
     e.preventDefault()
     e.stopPropagation()
     setCtxMenu({ x: e.clientX, y: e.clientY })
-    setConfirmDelete(false)
   }, [])
 
   const handleRenameClick = useCallback(() => {
     setEditValue(task.name)
     setEditing(true)
     setCtxMenu(null)
-    setConfirmDelete(false)
   }, [task.name])
 
+  // Deletes are soft (recoverable from Settings → Archives for 2 days) and
+  // announced with an Undo toast, so no confirmation step — matching the
+  // hover trash icon. Permanent deletion stays confirmed in Settings.
   const handleDeleteClick = useCallback(() => {
-    setConfirmDelete(true)
-  }, [])
-
-  const handleConfirmDelete = useCallback(() => {
     setCtxMenu(null)
-    setConfirmDelete(false)
     onDelete()
   }, [onDelete])
-
-  const handleCancelDelete = useCallback(() => {
-    setConfirmDelete(false)
-    setCtxMenu(null)
-  }, [])
 
   const [splitPicker, setSplitPicker] = useState<{ x: number; y: number } | null>(null)
 
@@ -314,127 +303,103 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
           className="fixed z-[300] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg"
           style={{ left: ctxMenu.x, top: ctxMenu.y }}
         >
-          {confirmDelete ? (
+          {!task.isDraft && (
             <>
-              <p className="px-3 py-1.5 text-[13px] text-muted-foreground">{t('Delete this thread?')}</p>
-              <div className="flex gap-1 px-2 pb-1.5">
-                <button
-                  type="button"
-                  className="flex-1 rounded-md bg-destructive/90 px-2 py-1 text-[13px] font-medium text-white hover:bg-destructive transition-colors"
-                  onClick={handleConfirmDelete}
-                >
-                  {t('Delete')}
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 rounded-md border border-border px-2 py-1 text-[13px] text-foreground hover:bg-accent transition-colors"
-                  onClick={handleCancelDelete}
-                >
-                  {t('Cancel')}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              {!task.isDraft && (
-                <>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                    onClick={handleRenameClick}
-                  >
-                    <IconPencil className="size-3.5" /> {t('Rename')}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                    onClick={handleTogglePin}
-                  >
-                    {isPinned ? <IconPinnedOff className="size-3.5" /> : <IconPin className="size-3.5" />}
-                    {isPinned ? 'Unpin' : 'Pin thread'}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                    onClick={handleFork}
-                  >
-                    <IconGitFork className="size-3.5" /> {t('Fork thread')}
-                  </button>
-                  <div className="my-1 border-t border-border/50" />
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                    onClick={handleCopyThreadId}
-                  >
-                    <IconCopy className="size-3.5" /> {t('Copy Thread ID')}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                    onClick={handleCopySessionId}
-                  >
-                    <IconCopy className="size-3.5" /> {t('Copy Session ID')}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                    onClick={handleExport}
-                  >
-                    <IconFileExport className="size-3.5" /> {t('Export as Markdown')}
-                  </button>
-                  <div className="my-1 border-t border-border/50" />
-                  {isInSplit ? (
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                      onClick={handleUnsplit}
-                    >
-                      <IconArrowsSplit className="size-3.5" /> {t('Remove side-by-side')}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                      onClick={handleNewSplitView}
-                    >
-                      <IconLayoutColumns className="size-3.5" /> {t('Open side-by-side')}
-                    </button>
-                  )}
-                  <div className="my-1 border-t border-border/50" />
-                  {(canMoveUp || canMoveDown) && (
-                    <>
-                      {canMoveUp && (
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                          onClick={() => { onMoveUp?.(); setCtxMenu(null) }}
-                        >
-                          <IconArrowUp className="size-3.5" /> {t('Move Up')}
-                        </button>
-                      )}
-                      {canMoveDown && (
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-                          onClick={() => { onMoveDown?.(); setCtxMenu(null) }}
-                        >
-                          <IconArrowDown className="size-3.5" /> {t('Move Down')}
-                        </button>
-                      )}
-                      <div className="my-1 border-t border-border/50" />
-                    </>
-                  )}
-                </>
-              )}
               <button
                 type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10"
-                onClick={handleDeleteClick}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                onClick={handleRenameClick}
               >
-                <IconTrash className="size-3.5" /> {t('Delete')}
+                <IconPencil className="size-3.5" /> {t('Rename')}
               </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                onClick={handleTogglePin}
+              >
+                {isPinned ? <IconPinnedOff className="size-3.5" /> : <IconPin className="size-3.5" />}
+                {isPinned ? 'Unpin' : 'Pin thread'}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                onClick={handleFork}
+              >
+                <IconGitFork className="size-3.5" /> {t('Fork thread')}
+              </button>
+              <div className="my-1 border-t border-border/50" />
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                onClick={handleCopyThreadId}
+              >
+                <IconCopy className="size-3.5" /> {t('Copy Thread ID')}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                onClick={handleCopySessionId}
+              >
+                <IconCopy className="size-3.5" /> {t('Copy Session ID')}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                onClick={handleExport}
+              >
+                <IconFileExport className="size-3.5" /> {t('Export as Markdown')}
+              </button>
+              <div className="my-1 border-t border-border/50" />
+              {isInSplit ? (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                  onClick={handleUnsplit}
+                >
+                  <IconArrowsSplit className="size-3.5" /> {t('Remove side-by-side')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                  onClick={handleNewSplitView}
+                >
+                  <IconLayoutColumns className="size-3.5" /> {t('Open side-by-side')}
+                </button>
+              )}
+              <div className="my-1 border-t border-border/50" />
+              {(canMoveUp || canMoveDown) && (
+                <>
+                  {canMoveUp && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                      onClick={() => { onMoveUp?.(); setCtxMenu(null) }}
+                    >
+                      <IconArrowUp className="size-3.5" /> {t('Move Up')}
+                    </button>
+                  )}
+                  {canMoveDown && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+                      onClick={() => { onMoveDown?.(); setCtxMenu(null) }}
+                    >
+                      <IconArrowDown className="size-3.5" /> {t('Move Down')}
+                    </button>
+                  )}
+                  <div className="my-1 border-t border-border/50" />
+                </>
+              )}
             </>
           )}
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10"
+            onClick={handleDeleteClick}
+          >
+            <IconTrash className="size-3.5" /> {t('Delete')}
+          </button>
         </div>
       )}
       {splitPicker && (

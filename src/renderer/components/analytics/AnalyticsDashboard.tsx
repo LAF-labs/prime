@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo, useEffect, useMemo, lazy, Suspense } from 'react'
-import { IconArrowLeft, IconChartBar } from '@tabler/icons-react'
+import { IconArrowLeft, IconChartBar, IconPlus } from '@tabler/icons-react'
 import { useAnalyticsStore, type TimeRange } from '@/stores/analyticsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -37,6 +37,7 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
   const setTimeRange = useAnalyticsStore((s) => s.setTimeRange)
   const loadEvents = useAnalyticsStore((s) => s.loadEvents)
   const setView = useTaskStore((s) => s.setView)
+  const startNewThread = useTaskStore((s) => s.startNewThread)
 
   useEffect(() => { loadEvents() }, [loadEvents])
 
@@ -90,7 +91,11 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <IconChartBar size={40} stroke={1} className="mb-3 text-muted-foreground/40" />
               <p className="text-sm font-medium text-muted-foreground">{t('No analytics data yet')}</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">{t('Start using LAF Agent and your usage stats will appear here')}</p>
+              <p className="mt-1 max-w-sm text-xs text-muted-foreground/70">{t('Working with the agent generates the data — messages, tokens, tool calls, and coding time are measured locally and shown here.')}</p>
+              <Button size="sm" className="mt-4 gap-1.5" onClick={startNewThread}>
+                <IconPlus size={14} stroke={2} />
+                {t('Start a new thread')}
+              </Button>
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">

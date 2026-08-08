@@ -517,12 +517,23 @@ export function App() {
       }
     });
     startAutoFlush();
-    // Listen for native menu events
-    let unlistenNewThread: (() => void) | null = null
-    let unlistenNewProject: (() => void) | null = null
-    let unlistenRecentProject: (() => void) | null = null
-    let unlistenFlushBeforeQuit: (() => void) | null = null
-    let unlistenCloneFromGithub: (() => void) | null = null
+    // Listen for native menu events. Registration is async, and under
+    // StrictMode's double-mount the first cleanup can run before `listen()`
+    // resolves — the resolved unlisten was then stored into a dead closure and
+    // never called, leaving dev builds with double flush-acks and double
+    // cross-window reloads. Same cancelled-flag pattern as `tauriListen` in
+    // lib/ipc.ts: if the promise resolves after cleanup, unlisten immediately
+    // instead of storing.
+    let listenersCancelled = false
+    const menuUnlistens: Array<() => void> = []
+    const keepUnlisten = (fn: () => void) => {
+      if (listenersCancelled) {
+        // Defer to avoid a synchronous throw from Tauri's internal listener map
+        setTimeout(() => { try { fn() } catch { /* stale listener */ } }, 0)
+      } else {
+        menuUnlistens.push(fn)
+      }
+    }
     import('@tauri-apps/api/event').then(({ listen }) => {
       // Rust emits this right before app.exit(0) — flush all state to disk
       listen('app://flush-before-quit', () => {
@@ -556,7 +567,7 @@ export function App() {
             emit('app://flush-ack').catch(() => {})
           })
         })
-      }).then((fn) => { unlistenFlushBeforeQuit = fn })
+      }).then(keepUnlisten).catch(() => {})
       listen('menu-new-thread', () => {
         const state = useTaskStore.getState()
         const task = state.selectedTaskId ? state.tasks[state.selectedTaskId] : null
@@ -566,22 +577,23 @@ export function App() {
         if (workspace) {
           state.setPendingWorkspace(workspace)
         }
-      }).then((fn) => { unlistenNewThread = fn })
+      }).then(keepUnlisten).catch(() => {})
       listen('menu-new-project', () => {
         useTaskStore.getState().setNewProjectOpen(true)
-      }).then((fn) => { unlistenNewProject = fn })
+      }).then(keepUnlisten).catch(() => {})
       listen<string>('menu-open-recent-project', (event) => {
         const path = event.payload
         if (!path) return
         const state = useTaskStore.getState()
         state.addProject(path)
         state.setPendingWorkspace(path)
-      }).then((fn) => { unlistenRecentProject = fn })
+      }).then(keepUnlisten).catch(() => {})
       listen('menu-clone-from-github', () => {
         setIsCloneDialogOpen(true)
-      }).then((fn) => { unlistenCloneFromGithub = fn })
-    })
-    // Cross-window state sync — reload when another window persists changes
+      }).then(keepUnlisten).catch(() => {})
+    }).catch(() => {})
+    // Cross-window state sync — reload when another window persists changes.
+    // Same async-registration hazard as the menu listeners above.
     let unsubSync: (() => void) | null = null
     let syncDebounce: ReturnType<typeof setTimeout> | null = null
     import('@/lib/history-store').then(({ subscribeToChanges, isSelfWriting }) => {
@@ -592,14 +604,20 @@ export function App() {
         (t) => t.status === 'running' || t.status === 'paused',
       )
       const handleChange = () => {
-        if (shouldSkipSync()) return
+        if (listenersCancelled || shouldSkipSync()) return
         if (syncDebounce) clearTimeout(syncDebounce)
         syncDebounce = setTimeout(() => {
           useTaskStore.getState().loadTasks()
         }, 300)
       }
-      subscribeToChanges(handleChange, handleChange).then((fn) => { unsubSync = fn })
-    })
+      subscribeToChanges(handleChange, handleChange).then((fn) => {
+        if (listenersCancelled) {
+          fn()
+        } else {
+          unsubSync = fn
+        }
+      }).catch(() => {})
+    }).catch(() => {})
     return () => {
       window.removeEventListener("focus", handleWindowFocus);
       clearInterval(purgeInterval);
@@ -609,11 +627,13 @@ export function App() {
       cleanupResources();
       cleanupHealth();
       unsubDiffReceipt();
-      if (unlistenNewThread) unlistenNewThread()
-      if (unlistenNewProject) unlistenNewProject()
-      if (unlistenRecentProject) unlistenRecentProject()
-      if (unlistenFlushBeforeQuit) unlistenFlushBeforeQuit()
-      if (unlistenCloneFromGithub) unlistenCloneFromGithub()
+      listenersCancelled = true
+      for (const fn of menuUnlistens) {
+        // Defer to avoid the "listeners[eventId].handlerId" crash during
+        // HMR/StrictMode cleanup (see tauriListen in lib/ipc.ts)
+        setTimeout(() => { try { fn() } catch { /* already removed */ } }, 0)
+      }
+      menuUnlistens.length = 0
       if (unsubSync) unsubSync()
       if (syncDebounce) clearTimeout(syncDebounce)
     };

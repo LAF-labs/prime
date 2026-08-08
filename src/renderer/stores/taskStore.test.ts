@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockSetActiveWorkspace, mockResendMessage } = vi.hoisted(() => ({
+const { mockSetActiveWorkspace, mockResendMessage, mockToast } = vi.hoisted(() => ({
   mockSetActiveWorkspace: vi.fn(),
   mockResendMessage: vi.fn().mockResolvedValue(undefined),
+  mockToast: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: Object.assign(mockToast, { error: vi.fn(), success: vi.fn() }),
 }))
 
 vi.mock('@/lib/chat-resend', () => ({
@@ -92,6 +97,7 @@ beforeEach(() => {
     splitViews: [], activeSplitId: null, focusedPanel: 'left' as const, scrollPositions: {},
     pinnedThreadIds: [],
   })
+  mockToast.mockClear()
 })
 
 describe('upsertTask', () => {
@@ -183,6 +189,63 @@ describe('removeTask', () => {
     useTaskStore.setState({ selectedTaskId: 'task-1' })
     useTaskStore.getState().removeTask('task-1')
     expect(useTaskStore.getState().selectedTaskId).toBeNull()
+  })
+})
+
+describe('soft delete undo toast', () => {
+  it('announces the soft delete with an Undo action that restores the thread', () => {
+    useTaskStore.getState().upsertTask(makeTask())
+    useTaskStore.getState().softDeleteTask('task-1')
+    expect(useTaskStore.getState().tasks['task-1']).toBeUndefined()
+    expect(useTaskStore.getState().softDeleted['task-1']).toBeDefined()
+
+    expect(mockToast).toHaveBeenCalledTimes(1)
+    const [title, opts] = mockToast.mock.calls[0] as [string, { action: { label: string; onClick: () => void } }]
+    expect(title).toBe('Thread deleted')
+    expect(opts.action.label).toBe('Undo')
+
+    opts.action.onClick()
+    const state = useTaskStore.getState()
+    expect(state.tasks['task-1']).toBeDefined()
+    expect(state.softDeleted['task-1']).toBeUndefined()
+    expect(state.deletedTaskIds.has('task-1')).toBe(false)
+  })
+
+  it('defers the toast for worktree threads until the cleanup dialog confirms the delete', () => {
+    useTaskStore.getState().upsertTask(makeTask({ worktreePath: '/wt/branch', originalWorkspace: '/orig' }))
+    useTaskStore.getState().softDeleteTask('task-1')
+    // Delete is pending behind the worktree dialog — nothing was deleted yet
+    expect(mockToast).not.toHaveBeenCalled()
+    expect(useTaskStore.getState().worktreeCleanupPending?.taskId).toBe('task-1')
+
+    useTaskStore.getState().resolveWorktreeCleanup(false)
+    expect(useTaskStore.getState().softDeleted['task-1']).toBeDefined()
+    expect(mockToast).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('startNewThread', () => {
+  it('opens a pending chat in the selected thread\'s project', () => {
+    useTaskStore.getState().upsertTask(makeTask({ workspace: '/wt/branch', originalWorkspace: '/projects/test' }))
+    useTaskStore.setState({ selectedTaskId: 'task-1', view: 'dashboard' })
+    useTaskStore.getState().startNewThread()
+    const state = useTaskStore.getState()
+    expect(state.pendingWorkspace).toBe('/projects/test')
+    expect(state.view).toBe('chat')
+  })
+
+  it('falls back to the first project when nothing is selected', () => {
+    useTaskStore.setState({ projects: ['/projects/alpha'] })
+    useTaskStore.getState().startNewThread()
+    expect(useTaskStore.getState().pendingWorkspace).toBe('/projects/alpha')
+  })
+
+  it('opens the import-project sheet when there are no projects', () => {
+    useTaskStore.getState().startNewThread()
+    const state = useTaskStore.getState()
+    expect(state.pendingWorkspace).toBeNull()
+    expect(state.isNewProjectOpen).toBe(true)
+    expect(state.view).toBe('chat')
   })
 })
 

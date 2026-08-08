@@ -125,6 +125,10 @@ export const ko: Record<string, string> = {
   'Start a new thread': '새 스레드 시작',
   'Delete thread': '스레드 삭제',
   'Delete this thread?': '이 스레드를 삭제할까요?',
+  'Thread deleted': '스레드가 삭제되었습니다',
+  'Restore it with Undo, or from Settings → Archives within 2 days.':
+    '실행 취소로 되돌리거나, 2일 이내에 설정 → 보관함에서 복원할 수 있습니다.',
+  'Undo': '실행 취소',
   'Fork thread': '스레드 포크',
   'Worktree thread': '워크트리 스레드',
   'No threads yet': '아직 스레드가 없습니다',
@@ -177,7 +181,8 @@ export const ko: Record<string, string> = {
   'Side-by-side': '나란히 보기',
   'Slash commands': '슬래시 명령',
   'Slash commands by mode': '모드별 슬래시 명령',
-  'Select a task or create a new one to get started.': '작업을 선택하거나 새로 만들어 시작하세요.',
+  'Pick a thread from the sidebar, or start a new one and type your first message below.':
+    '사이드바에서 스레드를 선택하거나, 새 스레드를 시작해 아래에 첫 메시지를 입력하세요.',
   'Send a message to start the conversation.': '메시지를 보내 대화를 시작하세요.',
   'What can I help you build?': '무엇을 만들어 드릴까요?',
   'Getting started': '시작하기',
@@ -358,6 +363,7 @@ export const ko: Record<string, string> = {
   '{count} files committed': '파일 {count}개를 커밋했습니다',
   '{count} files committed on {branch}': '{branch} 브랜치에 파일 {count}개를 커밋했습니다',
   'Commit failed': '커밋 실패',
+  'Committed': '커밋 완료',
   'Commit & Push failed': '커밋 및 푸시 실패',
   'Commit on new branch': '새 브랜치에 커밋',
   'Confirm new branch': '새 브랜치 확정',
@@ -546,8 +552,8 @@ export const ko: Record<string, string> = {
   'Copy to clipboard': '클립보드에 복사',
   'Loading analytics...': '분석 불러오는 중...',
   'No analytics data yet': '아직 분석 데이터가 없습니다',
-  'Start using LAF Agent and your usage stats will appear here':
-    'LAF Agent를 사용하면 사용 통계가 여기에 표시됩니다',
+  'Working with the agent generates the data — messages, tokens, tool calls, and coding time are measured locally and shown here.':
+    '에이전트와 작업하면 데이터가 쌓입니다 — 메시지, 토큰, 도구 호출, 코딩 시간이 로컬에서 측정되어 여기에 표시됩니다.',
   'Messages & words': '메시지 및 단어',
   'Coding hours': '코딩 시간',
   'Code changes': '코드 변경',

@@ -515,7 +515,11 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
       }
       store.removeDraft(ws)
     } else {
-      void ipc.cancelTask(id).catch(() => {}); removeTask(id); void ipc.deleteTask(id)
+      // removeTask soft-deletes through the store, which cancels the agent,
+      // deletes the backend task, and raises the undo toast. Calling
+      // ipc.deleteTask here as well would fire even when the worktree-cleanup
+      // dialog defers (or the user cancels) the delete.
+      removeTask(id)
     }
   }, [removeTask])
   const handleNewThread = useCallback((workspace: string) => { useTaskStore.getState().setPendingWorkspace(workspace) }, [])

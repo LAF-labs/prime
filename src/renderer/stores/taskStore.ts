@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { toast } from 'sonner'
 import type { AgentTask, ActivityEntry, SoftDeletedThread, TaskMessage, ToolCall } from '@/types'
 import { ipc } from '@/lib/ipc'
 import { t } from '@/lib/i18n'
@@ -49,6 +50,23 @@ const eraseFromDb = (ids: string[]): void => {
       console.warn(`[taskStore] could not erase thread ${id} from SQLite:`, err)
     })
   }
+}
+
+/**
+ * Deleting a thread is soft and recoverable for 2 days, but nothing in the UI
+ * said so — the trash icon read as destructive. Say it at the moment of loss,
+ * with the recovery in reach: an Undo action plus a pointer to the Archives.
+ * Fired from every single-thread soft-delete completion (immediate and the
+ * deferred worktree-dialog path), so both sidebar affordances behave the same.
+ */
+const showUndoDeleteToast = (id: string): void => {
+  toast(t('Thread deleted'), {
+    description: t('Restore it with Undo, or from Settings → Archives within 2 days.'),
+    action: {
+      label: t('Undo'),
+      onClick: () => useTaskStore.getState().restoreTask(id),
+    },
+  })
 }
 
 /**
@@ -316,6 +334,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   setView: (view) => {
     if (get().view === view) return
     set({ view })
+  },
+  startNewThread: () => {
+    // The empty-state CTAs (chat, analytics) share the native menu's workspace
+    // resolution: the current thread's project first, then the first project,
+    // and with no projects at all fall through to the import-project sheet.
+    const state = get()
+    const task = state.selectedTaskId ? state.tasks[state.selectedTaskId] : null
+    const workspace = task ? (task.originalWorkspace ?? task.workspace) : state.projects[0]
+    if (workspace) {
+      state.setPendingWorkspace(workspace)
+    } else {
+      state.setNewProjectOpen(true)
+    }
+    state.setView('chat')
   },
   setNewProjectOpen: (open) => set({ isNewProjectOpen: open }),
   setSettingsOpen: (open, section) => set({ isSettingsOpen: open, settingsInitialSection: section ?? null }),
@@ -596,6 +628,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         pinnedThreadIds: state.pinnedThreadIds.filter((tid) => tid !== id),
       }
     })
+    showUndoDeleteToast(id)
     get().persistHistory()
   },
 
@@ -1831,6 +1864,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           selectedTaskId: state.selectedTaskId === taskId ? null : state.selectedTaskId,
         }
       })
+      showUndoDeleteToast(taskId)
     }
     if (removeWorktree) {
       // The user explicitly chose the destructive branch of the cleanup

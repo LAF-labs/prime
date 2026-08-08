@@ -2,11 +2,12 @@ import { t } from '@/lib/i18n'
 import { toast } from 'sonner'
 import { attempt } from '@/lib/ipc-report'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { IconHistory } from '@tabler/icons-react'
+import { IconHistory, IconPlus } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { applyTurnEnd } from '@/stores/task-store-listeners'
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty'
+import { Button } from '@/components/ui/button'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { PermissionBanner } from './PermissionBanner'
@@ -390,9 +391,16 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
     return (
       <Empty>
         <EmptyHeader>
+          {/* Brand name, deliberately not localized */}
           <EmptyTitle>LAF Agent</EmptyTitle>
-          <EmptyDescription>{t('Select a task or create a new one to get started.')}</EmptyDescription>
+          <EmptyDescription>{t('Pick a thread from the sidebar, or start a new one and type your first message below.')}</EmptyDescription>
         </EmptyHeader>
+        <EmptyContent>
+          <Button size="sm" className="gap-1.5" onClick={() => useTaskStore.getState().startNewThread()}>
+            <IconPlus size={14} stroke={2} />
+            {t('Start a new thread')}
+          </Button>
+        </EmptyContent>
       </Empty>
     )
   }

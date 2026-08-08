@@ -7,6 +7,43 @@ use tauri_plugin_dialog::DialogExt;
 
 use super::error::AppError;
 
+/// Write `contents` to `path` atomically: temp file in the same directory,
+/// fsync, then rename over the target. A plain `fs::write` truncates first
+/// and fills in afterwards, so a crash (or two processes racing) mid-write
+/// leaves a torn file — fatal for the files this is used on (`auth.json`,
+/// `.gitignore`), where "half the old bytes" is worse than either version.
+/// Same-directory temp keeps the rename on one filesystem, which is what
+/// makes it atomic.
+pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let dir = path.parent().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no parent directory")
+    })?;
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no file name"))?
+        .to_string_lossy()
+        .to_string();
+    // pid + a counter make the temp name unique across processes and across
+    // concurrent calls within this one, without pulling in a tempfile crate.
+    static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp_path = dir.join(format!(".{file_name}.tmp.{}.{seq}", std::process::id()));
+    let result = (|| {
+        let mut tmp = std::fs::File::create(&tmp_path)?;
+        tmp.write_all(contents)?;
+        // The rename only orders the *name* change; the data must be on disk
+        // first or a power cut can leave the new name pointing at zero bytes.
+        tmp.sync_all()?;
+        drop(tmp);
+        std::fs::rename(&tmp_path, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+    result
+}
+
 /// Locate the prime-agent CLI binary. The command keeps its historical name
 /// (`detect_agent_cli`) because the frontend IPC wrapper calls it by name.
 ///
@@ -1045,7 +1082,7 @@ pub fn auth_set_api_key(provider: String, key: String) -> Result<(), AppError> {
         provider,
         serde_json::json!({ "type": "api_key", "key": key }),
     );
-    std::fs::write(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?)?;
+    write_atomic(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?.as_bytes())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -1167,7 +1204,7 @@ pub fn disable_serper_websearch() -> Result<bool, AppError> {
         return Ok(false);
     }
     bundled.insert("websearch".to_string(), serde_json::Value::Bool(false));
-    std::fs::write(&path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?)?;
+    write_atomic(&path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?.as_bytes())?;
     log::info!("[websearch] disabled the bundled Serper skill; native search + web_fetch are used instead");
     Ok(true)
 }
@@ -1201,7 +1238,7 @@ pub fn repair_custom_providers() -> Result<u32, AppError> {
         }
     }
     if repaired > 0 {
-        std::fs::write(&path, serde_json::to_string_pretty(&root)?)?;
+        write_atomic(&path, serde_json::to_string_pretty(&root)?.as_bytes())?;
         log::info!("[providers] backfilled compat flags on {repaired} custom provider(s)");
     }
     Ok(repaired)
@@ -1276,7 +1313,7 @@ pub fn auth_set_custom_provider(
             "models": models.iter().map(|id| serde_json::json!({ "id": id })).collect::<Vec<_>>(),
         }),
     );
-    std::fs::write(&models_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?)?;
+    write_atomic(&models_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?.as_bytes())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -1293,7 +1330,7 @@ pub fn auth_set_custom_provider(
         _ => serde_json::Map::new(),
     };
     auth_root.insert(name, serde_json::json!({ "type": "api_key", "key": api_key }));
-    std::fs::write(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(auth_root))?)?;
+    write_atomic(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(auth_root))?.as_bytes())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -1316,7 +1353,7 @@ pub fn auth_remove_provider(provider: String) -> Result<(), AppError> {
     if let Some(obj) = root.as_object_mut() {
         obj.remove(provider.trim());
     }
-    std::fs::write(&auth_path, serde_json::to_string_pretty(&root)?)?;
+    write_atomic(&auth_path, serde_json::to_string_pretty(&root)?.as_bytes())?;
 
     // Custom endpoints also live in models.json — drop them together so a
     // removed provider doesn't linger in the model picker without a key.
@@ -1330,7 +1367,7 @@ pub fn auth_remove_provider(provider: String) -> Result<(), AppError> {
                         .map(|p| p.remove(provider.trim()).is_some())
                         .unwrap_or(false);
                     if removed {
-                        let _ = std::fs::write(&models_path, serde_json::to_string_pretty(&models)?);
+                        let _ = write_atomic(&models_path, serde_json::to_string_pretty(&models)?.as_bytes());
                     }
                 }
             }
@@ -1738,6 +1775,43 @@ pub fn list_small_images(cwd: String, max_size: usize) -> Vec<SmallImageInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn write_atomic_creates_and_replaces() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("auth.json");
+        // Fresh file.
+        write_atomic(&target, b"{\"a\":1}").unwrap();
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "{\"a\":1}");
+        // Overwrite — the reader must only ever see old or new, and after
+        // the call, exactly the new bytes.
+        write_atomic(&target, b"{\"a\":2,\"b\":3}").unwrap();
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "{\"a\":2,\"b\":3}");
+        // No temp files left behind.
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
+            .collect();
+        assert!(leftovers.is_empty(), "temp files must not survive: {leftovers:?}");
+    }
+
+    #[test]
+    fn write_atomic_cleans_up_on_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        // Renaming onto a path whose parent is a *file* fails after the temp
+        // write; the temp must be removed.
+        let blocker = dir.path().join("blocker");
+        std::fs::write(&blocker, "x").unwrap();
+        let target = blocker.join("auth.json");
+        assert!(write_atomic(&target, b"data").is_err());
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
+            .collect();
+        assert!(leftovers.is_empty(), "failed writes must not leak temp files: {leftovers:?}");
+    }
 
     #[test]
     fn git_status_label_new_file() {

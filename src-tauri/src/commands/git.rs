@@ -22,7 +22,13 @@ fn run_git(cwd: &str, args: &[&str]) -> Result<String, AppError> {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        Err(AppError::Other(format!("git {} failed: {stderr}", args.join(" "))))
+        // Raw stderr routinely embeds absolute paths and remote URLs. The
+        // full text goes to the log; the UI gets a clean one-liner.
+        log::warn!("git {} failed: {stderr}", args.join(" "));
+        Err(AppError::Other(format!(
+            "git {} failed — see the app log for details.",
+            args.join(" ")
+        )))
     }
 }
 
@@ -788,18 +794,18 @@ fn canonicalize_for_containment(path: &Path) -> Result<std::path::PathBuf, AppEr
     let mut tail: Vec<std::ffi::OsString> = Vec::new();
     loop {
         let Some(parent) = current.parent() else {
-            return Err(AppError::Other(format!(
-                "Cannot validate path (no resolvable ancestor): {}",
-                path.display()
-            )));
+            log::warn!("[git] cannot validate path (no resolvable ancestor): {}", path.display());
+            return Err(AppError::Other(
+                "Cannot validate the worktree path (no resolvable ancestor).".to_string(),
+            ));
         };
         // `file_name()` is None for `..` / root components — refuse rather
         // than guess what the unresolvable component points at.
         let Some(name) = current.file_name() else {
-            return Err(AppError::Other(format!(
-                "Cannot validate path (unresolvable component): {}",
-                path.display()
-            )));
+            log::warn!("[git] cannot validate path (unresolvable component): {}", path.display());
+            return Err(AppError::Other(
+                "Cannot validate the worktree path (unresolvable component).".to_string(),
+            ));
         };
         tail.push(name.to_os_string());
         if let Ok(base) = parent.canonicalize() {
@@ -830,10 +836,14 @@ pub fn git_worktree_create(cwd: String, slug: String) -> Result<WorktreeResult, 
     }
     // Validate cwd is a real directory
     if !cwd_path.is_dir() {
-        return Err(AppError::Other(format!("Workspace is not a directory: {cwd}")));
+        log::warn!("[git] worktree create: workspace is not a directory: {cwd}");
+        return Err(AppError::Other("The workspace folder does not exist.".to_string()));
     }
     // Validate cwd is a git repository
-    Repository::discover(&cwd).map_err(|_| AppError::Other(format!("Not a git repository: {cwd}")))?;
+    Repository::discover(&cwd).map_err(|_| {
+        log::warn!("[git] worktree create: not a git repository: {cwd}");
+        AppError::Other("The workspace is not a git repository.".to_string())
+    })?;
     let worktree_dir = cwd_path.join(".laf-agent").join("worktrees").join(&slug);
     let worktree_path = worktree_dir.to_string_lossy().to_string();
     let branch = format!("worktree-{slug}");
@@ -843,7 +853,10 @@ pub fn git_worktree_create(cwd: String, slug: String) -> Result<WorktreeResult, 
         .output()?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AppError::Other(format!("git worktree add failed: {stderr}")));
+        log::warn!("[git] worktree add failed: {}", stderr.trim());
+        return Err(AppError::Other(
+            "git worktree add failed — see the app log for details.".to_string(),
+        ));
     }
     Ok(WorktreeResult { worktree_path, branch })
 }
@@ -852,9 +865,13 @@ pub fn git_worktree_create(cwd: String, slug: String) -> Result<WorktreeResult, 
 pub fn git_worktree_remove(cwd: String, worktree_path: String) -> Result<(), AppError> {
     // Validate cwd is a real directory and a git repository
     if !Path::new(&cwd).is_dir() {
-        return Err(AppError::Other(format!("Workspace is not a directory: {cwd}")));
+        log::warn!("[git] worktree remove: workspace is not a directory: {cwd}");
+        return Err(AppError::Other("The workspace folder does not exist.".to_string()));
     }
-    Repository::discover(&cwd).map_err(|_| AppError::Other(format!("Not a git repository: {cwd}")))?;
+    Repository::discover(&cwd).map_err(|_| {
+        log::warn!("[git] worktree remove: not a git repository: {cwd}");
+        AppError::Other("The workspace is not a git repository.".to_string())
+    })?;
     // Validate worktree_path is under the workspace. Fail closed: a path that
     // cannot be canonicalized is rejected, not waved through.
     let canonical_cwd = Path::new(&cwd).canonicalize()?;
@@ -868,7 +885,10 @@ pub fn git_worktree_remove(cwd: String, worktree_path: String) -> Result<(), App
         .output()?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AppError::Other(format!("git worktree remove failed: {stderr}")));
+        log::warn!("[git] worktree remove failed: {}", stderr.trim());
+        return Err(AppError::Other(
+            "git worktree remove failed — see the app log for details.".to_string(),
+        ));
     }
     Ok(())
 }
@@ -904,7 +924,12 @@ pub fn git_worktree_setup(
     worktree_path: String,
     symlink_dirs: Vec<String>,
 ) -> Result<WorktreeSetupResult, AppError> {
-    let cwd_path = Path::new(&cwd).canonicalize()?;
+    // A raw io::Error here surfaced kernel phrasing (and, via callers'
+    // formatting, the absolute path) straight into the UI toast.
+    let cwd_path = Path::new(&cwd).canonicalize().map_err(|e| {
+        log::warn!("[git] worktree setup: cannot resolve workspace {cwd}: {e}");
+        AppError::Other("Could not resolve the workspace path.".to_string())
+    })?;
     let wt_path = Path::new(&worktree_path);
     // Validate cwd is a git repository
     let repo = Repository::discover(&cwd)?;
@@ -1007,6 +1032,9 @@ pub fn git_worktree_setup(
 }
 
 /// Append an entry to .gitignore if not already present.
+///
+/// Atomic (temp + rename): this is a read-modify-write of a file the user
+/// also edits, and a crash mid-`fs::write` truncates their whole .gitignore.
 fn ensure_gitignore_entry(cwd: &Path, entry: &str) -> Result<(), AppError> {
     let gitignore = cwd.join(".gitignore");
     if gitignore.exists() {
@@ -1015,9 +1043,12 @@ fn ensure_gitignore_entry(cwd: &Path, entry: &str) -> Result<(), AppError> {
             return Ok(());
         }
         let separator = if content.ends_with('\n') { "" } else { "\n" };
-        std::fs::write(&gitignore, format!("{content}{separator}{entry}\n"))?;
+        crate::commands::fs_ops::write_atomic(
+            &gitignore,
+            format!("{content}{separator}{entry}\n").as_bytes(),
+        )?;
     } else {
-        std::fs::write(&gitignore, format!("{entry}\n"))?;
+        crate::commands::fs_ops::write_atomic(&gitignore, format!("{entry}\n").as_bytes())?;
     }
     Ok(())
 }

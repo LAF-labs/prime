@@ -859,3 +859,95 @@ fn a_limit_of_one_is_phrased_as_one() {
     let err = agent_slot_available(Some(1), 1, false).unwrap_err();
     assert!(err.starts_with("1 agent is"), "got: {err}");
 }
+
+// ── Slot reservation (check-and-claim under one lock) ───────────
+
+use super::commands::reserve_agent_slot;
+use super::types::AgentState;
+
+/// Two concurrent task_creates used to both pass the cap check before either
+/// inserted its handle. A reservation claims the slot at check time, so the
+/// second caller sees the first caller's claim.
+#[test]
+fn a_reservation_counts_toward_the_limit_until_dropped() {
+    let state = AgentState::default();
+    let first = reserve_agent_slot(&state, Some(1), "task-a").expect("first slot");
+    assert!(
+        reserve_agent_slot(&state, Some(1), "task-b").is_err(),
+        "the reserved (not yet spawned) slot must already count"
+    );
+    drop(first);
+    assert!(
+        reserve_agent_slot(&state, Some(1), "task-b").is_ok(),
+        "dropping the reservation must release the slot"
+    );
+}
+
+/// Re-reserving the same id is a replacement, not an addition — the reconnect
+/// path must never be refused for the thread it is reconnecting.
+#[test]
+fn reserving_the_same_id_twice_is_a_replacement() {
+    let state = AgentState::default();
+    let _first = reserve_agent_slot(&state, Some(1), "task-a").expect("first slot");
+    assert!(reserve_agent_slot(&state, Some(1), "task-a").is_ok());
+}
+
+// ── Backend timestamp precision ─────────────────────────────────
+
+/// Backend-constructed messages share the SQLite dedupe key with frontend
+/// ones; at 1-second precision two identical sends in the same second
+/// collapsed into one row. The format must carry milliseconds.
+#[test]
+fn now_rfc3339_has_millisecond_precision() {
+    let ts = super::now_rfc3339();
+    // Shape: 2024-01-15T12:30:45.123Z
+    assert_eq!(ts.len(), 24, "expected YYYY-MM-DDTHH:MM:SS.mmmZ, got {ts}");
+    assert_eq!(&ts[10..11], "T");
+    assert_eq!(&ts[19..20], ".");
+    assert!(ts.ends_with('Z'));
+    assert!(
+        ts[20..23].chars().all(|c| c.is_ascii_digit()),
+        "fractional part must be three digits: {ts}"
+    );
+}
+
+// ── Debug-panel mirror gating ───────────────────────────────────
+
+use super::connection::{debug_mirror_payload, DEBUG_MIRROR_MAX_BYTES};
+
+#[test]
+fn message_update_deltas_are_not_mirrored() {
+    let event = serde_json::json!({
+        "type": "message_update",
+        "assistantMessageEvent": { "type": "text_delta", "delta": "hi" },
+    });
+    assert!(debug_mirror_payload("message_update", event).is_none());
+}
+
+#[test]
+fn small_events_are_mirrored_verbatim() {
+    let event = serde_json::json!({ "type": "goal_update", "goal": "ship it" });
+    let mirrored = debug_mirror_payload("goal_update", event.clone()).unwrap();
+    assert_eq!(mirrored, event);
+}
+
+#[test]
+fn oversized_payloads_become_a_placeholder_with_size_info() {
+    let big = "x".repeat(DEBUG_MIRROR_MAX_BYTES + 1);
+    let event = serde_json::json!({ "type": "tool_execution_end", "result": big });
+    let mirrored = debug_mirror_payload("tool_execution_end", event).unwrap();
+    assert_eq!(mirrored["truncated"], true);
+    assert_eq!(mirrored["type"], "tool_execution_end");
+    assert!(
+        mirrored["originalBytes"].as_u64().unwrap() as usize > DEBUG_MIRROR_MAX_BYTES,
+        "the placeholder must record the original size"
+    );
+}
+
+#[test]
+fn error_events_are_mirrored_in_full_even_when_large() {
+    let big = "x".repeat(DEBUG_MIRROR_MAX_BYTES + 1);
+    let event = serde_json::json!({ "type": "extension_error", "error": big });
+    let mirrored = debug_mirror_payload("extension_error", event.clone()).unwrap();
+    assert_eq!(mirrored, event, "error detail is exactly what the debug panel is for");
+}

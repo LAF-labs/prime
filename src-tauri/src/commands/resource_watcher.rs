@@ -50,25 +50,25 @@ pub fn watch_global_resources(app: &AppHandle) {
 }
 
 /// Start watching a project's .agent directory.
+///
+/// Known limitation, on purpose: if `.prime/agent` does not exist yet, this
+/// is a no-op — we do not create directories inside the user's project as a
+/// side effect of opening it, and `notify` cannot watch a path that isn't
+/// there. A `.prime/agent` created later is picked up on the next call (the
+/// frontend re-invokes this on project activation and on resource refresh).
 #[tauri::command]
 pub fn watch_resource_path(path: String, app: AppHandle) {
     let agent_dir = PathBuf::from(&path).join(".prime").join("agent");
     if !agent_dir.is_dir() {
+        log::info!(
+            "[resource-watcher] no .prime/agent under this project yet — not watching (re-checked on next activation)"
+        );
         return;
     }
     let state = app.state::<ResourceWatcherState>();
-    // Enforce max project watchers (global watcher doesn't count toward limit)
-    {
-        let watchers = state.watchers.lock();
-        let home_agent = dirs::home_dir().map(|h| h.join(".prime").join("agent"));
-        let project_count = watchers.keys()
-            .filter(|k| home_agent.as_ref().map_or(true, |g| *k != g))
-            .count();
-        if project_count >= MAX_PROJECT_WATCHERS {
-            log::warn!("Max project watchers ({}) reached, skipping {}", MAX_PROJECT_WATCHERS, agent_dir.display());
-            return;
-        }
-    }
+    // The project-watcher cap is enforced inside start_watcher, under the
+    // same lock acquisition that inserts the new watcher — checking it here
+    // and re-locking there let concurrent calls race past the cap.
     start_watcher(&state, &agent_dir, Some(path), app.clone());
 }
 
@@ -104,6 +104,23 @@ fn start_watcher(
     let mut watchers = state.watchers.lock();
     if watchers.contains_key(agent_dir) {
         return;
+    }
+    // Cap check and insert happen under this one lock acquisition so
+    // concurrent calls cannot both observe "one slot left" and both insert.
+    // The global ~/.prime/agent watcher does not count toward the limit.
+    if project_path.is_some() {
+        let home_agent = dirs::home_dir().map(|h| h.join(".prime").join("agent"));
+        let project_count = watchers.keys()
+            .filter(|k| home_agent.as_ref().map_or(true, |g| *k != g))
+            .count();
+        if project_count >= MAX_PROJECT_WATCHERS {
+            log::warn!(
+                "Max project watchers ({}) reached, skipping {}",
+                MAX_PROJECT_WATCHERS,
+                agent_dir.display()
+            );
+            return;
+        }
     }
     let app_handle = app.clone();
     let project = Arc::new(project_path);

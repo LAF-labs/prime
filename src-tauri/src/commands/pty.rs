@@ -126,7 +126,11 @@ pub fn pty_create(
     // Validate cwd: must exist, be a directory, and be under a reasonable location
     let cwd_path = std::path::Path::new(&cwd);
     if !cwd_path.is_dir() {
-        return Err(AppError::Other(format!("PTY cwd is not a directory: {cwd}")));
+        // The path stays in the log; the UI-facing string must not leak it.
+        log::warn!("[pty] cwd is not a directory: {cwd}");
+        return Err(AppError::Other(
+            "The terminal working directory does not exist.".to_string(),
+        ));
     }
     if let Ok(canonical) = cwd_path.canonicalize() {
         #[cfg(not(target_os = "windows"))]
@@ -150,7 +154,11 @@ pub fn pty_create(
             || canonical.starts_with("C:\\Users")
             || canonical.starts_with("D:\\");
         if !allowed {
-            return Err(AppError::Other(format!("PTY cwd must be under home directory or a known project location: {cwd}")));
+            log::warn!("[pty] cwd outside allowed locations: {cwd}");
+            return Err(AppError::Other(
+                "The terminal working directory must be under your home directory or a known project location."
+                    .to_string(),
+            ));
         }
     }
 

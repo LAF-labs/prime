@@ -737,6 +737,43 @@ pub(crate) fn refine_status_payload(task_id: &str, event: &Value) -> Value {
     json!({ "taskId": task_id, "status": "completed", "appliedCount": applied })
 }
 
+/// Max serialized size an event may have before the debug-panel mirror
+/// replaces its payload with a placeholder. Tool results routinely carry
+/// whole files; shipping them to the webview twice (once as the real event,
+/// once as `debug_log`) doubled IPC volume on the streaming hot path.
+pub(crate) const DEBUG_MIRROR_MAX_BYTES: usize = 32 * 1024;
+
+/// Decide what (if anything) the debug panel gets for `event`.
+///
+/// - `message_update` deltas are not mirrored at all: the renderer already
+///   receives every delta as `message_chunk` / `thinking_chunk`, and
+///   mirroring each one duplicated per-token IPC traffic while streaming.
+/// - Error events (`extension_error`) are always mirrored in full — they are
+///   exactly what the debug panel exists for.
+/// - Anything else larger than [`DEBUG_MIRROR_MAX_BYTES`] serialized is
+///   replaced by a placeholder recording the type and original size.
+pub(crate) fn debug_mirror_payload(event_type: &str, event: Value) -> Option<Value> {
+    if event_type == "message_update" {
+        return None;
+    }
+    if event_type == "extension_error" {
+        return Some(event);
+    }
+    let size = serde_json::to_string(&event).map(|s| s.len()).unwrap_or(0);
+    if size > DEBUG_MIRROR_MAX_BYTES {
+        return Some(json!({
+            "type": event_type,
+            "truncated": true,
+            "originalBytes": size,
+            "note": format!(
+                "payload over {} KB omitted from the debug mirror",
+                DEBUG_MIRROR_MAX_BYTES / 1024
+            ),
+        }));
+    }
+    Some(event)
+}
+
 /// Dispatch one parsed stdout line from the agent.
 fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
     use tauri::Emitter;
@@ -922,11 +959,16 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
         }
     }
 
-    // Mirror everything into the debug panel.
-    let _ = app.emit("debug_log", json!({
-        "direction": "in", "category": "notification", "type": event_type,
-        "taskId": tid, "summary": event_type, "payload": event, "isError": event_type == "extension_error"
-    }));
+    // Mirror into the debug panel — gated, not wholesale: streaming deltas
+    // are skipped and oversized payloads truncated (`debug_mirror_payload`).
+    let is_error = event_type == "extension_error";
+    let event_type = event_type.to_string();
+    if let Some(payload) = debug_mirror_payload(&event_type, event) {
+        let _ = app.emit("debug_log", json!({
+            "direction": "in", "category": "notification", "type": event_type,
+            "taskId": tid, "summary": event_type, "payload": payload, "isError": is_error
+        }));
+    }
 }
 
 /// Handle a `response` line: session_init aggregation and usage stats.

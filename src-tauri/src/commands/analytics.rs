@@ -93,67 +93,108 @@ impl AnalyticsState {
 
 use tauri::Manager;
 
+// ── Key packing ──────────────────────────────────────────────────────────────
+
+/// Timestamps are packed into redb keys as `(ts << 16) | seq` — high 48 bits
+/// of millisecond time, low 16 bits of a monotonic counter. A `ts` at or above
+/// 2^48 would silently lose its high bits in the shift and alias an unrelated
+/// key range, so it is clamped to the maximum representable value (~year 10889
+/// in unix-ms) instead. Range starts get the same clamp so a huge `since` can
+/// never wrap past newer events.
+const MAX_KEY_TS: u64 = (1 << 48) - 1;
+
+fn event_key(ts: u64, seq: u64) -> u64 {
+    (ts.min(MAX_KEY_TS) << 16) | (seq & 0xFFFF)
+}
+
+fn range_start_key(ts: u64) -> u64 {
+    ts.min(MAX_KEY_TS) << 16
+}
+
+/// Run `f` against managed analytics state on the blocking pool.
+///
+/// `with_db` holds the state mutex across a whole redb transaction — for
+/// writes that includes the commit fsync, and loads may JSON-parse tens of
+/// thousands of events. Doing that inside a sync command occupied the invoke
+/// thread; every command below is async and hops here instead.
+async fn run_blocking<R, F>(app: tauri::AppHandle, f: F) -> Result<R, AppError>
+where
+    R: Send + 'static,
+    F: FnOnce(&tauri::AppHandle, &AnalyticsState) -> Result<R, AppError> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AnalyticsState>();
+        f(&app, state.inner())
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("analytics task failed: {e}")))?
+}
+
 #[tauri::command]
-pub fn analytics_save(
+pub async fn analytics_save(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     events: Vec<AnalyticsEvent>,
 ) -> Result<(), AppError> {
     if events.is_empty() {
         return Ok(());
     }
-    state.with_db(&app, |db| {
-        let txn = db.begin_write()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        {
-            let mut table = txn.open_table(TABLE)
+    run_blocking(app, move |app, state| {
+        state.with_db(app, |db| {
+            let txn = db.begin_write()
                 .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-            for event in &events {
-                let bytes = serde_json::to_vec(event)?;
-                // Combine timestamp with atomic counter for guaranteed unique keys.
-                // High 48 bits = ms timestamp, low 16 bits = counter.
-                let seq = state.counter.fetch_add(1, Ordering::Relaxed) & 0xFFFF;
-                let key = (event.ts << 16) | seq;
-                table.insert(key, bytes.as_slice())
+            {
+                let mut table = txn.open_table(TABLE)
                     .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                for event in &events {
+                    let bytes = serde_json::to_vec(event)?;
+                    // Combine timestamp with atomic counter for guaranteed unique keys.
+                    // High 48 bits = ms timestamp (clamped), low 16 bits = counter.
+                    let seq = state.counter.fetch_add(1, Ordering::Relaxed);
+                    let key = event_key(event.ts, seq);
+                    table.insert(key, bytes.as_slice())
+                        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                }
             }
-        }
-        txn.commit()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        Ok(())
+            txn.commit()
+                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            Ok(())
+        })
     })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_load(
+pub async fn analytics_load(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<AnalyticsEvent>, AppError> {
-    state.with_db(&app, |db| {
-        let txn = db.begin_read()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        let table = txn.open_table(TABLE)
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        let mut results = Vec::new();
-        let start_key = if let Some(start) = since { start << 16 } else { 0u64 };
-        let iter = table.range(start_key..u64::MAX)
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        // Newest first: keys ascend with time, so an ascending scan capped at
-        // MAX_LOAD_EVENTS kept the *oldest* events — after a few weeks of
-        // heavy use every dashboard silently froze in the past. Walk backwards
-        // instead, then restore chronological order for the aggregators.
-        for entry in iter.rev() {
-            let (_, val) = entry
+    run_blocking(app, move |app, state| {
+        state.with_db(app, |db| {
+            let txn = db.begin_read()
                 .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-            if let Ok(event) = serde_json::from_slice::<AnalyticsEvent>(val.value()) {
-                results.push(event);
-                if results.len() >= MAX_LOAD_EVENTS { break; }
+            let table = txn.open_table(TABLE)
+                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            let mut results = Vec::new();
+            let start_key = since.map(range_start_key).unwrap_or(0);
+            let iter = table.range(start_key..u64::MAX)
+                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            // Newest first: keys ascend with time, so an ascending scan capped at
+            // MAX_LOAD_EVENTS kept the *oldest* events — after a few weeks of
+            // heavy use every dashboard silently froze in the past. Walk backwards
+            // instead, then restore chronological order for the aggregators.
+            for entry in iter.rev() {
+                let (_, val) = entry
+                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                if let Ok(event) = serde_json::from_slice::<AnalyticsEvent>(val.value()) {
+                    results.push(event);
+                    if results.len() >= MAX_LOAD_EVENTS { break; }
+                }
             }
-        }
-        results.reverse();
-        Ok(results)
+            results.reverse();
+            Ok(results)
+        })
     })
+    .await
 }
 
 /// Delete events older than `keep_days`.
@@ -162,9 +203,8 @@ pub fn analytics_load(
 /// working day, and the dashboard never looks further back than a year — so
 /// past that, the rows are pure disk cost and load-time cost.
 #[tauri::command]
-pub fn analytics_prune(
+pub async fn analytics_prune(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     keep_days: u32,
 ) -> Result<u64, AppError> {
     let cutoff_ms = std::time::SystemTime::now()
@@ -172,41 +212,53 @@ pub fn analytics_prune(
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
         .saturating_sub(keep_days as u64 * 24 * 60 * 60 * 1000);
-    let cutoff_key = cutoff_ms << 16;
-    state.with_db(&app, |db| {
-        let txn = db.begin_write()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        let removed;
-        {
-            let mut table = txn.open_table(TABLE)
+    let cutoff_key = range_start_key(cutoff_ms);
+    run_blocking(app, move |app, state| {
+        state.with_db(app, |db| {
+            let txn = db.begin_write()
                 .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-            let drained = table.extract_from_if(..cutoff_key, |_, _| true)
+            let removed;
+            {
+                let mut table = txn.open_table(TABLE)
+                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                let drained = table.extract_from_if(..cutoff_key, |_, _| true)
+                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                removed = drained.count() as u64;
+            }
+            txn.commit()
                 .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-            removed = drained.count() as u64;
-        }
-        txn.commit()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        Ok(removed)
+            Ok(removed)
+        })
     })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_clear(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
-) -> Result<(), AppError> {
-    // Close db, delete file, reopen
-    {
+pub async fn analytics_clear(app: tauri::AppHandle) -> Result<(), AppError> {
+    run_blocking(app, |app, state| {
+        // Hold the state lock across the whole close → delete → recreate
+        // sequence. Dropping it between steps let a concurrent `open_db`
+        // re-create the Database handle against the file this command was
+        // about to unlink — the "cleared" data then lived on in that handle
+        // until restart.
         let mut guard = state.db.lock();
         *guard = None;
-    }
-    let path = state.resolve_path(&app)?;
-    if path.exists() {
-        std::fs::remove_file(&path)?;
-    }
-    // Reopen fresh
-    state.open_db(&app)?;
-    Ok(())
+        let path = state.resolve_path(app)?;
+        if path.exists() {
+            std::fs::remove_file(&path)?;
+        }
+        // Reopen fresh, inline (open_db would re-lock and deadlock).
+        let db = Database::create(&path)
+            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        let txn = db.begin_write()
+            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        { let _ = txn.open_table(TABLE); }
+        txn.commit()
+            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        *guard = Some(db);
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -261,6 +313,24 @@ mod tests {
         assert!(json.contains("\"ts\""));
         assert!(json.contains("\"kind\""));
         assert!(!json.contains("project")); // skipped when None
+    }
+
+    /// `(ts << 16) | seq` silently discarded the high 16 bits of any ts at or
+    /// above 2^48 — the key aliased an unrelated time range. The pack helpers
+    /// clamp instead.
+    #[test]
+    fn event_key_packs_and_clamps() {
+        // Normal timestamps survive the round-trip.
+        assert_eq!(event_key(1_700_000_000_000, 7) >> 16, 1_700_000_000_000);
+        assert_eq!(event_key(1_700_000_000_000, 7) & 0xFFFF, 7);
+        // The counter wraps into its 16 bits instead of bleeding into the ts.
+        assert_eq!(event_key(1, 0x1_0005) & 0xFFFF, 5);
+        assert_eq!(event_key(1, 0x1_0005) >> 16, 1);
+        // A ts past 2^48 clamps to the max representable value.
+        assert_eq!(event_key(u64::MAX, 0) >> 16, MAX_KEY_TS);
+        assert_eq!(range_start_key(u64::MAX), MAX_KEY_TS << 16);
+        // Keys stay ordered by time regardless of counter values.
+        assert!(event_key(1000, 0xFFFF) < event_key(1001, 0));
     }
 
     #[test]
@@ -470,7 +540,7 @@ fn load_events_filtered(
         let table = txn
             .open_table(TABLE)
             .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        let start_key = if let Some(start) = since { start << 16 } else { 0u64 };
+        let start_key = since.map(range_start_key).unwrap_or(0);
         let iter = table
             .range(start_key..u64::MAX)
             .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
@@ -492,71 +562,79 @@ fn load_events_filtered(
 }
 
 #[tauri::command]
-pub fn analytics_coding_hours_by_day(
+pub async fn analytics_coding_hours_by_day(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<DayValue>, AppError> {
-    let events = load_events_filtered(&app, &state, &["session"], since)?;
-    Ok(group_by_day(&events, |bucket| {
-        let hours = (sum_value(bucket) / 3600.0 * 10.0).round() / 10.0;
-        (hours, None)
-    }))
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(app, state, &["session"], since)?;
+        Ok(group_by_day(&events, |bucket| {
+            let hours = (sum_value(bucket) / 3600.0 * 10.0).round() / 10.0;
+            (hours, None)
+        }))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_messages_by_day(
+pub async fn analytics_messages_by_day(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<DayValue>, AppError> {
-    let events =
-        load_events_filtered(&app, &state, &["message_sent", "message_received"], since)?;
-    let mut buckets: BTreeMap<String, (u64, u64)> = BTreeMap::new();
-    for e in &events {
-        let entry = buckets.entry(day_key(e.ts)).or_insert((0, 0));
-        if e.kind == "message_sent" {
-            entry.0 += 1;
-        } else {
-            entry.1 += 1;
+    run_blocking(app, move |app, state| {
+        let events =
+            load_events_filtered(app, state, &["message_sent", "message_received"], since)?;
+        let mut buckets: BTreeMap<String, (u64, u64)> = BTreeMap::new();
+        for e in &events {
+            let entry = buckets.entry(day_key(e.ts)).or_insert((0, 0));
+            if e.kind == "message_sent" {
+                entry.0 += 1;
+            } else {
+                entry.1 += 1;
+            }
         }
-    }
-    Ok(buckets
-        .into_iter()
-        .map(|(day, (sent, recv))| DayValue {
-            day,
-            value: sent as f64,
-            value2: Some(recv as f64),
-        })
-        .collect())
+        Ok(buckets
+            .into_iter()
+            .map(|(day, (sent, recv))| DayValue {
+                day,
+                value: sent as f64,
+                value2: Some(recv as f64),
+            })
+            .collect())
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_tokens_by_day(
+pub async fn analytics_tokens_by_day(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<DayValue>, AppError> {
-    // `token_spend`, not `token_usage`: the latter is context-window
-    // occupancy, which is re-counted every turn and drops after compaction —
-    // summing it days-wide overstates consumption several times over.
-    let events = load_events_filtered(&app, &state, &["token_spend"], since)?;
-    Ok(group_by_day(&events, |bucket| {
-        let cost: f64 = bucket.iter().filter_map(|e| e.value2).sum();
-        (sum_value(bucket), if cost > 0.0 { Some(cost) } else { None })
-    }))
+    run_blocking(app, move |app, state| {
+        // `token_spend`, not `token_usage`: the latter is context-window
+        // occupancy, which is re-counted every turn and drops after compaction —
+        // summing it days-wide overstates consumption several times over.
+        let events = load_events_filtered(app, state, &["token_spend"], since)?;
+        Ok(group_by_day(&events, |bucket| {
+            let cost: f64 = bucket.iter().filter_map(|e| e.value2).sum();
+            (sum_value(bucket), if cost > 0.0 { Some(cost) } else { None })
+        }))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_diff_stats_by_day(
+pub async fn analytics_diff_stats_by_day(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<DayValue>, AppError> {
-    let events = load_events_filtered(&app, &state, &["diff_stats"], since)?;
-    Ok(group_by_day(&events, |bucket| {
-        (sum_value(bucket), Some(sum_value2(bucket)))
-    }))
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(app, state, &["diff_stats"], since)?;
+        Ok(group_by_day(&events, |bucket| {
+            (sum_value(bucket), Some(sum_value2(bucket)))
+        }))
+    })
+    .await
 }
 
 fn count_by_detail(events: &[AnalyticsEvent]) -> Vec<CountedDetail> {
@@ -574,75 +652,83 @@ fn count_by_detail(events: &[AnalyticsEvent]) -> Vec<CountedDetail> {
 }
 
 #[tauri::command]
-pub fn analytics_model_popularity(
+pub async fn analytics_model_popularity(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<CountedDetail>, AppError> {
-    let events = load_events_filtered(&app, &state, &["model_used"], since)?;
-    Ok(count_by_detail(&events))
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(app, state, &["model_used"], since)?;
+        Ok(count_by_detail(&events))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_tool_call_breakdown(
+pub async fn analytics_tool_call_breakdown(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<CountedDetail>, AppError> {
-    let events = load_events_filtered(&app, &state, &["tool_call"], since)?;
-    Ok(count_by_detail(&events))
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(app, state, &["tool_call"], since)?;
+        Ok(count_by_detail(&events))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_mode_usage(
+pub async fn analytics_mode_usage(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<CountedDetail>, AppError> {
-    let events = load_events_filtered(&app, &state, &["mode_switch"], since)?;
-    Ok(count_by_detail(&events))
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(app, state, &["mode_switch"], since)?;
+        Ok(count_by_detail(&events))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn analytics_project_stats(
+pub async fn analytics_project_stats(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<Vec<ProjectStat>, AppError> {
-    let events = load_events_filtered(
-        &app,
-        &state,
-        &["thread_created", "message_sent", "message_received"],
-        since,
-    )?;
-    let mut threads: BTreeMap<String, std::collections::HashSet<String>> = BTreeMap::new();
-    let mut messages: BTreeMap<String, u64> = BTreeMap::new();
-    for e in &events {
-        let Some(project) = e.project.as_ref() else { continue };
-        if e.kind == "thread_created" {
-            if let Some(thread) = e.thread.as_ref() {
-                threads
-                    .entry(project.clone())
-                    .or_default()
-                    .insert(thread.clone());
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(
+            app,
+            state,
+            &["thread_created", "message_sent", "message_received"],
+            since,
+        )?;
+        let mut threads: BTreeMap<String, std::collections::HashSet<String>> = BTreeMap::new();
+        let mut messages: BTreeMap<String, u64> = BTreeMap::new();
+        for e in &events {
+            let Some(project) = e.project.as_ref() else { continue };
+            if e.kind == "thread_created" {
+                if let Some(thread) = e.thread.as_ref() {
+                    threads
+                        .entry(project.clone())
+                        .or_default()
+                        .insert(thread.clone());
+                }
+            } else {
+                *messages.entry(project.clone()).or_insert(0) += 1;
             }
-        } else {
-            *messages.entry(project.clone()).or_insert(0) += 1;
         }
-    }
-    let mut all = std::collections::BTreeSet::new();
-    all.extend(threads.keys().cloned());
-    all.extend(messages.keys().cloned());
-    let mut result: Vec<ProjectStat> = all
-        .into_iter()
-        .map(|project| ProjectStat {
-            threads: threads.get(&project).map(|s| s.len() as u64).unwrap_or(0),
-            messages: *messages.get(&project).unwrap_or(&0),
-            project,
-        })
-        .collect();
-    result.sort_by(|a, b| b.messages.cmp(&a.messages));
-    Ok(result)
+        let mut all = std::collections::BTreeSet::new();
+        all.extend(threads.keys().cloned());
+        all.extend(messages.keys().cloned());
+        let mut result: Vec<ProjectStat> = all
+            .into_iter()
+            .map(|project| ProjectStat {
+                threads: threads.get(&project).map(|s| s.len() as u64).unwrap_or(0),
+                messages: *messages.get(&project).unwrap_or(&0),
+                project,
+            })
+            .collect();
+        result.sort_by(|a, b| b.messages.cmp(&a.messages));
+        Ok(result)
+    })
+    .await
 }
 
 #[derive(SerializeAgg, Clone, Debug)]
@@ -662,49 +748,51 @@ pub struct AnalyticsTotals {
 }
 
 #[tauri::command]
-pub fn analytics_totals(
+pub async fn analytics_totals(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AnalyticsState>,
     since: Option<u64>,
 ) -> Result<AnalyticsTotals, AppError> {
-    let events = load_events_filtered(&app, &state, &[], since)?;
-    let mut totals = AnalyticsTotals {
-        coding_hours: 0.0,
-        messages_sent: 0,
-        messages_received: 0,
-        tokens: 0.0,
-        cost: 0.0,
-        diff_additions: 0.0,
-        diff_deletions: 0.0,
-        files_edited: 0,
-        tool_calls: 0,
-    };
-    let mut edited_files: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for e in &events {
-        match e.kind.as_str() {
-            "session" => totals.coding_hours += e.value.unwrap_or(0.0) / 3600.0,
-            "message_sent" => totals.messages_sent += 1,
-            "message_received" => totals.messages_received += 1,
-            "token_spend" => {
-                totals.tokens += e.value.unwrap_or(0.0);
-                totals.cost += e.value2.unwrap_or(0.0);
-            }
-            "diff_stats" => {
-                totals.diff_additions += e.value.unwrap_or(0.0);
-                totals.diff_deletions += e.value2.unwrap_or(0.0);
-            }
-            "file_edited" => {
-                if let Some(detail) = e.detail.as_ref() {
-                    edited_files.insert(detail.clone());
+    run_blocking(app, move |app, state| {
+        let events = load_events_filtered(app, state, &[], since)?;
+        let mut totals = AnalyticsTotals {
+            coding_hours: 0.0,
+            messages_sent: 0,
+            messages_received: 0,
+            tokens: 0.0,
+            cost: 0.0,
+            diff_additions: 0.0,
+            diff_deletions: 0.0,
+            files_edited: 0,
+            tool_calls: 0,
+        };
+        let mut edited_files: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for e in &events {
+            match e.kind.as_str() {
+                "session" => totals.coding_hours += e.value.unwrap_or(0.0) / 3600.0,
+                "message_sent" => totals.messages_sent += 1,
+                "message_received" => totals.messages_received += 1,
+                "token_spend" => {
+                    totals.tokens += e.value.unwrap_or(0.0);
+                    totals.cost += e.value2.unwrap_or(0.0);
                 }
+                "diff_stats" => {
+                    totals.diff_additions += e.value.unwrap_or(0.0);
+                    totals.diff_deletions += e.value2.unwrap_or(0.0);
+                }
+                "file_edited" => {
+                    if let Some(detail) = e.detail.as_ref() {
+                        edited_files.insert(detail.clone());
+                    }
+                }
+                "tool_call" => totals.tool_calls += 1,
+                _ => {}
             }
-            "tool_call" => totals.tool_calls += 1,
-            _ => {}
         }
-    }
-    totals.files_edited = edited_files.len() as u64;
-    totals.coding_hours = (totals.coding_hours * 10.0).round() / 10.0;
-    Ok(totals)
+        totals.files_edited = edited_files.len() as u64;
+        totals.coding_hours = (totals.coding_hours * 10.0).round() / 10.0;
+        Ok(totals)
+    })
+    .await
 }
 
 #[cfg(test)]

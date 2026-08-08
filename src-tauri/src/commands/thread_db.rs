@@ -118,6 +118,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedupe
 /// here. Content is hashed rather than stored so the index stays small; the
 /// timestamp and role are kept verbatim because they are cheap and make
 /// collisions between genuinely different messages vanishingly unlikely.
+///
+/// Timestamp precision is what separates "same event seen twice" from "two
+/// events": every producer stamps milliseconds — the frontend via
+/// `new Date().toISOString()`, the backend via `rpc::now_rfc3339` — so two
+/// genuinely distinct sends collide only when they carry identical content,
+/// role, thread, *and* the same millisecond. That residual collapse is
+/// accepted deliberately: it is indistinguishable from the cross-window
+/// double-persist this key exists to suppress.
 fn dedupe_key(message: &DbMessage) -> String {
     // FNV-1a: tiny, and — unlike `DefaultHasher` — stable across Rust
     // releases, which matters for a value written to disk.
@@ -270,9 +278,11 @@ enum ConnectionMode {
 // ── Database Connection ───────────────────────────────────────────────────────
 
 /// Thread-safe database handle. Reads use a shared connection (protected by
-/// Mutex for SQLite's threading model). Writes are dispatched to a dedicated
-/// background task via a channel, ensuring serialized write access without
-/// blocking the caller beyond the channel send.
+/// Mutex for SQLite's threading model) and run on the blocking pool via
+/// `spawn_blocking` so sync SQLite I/O never occupies an async worker.
+/// Writes are dispatched to a dedicated background task via a channel,
+/// ensuring serialized write access without blocking the caller beyond the
+/// channel send.
 #[derive(Clone)]
 pub struct ThreadDatabase {
     /// Shared connection for read operations. WAL mode allows concurrent reads
@@ -413,7 +423,11 @@ impl ThreadDatabase {
                 while let Some(cmd) = write_rx.recv().await {
                     match cmd {
                         WriteCommand::Execute(op) => {
-                            let conn = shared_for_writer.lock().unwrap();
+                            // Recover from poisoning — see `read` for why the
+                            // connection is safe to reuse after a panic.
+                            let conn = shared_for_writer
+                                .lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner());
                             op(&conn);
                         }
                         WriteCommand::Shutdown => break,
@@ -553,16 +567,31 @@ impl ThreadDatabase {
             .map_err(|_| ThreadDbError::Unavailable("Writer dropped result channel".into()))?
     }
 
-    /// Execute a read operation on the shared read connection.
-    fn read<F, T>(&self, op: F) -> Result<T, ThreadDbError>
+    /// Execute a read operation on the shared read connection, off the async
+    /// runtime: SQLite reads are synchronous disk I/O, and running them
+    /// directly on a Tauri command's async thread stalled every other command
+    /// sharing that worker. `spawn_blocking` moves the query to the blocking
+    /// pool, which is what the module header always claimed happened.
+    ///
+    /// Lock poisoning is recovered, not propagated: a panic inside an earlier
+    /// read closure poisons the std `Mutex`, and refusing the lock thereafter
+    /// turned one panic into "Read lock poisoned" for every read until app
+    /// restart. Reusing the connection after a Rust-level panic is safe —
+    /// SQLite's C-side state is transactional and unwinding a read closure
+    /// cannot leave it half-written; the poison flag is only Rust's
+    /// conservative default.
+    async fn read<F, T>(&self, op: F) -> Result<T, ThreadDbError>
     where
-        F: FnOnce(&rusqlite::Connection) -> Result<T, ThreadDbError>,
+        F: FnOnce(&rusqlite::Connection) -> Result<T, ThreadDbError> + Send + 'static,
+        T: Send + 'static,
     {
-        let conn = self
-            .read_conn
-            .lock()
-            .map_err(|e| ThreadDbError::Other(format!("Read lock poisoned: {}", e)))?;
-        op(&conn)
+        let conn = self.read_conn.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let conn = conn.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            op(&conn)
+        })
+        .await
+        .map_err(|e| ThreadDbError::Unavailable(format!("read task failed: {e}")))?
     }
 
     // ── Thread CRUD ───────────────────────────────────────────────────────────
@@ -685,6 +714,7 @@ impl ThreadDatabase {
                 Err(e) => Err(e.into()),
             }
         })
+        .await
     }
 
     /// List all threads, ordered by most recently updated (read path).
@@ -715,6 +745,7 @@ impl ThreadDatabase {
 
             Ok(threads)
         })
+        .await
     }
 
     /// List threads for a specific workspace (read path).
@@ -749,6 +780,7 @@ impl ThreadDatabase {
 
             Ok(threads)
         })
+        .await
     }
 
     /// Delete a thread and all its messages atomically within a transaction.
@@ -868,8 +900,9 @@ impl ThreadDatabase {
         let thread_id = thread_id.to_string();
         self.read(move |conn| {
             let mut stmt = conn.prepare(
-                // Secondary sort on id: timestamps have 1-second granularity,
-                // so insertion order is what breaks same-second ties.
+                // Secondary sort on id: timestamps are millisecond-precision
+                // now, but rows written before that (and any same-ms pair)
+                // still need insertion order to break ties.
                 "SELECT id, thread_id, role, content, timestamp, thinking, tool_calls FROM messages WHERE thread_id = ?1 ORDER BY timestamp ASC, id ASC",
             )?;
 
@@ -890,6 +923,7 @@ impl ThreadDatabase {
 
             Ok(messages)
         })
+        .await
     }
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -934,6 +968,7 @@ impl ThreadDatabase {
 
             Ok(results)
         })
+        .await
     }
 
     // ── Context Usage ─────────────────────────────────────────────────────────
@@ -987,6 +1022,7 @@ impl ThreadDatabase {
                 threads_by_workspace,
             })
         })
+        .await
     }
 
     // ── Auto-Archive ─────────────────────────────────────────────────────────
@@ -1053,7 +1089,8 @@ impl ThreadDatabase {
                 .collect::<Result<Vec<_>, _>>()?;
 
             Ok(rows)
-        })?;
+        })
+        .await?;
 
         // Deliberately a query and nothing more.
         //
@@ -1202,6 +1239,55 @@ pub async fn thread_db_auto_archive(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn msg(content: &str, timestamp: &str) -> DbMessage {
+        DbMessage {
+            id: 0,
+            thread_id: "t1".into(),
+            role: "user".into(),
+            content: content.into(),
+            timestamp: timestamp.into(),
+            thinking: None,
+            tool_calls: None,
+        }
+    }
+
+    /// The dedupe key exists to collapse the same turn persisted by two
+    /// windows — and nothing else. Distinct content, distinct timestamps
+    /// (down to the millisecond), and distinct roles must all produce
+    /// distinct keys.
+    #[test]
+    fn dedupe_key_separates_what_must_stay_separate() {
+        let base = msg("continue", "2024-01-01T00:00:01.100Z");
+        // Byte-identical message → identical key (the cross-window case).
+        assert_eq!(dedupe_key(&base), dedupe_key(&msg("continue", "2024-01-01T00:00:01.100Z")));
+        // Same second, different millisecond → different key. This is what
+        // lets a user send "continue" twice in one second without the second
+        // send vanishing via INSERT OR IGNORE.
+        assert_ne!(dedupe_key(&base), dedupe_key(&msg("continue", "2024-01-01T00:00:01.101Z")));
+        // Different content, same timestamp → different key.
+        assert_ne!(dedupe_key(&base), dedupe_key(&msg("continue!", "2024-01-01T00:00:01.100Z")));
+        // Different role, same everything else → different key.
+        let mut assistant = msg("continue", "2024-01-01T00:00:01.100Z");
+        assistant.role = "assistant".into();
+        assert_ne!(dedupe_key(&base), dedupe_key(&assistant));
+        // Different thread, same everything else → different key.
+        let mut other_thread = msg("continue", "2024-01-01T00:00:01.100Z");
+        other_thread.thread_id = "t2".into();
+        assert_ne!(dedupe_key(&base), dedupe_key(&other_thread));
+    }
+
+    /// The key format is written to disk — it must stay stable across builds.
+    #[test]
+    fn dedupe_key_format_is_stable() {
+        let key = dedupe_key(&msg("hello", "2024-01-01T00:00:01.000Z"));
+        let parts: Vec<&str> = key.split('\u{1f}').collect();
+        assert_eq!(parts.len(), 4, "thread\\x1frole\\x1fts\\x1fhash: {key}");
+        assert_eq!(parts[0], "t1");
+        assert_eq!(parts[1], "user");
+        assert_eq!(parts[2], "2024-01-01T00:00:01.000Z");
+        assert_eq!(parts[3].len(), 16, "FNV-1a hash renders as 16 hex chars");
+    }
 
     #[tokio::test]
     async fn test_save_thread_preserves_messages_and_context() {

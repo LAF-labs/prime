@@ -296,6 +296,14 @@ impl Default for SettingsState {
     }
 }
 
+/// Persist the settings store via confy.
+///
+/// Known limitation: confy writes the TOML in place (no temp-file + rename),
+/// so a crash mid-write can leave a torn file. Deliberately not worked around
+/// here — bypassing confy would mean owning its path/serialization contract —
+/// because `quarantine_if_corrupt` already contains the damage: on the next
+/// launch an unparseable file is moved aside (bytes kept for recovery) instead
+/// of being silently replaced by defaults.
 pub fn persist_store(data: &StoreData) -> Result<(), AppError> {
     confy::store(APP_NAME, None, data)?;
     Ok(())

@@ -543,12 +543,20 @@ pub fn run() {
                         // autosave interval. Give it the same flush-and-ack
                         // the last window gets, bounded so a wedged webview
                         // cannot stall the close.
+                        // Bounded main-thread wait, deliberately: the flush
+                        // must finish before this webview is torn down, there
+                        // is no later point to resume from, and 1.5 s is the
+                        // cap — the ack normally lands in tens of ms.
                         let (tx, rx) = std::sync::mpsc::channel::<()>();
-                        let _listener = window.listen("app://flush-ack", move |_| {
+                        let listener = window.listen("app://flush-ack", move |_| {
                             let _ = tx.send(());
                         });
                         let _ = window.emit("app://flush-before-quit", ());
                         let _ = rx.recv_timeout(std::time::Duration::from_millis(1500));
+                        // Unlisten, or every secondary-window close leaks a
+                        // handler (plus its captured Sender) for the app's
+                        // lifetime.
+                        window.unlisten(listener);
                         kill_window_ptys(&app, window.label());
                         return;
                     }
@@ -564,13 +572,23 @@ pub fn run() {
                             if confirmed {
                                 // Tell the frontend to flush persisted state to disk
                                 let _ = app.emit("app://flush-before-quit", ());
-                                // Wait for the frontend to ack the flush, with a 2s timeout
+                                // Wait for the frontend to ack the flush, with
+                                // a 2 s cap. A blocking wait is acceptable
+                                // here and only here: quit is terminal — there
+                                // is nothing else for this thread to do, the
+                                // flush must complete before the webview dies,
+                                // and the timeout bounds a wedged webview.
                                 let (tx, rx) = std::sync::mpsc::channel::<()>();
                                 let app_clone = app.clone();
-                                let _listener_id = app_clone.listen("app://flush-ack", move |_| {
+                                let listener_id = app_clone.listen("app://flush-ack", move |_| {
                                     let _ = tx.send(());
                                 });
                                 let _ = rx.recv_timeout(std::time::Duration::from_secs(2));
+                                // Symmetry with the secondary-window path: the
+                                // process is about to exit, but if the user
+                                // cancels a later dialog iteration nothing
+                                // should be left listening.
+                                app_clone.unlisten(listener_id);
                                 shutdown_app(&app);
                                 app.exit(0);
                             }

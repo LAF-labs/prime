@@ -37,16 +37,41 @@ pub(crate) fn resolve_initial_model(
 ///
 /// Reconnecting a thread that already has a slot is always allowed: that is
 /// replacing a connection, not adding one.
-fn ensure_agent_slot(
-    state: &tauri::State<'_, AgentState>,
+///
+/// The check and the claim happen under one lock acquisition: the slot is
+/// *reserved* (recorded in `reserved_slots`) before this returns, so two
+/// concurrent `task_create` calls cannot both see a free slot and then both
+/// spawn. The returned guard releases the reservation on drop — hold it until
+/// the connection handle has been inserted into `connections` (at which point
+/// the live handle itself is what's counted) or the spawn has failed.
+pub(crate) fn reserve_agent_slot<'a>(
+    state: &'a AgentState,
     configured: Option<u32>,
     task_id: &str,
-) -> Result<(), String> {
-    let (live, replacing) = {
-        let conns = state.connections.lock();
-        (conns.len(), conns.contains_key(task_id))
-    };
-    agent_slot_available(configured, live, replacing)
+) -> Result<SlotReservation<'a>, String> {
+    let conns = state.connections.lock();
+    let mut reserved = state.reserved_slots.lock();
+    // A reservation that also has a live handle must not count twice, and an
+    // id that is already live (or mid-spawn) is replacing, not adding.
+    let live = conns.len() + reserved.iter().filter(|r| !conns.contains_key(*r)).count();
+    let replacing = conns.contains_key(task_id) || reserved.contains(task_id);
+    agent_slot_available(configured, live, replacing)?;
+    reserved.insert(task_id.to_string());
+    Ok(SlotReservation { reserved: &state.reserved_slots, id: task_id.to_string() })
+}
+
+/// RAII guard for a claimed agent slot. Dropping it releases the reservation
+/// — on every path: successful spawn (the inserted handle takes over the
+/// count), spawn failure, and early `?` returns alike.
+pub(crate) struct SlotReservation<'a> {
+    reserved: &'a parking_lot::Mutex<std::collections::HashSet<String>>,
+    id: String,
+}
+
+impl Drop for SlotReservation<'_> {
+    fn drop(&mut self) {
+        self.reserved.lock().remove(&self.id);
+    }
 }
 
 /// The decision itself, separated from the lock so it can be tested.
@@ -73,7 +98,7 @@ pub(crate) fn agent_slot_available(
 // ── Tauri Commands ─────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn task_create(
+pub async fn task_create(
     app: tauri::AppHandle,
     state: tauri::State<'_, AgentState>,
     settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
@@ -86,22 +111,31 @@ pub fn task_create(
     // user's next prompt rather than via any session-level resume capability.
     let id = params.existing_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = now_rfc3339();
-    let settings = settings_state.0.lock();
-    ensure_agent_slot(&state, settings.settings.max_concurrent_agents, &id)?;
-    let auto_approve = params.auto_approve.unwrap_or(settings.settings.auto_approve);
-    let agent_bin = settings.settings.agent_bin.clone();
-    let co_author = settings.settings.co_author;
-    let co_author_json_report = settings.settings.co_author_json_report;
-    let tight_sandbox = settings.settings.project_prefs.as_ref()
-        .and_then(|p| p.get(&params.workspace))
-        .and_then(|pp| pp.tight_sandbox)
-        .unwrap_or(true);
-    let initial_model_id = resolve_initial_model(
-        params.model_id.clone(),
-        &params.workspace,
-        &settings.settings,
-    );
-    drop(settings);
+    // The settings guard lives in a block, not until a `drop()`: this fn is
+    // async now, and the future-Send analysis does not credit explicit drops
+    // — a parking_lot guard reachable at the `.await` makes the whole future
+    // !Send. `_slot` (the reserved agent slot) escapes the block and is held
+    // until the connection handle is inserted — see `reserve_agent_slot`.
+    let (_slot, auto_approve, agent_bin, co_author, co_author_json_report, tight_sandbox, initial_model_id) = {
+        let settings = settings_state.0.lock();
+        let slot = reserve_agent_slot(state.inner(), settings.settings.max_concurrent_agents, &id)?;
+        (
+            slot,
+            params.auto_approve.unwrap_or(settings.settings.auto_approve),
+            settings.settings.agent_bin.clone(),
+            settings.settings.co_author,
+            settings.settings.co_author_json_report,
+            settings.settings.project_prefs.as_ref()
+                .and_then(|p| p.get(&params.workspace))
+                .and_then(|pp| pp.tight_sandbox)
+                .unwrap_or(true),
+            resolve_initial_model(
+                params.model_id.clone(),
+                &params.workspace,
+                &settings.settings,
+            ),
+        )
+    };
 
     // Seed the task with prior messages (if resuming).
     let mut messages: Vec<TaskMessage> = params.existing_messages.unwrap_or_default();
@@ -155,12 +189,14 @@ pub fn task_create(
     // In edition 2021 the lock guard in an `if let` scrutinee lives to the end
     // of the block, so sleeping inside it held the global connections mutex
     // for 50 ms — stalling every RPC command on every other thread. Take the
-    // handle out first so the lock is gone before the wait.
+    // handle out first so the lock is gone before the wait — and the wait is
+    // an async sleep: this command runs on the invoke thread pool, and a
+    // `std::thread::sleep` here stuttered the UI on every stale-replacement.
     let stale = state.connections.lock().remove(&id);
     if let Some(stale) = stale {
         let _ = stale.cmd_tx.send(AgentCommand::Kill);
         drop(stale);
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
     state.tasks.lock().insert(id.clone(), task.clone());
@@ -337,7 +373,8 @@ pub fn task_send_message(
 
     if need_reconnect {
         let settings = settings_state.0.lock();
-        ensure_agent_slot(&state, settings.settings.max_concurrent_agents, &task_id)?;
+        // Held until the reconnected handle is inserted below.
+        let _slot = reserve_agent_slot(state.inner(), settings.settings.max_concurrent_agents, &task_id)?;
         let agent_bin = settings.settings.agent_bin.clone();
         let global_auto_approve = settings.settings.auto_approve;
 
@@ -524,12 +561,14 @@ pub async fn task_fork(
     params: ForkTaskParams,
 ) -> Result<Task, String> {
     let task_id = &params.task_id;
-    {
+    // A fork is an additional agent, not a replacement — reserve under the
+    // fork's own fresh id so an existing slot for the parent doesn't wave it
+    // through. Held until the fork's connection handle is inserted below.
+    let new_id = Uuid::new_v4().to_string();
+    let _slot = {
         let limit = settings_state.0.lock().settings.max_concurrent_agents;
-        // A fork is an additional agent, not a replacement — check against a
-        // fresh id so an existing slot for the parent doesn't wave it through.
-        ensure_agent_slot(&state, limit, "")?;
-    }
+        reserve_agent_slot(state.inner(), limit, &new_id)?
+    };
     let parent = {
         let tasks = state.tasks.lock();
         tasks.get(task_id).cloned()
@@ -558,7 +597,6 @@ pub async fn task_fork(
     // and the user can always see the parent's live state in its own thread.
     super::sanitize_forked_messages(&mut parent_messages);
 
-    let new_id = Uuid::new_v4().to_string();
     let now = now_rfc3339();
     let settings = settings_state.0.lock();
     let auto_approve = parent_auto_approve.unwrap_or(settings.settings.auto_approve);
@@ -964,17 +1002,23 @@ pub fn probe_capabilities(
     log::info!("[RPC] probe_capabilities starting with bin={}", bin);
     let launch = resolve_launch(&app, &bin);
 
-    let app_for_flag = app.clone();
+    // Reset-on-drop guard around a clone of the flag's Arc. The previous
+    // version reset only when `try_state` succeeded — when it didn't (app
+    // teardown mid-probe, or state briefly unavailable), the flag stayed
+    // `true` and probing was disabled for the rest of the session. The Drop
+    // impl also covers a panic inside `query_models_blocking`.
+    struct ProbeGuard(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for ProbeGuard {
+        fn drop(&mut self) {
+            self.0.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let probe_guard = ProbeGuard(state.probe_running.clone());
     let app_clone = app.clone();
 
     std::thread::spawn(move || {
+        let _probe_guard = probe_guard;
         let result = query_models_blocking(&launch);
-
-        // ALWAYS reset the probe guard when the thread exits
-        use tauri::Manager;
-        if let Some(agent_state) = app_for_flag.try_state::<AgentState>() {
-            agent_state.probe_running.store(false, std::sync::atomic::Ordering::SeqCst);
-        }
 
         match result {
             Ok((available, current)) => {

@@ -214,8 +214,16 @@ pub struct AgentState {
     pub tasks: Mutex<HashMap<String, Task>>,
     pub connections: Mutex<HashMap<String, ConnectionHandle>>,
     pub permission_resolvers: Mutex<HashMap<String, oneshot::Sender<PermissionReply>>>,
-    /// Guard to prevent concurrent probe_capabilities calls
-    pub probe_running: std::sync::atomic::AtomicBool,
+    /// Guard to prevent concurrent probe_capabilities calls. `Arc` so the
+    /// probe thread can hold its own clone and reset the flag on exit even
+    /// when the app is tearing down and `try_state` would fail.
+    pub probe_running: Arc<std::sync::atomic::AtomicBool>,
+    /// Task ids that have claimed an agent slot but whose connection handle is
+    /// not in `connections` yet (spawn in progress). Counted alongside live
+    /// connections when enforcing `max_concurrent_agents`, so two concurrent
+    /// `task_create` calls cannot both pass the cap check before either one
+    /// inserts its handle.
+    pub reserved_slots: Mutex<std::collections::HashSet<String>>,
 }
 
 pub struct PermissionReply {
@@ -228,7 +236,8 @@ impl Default for AgentState {
             tasks: Mutex::new(HashMap::new()),
             connections: Mutex::new(HashMap::new()),
             permission_resolvers: Mutex::new(HashMap::new()),
-            probe_running: std::sync::atomic::AtomicBool::new(false),
+            probe_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            reserved_slots: Mutex::new(std::collections::HashSet::new()),
         }
     }
 }

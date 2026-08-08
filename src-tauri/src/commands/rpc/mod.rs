@@ -14,9 +14,19 @@ pub use types::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_rfc3339() -> String {
-    // Produce a UTC timestamp like 2024-01-15T12:30:45Z
+    // Produce a UTC timestamp like 2024-01-15T12:30:45.123Z.
+    //
+    // Millisecond precision matters: these timestamps become part of the
+    // SQLite dedupe key (`thread_db::dedupe_key`), and at 1-second granularity
+    // two genuinely distinct identical messages in the same second (the user
+    // sending "continue" twice, fast) collapsed into one row via
+    // `INSERT OR IGNORE`. The frontend's own timestamps come from
+    // `new Date().toISOString()`, which already carries milliseconds — this
+    // brings backend-constructed messages to the same precision. `new Date()`
+    // / ISO parsers accept fractional seconds, so consumers are unaffected.
     let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     let secs = d.as_secs();
+    let millis = d.subsec_millis();
     // Days/hours/minutes/seconds from epoch
     let days = secs / 86400;
     let time_of_day = secs % 86400;
@@ -25,7 +35,7 @@ fn now_rfc3339() -> String {
     let s = time_of_day % 60;
     // Date from days since epoch (simplified Gregorian)
     let (y, mo, day) = days_to_ymd(days);
-    format!("{y:04}-{mo:02}-{day:02}T{h:02}:{m:02}:{s:02}Z")
+    format!("{y:04}-{mo:02}-{day:02}T{h:02}:{m:02}:{s:02}.{millis:03}Z")
 }
 
 fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {

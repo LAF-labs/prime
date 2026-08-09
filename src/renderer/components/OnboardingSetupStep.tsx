@@ -106,7 +106,10 @@ export const OnboardingSetupStep = ({ themeChoice, modeChoice }: OnboardingSetup
 
       <OnboardingAuthSection bin={bin} isCliReady={isCliReady} onAuthChange={setIsAuthenticated} />
 
-      <OnboardingKernelSection onReady={setIsKernelReady} />
+      {/* The Python kernel only exists for developer-mode sessions; everyday
+          sessions run without ipython, so surfacing kernel provisioning to a
+          non-developer would be setup for a feature they can never reach. */}
+      {modeChoice === 'developer' && <OnboardingKernelSection onReady={setIsKernelReady} />}
 
       {/* Actions */}
       <div className="flex flex-col items-center gap-2 pt-2">

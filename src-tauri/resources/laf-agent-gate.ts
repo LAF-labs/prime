@@ -12,8 +12,10 @@
  * so this extension stays approval-mode-agnostic.
  */
 
-import { realpathSync } from "node:fs";
-import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join as joinPath, resolve as resolvePath } from "node:path";
 import { createBashTool, createLocalBashOperations } from "@earendil-works/pi-coding-agent";
 import type { BashOperations, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -25,7 +27,14 @@ const READ_ONLY_TOOLS = new Set([
 	"glob",
 	"find",
 	"list",
+	"list_dir",
 ]);
+
+/**
+ * Tools that never need an approval dialog even though they aren't reads:
+ * their only side effect is on LAF Agent's own state, not the user's files.
+ */
+const PROMPTLESS_TOOLS = new Set(["remember"]);
 
 function summarize(toolName: string, input: Record<string, unknown>): string {
 	let summary = "";
@@ -33,7 +42,16 @@ function summarize(toolName: string, input: Record<string, unknown>): string {
 	else if (typeof input.code === "string") summary = input.code;
 	else if (typeof input.path === "string") summary = input.path;
 	else if (typeof input.file_path === "string") summary = input.file_path;
-	else {
+	else if (Array.isArray(input.operations)) {
+		// organize: show the first move so the dialog names real paths, plus a count.
+		const ops = input.operations as Array<{ from?: unknown; to?: unknown }>;
+		const first = ops[0];
+		const head =
+			first && typeof first.from === "string" && typeof first.to === "string"
+				? `${first.from} → ${first.to}`
+				: "";
+		summary = ops.length > 1 ? `${head} (+${ops.length - 1} more)` : head;
+	} else {
 		try {
 			summary = JSON.stringify(input);
 		} catch {
@@ -80,7 +98,7 @@ function isMutatingForPlanMode(toolName: string, input: Record<string, unknown>)
 	}
 	// Defensive fallback for tools we don't know by name: block when the name
 	// itself declares a mutation.
-	return /write|edit|create|delete|remove|rename|move|patch|mkdir|apply/i.test(toolName);
+	return /write|edit|create|delete|remove|rename|move|patch|mkdir|apply|organize/i.test(toolName);
 }
 
 function registerPlanGuard(pi: ExtensionAPI): void {
@@ -373,11 +391,14 @@ export default function (pi: ExtensionAPI) {
 	registerNativeWebSearch(pi);
 	registerWebSearch(pi);
 	registerWebFetch(pi);
+	registerEverydayProfile(pi);
 
-	if (TIGHT_SANDBOX && WORKSPACE) registerSandboxedBash(pi);
+	// Everyday sessions must never gain a shell, even if a stale env leaks
+	// LAF_TIGHT_SANDBOX from a developer-mode configuration.
+	if (TIGHT_SANDBOX && WORKSPACE && !EVERYDAY) registerSandboxedBash(pi);
 
 	pi.on("tool_call", async (event, ctx) => {
-		if (READ_ONLY_TOOLS.has(event.toolName)) return undefined;
+		if (READ_ONLY_TOOLS.has(event.toolName) || PROMPTLESS_TOOLS.has(event.toolName)) return undefined;
 
 		// Plan mode: block mutations before anything else — no approval dialog
 		// can override a plan-mode block, and the reason tells the model what
@@ -806,6 +827,353 @@ function registerWebFetch(pi: ExtensionAPI): void {
 			return {
 				content: [{ type: "text", text: `# ${url}\n\n${text}` }],
 				details: { url, contentType, chars: body.length, truncated },
+			};
+		},
+	});
+}
+
+// ── Everyday profile ─────────────────────────────────────────────────
+//
+// Active when the app launches the session with `LAF_PROFILE=everyday`
+// (simple mode). The session runs with `--no-builtin-tools`, so ipython —
+// and with it the RLM prompt's whole reason to exist — is gone. This module
+// supplies what such a session needs instead: a conversational system prompt
+// sized for small models, and a handful of plain-language file tools.
+//
+// Design rules, in order: the model must never need to write code; every
+// mutation goes through the existing approval dialog (write_file and
+// organize match the gate's mutation classification); nothing here can
+// delete a file — removal stays a human decision.
+
+const EVERYDAY = process.env.LAF_PROFILE === "everyday";
+
+/** Canonical home directory — the outer boundary for everyday file tools. */
+const HOME = (() => {
+	try {
+		return realpathSync(homedir());
+	} catch {
+		return homedir();
+	}
+})();
+
+const MEMORY_DIR = joinPath(HOME, ".laf-agent");
+const MEMORY_PATH = process.env.LAF_MEMORY_PATH || joinPath(MEMORY_DIR, "memories.json");
+const MAX_MEMORIES = 200;
+const MAX_MEMORY_CHARS = 500;
+const MAX_READ_CHARS = 40_000;
+const MAX_DIR_ENTRIES = 200;
+const MAX_ORGANIZE_OPS = 100;
+
+interface EverydayMemory {
+	fact: string;
+	at: string;
+}
+
+function loadMemories(): EverydayMemory[] {
+	try {
+		const parsed = JSON.parse(readFileSync(MEMORY_PATH, "utf8")) as unknown;
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter(
+			(m): m is EverydayMemory => typeof (m as EverydayMemory)?.fact === "string",
+		);
+	} catch {
+		return [];
+	}
+}
+
+function saveMemories(memories: EverydayMemory[]): void {
+	mkdirSync(MEMORY_DIR, { recursive: true });
+	writeFileSync(MEMORY_PATH, `${JSON.stringify(memories, null, "\t")}\n`, "utf8");
+}
+
+/**
+ * The everyday system prompt. Replaces the RLM prompt wholesale via
+ * `before_agent_start`. Kept short on purpose: tool descriptions travel in
+ * the tool schemas, and every fixed token here is paid on every request.
+ * Memories go last so the stable prefix stays byte-identical for provider
+ * prompt caching within a session.
+ */
+function buildEverydayPrompt(cwd: string): string {
+	const date = new Date().toISOString().slice(0, 10);
+	const parts = [
+		"You are LAF Agent, a personal AI assistant that lives on the user's own computer.",
+		"",
+		"You help with everyday work: organizing files and folders, reading and summarizing documents, writing text, researching on the web, and answering questions. Your user is usually not a programmer. Never assume technical knowledge, and avoid code, developer jargon, and raw file paths unless the user uses them first.",
+		"",
+		"How to work:",
+		"- Always answer in the language the user writes in.",
+		"- Lead with the result. Keep explanations short and warm; do not narrate your process.",
+		"- Use tools instead of guessing: read a file before summarizing it, search the web for anything current, list a folder before organizing it.",
+		"- Before creating, changing, or moving any file, say in one short sentence what you are about to do. Touch only the files the task requires.",
+		"- You cannot delete files. When something should be removed, name the files and let the user do it.",
+		"- If a step fails, say what happened in plain words and offer the closest thing you can do.",
+		"- Use the remember tool only for stable facts about the user (name, preferences, recurring context), never for one-off task details.",
+		"",
+		`Current date: ${date}`,
+		`Working folder: ${cwd}`,
+	];
+	const memories = loadMemories();
+	if (memories.length > 0) {
+		parts.push("", "Things you remember about this user:");
+		for (const memory of memories) parts.push(`- ${memory.fact}`);
+	}
+	return parts.join("\n");
+}
+
+/**
+ * Resolve an everyday tool path: expand `~`, resolve relative paths against
+ * the workspace, canonicalize through symlinks, and confine the result to
+ * the user's home. Dotfiles and ~/Library are refused — an everyday session
+ * has no business in either, and prompt-injected text should not be able to
+ * point these tools at keychains, cookies, or ssh keys.
+ */
+function resolveEverydayPath(raw: string): { path: string } | { error: string } {
+	const trimmed = raw.trim();
+	if (!trimmed) return { error: "Empty path." };
+	const expanded = trimmed === "~" ? HOME : trimmed.startsWith("~/") ? joinPath(HOME, trimmed.slice(2)) : trimmed;
+	const absolute = isAbsolute(expanded) ? expanded : resolvePath(WORKSPACE || HOME, expanded);
+	const canonical = canonicalize(absolute);
+	if (canonical !== HOME && !canonical.startsWith(`${HOME}/`)) {
+		return { error: `'${raw}' is outside your home folder, which everyday tools cannot reach.` };
+	}
+	const relative = canonical === HOME ? "" : canonical.slice(HOME.length + 1);
+	const segments = relative ? relative.split("/") : [];
+	// The app's own ~/.laf-agent/chats workspaces must stay reachable — chat
+	// threads live there. Everything else hidden stays off-limits.
+	const insideOwnData = segments[0] === ".laf-agent";
+	if (!insideOwnData && (segments.some((s) => s.startsWith(".")) || segments[0] === "Library")) {
+		return { error: `'${raw}' is a hidden or system location, which everyday tools cannot touch.` };
+	}
+	return { path: canonical };
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Suffix listing already-completed operations, so a mid-batch failure is honest about partial state. */
+function doneSuffix(done: string[]): string {
+	return done.length > 0 ? ` Already completed before the failure: ${done.join("; ")}.` : "";
+}
+
+function registerEverydayProfile(pi: ExtensionAPI): void {
+	if (!EVERYDAY) return;
+
+	pi.on("before_agent_start", (event) => ({
+		systemPrompt: buildEverydayPrompt(event.systemPromptOptions?.cwd ?? WORKSPACE ?? HOME),
+	}));
+
+	pi.registerTool({
+		name: "read_file",
+		label: "Read",
+		description:
+			"Read a text file (documents, notes, CSV, …) and return its contents. " +
+			"Use it before summarizing, answering questions about, or editing a file.",
+		parameters: {
+			type: "object",
+			properties: {
+				path: { type: "string", description: "File path; ~ means the home folder" },
+			},
+			required: ["path"],
+		},
+		execute: async (_toolCallId: string, params: { path: string }) => {
+			const resolved = resolveEverydayPath(String(params.path ?? ""));
+			if ("error" in resolved) throw new Error(resolved.error);
+			const body = await readFile(resolved.path, "utf8");
+			if (body.includes("\u0000")) {
+				throw new Error("This file is not text (it looks like an image, archive, or other binary format).");
+			}
+			const truncated = body.length > MAX_READ_CHARS;
+			const text = truncated ? `${body.slice(0, MAX_READ_CHARS)}\n\n…[truncated]` : body;
+			return {
+				content: [{ type: "text", text }],
+				details: { path: resolved.path, chars: body.length, truncated },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "list_dir",
+		label: "Browse",
+		description:
+			"List what is inside a folder: subfolder names and file names with sizes. " +
+			"Use it to see what exists before reading or organizing anything.",
+		parameters: {
+			type: "object",
+			properties: {
+				path: { type: "string", description: "Folder path; ~ means the home folder" },
+			},
+			required: ["path"],
+		},
+		execute: async (_toolCallId: string, params: { path: string }) => {
+			const resolved = resolveEverydayPath(String(params.path ?? ""));
+			if ("error" in resolved) throw new Error(resolved.error);
+			const entries = await readdir(resolved.path, { withFileTypes: true });
+			const visible = entries.filter((e) => !e.name.startsWith("."));
+			visible.sort((a, b) =>
+				a.isDirectory() === b.isDirectory() ? a.name.localeCompare(b.name) : a.isDirectory() ? -1 : 1,
+			);
+			const shown = visible.slice(0, MAX_DIR_ENTRIES);
+			const lines: string[] = [];
+			for (const entry of shown) {
+				if (entry.isDirectory()) {
+					lines.push(`${entry.name}/`);
+					continue;
+				}
+				try {
+					const info = await stat(joinPath(resolved.path, entry.name));
+					lines.push(`${entry.name} (${formatBytes(info.size)})`);
+				} catch {
+					lines.push(entry.name);
+				}
+			}
+			if (visible.length > shown.length) {
+				lines.push(`…and ${visible.length - shown.length} more entries`);
+			}
+			return {
+				content: [{ type: "text", text: lines.length > 0 ? lines.join("\n") : "(empty folder)" }],
+				details: { path: resolved.path, entries: visible.length },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "write_file",
+		label: "Write",
+		description:
+			"Create a text file or replace the contents of an existing one. " +
+			"Use it to save notes, lists, drafts, or edited versions of a document.",
+		parameters: {
+			type: "object",
+			properties: {
+				path: { type: "string", description: "Destination file path; ~ means the home folder" },
+				content: { type: "string", description: "Full text content to write" },
+			},
+			required: ["path", "content"],
+		},
+		execute: async (_toolCallId: string, params: { path: string; content: string }) => {
+			const resolved = resolveEverydayPath(String(params.path ?? ""));
+			if ("error" in resolved) throw new Error(resolved.error);
+			const content = String(params.content ?? "");
+			let replaced = false;
+			try {
+				replaced = (await stat(resolved.path)).isFile();
+			} catch {
+				// New file.
+			}
+			await mkdir(dirname(resolved.path), { recursive: true });
+			await writeFile(resolved.path, content, "utf8");
+			return {
+				content: [
+					{
+						type: "text",
+						text: `${replaced ? "Replaced" : "Created"} ${resolved.path} (${formatBytes(Buffer.byteLength(content, "utf8"))}).`,
+					},
+				],
+				details: { path: resolved.path, replaced, chars: content.length },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "organize",
+		label: "Organize",
+		description:
+			"Move or copy files and folders — the tool for tidying up: renaming, sorting downloads " +
+			"into folders, gathering related files together. Refuses to overwrite anything that " +
+			"already exists, and cannot delete.",
+		parameters: {
+			type: "object",
+			properties: {
+				operations: {
+					type: "array",
+					description: "File operations to perform, in order",
+					items: {
+						type: "object",
+						properties: {
+							op: { type: "string", enum: ["move", "copy"], description: "move (default) or copy" },
+							from: { type: "string", description: "Existing file or folder" },
+							to: { type: "string", description: "New path, including the new name" },
+						},
+						required: ["from", "to"],
+					},
+				},
+			},
+			required: ["operations"],
+		},
+		execute: async (
+			_toolCallId: string,
+			params: { operations: Array<{ op?: string; from: string; to: string }> },
+		) => {
+			const operations = Array.isArray(params.operations) ? params.operations : [];
+			if (operations.length === 0) throw new Error("organize needs at least one operation.");
+			if (operations.length > MAX_ORGANIZE_OPS) {
+				throw new Error(`organize handles at most ${MAX_ORGANIZE_OPS} operations per call — split the task.`);
+			}
+			const done: string[] = [];
+			for (const [index, op] of operations.entries()) {
+				const label = `operation ${index + 1}`;
+				const from = resolveEverydayPath(String(op.from ?? ""));
+				if ("error" in from) throw new Error(`${label}: ${from.error}${doneSuffix(done)}`);
+				const to = resolveEverydayPath(String(op.to ?? ""));
+				if ("error" in to) throw new Error(`${label}: ${to.error}${doneSuffix(done)}`);
+				let exists = true;
+				try {
+					await stat(to.path);
+				} catch {
+					exists = false;
+				}
+				if (exists) {
+					throw new Error(
+						`${label}: '${to.path}' already exists — organize never overwrites. Pick a different name.${doneSuffix(done)}`,
+					);
+				}
+				await mkdir(dirname(to.path), { recursive: true });
+				if (op.op === "copy") {
+					await copyFile(from.path, to.path);
+				} else {
+					await rename(from.path, to.path);
+				}
+				done.push(`${op.op === "copy" ? "Copied" : "Moved"} ${from.path} → ${to.path}`);
+			}
+			return {
+				content: [{ type: "text", text: done.join("\n") }],
+				details: { operations: done.length },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "remember",
+		label: "Remember",
+		description:
+			"Save one stable fact about the user (their name, preferences, recurring context) so " +
+			"future conversations know it. Not for one-off task details.",
+		parameters: {
+			type: "object",
+			properties: {
+				fact: { type: "string", description: "The fact to remember, one short sentence" },
+			},
+			required: ["fact"],
+		},
+		execute: async (_toolCallId: string, params: { fact: string }) => {
+			const fact = String(params.fact ?? "").trim();
+			if (!fact) throw new Error("remember needs a non-empty fact.");
+			if (fact.length > MAX_MEMORY_CHARS) {
+				throw new Error(`Keep memories under ${MAX_MEMORY_CHARS} characters — save the essence, not the transcript.`);
+			}
+			const memories = loadMemories();
+			if (memories.some((m) => m.fact === fact)) {
+				return { content: [{ type: "text", text: "Already remembered." }], details: { total: memories.length } };
+			}
+			memories.push({ fact, at: new Date().toISOString() });
+			while (memories.length > MAX_MEMORIES) memories.shift();
+			saveMemories(memories);
+			return {
+				content: [{ type: "text", text: `Remembered. (${memories.length} memories total)` }],
+				details: { total: memories.length },
 			};
 		},
 	});

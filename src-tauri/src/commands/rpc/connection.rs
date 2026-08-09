@@ -461,6 +461,21 @@ pub(crate) async fn run_rpc_connection(
     } else {
         log::warn!("[RPC] permission-gate extension not found — tool calls will run ungated");
     }
+    // Everyday profile: in simple mode the session drops the coding toolchain.
+    // `--no-builtin-tools` removes ipython (and with it the kernel spawn), and
+    // LAF_PROFILE tells the gate to swap in the everyday system prompt and
+    // register the plain-language file tools. Read at spawn time on purpose:
+    // flipping the mode toggle affects newly started threads, never a live one.
+    let everyday = {
+        use tauri::Manager;
+        app.try_state::<crate::commands::settings::SettingsState>()
+            .map(|s| s.0.lock().settings.effective_ui_mode() == "simple")
+            .unwrap_or(false)
+    };
+    if everyday {
+        cmd.arg("--no-builtin-tools");
+        cmd.env("LAF_PROFILE", "everyday");
+    }
     // The bundled gate extension enforces the workspace sandbox when asked:
     // file-mutating tools targeting paths outside the workspace are blocked
     // outright instead of prompting.
@@ -471,7 +486,7 @@ pub(crate) async fn run_rpc_connection(
     for (key, value) in permission_env_vars(&permission_config) {
         cmd.env(key, value);
     }
-    if tight_sandbox {
+    if tight_sandbox && !everyday {
         cmd.env("LAF_TIGHT_SANDBOX", "1");
         // The gate can only reach `bash`. `ipython` runs in a kernel process
         // the harness spawns itself, so confine it at the interpreter: point

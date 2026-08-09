@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useTaskStore } from '@/stores/taskStore'
+import { useTaskStore, isChatWorkspace } from '@/stores/taskStore'
 import { hasInteractiveQuestionBlocks } from '@/lib/question-parser'
 
 /** Extract a display name from a workspace path, handling trailing slashes and empty segments. */
@@ -239,6 +239,11 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
       // Skip orphaned UUID projectIds with no workspace mapping
       if (!idToWorkspace.has(pid) && !pid.startsWith('/')) continue
       if (worktreeWorkspaces.has(ws)) continue
+      // Project-independent chats have their own sidebar section. Without this
+      // the chats directory gets promoted to a project here, so every chat
+      // thread appeared twice — once under "Chats", once under a "chats"
+      // project. `store.projects` is already filtered; this is the other path.
+      if (isChatWorkspace(ws)) continue
       if (seenCwd.has(ws)) continue
       seenCwd.add(ws)
       result.push({

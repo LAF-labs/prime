@@ -6,6 +6,8 @@ import { usePanelResolvedTaskId } from './PanelContext'
 import type { WorkingRow as WorkingRowData } from '@/lib/timeline'
 import { ipc } from '@/lib/ipc'
 
+// Source strings — rendered through t() at display time so the cycling
+// status word follows the app language (was always English).
 const LOADING_WORDS = [
   'Thinking',
   'Reasoning',
@@ -17,7 +19,7 @@ const LOADING_WORDS = [
   'Evaluating',
   'Synthesizing',
   'Crafting',
-]
+] as const
 
 /** How long (ms) before we show the "Looks stuck?" warning affordance */
 const STUCK_WARN_MS = 5 * 60 * 1000  // 5 minutes
@@ -96,7 +98,7 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
             <span className="h-1 w-1 rounded-full bg-amber-500/60 [animation-delay:400ms]" />
           </span>
           <span className="shrink-0 whitespace-nowrap text-[12px] font-medium text-amber-600 dark:text-amber-400">
-            Looks stuck&hellip;
+            {t('Looks stuck')}&hellip;
           </span>
           <span className="shrink-0 text-[11px] text-muted-foreground/30" aria-hidden="true">·</span>
           <span className="shrink-0 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground/50">
@@ -147,7 +149,7 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
           className={`shrink-0 whitespace-nowrap text-[12px] font-medium transition-opacity duration-300 ${isPlan ? 'text-teal-600 dark:text-teal-400' : 'text-blue-600 dark:text-blue-400'}`}
           style={{ opacity: visible ? 1 : 0, minWidth: '5.5em' }}
         >
-          {LOADING_WORDS[idx]}&hellip;
+          {t(LOADING_WORDS[idx])}&hellip;
         </span>
         <span className="shrink-0 text-[11px] text-muted-foreground/30" aria-hidden="true">·</span>
         <span className="shrink-0 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground/50">

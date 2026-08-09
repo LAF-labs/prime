@@ -717,9 +717,15 @@ export function initTaskListeners(): () => void {
   })
 
   const unsub12 = ipc.onTaskError(({ taskId, message, action }) => {
+    // A task_error can arrive with no message (an agent-side error whose text
+    // the backend couldn't classify). Interpolating that produced a literal
+    // "\u26a0\ufe0f undefined" card. Fall back to a real sentence instead.
+    const text = (typeof message === 'string' && message.trim().length > 0)
+      ? message
+      : msg('The agent hit an error. You can send a new message to continue.')
     const errorMsg: import('@/types').TaskMessage = {
         role: 'system' as const,
-        content: `\u26a0\ufe0f ${message}`,
+        content: `\u26a0\ufe0f ${text}`,
         timestamp: new Date().toISOString(),
         // Carried so the error card can offer the matching button rather than
         // leaving the user to work out where to go.

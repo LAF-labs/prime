@@ -86,7 +86,7 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
           </div>
           <div className="flex-1 text-left">
             <p className="text-[13px] font-medium text-foreground/90">{t('Agent runtime')}</p>
-            <p className="text-[11px] text-muted-foreground">{t('Prime Agent is bundled with the app — nothing to install.')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('The agent runtime is bundled with the app — nothing to install.')}</p>
           </div>
         </div>
       ) : isBundled === false ? (

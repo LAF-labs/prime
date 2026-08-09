@@ -114,7 +114,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-foreground/60 transition-colors hover:bg-muted/30 hover:text-foreground/90"
               >
-                <IconLogin className="size-3.5" /> {t('Login to Prime Agent')}
+                <IconLogin className="size-3.5" /> {t('Login to LAF Agent')}
               </button>
               <button
                 type="button"

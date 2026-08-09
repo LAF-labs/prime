@@ -109,7 +109,7 @@ function LoginBanner() {
         <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.674 6.674 0 0 0 8 1.333Zm0 10.334a.667.667 0 1 1 0-1.334.667.667 0 0 1 0 1.334ZM8.667 8a.667.667 0 0 1-1.334 0V5.333a.667.667 0 0 1 1.334 0V8Z" fill="currentColor"/>
       </svg>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">{t('Sign in to Prime Agent to start using AI agents')}</p>
+        <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">{t('Sign in to LAF Agent to start using AI agents')}</p>
         <p className="text-[11px] text-amber-600/70 dark:text-amber-400">{t('Authentication is required to create threads and interact with agents')}</p>
       </div>
       <button
@@ -193,7 +193,7 @@ function EmptyState() {
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             {hasProjects
-              ? t('Pick a project and start chatting with Prime Agent')
+              ? t('Pick a project and start chatting with LAF Agent')
               : t('Point LAF Agent at any folder on your machine. The AI agent works directly with your files, runs commands, and helps you build.')}
           </p>
         </div>

@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { IconPlus, IconArrowsUpDown, IconCheck, IconLayoutSidebarLeftCollapse, IconLayoutSidebarRightCollapse, IconFolderOpen, IconLayoutColumns, IconX, IconReplace, IconArrowsExchange, IconGitBranch, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
-import { useTaskStore } from '@/stores/taskStore'
+import { useTaskStore, isChatWorkspace } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useShallow } from 'zustand/react/shallow'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -532,7 +532,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
   const allTasks = useTaskStore((s) => s.tasks)
   const chatTasks = useMemo<SidebarTask[]>(() => {
     return Object.values(allTasks)
-      .filter((task) => task.workspace.includes('/.laf-agent/chats') && !task.isArchived)
+      .filter((task) => isChatWorkspace(task.workspace) && !task.isArchived)
       .map((task) => ({
         id: task.id,
         name: task.name,
@@ -655,7 +655,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
                   </div>
                   <div>
                     <p className="text-[12px] font-medium text-muted-foreground">{t('No projects yet')}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{t('Import a folder to start working with Prime Agent')}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{t('Import a folder to start working with LAF Agent')}</p>
                   </div>
                   <button
                     type="button"

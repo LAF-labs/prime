@@ -50,6 +50,7 @@
  */
 
 import { ipc } from '@/lib/ipc'
+import { t } from '@/lib/i18n'
 
 export type CommandKind = 'session' | 'rpc' | 'gui'
 
@@ -155,17 +156,20 @@ const formatStats = (data: Record<string, unknown>): string => {
   const ctx = data.contextUsage as Record<string, number> | undefined
   const cost = typeof data.cost === 'number' ? data.cost : undefined
   const parts: string[] = []
-  if (data.sessionId) parts.push(`Session ${String(data.sessionId)}`)
+  if (data.sessionId) parts.push(t('Session {id}', { id: String(data.sessionId) }))
   if (tokens) {
     parts.push(
-      `Tokens — in ${tokens.input ?? 0}, out ${tokens.output ?? 0}, cache read ${tokens.cacheRead ?? 0} (total ${tokens.total ?? 0})`,
+      t('Tokens — in {in}, out {out}, cache read {cache} (total {total})', {
+        in: String(tokens.input ?? 0), out: String(tokens.output ?? 0),
+        cache: String(tokens.cacheRead ?? 0), total: String(tokens.total ?? 0),
+      }),
     )
   }
   if (ctx && ctx.contextWindow) {
-    parts.push(`Context — ${ctx.tokens ?? 0} / ${ctx.contextWindow} (${ctx.percent ?? 0}%)`)
+    parts.push(t('Context — {used} / {window} ({percent}%)', { used: String(ctx.tokens ?? 0), window: String(ctx.contextWindow), percent: String(ctx.percent ?? 0) }))
   }
-  if (cost !== undefined) parts.push(`Cost — $${cost.toFixed(4)}`)
-  if (data.sessionFile) parts.push(`File — ${String(data.sessionFile)}`)
+  if (cost !== undefined) parts.push(t('Cost — ${amount}', { amount: cost.toFixed(4) }))
+  if (data.sessionFile) parts.push(t('File — {path}', { path: String(data.sessionFile) }))
   return parts.join('\n')
 }
 
@@ -182,38 +186,38 @@ export const runRpcCommand = async (
   switch (name) {
     case 'clone': {
       await ipc.agentRpcRequest(taskId, 'clone')
-      return { handled: true, message: 'Cloned this conversation into a new session.' }
+      return { handled: true, message: t('Cloned this conversation into a new session.') }
     }
     case 'copy': {
       const data = (await ipc.agentRpcRequest(taskId, 'get_last_assistant_text')) as { text?: string | null }
       const text = data?.text ?? ''
-      if (!text) return { handled: true, message: 'Nothing to copy yet.' }
+      if (!text) return { handled: true, message: t('Nothing to copy yet.') }
       await navigator.clipboard.writeText(text)
-      return { handled: true, message: `Copied ${text.length} characters to the clipboard.` }
+      return { handled: true, message: t('Copied {count} characters to the clipboard.', { count: String(text.length) }) }
     }
     case 'export': {
       const data = (await ipc.agentRpcRequest(taskId, 'export_html', rest ? { outputPath: rest } : undefined)) as { path?: string }
-      return { handled: true, message: data?.path ? `Exported to ${data.path}` : 'Exported the session.' }
+      return { handled: true, message: data?.path ? t('Exported to {path}', { path: data.path }) : t('Exported the session.') }
     }
     case 'name':
     case 'rename': {
-      if (!rest) return { handled: true, message: 'Usage: /name <session name>' }
+      if (!rest) return { handled: true, message: t('Usage: /name <session name>') }
       await ipc.agentRpcRequest(taskId, 'set_session_name', { name: rest })
-      return { handled: true, message: `Session renamed to "${rest}".` }
+      return { handled: true, message: t('Session renamed to "{name}".', { name: rest }) }
     }
     case 'session':
     case 'context': {
       const data = (await ipc.agentRpcRequest(taskId, 'get_session_stats')) as Record<string, unknown>
-      return { handled: true, message: formatStats(data) || 'No session stats available.' }
+      return { handled: true, message: formatStats(data) || t('No session stats available.') }
     }
     case 'thinking':
     case 'effort': {
       const level = rest.trim().toLowerCase()
       if (!isThinkingLevel(level)) {
-        return { handled: true, message: `Usage: /${name} ${THINKING_LEVELS.join(' | ')}` }
+        return { handled: true, message: t('Usage: /{name} {levels}', { name, levels: THINKING_LEVELS.join(' | ') }) }
       }
       await ipc.setThinkingLevel(taskId, level)
-      return { handled: true, message: `Reasoning effort set to ${level}.` }
+      return { handled: true, message: t('Reasoning effort set to {level}.', { level }) }
     }
     case 'heartbeat': {
       const arg = rest.trim()
@@ -222,19 +226,19 @@ export const runRpcCommand = async (
         const hb = data?.heartbeat
         return {
           handled: true,
-          message: hb ? `Heartbeat: ${String(hb.schedule)} — "${String(hb.prompt)}" (${String(hb.status)})` : 'No heartbeat set.',
+          message: hb ? t('Heartbeat: {schedule} — "{prompt}" ({status})', { schedule: String(hb.schedule), prompt: String(hb.prompt), status: String(hb.status) }) : t('No heartbeat set.'),
         }
       }
       if (arg === 'clear' || arg === 'pause' || arg === 'resume') {
         await ipc.agentRpcRequest(taskId, 'update_heartbeat', { action: arg })
-        return { handled: true, message: `Heartbeat ${arg}ed.` }
+        return { handled: true, message: t('Heartbeat updated: {action}', { action: arg }) }
       }
       const [schedule, prompt] = arg.split('--').map((p) => p.trim())
       if (!schedule || !prompt) {
-        return { handled: true, message: 'Usage: /heartbeat <schedule> -- <prompt>   (or status | pause | resume | clear)' }
+        return { handled: true, message: t('Usage: /heartbeat <schedule> -- <prompt>   (or status | pause | resume | clear)') }
       }
       await ipc.agentRpcRequest(taskId, 'set_heartbeat', { schedule, prompt })
-      return { handled: true, message: `Heartbeat set: ${schedule}` }
+      return { handled: true, message: t('Heartbeat set: {schedule}', { schedule }) }
     }
     default:
       return { handled: false }

@@ -173,16 +173,15 @@ Components live in `src/renderer/components/`, organized by feature:
 | `analytics/` | Analytics dashboard with nine chart types (Recharts) |
 | `file-tree/` | FileTreePanel, TreeContextMenu |
 | `settings/` | SettingsPanel with multiple tabs |
-| `diff/` | DiffPanel |
+| `diff/` | SelectionToolbar |
 | `debug/` | DebugPanel |
-| `dashboard/` | Dashboard, TaskCard |
+| `dashboard/` | TaskCard |
 | `task/` | NewProjectSheet |
 | `unified-title-bar/` | Cross-platform title bar |
 | `icons/` | Custom icon components |
 
 ### Key standalone components
 
-- `CommandPalette.tsx` — `Cmd+K` quick navigation with frecency ranking
 - `CommitDialog.tsx` — Git commit with AI message generation
 - `Onboarding.tsx` — First-run setup wizard
 - `ErrorBoundary.tsx` — React error boundary with recovery

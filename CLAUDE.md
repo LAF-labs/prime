@@ -67,7 +67,7 @@ src/
 │       ├── ui/              # Radix-based primitives
 │       ├── chat/            # ChatPanel, MessageList, ChatInput, pickers
 │       ├── sidebar/         # TaskSidebar, ResourcePanel, dialogs
-│       ├── code/            # CodePanel, DiffViewer, DebugLog
+│       ├── code/            # CodePanel, DiffViewer
 │       ├── analytics/       # Dashboard + chart components
 │       ├── settings/        # SettingsPanel and its sections
 │       ├── unified-title-bar/ # Per-platform title bar

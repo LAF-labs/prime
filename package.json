@@ -4,9 +4,9 @@
   "author": "Gibeom Gim",
   "private": true,
   "scripts": {
-    "dev": "cargo tauri dev",
+    "dev": "tauri dev",
     "dev:renderer": "vite",
-    "build": "cargo tauri build",
+    "build": "tauri build",
     "build:renderer": "vite build",
     "check": "npm run check:ts && npm run check:rust",
     "check:ts": "tsc --noEmit",

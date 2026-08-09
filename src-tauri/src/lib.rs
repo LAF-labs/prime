@@ -633,7 +633,6 @@ pub fn run() {
             fs_ops::auth_set_api_key,
             fs_ops::auth_set_custom_provider,
             fs_ops::repair_custom_providers,
-            fs_ops::disable_serper_websearch,
             kernel_setup::kernel_status,
             kernel_setup::kernel_setup,
             fs_ops::auth_list_providers,

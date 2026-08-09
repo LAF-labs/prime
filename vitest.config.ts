@@ -5,10 +5,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src/renderer'),
+      // The gate imports this from inside the sidecar, where it resolves at
+      // runtime but nowhere else. Point it at a stub so the gate is testable.
+      '@earendil-works/pi-coding-agent': path.resolve(
+        __dirname,
+        'src-tauri/resources/gate-test-stubs/pi-coding-agent.ts',
+      ),
     },
   },
   test: {
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'src-tauri/resources/*.test.ts'],
     environment: 'jsdom',
     globals: true,
     setupFiles: ['src/test-setup.ts'],

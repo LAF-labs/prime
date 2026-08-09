@@ -371,6 +371,7 @@ export default function (pi: ExtensionAPI) {
 	registerParityCommands(pi);
 	registerPlanGuard(pi);
 	registerNativeWebSearch(pi);
+	registerWebSearch(pi);
 	registerWebFetch(pi);
 
 	if (TIGHT_SANDBOX && WORKSPACE) registerSandboxedBash(pi);
@@ -497,15 +498,25 @@ export function activateParityCommands(pi: ExtensionAPI): void {
 }
 
 /**
- * Native web search — the same mechanism Claude and Codex use.
+ * Web search — the same mechanism Claude Code and Codex use.
  *
+ * Neither ships a scraper and neither carries a third-party search key.
  * Anthropic and OpenAI execute search *server-side* as part of the model turn
  * (`web_search_20250305` on the Messages API, `web_search` on the Responses
- * API). There is no third-party search key: the model receives results
- * directly and cites them in its answer, billed through the model provider.
+ * API). The model receives results directly and cites them in its answer,
+ * billed through the model provider the user already pays for.
  *
  * prime-agent doesn't declare those tools, so we append them to the outgoing
- * request. Providers that don't support server-side search are left untouched.
+ * request. Providers with no server-side search — local models, third-party
+ * OpenAI-compatible endpoints — fall back to the client-side `web_search`
+ * below, which the gate runs itself against a SearXNG instance the user
+ * points us at. Either way the model sees exactly one tool named
+ * `web_search`, so its instructions never have to branch on the provider.
+ *
+ * Note on what is deliberately absent: no keyless scrape of Google, Bing, or
+ * DuckDuckGo. Every one of those answers an unattended client with a bot
+ * challenge or a 403, so a scraper would fail in the field while looking
+ * fine in review.
  */
 
 /** Cap on searches per turn — mirrors the defaults these APIs document. */
@@ -526,6 +537,25 @@ function hasTool(tools: unknown, predicate: (t: Record<string, unknown>) => bool
 	return Array.isArray(tools) && tools.some((t) => typeof t === "object" && t !== null && predicate(t as Record<string, unknown>));
 }
 
+/**
+ * Drop the gate's own `web_search` declaration from an outgoing tool list.
+ *
+ * When the provider runs search server-side, its tool is also named
+ * `web_search`, and both APIs reject a request that declares one name twice.
+ * The server-side one wins: it is the better search, and it costs the user
+ * nothing beyond the turn they are already paying for.
+ */
+function withoutClientWebSearch(tools: unknown): Record<string, unknown>[] {
+	if (!Array.isArray(tools)) return [];
+	return tools.filter((t) => {
+		if (typeof t !== "object" || t === null) return true;
+		const tool = t as Record<string, unknown>;
+		if (tool.name !== "web_search") return true;
+		// Anthropic function tools carry no `type`; Responses ones say "function".
+		return typeof tool.type === "string" && tool.type !== "function";
+	}) as Record<string, unknown>[];
+}
+
 function withNativeWebSearch(payload: unknown): unknown {
 	if (typeof payload !== "object" || payload === null) return undefined;
 	const p = payload as Record<string, unknown>;
@@ -534,7 +564,7 @@ function withNativeWebSearch(payload: unknown): unknown {
 		if (hasTool(p.tools, (t) => typeof t.type === "string" && t.type.startsWith("web_search"))) {
 			return undefined;
 		}
-		const tools = Array.isArray(p.tools) ? [...p.tools] : [];
+		const tools = withoutClientWebSearch(p.tools);
 		tools.push({ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCHES_PER_TURN });
 		return { ...p, tools };
 	}
@@ -543,13 +573,14 @@ function withNativeWebSearch(payload: unknown): unknown {
 		if (hasTool(p.tools, (t) => t.type === "web_search" || t.type === "web_search_preview")) {
 			return undefined;
 		}
-		const tools = Array.isArray(p.tools) ? [...p.tools] : [];
+		const tools = withoutClientWebSearch(p.tools);
 		tools.push({ type: "web_search" });
 		return { ...p, tools };
 	}
 
 	// Any other provider (OpenAI-compatible third parties, local servers) has
-	// no server-side search — leave the request exactly as prime-agent built it.
+	// no server-side search — leave the request exactly as prime-agent built it,
+	// so the client-side `web_search` below stays declared and callable.
 	return undefined;
 }
 
@@ -558,6 +589,115 @@ function registerNativeWebSearch(pi: ExtensionAPI): void {
 	pi.on("before_provider_request", (event) => {
 		const patched = withNativeWebSearch(event.payload);
 		return patched === undefined ? undefined : { payload: patched };
+	});
+}
+
+/**
+ * `web_search` — client-side search for providers with no server-side search.
+ *
+ * Backed by SearXNG, a self-hostable metasearch front end that queries the
+ * real engines and returns their results as JSON. It needs no account and no
+ * API key; what it needs is an instance to talk to, which the user supplies
+ * via `LAF_WEB_SEARCH_URL`. We ship no default instance on purpose — a
+ * hardcoded list would send every user's queries to volunteer-run servers
+ * they never chose, and those servers rate-limit a desktop app within a
+ * couple of requests anyway.
+ *
+ * JSON is the only format we parse. SearXNG's HTML is theme-dependent and
+ * changes without notice, so a scraper for it would rot quietly; the JSON
+ * API is stable and one config line away (`search.formats: [html, json]`).
+ */
+
+const SEARCH_ENDPOINT = (process.env.LAF_WEB_SEARCH_URL ?? "").trim().replace(/\/+$/, "");
+const SEARCH_TIMEOUT_MS = 15_000;
+const MAX_SEARCH_RESULTS = 8;
+const MAX_SNIPPET_CHARS = 400;
+
+interface SearxResult {
+	url?: unknown;
+	title?: unknown;
+	content?: unknown;
+}
+
+function formatSearchResults(results: SearxResult[], query: string): string {
+	const lines = [`# Web search: ${query}`, ""];
+	results.forEach((result, index) => {
+		const title = typeof result.title === "string" && result.title.trim() ? result.title.trim() : "(untitled)";
+		const url = typeof result.url === "string" ? result.url.trim() : "";
+		const snippetRaw = typeof result.content === "string" ? result.content.replace(/\s+/g, " ").trim() : "";
+		const snippet =
+			snippetRaw.length > MAX_SNIPPET_CHARS ? `${snippetRaw.slice(0, MAX_SNIPPET_CHARS)}…` : snippetRaw;
+		lines.push(`${index + 1}. ${title}`);
+		if (url) lines.push(`   ${url}`);
+		if (snippet) lines.push(`   ${snippet}`);
+		lines.push("");
+	});
+	lines.push("Use web_fetch on a URL above to read the full page.");
+	return lines.join("\n");
+}
+
+function registerWebSearch(pi: ExtensionAPI): void {
+	if (!SEARCH_ENDPOINT) return;
+	pi.registerTool({
+		name: "web_search",
+		label: "Search",
+		description:
+			"Search the web and return ranked results with titles, URLs, and snippets. " +
+			"Use it to find pages you don't already have a URL for, then read the promising ones with web_fetch.",
+		promptGuidelines: [
+			"Use web_search for anything you need current information about — releases, docs, errors, news.",
+			"Search results are summaries; read the page with web_fetch before relying on details.",
+		],
+		parameters: {
+			type: "object",
+			properties: {
+				query: { type: "string", description: "Search query" },
+			},
+			required: ["query"],
+		},
+		execute: async (_toolCallId: string, params: { query: string }, signal?: AbortSignal) => {
+			const query = String(params.query ?? "").trim();
+			if (!query) {
+				throw new Error("web_search needs a non-empty query.");
+			}
+			const url = `${SEARCH_ENDPOINT}/search?q=${encodeURIComponent(query)}&format=json`;
+			const timeout = AbortSignal.timeout(SEARCH_TIMEOUT_MS);
+			const composite = signal ? AbortSignal.any([signal, timeout]) : timeout;
+			const response = await fetch(url, {
+				signal: composite,
+				redirect: "follow",
+				headers: { accept: "application/json" },
+			});
+			if (!response.ok) {
+				throw new Error(
+					`Search endpoint ${SEARCH_ENDPOINT} returned HTTP ${response.status}. ` +
+						"If it is a SearXNG instance, its JSON API is probably off — add " +
+						"`json` to `search.formats` in its settings.yml.",
+				);
+			}
+			const raw = await response.text();
+			let parsed: { results?: unknown };
+			try {
+				parsed = JSON.parse(raw) as { results?: unknown };
+			} catch {
+				throw new Error(
+					`Search endpoint ${SEARCH_ENDPOINT} answered with something that isn't JSON. ` +
+						"LAF_WEB_SEARCH_URL must point at a SearXNG instance with its JSON API enabled.",
+				);
+			}
+			const results = Array.isArray(parsed.results) ? (parsed.results as SearxResult[]) : [];
+			if (results.length === 0) {
+				return {
+					content: [{ type: "text", text: `# Web search: ${query}\n\nNo results.` }],
+					details: { query, results: 0 },
+				};
+			}
+			const top = results.slice(0, MAX_SEARCH_RESULTS);
+			return {
+				content: [{ type: "text", text: formatSearchResults(top, query) }],
+				details: { query, results: top.length, endpoint: SEARCH_ENDPOINT },
+			};
+		},
 	});
 }
 

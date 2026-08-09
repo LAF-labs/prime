@@ -25,7 +25,7 @@ set -euo pipefail
 
 HARNESS_REPO="${HARNESS_REPO:-https://github.com/LAF-labs/prime-harness}"
 # The single source of truth for which harness this app ships.
-HARNESS_REF="${HARNESS_REF:-v0.7.0}"
+HARNESS_REF="${HARNESS_REF:-v0.7.0-laf.1}"
 WORK="$(mktemp -d)"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$REPO_ROOT/src-tauri/resources/prime-agent"

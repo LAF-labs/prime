@@ -111,6 +111,46 @@ The approval prompt remains the real control. This narrows the blast radius
 when a user approves something they misread; it does not make untrusted
 repositories safe to run.
 
+## How web access works
+
+Claude Code and Codex both solve web search the same way, and neither ships a
+scraper or a third-party search key: the **model provider runs the search
+server-side**, inside the turn. Anthropic exposes it as the
+`web_search_20250305` tool on the Messages API; OpenAI as `web_search` on the
+Responses API. Results reach the model directly and are billed with the turn
+the user is already paying for.
+
+prime-agent declares neither tool, so the gate appends the right one to the
+outgoing request in its `before_provider_request` hook, sniffing the payload
+shape to tell the two APIs apart. Providers that have no server-side search —
+local models, third-party OpenAI-compatible endpoints — are left untouched.
+`LAF_NATIVE_WEB_SEARCH=0` turns the injection off.
+
+Two client-side tools fill the rest in, both keyless and provider-independent:
+
+- **`web_fetch`** — always registered. Fetches a URL, strips markup, truncates.
+  This is what makes a URL the user pastes readable on every provider.
+- **`web_search`** — registered only when `LAF_WEB_SEARCH_URL` points at a
+  [SearXNG](https://docs.searxng.org) instance, which is self-hostable and
+  needs no account. Only its JSON API is parsed, so the instance needs `json`
+  in `search.formats`; its HTML is theme-dependent and would rot silently.
+  When the provider *does* have server-side search, the gate strips this
+  declaration from the payload before injecting the native tool — both APIs
+  reject a request that names one tool twice, and the server-side search is
+  the better of the two.
+
+What is deliberately absent is a keyless scrape of Google, Bing, or
+DuckDuckGo. Measured from a normal machine, DuckDuckGo answers an unattended
+client with a JS challenge (HTTP 202), Mojeek and Ecosia with 403, Brave with
+429; public SearXNG instances serve results but rate-limit within a couple of
+requests. A scraper would pass review and then fail in the field, which is
+worse than not having one.
+
+The bundled `websearch` skill that upstream ships — a Google wrapper over a
+paid third-party search API — is deleted in our harness fork rather than
+disabled. A tool that exists only to ask for an API key the app never uses is
+a support burden, not a feature.
+
 ## The real cost: version drift
 
 prime-agent shipped v0.5.0 through v0.7.0 in three days, 40 releases so far.

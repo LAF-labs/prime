@@ -468,9 +468,6 @@ export function App() {
     // conservative defaults existed — without them, endpoints like Upstage
     // reject every request with "400 Unrecognized request arguments: store".
     ipc.repairCustomProviders().catch(() => {});
-    // Web access comes from native provider search + the keyless web_fetch
-    // tool, so the bundled Serper skill would only ask for a key we never use.
-    ipc.disableSerperWebsearch().catch(() => {});
     // Pre-warm the agent connection to get models before the first thread
     ipc.probeCapabilities().catch(() => {});
     // Purge expired soft-deleted threads every hour

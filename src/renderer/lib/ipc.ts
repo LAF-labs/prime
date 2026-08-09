@@ -301,8 +301,6 @@ export const ipc = {
     invoke('kernel_setup'),
   onKernelSetupProgress: (cb: (data: { line: string }) => void): UnsubscribeFn =>
     tauriListen('kernel_setup_progress', cb),
-  disableSerperWebsearch: (): Promise<boolean> =>
-    invoke('disable_serper_websearch'),
   repairCustomProviders: (): Promise<number> =>
     invoke('repair_custom_providers'),
   authSetCustomProvider: (name: string, baseUrl: string, apiKey: string, modelIds: string[]): Promise<void> =>

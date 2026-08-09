@@ -1172,43 +1172,6 @@ fn conservative_compat() -> serde_json::Value {
     })
 }
 
-/// Turn off prime-agent's bundled Serper-based `websearch` skill.
-///
-/// LAF Agent supplies web access the way Claude and Codex do — server-side
-/// search on Anthropic/OpenAI plus a keyless `web_fetch` tool — so the Serper
-/// skill only ever surfaced as "configure a SERPER_API_KEY" noise. Written
-/// once into the agent's settings; users who want it back can flip the key.
-#[tauri::command]
-pub fn disable_serper_websearch() -> Result<bool, AppError> {
-    let dir = dirs::home_dir()
-        .map(|h| h.join(".prime/agent"))
-        .ok_or_else(|| AppError::Other("No home directory".into()))?;
-    std::fs::create_dir_all(&dir)?;
-    let path = dir.join("settings.json");
-
-    let mut root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&path) {
-        Ok(c) if !c.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&c)
-            .ok()
-            .and_then(|v| v.as_object().cloned())
-            .unwrap_or_default(),
-        _ => serde_json::Map::new(),
-    };
-
-    let bundled = root
-        .entry("bundledSkills".to_string())
-        .or_insert_with(|| serde_json::json!({}));
-    let Some(bundled) = bundled.as_object_mut() else {
-        return Err(AppError::Other("bundledSkills in settings.json is not an object".into()));
-    };
-    if bundled.get("websearch").and_then(|v| v.as_bool()) == Some(false) {
-        return Ok(false);
-    }
-    bundled.insert("websearch".to_string(), serde_json::Value::Bool(false));
-    write_atomic(&path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?.as_bytes())?;
-    log::info!("[websearch] disabled the bundled Serper skill; native search + web_fetch are used instead");
-    Ok(true)
-}
-
 /// Backfill compat flags on providers registered before this defaulting
 /// existed. Returns the number of providers repaired.
 #[tauri::command]

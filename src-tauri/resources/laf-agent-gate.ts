@@ -385,6 +385,180 @@ function isAllowedByRule(toolName: string, input: Record<string, unknown>): bool
 	return PERMISSION_RULES.some((rule) => ruleMatches(rule, toolName, arg));
 }
 
+// ── Everyday tool-argument repair ────────────────────────────────────
+//
+// Small, cheap models get tool *intent* right far more often than they get
+// tool *arguments* right. They reach for `filename` instead of `path`, wrap
+// everything in an `arguments` object, send a lone operation where a list is
+// expected, or hand back a JSON string instead of a value. The harness
+// answers a schema mismatch with a validation error, the model tries again,
+// and the user pays for two round trips to accomplish one action.
+//
+// This layer sits in `tool_call` — where `event.input` is documented as
+// mutable in place — and repairs the shapes we can be certain about before
+// the tool runs. When a call cannot be repaired unambiguously it is blocked
+// with a message that states the exact expected shape, which is a far better
+// teacher than a generic schema error.
+//
+// Deliberately scoped to the everyday tools. Developer-mode tools (bash,
+// edit, ipython) are driven by models that get their schemas right, and
+// silently rewriting a shell command's arguments is not a trade worth making.
+
+/** Canonical parameter names, by everyday tool. */
+const EVERYDAY_TOOL_ARGS: Record<string, readonly string[]> = {
+	read_file: ["path"],
+	list_dir: ["path"],
+	write_file: ["path", "content"],
+	organize: ["operations"],
+	remember: ["fact"],
+};
+
+/** Wrong-but-obvious parameter names, mapped to the canonical one. */
+const ARG_ALIASES: Record<string, Record<string, string>> = {
+	read_file: { file: "path", filename: "path", file_path: "path", filePath: "path", filepath: "path", target: "path", name: "path" },
+	list_dir: { dir: "path", directory: "path", folder: "path", file_path: "path", filePath: "path", filepath: "path", target: "path" },
+	write_file: {
+		file: "path", filename: "path", file_path: "path", filePath: "path", filepath: "path", target: "path",
+		text: "content", body: "content", contents: "content", data: "content", value: "content",
+	},
+	organize: { ops: "operations", moves: "operations", actions: "operations", items: "operations", files: "operations" },
+	remember: { memory: "fact", text: "fact", content: "fact", note: "fact", value: "fact" },
+};
+
+/** Per-operation aliases inside `organize.operations`. */
+const OPERATION_ALIASES: Record<string, string> = {
+	source: "from", src: "from", from_path: "from", fromPath: "from", old: "from", old_path: "from", origin: "from",
+	destination: "to", dest: "to", dst: "to", to_path: "to", toPath: "to", new: "to", new_path: "to", target: "to",
+	action: "op", operation: "op", type: "op", mode: "op",
+};
+
+/** Keys a model may nest the real arguments under. */
+const ENVELOPE_KEYS = ["arguments", "args", "input", "params", "parameters"];
+
+/** The shape message shown when a call cannot be repaired. */
+const SHAPE_HINTS: Record<string, string> = {
+	read_file: 'read_file takes exactly {"path": "<file path>"}.',
+	list_dir: 'list_dir takes exactly {"path": "<folder path>"}.',
+	write_file: 'write_file takes exactly {"path": "<file path>", "content": "<full text to write>"}.',
+	organize:
+		'organize takes exactly {"operations": [{"op": "move", "from": "<existing path>", "to": "<new path>"}]}. ' +
+		'"operations" must be a list, even for a single file, and "op" is either "move" or "copy".',
+	remember: 'remember takes exactly {"fact": "<one short sentence>"}.',
+};
+
+/** Parse a value that may be a JSON-encoded string; returns undefined if it isn't. */
+function parseIfJson(value: unknown): unknown {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return undefined;
+	try {
+		return JSON.parse(trimmed);
+	} catch {
+		return undefined;
+	}
+}
+
+/** Rename aliased keys to their canonical names, without clobbering a correct one. */
+function applyAliases(target: Record<string, unknown>, aliases: Record<string, string>): void {
+	for (const [wrong, right] of Object.entries(aliases)) {
+		if (!(wrong in target)) continue;
+		const value = target[wrong];
+		delete target[wrong];
+		if (target[right] === undefined && value !== undefined && value !== null) {
+			target[right] = value;
+		}
+	}
+}
+
+/** Repair one entry of `organize.operations`. Returns false when it is unusable. */
+function repairOperation(raw: unknown): { from: string; to: string; op?: string } | null {
+	const parsed = parseIfJson(raw);
+	const candidate = (parsed !== undefined ? parsed : raw) as Record<string, unknown>;
+	if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) return null;
+	applyAliases(candidate, OPERATION_ALIASES);
+	const from = candidate.from;
+	const to = candidate.to;
+	if (typeof from !== "string" || typeof to !== "string" || !from.trim() || !to.trim()) return null;
+	// "rename" and "mv" mean move; anything unrecognized falls back to the
+	// default rather than failing the call, because `op` is optional.
+	const rawOp = typeof candidate.op === "string" ? candidate.op.trim().toLowerCase() : "";
+	const op = rawOp === "copy" || rawOp === "cp" || rawOp === "duplicate" ? "copy" : "move";
+	return { from, to, op };
+}
+
+/**
+ * Repair `input` in place. Returns a correction message when the call is
+ * unusable, or null when it is ready to execute.
+ */
+function repairEverydayArgs(toolName: string, input: Record<string, unknown>): string | null {
+	const canonical = EVERYDAY_TOOL_ARGS[toolName];
+	if (!canonical) return null;
+
+	// Unwrap `{arguments: {...}}` — including the JSON-string form — when the
+	// envelope is the only thing standing between us and the real arguments.
+	for (const key of ENVELOPE_KEYS) {
+		if (canonical.includes(key) || !(key in input)) continue;
+		const parsed = parseIfJson(input[key]);
+		const inner = (parsed !== undefined ? parsed : input[key]) as Record<string, unknown>;
+		if (typeof inner !== "object" || inner === null || Array.isArray(inner)) continue;
+		delete input[key];
+		for (const [k, v] of Object.entries(inner)) {
+			if (input[k] === undefined) input[k] = v;
+		}
+	}
+
+	applyAliases(input, ARG_ALIASES[toolName] ?? {});
+
+	// A single-element array where a string belongs is unambiguous.
+	for (const field of ["path", "content", "fact"]) {
+		const value = input[field];
+		if (Array.isArray(value) && value.length === 1 && typeof value[0] === "string") {
+			input[field] = value[0];
+		}
+	}
+
+	if (toolName === "organize") {
+		let operations = input.operations;
+		const parsed = parseIfJson(operations);
+		if (parsed !== undefined) operations = parsed;
+		// A lone operation object, or from/to hoisted to the top level.
+		if (operations === undefined && typeof input.from === "string" && typeof input.to === "string") {
+			operations = [{ from: input.from, to: input.to, op: input.op }];
+			delete input.from;
+			delete input.to;
+			delete input.op;
+		}
+		if (operations !== null && typeof operations === "object" && !Array.isArray(operations)) {
+			operations = [operations];
+		}
+		if (!Array.isArray(operations) || operations.length === 0) return SHAPE_HINTS.organize;
+		const repaired: Array<{ from: string; to: string; op?: string }> = [];
+		for (const entry of operations) {
+			const fixed = repairOperation(entry);
+			if (!fixed) return SHAPE_HINTS.organize;
+			repaired.push(fixed);
+		}
+		input.operations = repaired;
+		return null;
+	}
+
+	// write_file content that arrived as structured data: serialize it rather
+	// than refusing — the model meant to write it out.
+	if (toolName === "write_file" && input.content !== undefined && typeof input.content !== "string") {
+		const content = input.content;
+		input.content =
+			typeof content === "object" && content !== null ? JSON.stringify(content, null, 2) : String(content);
+	}
+
+	for (const field of canonical) {
+		const value = input[field];
+		if (typeof value !== "string" || (field !== "content" && !value.trim())) {
+			return SHAPE_HINTS[toolName] ?? `${toolName} received arguments it cannot use.`;
+		}
+	}
+	return null;
+}
+
 export default function (pi: ExtensionAPI) {
 	registerParityCommands(pi);
 	registerPlanGuard(pi);
@@ -398,6 +572,14 @@ export default function (pi: ExtensionAPI) {
 	if (TIGHT_SANDBOX && WORKSPACE && !EVERYDAY) registerSandboxedBash(pi);
 
 	pi.on("tool_call", async (event, ctx) => {
+		// Repair first, before any gating decision: the approval dialog should
+		// show the arguments that will actually run, and a read-only tool with
+		// a mistyped argument still deserves the correction.
+		const correction = repairEverydayArgs(event.toolName, event.input as Record<string, unknown>);
+		if (correction) {
+			return { block: true, reason: `Wrong arguments for '${event.toolName}'. ${correction} Call it again with that exact shape.` };
+		}
+
 		if (READ_ONLY_TOOLS.has(event.toolName) || PROMPTLESS_TOOLS.has(event.toolName)) return undefined;
 
 		// Plan mode: block mutations before anything else — no approval dialog

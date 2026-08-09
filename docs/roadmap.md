@@ -196,3 +196,90 @@ What this reorders:
   surface work.
 - **Later, design only**: a per-user knowledge-graph view over sessions
   and documents (node graph). Not scheduled.
+
+## Everyday profile — what shipped, and what it cost to learn (2026-08-09)
+
+Simple mode now runs a distinct agent profile rather than the developer one
+with pieces hidden. Sessions spawn with `--no-builtin-tools`, so ipython —
+and the Python kernel behind it — never starts, and the bundled gate
+replaces the RLM system prompt (`"You are a general purpose agent that uses
+code to solve tasks"`) with a ~350-token conversational one. The gate
+registers the everyday toolset in its place: `read_file`, `list_dir`,
+`write_file`, `organize`, `remember`, alongside the existing `web_fetch`
+and `web_search`.
+
+Nothing was deleted from the fork. The RLM prompt, the kernel, the
+continual-harness CRUD, `refine`, and `rlm()` recursion are all still there
+and all still reachable in developer mode; the profile only decides what a
+session is given. That is deliberate — the fork stays mergeable with
+upstream, and reversing the decision is a flag, not a revert.
+
+### The small-model failure modes are the design constraint
+
+Verified live against `upstage/solar-mini`, deliberately chosen as a
+small, cheap model in the class this profile targets. Three defects
+surfaced within three turns, none of which any unit test would have found:
+
+1. **Confinement was wrong.** Restricting file access to the home
+   directory left a session unable to read the folder it was opened on.
+   The workspace is now an allowed root in its own right; hidden entries
+   and `~/Library` are still refused, checked relative to whichever root
+   matched.
+2. **The model guessed names.** It translated `보고서.txt` to `report.txt`
+   and `받은파일` to `received_files`, then reported failure. Not-found now
+   names what the folder actually contains and says not to translate or
+   re-spell; the system prompt says the same thing up front.
+3. **Long absolute paths get re-typed wrong.** One character off, in a
+   UUID-bearing path. Tool results now report workspace-relative or
+   `~/`-abbreviated paths, which is cheaper in tokens and more reliable.
+
+The same reasoning produced the argument-repair layer: cheap models get
+tool *intent* right far more often than tool *arguments*, so the gate
+repairs the shapes it can be certain about (`filename` → `path`, an
+`arguments` envelope, a lone operation where a list belongs, a JSON string
+where a value belongs) and blocks with the exact expected shape only when
+a call is genuinely ambiguous. Scoped to the everyday tools; developer
+tool arguments are never rewritten.
+
+### Research fan-out — attempted, withdrawn, not yet understood
+
+Real subagents are a context-management strategy, not a luxury: each child
+reads its own sources and returns a short brief, so the parent synthesizes
+from hundreds of tokens instead of a dozen full pages. That matters *more*
+with a small model, not less.
+
+The harness's own fan-out (`await rlm(...)`) lives inside ipython, which
+this profile switches off, and the RPC surface can `observe` subagents but
+not spawn them. The attempt was therefore to have the gate spawn children
+itself — same binary, RPC mode, everyday profile, depth-limited and
+read-only.
+
+It does not work, and the cause is not yet established. Live, the parent
+model called `research` with a correct argument shape, `tool_execution_start`
+fired, and the tool's `execute` body never produced an observable effect —
+instrumentation on its first statement never ran, and no `tool_execution_end`
+followed. Two hypotheses were tested and eliminated:
+
+- *Array-typed parameters are unsupported.* Ruled out: `organize` takes an
+  array of objects and executes correctly live.
+- *A headless child auto-approves and runs unchecked.* The opposite is
+  true, and worth recording: a child raises `extension_ui_request` and
+  waits forever, because nothing answers it. With stdin closed the harness
+  reports "Blocked by user"; with stdin open the child hangs. Any future
+  attempt must exempt such children from the approval dialog entirely,
+  which is only safe if the mutating tools are also unregistered for them.
+
+The feature was withdrawn rather than shipped, because its failure mode is
+a permanently stuck turn. Reviving it needs one of: a spawn path proven to
+work from inside an extension, an RPC method to spawn a child session, or
+GUI-side orchestration in Rust (which already owns multi-connection
+lifecycle). The last is the most likely to succeed and the most work.
+
+### Still open
+
+- **Scheduled tasks.** `cron-jobs` exists in the fork and is dormant.
+  "Summarize my inbox every morning" is the consumer translation.
+- **Activity history.** A plain-language timeline of files touched and
+  sites visited — a trust surface, distinct from the developer debug log.
+- **Escalation.** Two failed tool repairs in a row could retry once on a
+  larger model. Needs the usage metering to be wired to a budget first.

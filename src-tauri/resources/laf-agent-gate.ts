@@ -1086,6 +1086,7 @@ function buildEverydayPrompt(cwd: string): string {
 		"- Always answer in the language the user writes in.",
 		"- Lead with the result. Keep explanations short and warm; do not narrate your process.",
 		"- Use tools instead of guessing: read a file before summarizing it, search the web for anything current, list a folder before organizing it.",
+		"- File and folder names are exact. Never translate one into another language and never re-spell it — copy it character for character from what a tool showed you.",
 		"- Before creating, changing, or moving any file, say in one short sentence what you are about to do. Touch only the files the task requires.",
 		"- You cannot delete files. When something should be removed, name the files and let the user do it.",
 		"- If a step fails, say what happened in plain words and offer the closest thing you can do.",

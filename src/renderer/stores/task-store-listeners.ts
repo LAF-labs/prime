@@ -62,7 +62,7 @@ const recordTurnSpend = async (taskId: string): Promise<void> => {
 
   const task = useTaskStore.getState().tasks[taskId]
   record('token_spend', {
-    project: task ? projectName(task.originalWorkspace ?? task.workspace) : undefined,
+    project: task ? projectName(task.workspace) : undefined,
     thread: taskId,
     detail: modelId ?? undefined,
     value: delta.tokens,
@@ -423,7 +423,7 @@ export function initTaskListeners(): () => void {
     // Analytics: record completed tool calls
     if (toolCall.status === 'completed') {
       const task = useTaskStore.getState().tasks[taskId]
-      const proj = task ? projectName(task.originalWorkspace ?? task.workspace) : undefined
+      const proj = task ? projectName(task.workspace) : undefined
       record('tool_call', { project: proj, thread: taskId, detail: toolCall.kind ?? 'other' })
       // Edit line counts come from the RPC client's diff annotation on the
       // tool call itself (see Rust `diff_stats`), recorded incrementally per
@@ -453,7 +453,7 @@ export function initTaskListeners(): () => void {
     useTaskStore.getState().updateUsage(taskId, used, size)
     const task = useTaskStore.getState().tasks[taskId]
     record('token_usage', {
-      project: task ? projectName(task.originalWorkspace ?? task.workspace) : undefined,
+      project: task ? projectName(task.workspace) : undefined,
       thread: taskId,
       value: used,
       value2: size,
@@ -588,7 +588,7 @@ export function initTaskListeners(): () => void {
     if (isDispatchingWindow) {
       const t = useTaskStore.getState().tasks[taskId]
       if (t) {
-        const proj = projectName(t.originalWorkspace ?? t.workspace)
+        const proj = projectName(t.workspace)
         const lastMsg = t.messages[t.messages.length - 1]
         if (lastMsg?.role === 'assistant' && lastMsg.content) {
           record('message_received', {

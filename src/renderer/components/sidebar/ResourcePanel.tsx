@@ -53,7 +53,7 @@ export const ResourcePanel = memo(function ResourcePanel({
     const id = s.selectedTaskId
     if (id) {
       const t = s.tasks[id]
-      return t?.originalWorkspace ?? t?.workspace
+      return t?.workspace
     }
     return s.pendingWorkspace
   }) ?? null

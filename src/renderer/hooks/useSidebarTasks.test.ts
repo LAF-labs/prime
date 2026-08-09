@@ -54,15 +54,14 @@ describe('useSidebarTasks projectId grouping', () => {
     expect(result.current.projects[0].tasks).toHaveLength(2)
   })
 
-  it('groups worktree threads under parent projectId', () => {
+  it('groups threads under their projectId', () => {
     useTaskStore.setState({
       tasks: {
         't1': makeTask({ id: 't1', workspace: '/project', projectId: '/project' }),
         't2': makeTask({
           id: 't2',
-          workspace: '/project/.laf-agent/worktrees/feat',
+          workspace: '/project/sub/feat',
           projectId: '/project',
-          originalWorkspace: '/project',
         }),
       },
       projects: ['/project'],
@@ -73,30 +72,13 @@ describe('useSidebarTasks projectId grouping', () => {
     expect(result.current.projects[0].tasks).toHaveLength(2)
   })
 
-  it('does not create separate project for worktree workspace path', () => {
+  it('does not create a separate project for a nested workspace path', () => {
     useTaskStore.setState({
       tasks: {
         't1': makeTask({
           id: 't1',
-          workspace: '/project/.laf-agent/worktrees/feat',
+          workspace: '/project/sub/feat',
           projectId: '/project',
-          originalWorkspace: '/project',
-        }),
-      },
-      projects: ['/project'],
-    })
-    const { result } = renderHook(() => useSidebarTasks('recent'))
-    expect(result.current.projects).toHaveLength(1)
-    expect(result.current.projects[0].cwd).toBe('/project')
-  })
-
-  it('falls back to originalWorkspace when projectId is missing', () => {
-    useTaskStore.setState({
-      tasks: {
-        't1': makeTask({
-          id: 't1',
-          workspace: '/project/.laf-agent/worktrees/feat',
-          originalWorkspace: '/project',
         }),
       },
       projects: ['/project'],
@@ -118,18 +100,18 @@ describe('useSidebarTasks projectId grouping', () => {
     expect(result.current.projects[0].cwd).toBe('/project')
   })
 
-  it('multiple worktree threads nest under same parent', () => {
+  it('multiple threads nest under the same projectId', () => {
     useTaskStore.setState({
       tasks: {
         't1': makeTask({ id: 't1', workspace: '/project', projectId: '/project' }),
         't2': makeTask({
           id: 't2',
-          workspace: '/project/.laf-agent/worktrees/feat-a',
+          workspace: '/project/sub/feat-a',
           projectId: '/project',
         }),
         't3': makeTask({
           id: 't3',
-          workspace: '/project/.laf-agent/worktrees/feat-b',
+          workspace: '/project/sub/feat-b',
           projectId: '/project',
         }),
       },
@@ -182,7 +164,7 @@ describe('useSidebarTasks projectId grouping', () => {
         't1': makeTask({ id: 't1', workspace: '/project', projectId: uuid }),
         't2': makeTask({
           id: 't2',
-          workspace: '/project/.laf-agent/worktrees/feat',
+          workspace: '/project/sub/feat',
           projectId: uuid,
         }),
       },

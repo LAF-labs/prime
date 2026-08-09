@@ -19,8 +19,6 @@ vi.mock('@/lib/ipc', () => ({
     listTasks: vi.fn().mockResolvedValue([]),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     forkTask: vi.fn().mockResolvedValue({ id: 'fork-1', name: 'Fork', workspace: '/ws', status: 'paused', createdAt: '', messages: [] }),
-    gitWorktreeHasChanges: vi.fn().mockResolvedValue(false),
-    gitWorktreeRemove: vi.fn().mockResolvedValue(undefined),
     addRecentProject: vi.fn().mockResolvedValue(undefined),
     rebuildRecentMenu: vi.fn().mockResolvedValue(undefined),
     threadDbAutoArchive: vi.fn().mockResolvedValue([]),
@@ -370,16 +368,15 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
   })
 
   it('preserves originalWorkspace from JSON fallback', async () => {
-    const archivedId = 'worktree-thread'
+    const archivedId = 'nested-thread'
 
     vi.mocked(threadDb.loadFullThread).mockResolvedValueOnce(null)
     vi.mocked(historyStore.loadThread).mockResolvedValueOnce({
       id: archivedId,
-      name: 'Worktree Thread',
-      workspace: '/ws/.laf-agent/worktrees/feat',
+      name: 'Nested Thread',
+      workspace: '/ws/sub/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [makeMessage()],
-      originalWorkspace: '/ws',
       projectId: 'proj-1',
     })
 
@@ -387,12 +384,11 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
       archivedMeta: {
         [archivedId]: {
           id: archivedId,
-          name: 'Worktree Thread',
-          workspace: '/ws/.laf-agent/worktrees/feat',
+          name: 'Nested Thread',
+          workspace: '/ws/sub/feat',
           createdAt: '2026-01-01T00:00:00Z',
           lastActivityAt: '2026-01-01T00:00:01Z',
           messageCount: 1,
-          originalWorkspace: '/ws',
           projectId: 'proj-1',
         },
       },
@@ -401,7 +397,6 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
     await useTaskStore.getState().hydrateArchivedTask(archivedId)
 
     const hydrated = useTaskStore.getState().tasks[archivedId]
-    expect(hydrated.originalWorkspace).toBe('/ws')
     expect(hydrated.projectId).toBe('proj-1')
   })
 

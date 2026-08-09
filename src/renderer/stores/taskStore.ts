@@ -29,8 +29,6 @@ interface SavedThreadLike {
   /** Present on thin index entries, where `messages` is empty. */
   lastActivityAt?: string
   messageCount?: number
-  parentTaskId?: string
-  originalWorkspace?: string
   projectId?: string
 }
 
@@ -55,7 +53,7 @@ const eraseFromDb = (ids: string[]): void => {
  * said so — the trash icon read as destructive. Say it at the moment of loss,
  * with the recovery in reach: an Undo action plus a pointer to the Archives.
  * Fired from every single-thread soft-delete completion (immediate and the
- * deferred worktree-dialog path), so both sidebar affordances behave the same.
+ * deferred draft path), so both sidebar affordances behave the same.
  */
 const showUndoDeleteToast = (id: string): void => {
   toast(t('Thread deleted'), {
@@ -92,7 +90,7 @@ const mergeThreadsFromDb = async (
       if (tasks[meta.id] || archivedMeta[meta.id] || deletedTaskIds.has(meta.id)) continue
       archivedMeta[meta.id] = meta
       recovered++
-      const ws = meta.originalWorkspace ?? meta.workspace
+      const ws = meta.workspace
       if (ws && !projects.includes(ws) && !isChatWorkspace(ws)) projects.push(ws)
     }
     if (recovered > 0) {
@@ -116,9 +114,7 @@ const projectMeta = (t: SavedThreadLike): ArchivedThreadMeta => {
     createdAt: t.createdAt,
     lastActivityAt: last,
     messageCount: t.messageCount ?? t.messages.length,
-    ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-    ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
-    ...(t.projectId ? { projectId: t.projectId } : {}),
+        ...(t.projectId ? { projectId: t.projectId } : {}),
   }
 }
 
@@ -309,9 +305,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         set(updates)
         const task = get().tasks[id]
         const modeId = get().taskModes[id] ?? 'code'
-        const workspace = task ? (task.originalWorkspace ?? task.workspace) : null
-        const operationalWs = task ? task.workspace : null
-        useSettingsStore.getState().setActiveWorkspace(workspace, operationalWs)
+        const workspace = task ? task.workspace : null
+        useSettingsStore.getState().setActiveWorkspace(workspace)
         useSettingsStore.setState({ currentModeId: modeId })
         // Sync per-task model to global (for non-split-aware components)
         const modelId = get().taskModels[id]
@@ -320,16 +315,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
     }
     const updates: Partial<import('./task-store-types').TaskStore> = { selectedTaskId: id }
-    // Navigating to a thread outside the split deactivates it (but keeps the saved pairing)
+    // Navigating to a thread outside the split leaves side-by-side
     if (activeSplitId) {
       updates.activeSplitId = null
     }
     set(updates)
     const task = id ? get().tasks[id] : null
     const modeId = id ? (get().taskModes[id] ?? 'code') : 'code'
-    const workspace = task ? (task.originalWorkspace ?? task.workspace) : null
-    const operationalWs = task ? task.workspace : null
-    useSettingsStore.getState().setActiveWorkspace(workspace, operationalWs)
+    const workspace = task ? task.workspace : null
+    useSettingsStore.getState().setActiveWorkspace(workspace)
     useSettingsStore.setState({ currentModeId: modeId })
     // Sync per-task model to global (for non-split-aware components)
     if (id) {
@@ -347,7 +341,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // and with no projects at all fall through to the import-project sheet.
     const state = get()
     const task = state.selectedTaskId ? state.tasks[state.selectedTaskId] : null
-    const workspace = task ? (task.originalWorkspace ?? task.workspace) : state.projects[0]
+    const workspace = task ? (task.workspace) : state.projects[0]
     if (workspace) {
       state.setPendingWorkspace(workspace)
     } else {
@@ -380,7 +374,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set((s) => {
       let taskIds = Object.keys(s.tasks).filter((id) => {
         const t = s.tasks[id]
-        const ws = t.originalWorkspace ?? t.workspace
+        const ws = t.workspace
         return ws === workspace
       })
       // If no tasks matched by workspace, try matching by projectId (orphaned UUID entries)
@@ -430,7 +424,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set((s) => {
       const taskIds = Object.keys(s.tasks).filter((id) => {
         const t = s.tasks[id]
-        const ws = t.originalWorkspace ?? t.workspace
+        const ws = t.workspace
         return ws === workspace
       })
       const tasks = { ...s.tasks }
@@ -478,7 +472,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         && prev.pendingPermission === task.pendingPermission
         && prev.plan === task.plan
         && prev.contextUsage === task.contextUsage
-        && prev.originalWorkspace === (task.originalWorkspace ?? prev.originalWorkspace)
         && prev.projectId === (task.projectId ?? prev.projectId)
       ) {
         return state
@@ -489,7 +482,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         messages,
         name,
         ...(prev?.parentTaskId && !task.parentTaskId ? { parentTaskId: prev.parentTaskId } : {}),
-        ...(prev?.originalWorkspace && !task.originalWorkspace ? { originalWorkspace: prev.originalWorkspace } : {}),
         ...(prev?.projectId && !task.projectId ? { projectId: prev.projectId } : {}),
       }
       const statusChanged = !prev || prev.status !== task.status
@@ -608,7 +600,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const { [id]: _, ...remaining } = state.softDeleted
       const deletedTaskIds = new Set(state.deletedTaskIds)
       deletedTaskIds.delete(id)
-      const projectWorkspace = entry.task.originalWorkspace ?? entry.task.workspace
+      const projectWorkspace = entry.task.workspace
       const projects = state.projects.includes(projectWorkspace) || isChatWorkspace(projectWorkspace)
         ? state.projects
         : [...state.projects, projectWorkspace]
@@ -717,8 +709,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             lastActivityAt: info.lastActivityAt,
             messageCount: info.messageCount,
             ...(info.parentTaskId ? { parentTaskId: info.parentTaskId } : {}),
-            // Preserve worktree/project info from the in-memory task if available
-            ...(task?.originalWorkspace ? { originalWorkspace: task.originalWorkspace } : {}),
+            // Preserve project info from the in-memory task if available
             ...(task?.projectId ? { projectId: task.projectId } : {}),
           }
         }
@@ -981,7 +972,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       activeSplitId: null,
       view: 'chat' as const,
     })
-    useSettingsStore.getState().setActiveWorkspace(workspace, workspace)
+    useSettingsStore.getState().setActiveWorkspace(workspace)
     useSettingsStore.setState({ currentModeId: 'code' })
     // Track in native Recent Projects menu
     if (workspace) {
@@ -1170,7 +1161,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const saved of savedThreads) {
           if (softDeletedIds.has(saved.id)) continue
           if (tasks[saved.id]) {
-            // Live task exists — merge worktree metadata the backend doesn't
+            // Live task exists — merge the project metadata the backend doesn't
             // track (without copying messages or other heavy fields).
             const live = tasks[saved.id]
             // If the live task has fewer messages than the persisted version,
@@ -1197,15 +1188,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             tasks[saved.id] = {
               ...live,
               ...(savedMessages ? { messages: savedMessages } : {}),
-              ...(!live.originalWorkspace && saved.originalWorkspace ? { originalWorkspace: saved.originalWorkspace } : {}),
               ...(!live.projectId && saved.projectId ? { projectId: saved.projectId } : {}),
-              ...(!live.parentTaskId && saved.parentTaskId ? { parentTaskId: saved.parentTaskId } : {}),
             }
           } else {
             archivedMeta[saved.id] = projectMeta(saved)
           }
         }
-        // Derive projects AFTER merge so tasks use their restored originalWorkspace.
+        // Derive projects AFTER merge so archived metadata is folded in first.
         // Start with saved project order, then append any new workspaces drawn
         // from live tasks AND archived metadata (so projects with only archived
         // threads still show up).
@@ -1213,11 +1202,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const projectsSet = new Set(savedOrder)
         const projects = [...projectsSet]
         for (const t of Object.values(tasks)) {
-          const ws = t.originalWorkspace ?? t.workspace
+          const ws = t.workspace
           if (!projectsSet.has(ws)) { projectsSet.add(ws); projects.push(ws) }
         }
         for (const m of Object.values(archivedMeta)) {
-          const ws = m.originalWorkspace ?? m.workspace
+          const ws = m.workspace
           if (!projectsSet.has(ws)) { projectsSet.add(ws); projects.push(ws) }
         }
         // Merge project workspaces from history (already in savedOrder, but handle edge cases)
@@ -1399,11 +1388,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           }
         }).catch(() => {})
       } catch (err) {
-        // History load failed — derive projects from live tasks, filtering worktree paths.
+        // History load failed — derive projects from the live tasks.
         // `historyLoaded` deliberately stays false: we do not know what is on
         // disk, and the next autosave would write our partial view over it.
         console.error('[taskStore] history load failed — persistence disabled for this window', err)
-        const projects = [...new Set(list.map((t) => t.originalWorkspace ?? t.workspace))]
+        const projects = [...new Set(list.map((t) => t.workspace))]
         set({ tasks, projects: withoutChatDirs(projects), connected: true })
       }
     } catch {
@@ -1544,7 +1533,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           createdAt: saved.createdAt,
           messages,
           isArchived: true,
-          ...(saved.originalWorkspace ? { originalWorkspace: saved.originalWorkspace } : {}),
           ...(saved.projectId ? { projectId: saved.projectId } : {}),
         }
         // Backfill SQLite so future loads are faster and more reliable.

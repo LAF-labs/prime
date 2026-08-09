@@ -588,8 +588,9 @@ mod tests {
     }
 
     /// Old configs persisted fields that no longer exist (fontSize,
-    /// chatFontSize, worktreeEnabled, symlinkDirectories, commit/branch/PR
-    /// instructions). Serde must ignore the unknown keys, and — critically —
+    /// chatFontSize, maxConcurrentAgents, worktreeEnabled, symlinkDirectories,
+    /// commit/branch/PR instructions). Serde must ignore the unknown keys, and
+    /// — critically —
     /// `quarantine_if_corrupt`'s TOML parse must not treat such a file as
     /// corrupt, or every pre-removal install would be quarantined on upgrade.
     #[test]
@@ -598,6 +599,7 @@ mod tests {
             "agentBin": "/bin/agent",
             "fontSize": 16,
             "chatFontSize": 15,
+            "maxConcurrentAgents": 8,
             "projectPrefs": {
                 "/ws": {
                     "worktreeEnabled": true,
@@ -624,6 +626,7 @@ recentProjects = []
 agentBin = "prime-agent"
 fontSize = 16
 chatFontSize = 15
+maxConcurrentAgents = 8
 
 [settings.projectPrefs."/ws"]
 worktreeEnabled = true

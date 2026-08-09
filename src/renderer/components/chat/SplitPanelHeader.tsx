@@ -23,11 +23,11 @@ export const SplitPanelHeader = memo(function SplitPanelHeader({
   const taskName = useTaskStore((s) => s.tasks[taskId]?.name ?? 'Thread')
   const workspace = useTaskStore((s) => {
     const t = s.tasks[taskId]
-    return t ? (t.originalWorkspace ?? t.workspace) : null
+    return t ? (t.workspace) : null
   })
   const projectName = useTaskStore((s) => {
     const t = s.tasks[taskId]
-    const ws = t ? (t.originalWorkspace ?? t.workspace) : null
+    const ws = t ? (t.workspace) : null
     if (!ws) return ''
     return s.projectNames[ws] ?? ws.split('/').pop() ?? ''
   })

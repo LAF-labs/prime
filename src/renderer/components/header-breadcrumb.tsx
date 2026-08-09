@@ -32,15 +32,12 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
   const taskWorkspace = useTaskStore((s) =>
     selectedTaskId ? s.tasks[selectedTaskId]?.workspace : null,
   )
-  const taskOriginalWorkspace = useTaskStore((s) =>
-    selectedTaskId ? s.tasks[selectedTaskId]?.originalWorkspace : null,
-  )
   const pendingWorkspace = useTaskStore((s) => s.pendingWorkspace)
   const renameTask = useTaskStore((s) => s.renameTask)
   const projectNames = useTaskStore((s) => s.projectNames)
 
   const workspace = taskWorkspace ?? pendingWorkspace
-  const projectRoot = taskOriginalWorkspace ?? workspace
+  const projectRoot = workspace
   const projectName =
     (projectRoot
       ? (projectNames[projectRoot] ?? projectRoot.split("/").pop())

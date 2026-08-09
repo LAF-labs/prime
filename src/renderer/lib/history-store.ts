@@ -36,8 +36,6 @@ interface SavedThread {
   lastActivityAt?: string
   /** Message count; authoritative when `messages` is thin. */
   messageCount?: number
-  parentTaskId?: string
-  originalWorkspace?: string
   projectId?: string
 }
 
@@ -123,8 +121,6 @@ export interface ArchivedThreadMeta {
   /** Timestamp of the last persisted message; falls back to createdAt. */
   readonly lastActivityAt: string
   readonly messageCount: number
-  readonly parentTaskId?: string
-  readonly originalWorkspace?: string
   readonly projectId?: string
 }
 
@@ -157,9 +153,7 @@ const toMeta = (t: SavedThread): ArchivedThreadMeta => {
     createdAt: t.createdAt,
     lastActivityAt: last,
     messageCount: t.messageCount ?? t.messages.length,
-    ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-    ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
-    ...(t.projectId ? { projectId: t.projectId } : {}),
+        ...(t.projectId ? { projectId: t.projectId } : {}),
   }
 }
 
@@ -218,9 +212,7 @@ export async function saveThreads(
           messages: [],
           lastActivityAt: t.createdAt,
           messageCount: 0,
-          ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-                ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
-          ...(t.projectId ? { projectId: t.projectId } : {}),
+                                ...(t.projectId ? { projectId: t.projectId } : {}),
         })
       } else {
         const prior = existingById.get(t.id)
@@ -240,9 +232,7 @@ export async function saveThreads(
       name: t.name,
       workspace: t.workspace,
       createdAt: t.createdAt,
-      ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-        ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
-      ...(t.projectId ? { projectId: t.projectId } : {}),
+                ...(t.projectId ? { projectId: t.projectId } : {}),
     }
     if (thinIds.has(t.id)) {
       merged.set(t.id, {
@@ -258,12 +248,12 @@ export async function saveThreads(
 
   const threads: SavedThread[] = Array.from(merged.values())
 
-  // Group thread IDs by workspace — worktree threads nest under originalWorkspace.
+  // Group thread IDs by workspace.
   // Iterate the merged set so threads kept from disk (archived, not in `tasks`)
   // still register their workspace association.
   const threadsByWorkspace = new Map<string, string[]>()
   for (const t of threads) {
-    const ws = t.originalWorkspace ?? t.workspace
+    const ws = t.workspace
     const ids = threadsByWorkspace.get(ws) ?? []
     ids.push(t.id)
     threadsByWorkspace.set(ws, ids)
@@ -307,9 +297,7 @@ export function toArchivedTasks(saved: SavedThread[]): AgentTask[] {
     createdAt: t.createdAt,
     messages: t.messages.map(toTaskMessage),
     isArchived: true,
-    ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-    ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
-    ...(t.projectId ? { projectId: t.projectId } : {}),
+        ...(t.projectId ? { projectId: t.projectId } : {}),
   }))
 }
 

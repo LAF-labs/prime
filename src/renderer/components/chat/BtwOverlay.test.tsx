@@ -60,7 +60,6 @@ const baseStoreState = {
   isSettingsOpen: false,
   projectNames: {},
   btwCheckpoint: null,
-  worktreeCleanupPending: null,
 }
 
 beforeEach(() => {

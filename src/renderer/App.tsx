@@ -318,12 +318,8 @@ export function App() {
   useEffect(() => {
     const tasks = useTaskStore.getState().tasks;
     const task = selectedTaskId ? tasks[selectedTaskId] : null;
-    // activeWorkspace = project root (for prefs lookup), operationalWorkspace = actual cwd (worktree path if applicable)
-    const workspace = task
-      ? (task.originalWorkspace ?? task.workspace)
-      : pendingWorkspace;
-    const operationalWs = task ? task.workspace : pendingWorkspace;
-    useSettingsStore.getState().setActiveWorkspace(workspace, operationalWs);
+    const workspace = task ? task.workspace : pendingWorkspace;
+    useSettingsStore.getState().setActiveWorkspace(workspace);
     // Reset mode to default when entering a new/pending thread (no selectedTaskId)
     if (!selectedTaskId) {
       useSettingsStore.setState({ currentModeId: 'code' });
@@ -534,7 +530,7 @@ export function App() {
         const state = useTaskStore.getState()
         const task = state.selectedTaskId ? state.tasks[state.selectedTaskId] : null
         const workspace = task
-          ? (task.originalWorkspace ?? task.workspace)
+          ? (task.workspace)
           : state.projects[0]
         if (workspace) {
           state.setPendingWorkspace(workspace)

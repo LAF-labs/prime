@@ -23,7 +23,6 @@ export interface SidebarTask {
   readonly status: string
   readonly isArchived?: boolean
   readonly isDraft?: boolean
-  readonly originalWorkspace?: string
   /** True when the last assistant message has unanswered questions */
   readonly hasPendingQuestion?: boolean
 }
@@ -105,23 +104,23 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
       for (let i = msgs.length - 1; i >= 0; i--) {
         if (msgs[i].role === 'user') { lastUserMessageAt = msgs[i].timestamp; break }
       }
-      const pid = t.projectId ?? t.originalWorkspace ?? t.workspace
+      const pid = t.projectId ?? t.workspace
       const hasPendingQuestion = computeHasPendingQuestion(msgs)
       const p = prev.get(t.id)
-      if (p && p.name === t.name && p.status === t.status && p.createdAt === t.createdAt && p.workspace === t.workspace && p.isArchived === t.isArchived && p.originalWorkspace === t.originalWorkspace && p.projectId === pid && p.lastActivityAt === lastActivityAt && p.lastUserMessageAt === lastUserMessageAt && p.hasPendingQuestion === hasPendingQuestion && !p.isDraft) {
+      if (p && p.name === t.name && p.status === t.status && p.createdAt === t.createdAt && p.workspace === t.workspace && p.isArchived === t.isArchived && p.projectId === pid && p.lastActivityAt === lastActivityAt && p.lastUserMessageAt === lastUserMessageAt && p.hasPendingQuestion === hasPendingQuestion && !p.isDraft) {
         next.set(t.id, p)
       } else {
         changed = true
-        next.set(t.id, { id: t.id, name: t.name, workspace: t.workspace, projectId: pid, createdAt: t.createdAt, lastActivityAt, lastUserMessageAt, status: t.status, isArchived: t.isArchived, originalWorkspace: t.originalWorkspace, hasPendingQuestion })
+        next.set(t.id, { id: t.id, name: t.name, workspace: t.workspace, projectId: pid, createdAt: t.createdAt, lastActivityAt, lastUserMessageAt, status: t.status, isArchived: t.isArchived, hasPendingQuestion })
       }
     }
     // 2. Archived metadata — read-only, never have pending questions, never inflated
     for (const m of Object.values(archivedMeta)) {
       // Skip if a hydrated version is already in the map (transitioning)
       if (next.has(m.id)) continue
-      const pid = m.projectId ?? m.originalWorkspace ?? m.workspace
+      const pid = m.projectId ?? m.workspace
       const p = prev.get(m.id)
-      if (p && p.name === m.name && p.status === 'completed' && p.createdAt === m.createdAt && p.workspace === m.workspace && p.isArchived === true && p.originalWorkspace === m.originalWorkspace && p.projectId === pid && p.lastActivityAt === m.lastActivityAt && !p.hasPendingQuestion && !p.isDraft) {
+      if (p && p.name === m.name && p.status === 'completed' && p.createdAt === m.createdAt && p.workspace === m.workspace && p.isArchived === true && p.projectId === pid && p.lastActivityAt === m.lastActivityAt && !p.hasPendingQuestion && !p.isDraft) {
         next.set(m.id, p)
       } else {
         changed = true
@@ -135,7 +134,6 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
           lastUserMessageAt: m.lastActivityAt, // Best approximation for archived threads
           status: 'completed',
           isArchived: true,
-          originalWorkspace: m.originalWorkspace,
           hasPendingQuestion: false,
         })
       }

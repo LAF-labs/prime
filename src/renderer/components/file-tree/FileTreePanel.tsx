@@ -288,7 +288,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
   const refresh = useFileTreeStore((s) => s.refresh)
 
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId)
-  const taskWorkspace = useTaskStore((s) => selectedTaskId ? (s.tasks[selectedTaskId]?.originalWorkspace ?? s.tasks[selectedTaskId]?.workspace) : undefined)
+  const taskWorkspace = useTaskStore((s) => selectedTaskId ? s.tasks[selectedTaskId]?.workspace : undefined)
   const effectiveWorkspace = taskWorkspace ?? workspaceProp ?? ''
 
   // Load root on mount / workspace change

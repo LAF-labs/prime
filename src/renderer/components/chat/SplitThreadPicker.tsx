@@ -14,7 +14,7 @@ const PickerThreadRow = memo(function PickerThreadRow({ taskId, onSelect }: Pick
   const name = useTaskStore((s) => s.tasks[taskId]?.name ?? '')
   const workspace = useTaskStore((s) => {
     const t = s.tasks[taskId]
-    return t ? (t.originalWorkspace ?? t.workspace) : ''
+    return t ? (t.workspace) : ''
   })
   const projectNames = useTaskStore((s) => s.projectNames)
   const projectName = projectNames[workspace] ?? workspace.split('/').pop() ?? ''

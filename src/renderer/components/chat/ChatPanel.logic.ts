@@ -157,7 +157,7 @@ export function needsNewConnection(task: AgentTask): boolean {
  * Extract the project name from a workspace path (last segment).
  */
 export function extractProjectName(task: AgentTask): string {
-  return (task.originalWorkspace ?? task.workspace).replace(/\\/g, '/').split('/').pop() ?? ''
+  return (task.workspace).replace(/\\/g, '/').split('/').pop() ?? ''
 }
 
 // ── Dispatch snapshot helpers ─────────────────────────────────────

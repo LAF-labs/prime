@@ -30,7 +30,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
     const id = s.selectedTaskId
     if (id) {
       const t = s.tasks[id]
-      return t?.originalWorkspace ?? t?.workspace
+      return t?.workspace
     }
     return s.pendingWorkspace
   }) ?? null

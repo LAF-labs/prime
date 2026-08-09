@@ -54,8 +54,6 @@ interface SettingsStore {
   availableModes: ModeOption[]
   currentModeId: string | null
   activeWorkspace: string | null
-  /** Actual working directory for operations (worktree path when in a worktree thread, project root otherwise). */
-  operationalWorkspace: string | null
   availableCommands: SlashCommand[]
   liveMcpServers: LiveMcpServer[]
   agentAuth: { email: string | null; accountType: string } | null
@@ -63,7 +61,7 @@ interface SettingsStore {
   loadSettings: () => Promise<void>
   saveSettings: (settings: AppSettings) => Promise<void>
   fetchModels: (agentBin?: string) => Promise<void>
-  setActiveWorkspace: (workspace: string | null, operationalWs?: string | null) => void
+  setActiveWorkspace: (workspace: string | null) => void
   setProjectPref: (workspace: string, patch: Partial<ProjectPrefs>) => void
   /**
    * Persist a permission allow-rule (deduped). With no workspace it becomes a
@@ -114,7 +112,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   availableModes: [],
   currentModeId: null,
   activeWorkspace: null,
-  operationalWorkspace: null,
   agentAuth: null,
   authChecked: false,
   availableCommands: [],
@@ -171,20 +168,19 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  setActiveWorkspace: (workspace, operationalWs) => {
+  setActiveWorkspace: (workspace) => {
     const { settings, currentModelId } = get()
-    if (!workspace) { set({ activeWorkspace: null, operationalWorkspace: null }); return }
+    if (!workspace) { set({ activeWorkspace: null }); return }
     const prefs = settings.projectPrefs?.[workspace]
     // Resolution order: project pref → existing currentModelId → global default.
     // Falling back to defaultModel keeps the picker stable when a user opens a
     // project that has no per-project pref yet.
     const fallback = currentModelId ?? settings.defaultModel ?? null
     const newModelId = prefs?.modelId !== undefined ? prefs.modelId : fallback
-    const opWs = operationalWs ?? workspace
     // Only update if something actually changed
     const current = get()
-    if (current.activeWorkspace === workspace && current.currentModelId === newModelId && current.operationalWorkspace === opWs) return
-    set({ activeWorkspace: workspace, operationalWorkspace: opWs, currentModelId: newModelId ?? null })
+    if (current.activeWorkspace === workspace && current.currentModelId === newModelId) return
+    set({ activeWorkspace: workspace, currentModelId: newModelId ?? null })
   },
 
   setProjectPref: (workspace, patch) => {

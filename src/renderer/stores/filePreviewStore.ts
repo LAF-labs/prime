@@ -22,8 +22,8 @@ function resolveFilePath(filePath: string): string {
   // Strip leading ./ (redundant in path resolution)
   const cleaned = filePath.replace(/^\.\//, '')
 
-  // Use the operational workspace (worktree or project root) as the base
-  const workspace = useSettingsStore.getState().operationalWorkspace
+  // Use the active workspace as the base
+  const workspace = useSettingsStore.getState().activeWorkspace
     ?? useSettingsStore.getState().activeWorkspace
   if (workspace) {
     return `${workspace}/${cleaned}`

@@ -195,12 +195,12 @@ export function useKeyboardShortcuts() {
         const state = useTaskStore.getState()
         // Determine the active project workspace
         const activeWorkspace = state.selectedTaskId
-          ? (state.tasks[state.selectedTaskId]?.originalWorkspace ?? state.tasks[state.selectedTaskId]?.workspace)
+          ? state.tasks[state.selectedTaskId]?.workspace
           : state.pendingWorkspace
         if (!activeWorkspace) return
         // Get threads in this project, sorted by creation time (matches sidebar default)
         const threads = Object.values(state.tasks)
-          .filter((t) => (t.originalWorkspace ?? t.workspace) === activeWorkspace)
+          .filter((t) => (t.workspace) === activeWorkspace)
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         const jumpIdx = parseInt(key, 10) - 1
         if (jumpIdx < threads.length) {

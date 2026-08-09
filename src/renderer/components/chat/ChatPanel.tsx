@@ -177,7 +177,7 @@ async function dispatchToAgent(
   if (shouldCreateNew) {
     const { settings, currentModeId } = useSettingsStore.getState()
     const taskState = useTaskStore.getState()
-    const projectRoot = task.originalWorkspace ?? task.workspace
+    const projectRoot = task.workspace
     const projectPrefs = projectRoot ? settings.projectPrefs?.[projectRoot] : undefined
     const autoApprove = projectPrefs?.autoApprove !== undefined ? projectPrefs.autoApprove : settings.autoApprove
     const modeId = taskState.taskModes[targetTaskId] ?? currentModeId

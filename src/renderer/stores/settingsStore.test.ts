@@ -140,7 +140,7 @@ describe('settingsStore', () => {
     })
 
     it('bails out when workspace and model unchanged', () => {
-      useSettingsStore.setState({ activeWorkspace: '/ws', currentModelId: 'claude-4', operationalWorkspace: '/ws' })
+      useSettingsStore.setState({ activeWorkspace: '/ws', currentModelId: 'claude-4' })
       useSettingsStore.setState({
         settings: {
           ...defaultState.settings,
@@ -148,36 +148,22 @@ describe('settingsStore', () => {
         },
       })
       // Should not throw or cause issues
-      useSettingsStore.getState().setActiveWorkspace('/ws', '/ws')
+      useSettingsStore.getState().setActiveWorkspace('/ws')
       expect(useSettingsStore.getState().activeWorkspace).toBe('/ws')
     })
 
-    it('sets operationalWorkspace to workspace when not provided', () => {
+    it('clears the workspace when passed null', () => {
       useSettingsStore.getState().setActiveWorkspace('/project')
-      expect(useSettingsStore.getState().activeWorkspace).toBe('/project')
-      expect(useSettingsStore.getState().operationalWorkspace).toBe('/project')
-    })
-
-    it('sets operationalWorkspace to worktree path when provided', () => {
-      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.laf-agent/worktrees/feat')
-      expect(useSettingsStore.getState().activeWorkspace).toBe('/project')
-      expect(useSettingsStore.getState().operationalWorkspace).toBe('/project/.laf-agent/worktrees/feat')
-    })
-
-    it('clears operationalWorkspace when workspace is null', () => {
-      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.laf-agent/worktrees/feat')
       useSettingsStore.getState().setActiveWorkspace(null)
       expect(useSettingsStore.getState().activeWorkspace).toBeNull()
-      expect(useSettingsStore.getState().operationalWorkspace).toBeNull()
     })
 
-    it('bails out when all three fields unchanged', () => {
-      useSettingsStore.setState({ activeWorkspace: '/project', operationalWorkspace: '/project/.laf-agent/worktrees/feat', currentModelId: null })
+    it('bails out when workspace and model are both unchanged', () => {
+      useSettingsStore.setState({ activeWorkspace: '/project', currentModelId: null })
       const stateBefore = useSettingsStore.getState()
-      useSettingsStore.getState().setActiveWorkspace('/project', '/project/.laf-agent/worktrees/feat')
+      useSettingsStore.getState().setActiveWorkspace('/project')
       // State reference should be the same (no unnecessary re-render)
       expect(useSettingsStore.getState().activeWorkspace).toBe(stateBefore.activeWorkspace)
-      expect(useSettingsStore.getState().operationalWorkspace).toBe(stateBefore.operationalWorkspace)
     })
   })
 

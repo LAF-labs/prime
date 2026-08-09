@@ -54,7 +54,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
   const panelWorkspace = useTaskStore((s) => {
     if (!resolvedTaskId) return null
     const task = s.tasks[resolvedTaskId]
-    return task ? (task.originalWorkspace ?? task.workspace) : null
+    return task ? (task.workspace) : null
   })
   // Select the narrow fields that feed the mode, keeping Object.is bail-out.
   const globalMode = useSettingsStore((s) => s.settings.permissionMode)

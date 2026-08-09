@@ -817,7 +817,7 @@ export const ko: Record<string, string> = {
 
 
   // ── i18n wave: palette, git menu, settings nav/search, onboarding,
-  //    provider flow, icon picker, worktree cleanup, a11y labels ──────
+  //    provider flow, icon picker, a11y labels ──────────────────────
   'Slash command': '슬래시 명령',
   'archived': '보관됨',
   'navigate': '이동',

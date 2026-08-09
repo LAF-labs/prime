@@ -138,14 +138,12 @@ describe('saveThreads', () => {
   it('persists project metadata when present', async () => {
     const tasks: Record<string, AgentTask> = {
       't1': {
-        id: 't1', name: 'WT Task', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
+        id: 't1', name: 'Nested Task', workspace: '/ws/sub/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-        originalWorkspace: '/ws',
       },
     }
     await saveThreads(tasks, {})
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
-    expect(savedThreads[0].originalWorkspace).toBe('/ws')
   })
 
   it('groups threads by workspace into projects', async () => {
@@ -196,12 +194,10 @@ describe('toArchivedTasks', () => {
 
   it('preserves project metadata', () => {
     const saved = [{
-      id: 't1', name: 'WT Thread', workspace: '/ws/.laf-agent/worktrees/feat',
+      id: 't1', name: 'Nested Thread', workspace: '/ws/sub/feat',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      originalWorkspace: '/ws',
     }]
     const actual = toArchivedTasks(saved)
-    expect(actual[0].originalWorkspace).toBe('/ws')
   })
 })
 
@@ -249,10 +245,9 @@ describe('projectId persistence', () => {
   it('saveThreads persists projectId when present', async () => {
     const tasks: Record<string, AgentTask> = {
       't1': {
-        id: 't1', name: 'WT Task', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
+        id: 't1', name: 'Nested Task', workspace: '/ws/sub/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
         projectId: '/ws',
-        originalWorkspace: '/ws',
       },
     }
     await saveThreads(tasks, {})
@@ -272,33 +267,11 @@ describe('projectId persistence', () => {
     expect(savedThreads[0]).not.toHaveProperty('projectId')
   })
 
-  it('saveThreads groups worktree threads under originalWorkspace for projects', async () => {
-    const tasks: Record<string, AgentTask> = {
-      't1': {
-        id: 't1', name: 'Regular', workspace: '/ws', status: 'paused',
-        createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      },
-      't2': {
-        id: 't2', name: 'Worktree', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
-        createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-        originalWorkspace: '/ws',
-      },
-    }
-    await saveThreads(tasks, {})
-    const projects = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'projects')?.[1]
-    // Both threads should be grouped under /ws, not /ws/.laf-agent/worktrees/feat
-    expect(projects).toHaveLength(1)
-    expect(projects[0].workspace).toBe('/ws')
-    expect(projects[0].threadIds).toContain('t1')
-    expect(projects[0].threadIds).toContain('t2')
-  })
-
   it('toArchivedTasks restores projectId', () => {
     const saved = [{
-      id: 't1', name: 'WT Thread', workspace: '/ws/.laf-agent/worktrees/feat',
+      id: 't1', name: 'Nested Thread', workspace: '/ws/sub/feat',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
       projectId: '/ws',
-      originalWorkspace: '/ws',
     }]
     const actual = toArchivedTasks(saved)
     expect(actual[0].projectId).toBe('/ws')
@@ -348,15 +321,13 @@ describe('createBackup', () => {
 
   it('preserves project fields in backup', async () => {
     const threads = [{
-      id: 't1', name: 'WT', workspace: '/ws/.laf-agent/worktrees/feat', createdAt: '',
+      id: 't1', name: 'Nested', workspace: '/ws/sub/feat', createdAt: '',
       messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      originalWorkspace: '/ws',
       projectId: '/ws',
     }]
     mockGet.mockImplementation((key: string) => key === 'threads' ? Promise.resolve(threads) : Promise.resolve([]))
     await createBackup()
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
-    expect(savedThreads[0].originalWorkspace).toBe('/ws')
     expect(savedThreads[0].projectId).toBe('/ws')
   })
 })

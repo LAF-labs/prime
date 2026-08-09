@@ -136,8 +136,6 @@ export interface AgentTask {
    *  next send spawns a fresh subprocess (stateless resumption)
    *  and the historical transcript is replayed as preamble context. */
   isArchived?: boolean
-  /** Original workspace path before worktree was created */
-  originalWorkspace?: string
   /** Canonical project workspace path — threads always group under this */
   projectId?: string
   /** True for restored threads whose backend connection was destroyed */

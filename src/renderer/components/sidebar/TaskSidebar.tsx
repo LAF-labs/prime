@@ -437,7 +437,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
     if (s.selectedTaskId) {
       const task = s.tasks[s.selectedTaskId]
       if (!task) return null
-      return task.originalWorkspace ?? task.workspace
+      return task.workspace
     }
     return s.pendingWorkspace
   })
@@ -498,7 +498,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
     } else {
       // removeTask soft-deletes through the store, which cancels the agent,
       // deletes the backend task, and raises the undo toast. Calling
-      // ipc.deleteTask here as well would fire even when the worktree-cleanup
+      // ipc.deleteTask here as well would fire even when the cleanup
       // dialog defers (or the user cancels) the delete.
       removeTask(id)
     }

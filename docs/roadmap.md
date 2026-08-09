@@ -9,8 +9,11 @@ later; Apple signing/notarization happens at the end, done by the maintainer;
 nothing subscription/billing-shaped is implemented (open-source distribution —
 extensibility is considered, features are not built).
 
-> **Shipped since this was written:** the git/worktree feature removal landed
-> (commit `aa3876e`) — the app is now a non-developer everyday agent.
+> **Shipped since this was written:** every git feature is gone — worktrees and
+> the git panel first (`aa3876e`), then turn checkpoints, file-tree git status,
+> and the `git2` crate itself (`cdac8b4`). Sections below that describe git
+> branches, worktrees, or checkpoint retention are historical record, not
+> pending work. The app is now a non-developer everyday agent.
 
 ## Phase 1 — Finish the durability and lifecycle leftovers
 

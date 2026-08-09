@@ -178,11 +178,6 @@ describe('extractProjectName', () => {
     expect(extractProjectName(task)).toBe('my-project')
   })
 
-  it('prefers originalWorkspace', () => {
-    const task = makeTask({ workspace: '/worktree/branch', originalWorkspace: '/home/user/real-project' })
-    expect(extractProjectName(task)).toBe('real-project')
-  })
-
   it('handles Windows paths', () => {
     const task = makeTask({ workspace: 'C:\\Users\\dev\\project' })
     expect(extractProjectName(task)).toBe('project')

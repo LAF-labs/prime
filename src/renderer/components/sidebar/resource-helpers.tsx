@@ -47,11 +47,11 @@ type StackMeta = { icon: ElementType; color: string }
 
 export const getRoleIcon = (name: string): { icon: ElementType; color: string } => {
   const n = name.toLowerCase()
-  if (n.includes('orchestrator'))  return { icon: IconGitBranch,  color: 'text-blue-600 dark:text-blue-400' }
-  if (n.includes('workflow'))      return { icon: IconGitBranch,  color: 'text-blue-600 dark:text-blue-400' }
+  if (n.includes('orchestrator'))  return { icon: IconGitBranch,  color: 'text-primary' }
+  if (n.includes('workflow'))      return { icon: IconGitBranch,  color: 'text-primary' }
   if (n.includes('automation'))    return { icon: IconFlask,      color: 'text-amber-600 dark:text-amber-400' }
   if (n.includes('code-review'))   return { icon: IconShield,     color: 'text-rose-600 dark:text-rose-400' }
-  if (n.includes('documentation')) return { icon: IconBook,       color: 'text-blue-600 dark:text-blue-400' }
+  if (n.includes('documentation')) return { icon: IconBook,       color: 'text-primary' }
   if (n.includes('senior'))        return { icon: IconPalette,    color: 'text-teal-600 dark:text-teal-400' }
   if (n.includes('expert'))        return { icon: IconRocket,     color: 'text-amber-600 dark:text-amber-300' }
   return { icon: IconRobot, color: 'text-muted-foreground/70' }
@@ -70,11 +70,11 @@ export const STACK_META: Record<string, StackMeta> = {
   nextjs:             { icon: IconBrandNextjs,     color: 'text-foreground/85' },
   laravel:            { icon: IconBrandLaravel,    color: 'text-red-600 dark:text-red-400' },
   magento:            { icon: IconBoxMultiple,     color: 'text-orange-600 dark:text-orange-400' },
-  strapi:             { icon: IconDatabase,        color: 'text-indigo-600 dark:text-indigo-400' },
-  'expo-react-native':{ icon: IconBrandReactNative,color: 'text-cyan-600 dark:text-cyan-400' },
+  strapi:             { icon: IconDatabase,        color: 'text-primary' },
+  'expo-react-native':{ icon: IconBrandReactNative,color: 'text-primary' },
   express:            { icon: IconStack2,          color: 'text-green-600 dark:text-green-400' },
   nodejs:             { icon: IconBrandNodejs,     color: 'text-emerald-600 dark:text-emerald-400' },
-  devops:             { icon: IconBrandDocker,     color: 'text-sky-600 dark:text-sky-400' },
+  devops:             { icon: IconBrandDocker,     color: 'text-primary' },
   python:             { icon: IconBrandPython,     color: 'text-yellow-600 dark:text-yellow-400' },
   swiftui:            { icon: IconBrandSwift,      color: 'text-orange-300' },
   mumzworld:          { icon: IconWorld,           color: 'text-pink-600 dark:text-pink-400' },

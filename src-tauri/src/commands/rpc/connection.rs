@@ -968,17 +968,12 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
             }));
         }
         "goal_update" => {
-            let _ = app.emit("goal_update", json!({ "taskId": tid, "goal": event.get("goal") }));
+            // No goal UI exists — nothing in the renderer listens for this.
+            // Surfaced only in the debug panel (below); acknowledged, not lost.
         }
         "rlm_child_update" => {
-            // prime-agent's RLM subagents map onto the existing subagent panel.
-            if let Some(child) = event.get("child") {
-                let _ = app.emit("subagent_update", json!({
-                    "taskId": tid,
-                    "subagents": [child],
-                    "pendingStages": Value::Array(vec![]),
-                }));
-            }
+            // No subagent panel exists anymore — nothing in the renderer
+            // listens for this. Surfaced only in the debug panel (below).
         }
         "session_info_changed" => {
             if let Some(name) = event.get("name").and_then(|v| v.as_str()) {

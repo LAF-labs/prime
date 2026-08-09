@@ -8,7 +8,7 @@ import { useResourceStore } from '@/stores/resourceStore'
 import { useTaskStore } from './taskStore'
 import type { TaskStore } from './task-store-types'
 import { t as msg } from '@/lib/i18n'
-import { attempt } from '@/lib/ipc-report'
+import { attempt, reportFailure } from '@/lib/ipc-report'
 import { record } from '@/lib/analytics-collector'
 import { consumeTurnClaim, releaseTurn } from '@/lib/turn-ownership'
 import { syncPlanEnforcement } from '@/lib/plan-enforcement'
@@ -474,7 +474,14 @@ export function initTaskListeners(): () => void {
           if (lastUserMsg) {
             useTaskStore.getState().upsertTask({ ...task, status: 'running' })
             useTaskStore.getState().clearTurn(taskId)
-            ipc.sendMessage(taskId, lastUserMsg.content)
+            // If the resend rejects, the thread would sit on 'running' until
+            // the watchdog: restore it to paused and tell the user.
+            ipc.sendMessage(taskId, lastUserMsg.content).catch((err) => {
+              const current = useTaskStore.getState().tasks[taskId]
+              if (current) useTaskStore.getState().upsertTask({ ...current, status: 'paused' })
+              useTaskStore.getState().setDispatchSnapshot(taskId, null)
+              reportFailure(msg('Could not retry the message'), err)
+            })
             return // skip notification and queue processing — we're retrying
           }
         }
@@ -839,9 +846,17 @@ export function initTaskListeners(): () => void {
     if (current) useTaskStore.getState().setThinkingLevel(taskId, current)
   })
 
+  const unsub17 = ipc.onSessionNameChanged(({ taskId, name }) => {
+    // `/name` (and agent-initiated renames) only reported "Session renamed"
+    // before — the sidebar kept the stale client-side name forever.
+    if (!name) return
+    const task = useTaskStore.getState().tasks[taskId]
+    if (task && task.name !== name) useTaskStore.getState().renameTask(taskId, name)
+  })
+
   return () => {
     clearInterval(watchdogInterval)
     unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12()
-    unsub13(); unsub14(); unsub15(); unsub16()
+    unsub13(); unsub14(); unsub15(); unsub16(); unsub17()
   }
 }

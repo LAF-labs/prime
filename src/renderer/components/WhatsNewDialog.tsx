@@ -39,7 +39,7 @@ export const WhatsNewDialog = ({ open, entry, onDismiss }: WhatsNewDialogProps) 
             <img src={defaultAppIcon} alt="LAF Agent" width={36} height={36} className="rounded-lg" />
           </div>
           <div className="min-w-0 pt-0.5">
-            <DialogTitle className="text-xl font-semibold">What&apos;s New</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">{t("What's New")}</DialogTitle>
             <DialogDescription className="mt-1 text-sm text-muted-foreground">v{entry.version}</DialogDescription>
           </div>
           <button

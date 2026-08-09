@@ -9,7 +9,7 @@ export const ModelPopularityChart = ({ events }: { events: AnalyticsEvent[] }) =
   const data = useMemo(() => computeModelPopularity(events), [events])
   return (
     <ChartCard title={t('Model popularity')}>
-      <HorizontalBarSection data={data} fill="#8b5cf6" emptyMessage="No model data yet" />
+      <HorizontalBarSection data={data} fill="var(--chart-5)" emptyMessage={t('No model data yet')} />
     </ChartCard>
   )
 }

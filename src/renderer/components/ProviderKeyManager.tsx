@@ -139,7 +139,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                   <p className="truncate text-[12px] font-medium text-foreground">
                     {findProvider(p.name)?.label ?? p.name}
                   </p>
-                  <p className="truncate text-[10px] text-muted-foreground">
+                  <p className="truncate text-[11px] text-muted-foreground">
                     {p.isCustom
                       ? `${p.baseUrl ?? ''} · ${t('{count} models', { count: p.modelCount })}`
                       : p.kind === 'oauth' ? 'OAuth' : t('API key')}
@@ -210,7 +210,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                   onChange={(e) => setEndpointQuery(e.target.value)}
                   placeholder={t('Search providers (DeepSeek, MiniMax, Groq, Ollama…)')}
                   aria-label={t('Search providers (DeepSeek, MiniMax, Groq, Ollama…)')}
-                  className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring"
+                  className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
                 />
               </div>
               <div className="grid max-h-40 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
@@ -238,7 +238,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
                 onChange={(e) => setCustomBaseUrl(e.target.value)}
                 placeholder="https://api.example.com/v1"
                 aria-label={t('OpenAI-compatible base URL')}
-                className="h-10 rounded-lg border border-border bg-background px-3 font-mono text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring"
+                className="h-10 rounded-lg border border-border bg-background px-3 font-mono text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
               />
             </>
           )}
@@ -250,7 +250,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
               onKeyDown={(e) => { if (e.key === 'Enter') handleConnect() }}
               placeholder={activePlaceholder}
               aria-label={t('API key')}
-              className="h-10 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring"
+              className="h-10 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-[12px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
             />
             <button
               type="button"

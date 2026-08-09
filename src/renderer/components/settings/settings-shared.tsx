@@ -24,7 +24,7 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 
 export const NAV: { id: Section; label: string; icon: typeof IconSettings2; description: string; sectionDescription: string; group: NavGroup }[] = [
   { id: 'account', label: 'Providers', icon: IconUser, description: 'API keys, endpoints', sectionDescription: 'Add API keys for the AI providers you use. Custom OpenAI-compatible endpoints are supported.', group: 'account' },
-  { id: 'general', label: 'General', icon: IconSettings2, description: 'CLI path, model, workspace', sectionDescription: 'Configure the CLI, default model, and workspace behavior.', group: 'settings' },
+  { id: 'general', label: 'General', icon: IconSettings2, description: 'Model, workspace, notifications', sectionDescription: 'Choose the default model and how the agent behaves in your folders.', group: 'settings' },
   { id: 'permissions', label: 'Permissions', icon: IconShieldLock, description: 'Modes and allow-rules', sectionDescription: 'Choose how tool calls are approved, and manage always-allow rules.', group: 'settings' },
   { id: 'appearance', label: 'Appearance', icon: IconPaint, description: 'Theme, language, layout', sectionDescription: 'Customize the look and feel of LAF Agent.', group: 'settings' },
   { id: 'keymap', label: 'Keyboard', icon: IconKeyboard, description: 'Shortcuts reference', sectionDescription: 'View all available keyboard shortcuts.', group: 'settings' },
@@ -43,11 +43,11 @@ export interface SearchableItem {
 }
 
 export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
-  { label: 'prime-agent path', description: 'Path to the prime-agent binary', section: 'general', keywords: 'cli binary connection detect' },
+  { label: 'Agent connection', description: 'Where the agent runs from', section: 'general', keywords: 'cli binary connection detect path prime-agent' },
   { label: 'Default model', description: 'Choose the default AI model', section: 'general', keywords: 'model ai llm' },
   { label: 'Permission mode', description: 'Ask, accept edits, or auto-run tool calls', section: 'permissions', keywords: 'permissions approve tools ask accept edits auto mode auto-approve' },
   { label: 'Allow rules', description: 'Always-allow rules for tools and commands', section: 'permissions', keywords: 'permissions allow rules always tool command glob whitelist' },
-  { label: 'Respect .gitignore', description: 'Hide gitignored files from @ mentions', section: 'general', keywords: 'gitignore files mentions' },
+  { label: 'Hide ignored files', description: 'Keep files your project excludes out of @ mentions', section: 'general', keywords: 'gitignore ignored files mentions' },
   { label: 'Tight sandbox', description: 'Restrict the agent to the project directory', section: 'general', keywords: 'sandbox restrict agent directory' },
   { label: 'Desktop notifications', description: 'Notify when the agent finishes or needs approval', section: 'general', keywords: 'notifications alert sound' },
   { label: 'Notification sound', description: 'Play a chime when a notification is sent', section: 'general', keywords: 'sound chime audio' },
@@ -95,7 +95,7 @@ export const SettingRow = memo(function SettingRow({ label, description, childre
 })
 
 export const SectionLabel = ({ title }: { title: string }) => (
-  <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
 )
 
 export const SectionHeader = ({ section }: { section: Section }) => {
@@ -130,7 +130,7 @@ export const SettingsGrid = ({ label, description, children }: { label: string; 
   <div className="grid grid-cols-[200px_1fr] gap-6">
     <div className="pt-1">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      {description && <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground/60">{description}</p>}
+      {description && <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/60">{description}</p>}
     </div>
     <div>{children}</div>
   </div>

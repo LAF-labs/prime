@@ -62,14 +62,25 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Vite's dynamic-import preload helper is shared by every chunk
+          // that calls import(). Without an explicit home, rolldown folds it
+          // into one of the manual buckets below, which drags that entire
+          // chunk into the entry's static import graph — this is how a
+          // 290 kB vendor-diffs (and later a 637 kB vendor-terminal) ended
+          // up modulepreloaded at startup. Pin it to its own tiny chunk.
+          if (id.includes("vite/preload-helper")) return "preload-helper";
           if (id.includes("material-icons.json")) return "material-icons";
-          if (id.includes("@pierre") || id.includes("node_modules/diff/")) return "vendor-diffs";
+          // No manual bucket for @pierre/diffs, shiki, or the react-markdown
+          // stack: all are only ever imported dynamically (chatHighlighter,
+          // lazy ChatMarkdown/MarkdownViewer), so rolldown already gives them
+          // shared lazy chunks. A shiki bucket merged ~300 per-language
+          // grammar chunks into one 9 MB chunk loaded at startup, and a
+          // markdown bucket captured react/jsx-runtime (an entry dependency),
+          // pulling the whole parser stack into the startup preload list.
           if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) return "vendor-react";
-          if (id.includes("react-markdown") || id.includes("remark") || id.includes("rehype") || id.includes("unified") || id.includes("mdast") || id.includes("hast") || id.includes("micromark")) return "vendor-markdown";
-          if (id.includes("node_modules/shiki") || id.includes("@shikijs/")) return "vendor-shiki";
           if (id.includes("ghostty-web")) return "vendor-terminal";
           if (id.includes("@tauri-apps")) return "vendor-tauri";
-          if (id.includes("@tabler/icons") || id.includes("lucide")) return "vendor-icons";
+          if (id.includes("@tabler/icons")) return "vendor-icons";
         },
       },
     },

@@ -296,8 +296,10 @@ impl ThreadDatabase {
     /// Open or create the thread database at the default location.
     /// Falls back to an in-memory database if the file-based DB cannot be opened.
     ///
-    /// Note: this method tracks whether the fallback path was taken so callers
-    /// can surface a warning to the user.
+    /// Known limitation: the fallback is signalled only via `log::error!` —
+    /// callers cannot tell a degraded (in-memory, nothing survives quit)
+    /// database from a healthy one. Surfacing that state to the user would
+    /// need a flag or event plus a renderer banner.
     pub fn open() -> Self {
         match Self::try_open_file() {
             Ok(db) => db,
@@ -1366,7 +1368,7 @@ mod tests {
         let mk = |i: usize, content: &str| DbMessage {
             id: 0,
             thread_id: "trunc-1".into(),
-            role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
+            role: if i.is_multiple_of(2) { "user" } else { "assistant" }.into(),
             content: content.into(),
             timestamp: format!("2024-01-01T00:00:{:02}Z", i + 1),
             thinking: None,

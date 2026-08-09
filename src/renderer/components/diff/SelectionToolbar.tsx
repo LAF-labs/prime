@@ -183,7 +183,7 @@ export const SelectionToolbar = memo(function SelectionToolbar({ containerRef, w
             <IconMessagePlus className="size-3.5 shrink-0" strokeWidth={1.75} />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-[11px]">{t('New thread')}</TooltipContent>
+        <TooltipContent side="bottom" className="text-[11px]">{t('New chat')}</TooltipContent>
       </Tooltip>
     </div>,
     document.body

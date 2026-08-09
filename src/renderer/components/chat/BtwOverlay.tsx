@@ -4,6 +4,7 @@ import { IconMessageCircleQuestion, IconX, IconCheck } from '@tabler/icons-react
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
+import { attempt } from '@/lib/ipc-report'
 import ChatMarkdown from './ChatMarkdown'
 import { PermissionBanner } from './PermissionBanner'
 import { parseReport, stripReport } from './TaskCompletionCard'
@@ -58,7 +59,9 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
     if (opt?.kind === 'allow_always') {
       useSettingsStore.getState().addPermissionRule({ tool: pendingPermission.toolName })
     }
-    ipc.selectPermissionOption(resolvedTaskId, pendingPermission.requestId, optionId).catch(() => {})
+    // A swallowed failure here leaves the permission banner up forever with
+    // no feedback — the user must learn the decision never reached the agent.
+    attempt(t('Could not answer the permission request'), ipc.selectPermissionOption(resolvedTaskId, pendingPermission.requestId, optionId))
   }, [resolvedTaskId, pendingPermission])
 
   // Escape key dismisses
@@ -151,7 +154,12 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
         {/* Footer hint */}
         <div className="shrink-0 border-t border-border/30 px-4 py-1.5">
           <span className="text-[11px] text-muted-foreground/60">
-            {t('Press')} <kbd className="rounded-sm bg-muted px-1 py-0.5 text-[10px] font-mono">{t('Esc')}</kbd> to dismiss
+            {/* One interpolated key so the Korean word order works. */}
+            {t('Press {key} to dismiss').split('{key}').map((part, i) =>
+              i === 0
+                ? <span key="before">{part}</span>
+                : [<kbd key="kbd" className="rounded-sm bg-muted px-1 py-0.5 text-[11px] font-mono">{t('Esc')}</kbd>, <span key="after">{part}</span>],
+            )}
           </span>
         </div>
       </div>

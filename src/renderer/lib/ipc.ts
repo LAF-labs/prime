@@ -73,7 +73,7 @@ const tauriListen = <T>(event: string, cb: (payload: T) => void): UnsubscribeFn 
 }
 
 export const ipc = {
-  createTask: (params: { name: string; workspace: string; prompt: string; autoApprove?: boolean; modeId?: string; modelId?: string; attachments?: IpcAttachment[]; existingId?: string; existingMessages?: Array<{ role: string; content: string; timestamp: string; thinking?: string; toolCalls?: ToolCall[] }>; deferSpawn?: boolean; sessionFile?: string }): Promise<AgentTask> =>
+  createTask: (params: { name: string; workspace: string; prompt: string; autoApprove?: boolean; modeId?: string; modelId?: string; attachments?: IpcAttachment[]; existingId?: string; existingMessages?: Array<{ role: string; content: string; timestamp: string; thinking?: string; toolCalls?: ToolCall[] }>; sessionFile?: string }): Promise<AgentTask> =>
     invoke('task_create', { params }),
   listTasks: (): Promise<AgentTask[]> =>
     invoke('task_list'),
@@ -273,12 +273,8 @@ export const ipc = {
     invoke('auth_set_api_key', { provider, key }),
   authListProviders: (): Promise<Array<{ name: string; kind: string; isCustom: boolean; baseUrl?: string | null; modelCount: number }>> =>
     invoke('auth_list_providers'),
-  kernelStatus: (): Promise<{ ready: boolean; venvPath: string; hasUv: boolean }> =>
-    invoke('kernel_status'),
-  kernelSetup: (): Promise<void> =>
-    invoke('kernel_setup'),
-  onKernelSetupProgress: (cb: (data: { line: string }) => void): UnsubscribeFn =>
-    tauriListen('kernel_setup_progress', cb),
+  // (kernel_status / kernel_setup wrappers removed: the agent runs without
+  // ipython, so there is no Python kernel to provision — see OnboardingSetupStep.)
   repairCustomProviders: (): Promise<number> =>
     invoke('repair_custom_providers'),
   authSetCustomProvider: (name: string, baseUrl: string, apiKey: string, modelIds: string[], api?: 'openai-completions' | 'openai-responses'): Promise<void> =>
@@ -287,8 +283,6 @@ export const ipc = {
     invoke('provider_discover_models', { provider: args.provider ?? null, baseUrl: args.baseUrl ?? null, apiKey: args.apiKey }),
   authRemoveProvider: (provider: string): Promise<void> =>
     invoke('auth_remove_provider', { provider }),
-  openTerminalWithCommand: (command: string): Promise<void> =>
-    invoke('open_terminal_with_command', { command }),
   // Relaunch
   setRelaunchFlag: (): Promise<void> =>
     invoke('set_relaunch_flag'),
@@ -337,8 +331,12 @@ export const ipc = {
     tauriListen('commands_update', cb),
   onTaskError: (cb: (data: TaskErrorPayload) => void): UnsubscribeFn =>
     tauriListen('task_error', cb),
-  onSubagentUpdate: (cb: (data: { taskId: string; subagents: unknown[]; pendingStages: unknown[] }) => void): UnsubscribeFn =>
-    tauriListen('subagent_update', cb),
+  // (onSubagentUpdate removed: no renderer code ever subscribed — SubagentDisplay
+  // derives everything from tool calls. The Rust emit still exists; drop it when
+  // touching src-tauri to keep the surface symmetric.)
+  /** `/name` or an agent-initiated rename — keep the sidebar title in sync. */
+  onSessionNameChanged: (cb: (data: { taskId: string; name: string }) => void): UnsubscribeFn =>
+    tauriListen('session_name_changed', cb),
   onCompactionStatus: (cb: (data: { taskId: string; status: string; summary: unknown }) => void): UnsubscribeFn =>
     tauriListen('compaction_status', cb),
   onRefineStatus: (cb: (data: { taskId: string; status: 'completed' | 'failed'; appliedCount?: number; error?: string }) => void): UnsubscribeFn =>
@@ -352,14 +350,6 @@ export const ipc = {
     tauriListen('editors-updated', cb),
   onAgentResourcesChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>
     tauriListen('agent-resources-changed', cb),
-
-  // ── Markdown parsing (replaces react-markdown for assistant messages) ───────
-  parseMarkdown: (text: string): Promise<import('@/types/markdown').ParsedMarkdown> =>
-    invoke('parse_markdown', { text }),
-
-  // ── Fuzzy match (replaces fuzzy-search.ts) ──────────────────────────────────
-  fuzzyMatch: (query: string, candidates: Array<{ id: string; text: string; secondary?: string }>, limit?: number): Promise<Array<{ id: string; score: number; indices: number[]; secondaryMatched: boolean }>> =>
-    invoke('fuzzy_match', { query, candidates, limit }),
 
   // ── Analytics aggregations (server-side rollups) ────────────────────────────
   analyticsCodingHoursByDay: (since?: number): Promise<Array<{ day: string; value: number; value2?: number }>> =>

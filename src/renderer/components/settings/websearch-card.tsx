@@ -29,7 +29,7 @@ export const WebSearchCard = memo(function WebSearchCard() {
           </div>
 
           <div className="flex items-start gap-2.5">
-            <IconFileText size={15} className="mt-0.5 shrink-0 text-sky-600 dark:text-sky-400" />
+            <IconFileText size={15} className="mt-0.5 shrink-0 text-primary" />
             <div>
               <p className="text-[12px] font-medium text-foreground">{t('Page reading on every model')}</p>
               <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{t('The web_fetch tool retrieves any URL as readable text. It works with every provider and needs no key.')}</p>

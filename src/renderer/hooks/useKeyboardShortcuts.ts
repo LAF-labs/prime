@@ -4,6 +4,8 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useDebugStore } from '@/stores/debugStore'
 import { ipc } from '@/lib/ipc'
+import { attempt } from '@/lib/ipc-report'
+import { t } from '@/lib/i18n'
 
 /**
  * Returns a flat, ordered list of all thread IDs across all projects.
@@ -49,7 +51,7 @@ export function useKeyboardShortcuts() {
         const task = id ? state.tasks[id] : null
         if (task?.status === 'running') {
           e.preventDefault()
-          ipc.pauseTask(task.id)
+          attempt(t('Could not pause the agent'), ipc.pauseTask(task.id))
           state.clearTurn(task.id)
           return
         }
@@ -140,9 +142,11 @@ export function useKeyboardShortcuts() {
         const state = useTaskStore.getState()
         const taskId = state.selectedTaskId
         if (taskId) {
+          // Cancel stays fire-and-forget by doctrine; the delete is the
+          // user-visible action and must report failure.
           void ipc.cancelTask(taskId).catch(() => {})
           state.removeTask(taskId)
-          void ipc.deleteTask(taskId)
+          attempt(t('Could not delete the chat'), ipc.deleteTask(taskId))
         } else if (state.pendingWorkspace) {
           state.setPendingWorkspace(null)
         }

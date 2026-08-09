@@ -177,7 +177,7 @@ export const QuestionCards = memo(function QuestionCards({
                   type="button"
                   onClick={() => setPage(i)}
                   className={cn(
-                    "flex size-5 items-center justify-center rounded-full text-[10px] font-bold transition-all",
+                    "flex size-5 items-center justify-center rounded-full text-[11px] font-bold transition-all",
                     isCurrent
                       ? "bg-primary text-primary-foreground scale-110"
                       : isAnswered
@@ -281,7 +281,7 @@ export const QuestionCards = memo(function QuestionCards({
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
           >
             {t('Dismiss')}
-            <kbd className="rounded-sm bg-muted/40 px-1 py-0.5 text-[10px] font-medium">
+            <kbd className="rounded-sm bg-muted/40 px-1 py-0.5 text-[11px] font-medium">
               esc
             </kbd>
           </button>

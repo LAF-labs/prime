@@ -53,7 +53,7 @@ impl AnalyticsState {
         }
         let dir = app.path()
             .app_data_dir()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         std::fs::create_dir_all(&dir)?;
         let path = dir.join("analytics.redb");
         let _ = self.db_path.set(path.clone());
@@ -67,13 +67,13 @@ impl AnalyticsState {
         }
         let path = self.resolve_path(app)?;
         let db = Database::create(&path)
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         // Ensure table exists
         let txn = db.begin_write()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         { let _ = txn.open_table(TABLE); }
         txn.commit()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         *guard = Some(db);
         Ok(())
     }
@@ -85,7 +85,7 @@ impl AnalyticsState {
         self.open_db(app)?;
         let guard = self.db.lock();
         let db = guard.as_ref().ok_or_else(|| {
-            AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, "db not open"))
+            AppError::Io(std::io::Error::other("db not open"))
         })?;
         f(db)
     }
@@ -141,10 +141,10 @@ pub async fn analytics_save(
     run_blocking(app, move |app, state| {
         state.with_db(app, |db| {
             let txn = db.begin_write()
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             {
                 let mut table = txn.open_table(TABLE)
-                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                    .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
                 for event in &events {
                     let bytes = serde_json::to_vec(event)?;
                     // Combine timestamp with atomic counter for guaranteed unique keys.
@@ -152,11 +152,11 @@ pub async fn analytics_save(
                     let seq = state.counter.fetch_add(1, Ordering::Relaxed);
                     let key = event_key(event.ts, seq);
                     table.insert(key, bytes.as_slice())
-                        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
                 }
             }
             txn.commit()
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             Ok(())
         })
     })
@@ -171,20 +171,20 @@ pub async fn analytics_load(
     run_blocking(app, move |app, state| {
         state.with_db(app, |db| {
             let txn = db.begin_read()
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             let table = txn.open_table(TABLE)
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             let mut results = Vec::new();
             let start_key = since.map(range_start_key).unwrap_or(0);
             let iter = table.range(start_key..u64::MAX)
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             // Newest first: keys ascend with time, so an ascending scan capped at
             // MAX_LOAD_EVENTS kept the *oldest* events — after a few weeks of
             // heavy use every dashboard silently froze in the past. Walk backwards
             // instead, then restore chronological order for the aggregators.
             for entry in iter.rev() {
                 let (_, val) = entry
-                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                    .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
                 if let Ok(event) = serde_json::from_slice::<AnalyticsEvent>(val.value()) {
                     results.push(event);
                     if results.len() >= MAX_LOAD_EVENTS { break; }
@@ -216,17 +216,17 @@ pub async fn analytics_prune(
     run_blocking(app, move |app, state| {
         state.with_db(app, |db| {
             let txn = db.begin_write()
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             let removed;
             {
                 let mut table = txn.open_table(TABLE)
-                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                    .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
                 let drained = table.extract_from_if(..cutoff_key, |_, _| true)
-                    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                    .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
                 removed = drained.count() as u64;
             }
             txn.commit()
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             Ok(removed)
         })
     })
@@ -249,12 +249,12 @@ pub async fn analytics_clear(app: tauri::AppHandle) -> Result<(), AppError> {
         }
         // Reopen fresh, inline (open_db would re-lock and deadlock).
         let db = Database::create(&path)
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         let txn = db.begin_write()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         { let _ = txn.open_table(TABLE); }
         txn.commit()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         *guard = Some(db);
         Ok(())
     })
@@ -536,18 +536,18 @@ fn load_events_filtered(
     state.with_db(app, |db| {
         let txn = db
             .begin_read()
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         let table = txn
             .open_table(TABLE)
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         let start_key = since.map(range_start_key).unwrap_or(0);
         let iter = table
             .range(start_key..u64::MAX)
-            .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
         let mut results = Vec::new();
         for entry in iter {
             let (_, val) = entry
-                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
             if let Ok(event) = serde_json::from_slice::<AnalyticsEvent>(val.value()) {
                 if kinds.is_empty() || kinds.iter().any(|k| *k == event.kind) {
                     results.push(event);
@@ -647,7 +647,7 @@ fn count_by_detail(events: &[AnalyticsEvent]) -> Vec<CountedDetail> {
         .into_iter()
         .map(|(detail, count)| CountedDetail { detail, count })
         .collect();
-    result.sort_by(|a, b| b.count.cmp(&a.count));
+    result.sort_by_key(|d| std::cmp::Reverse(d.count));
     result
 }
 
@@ -725,7 +725,7 @@ pub async fn analytics_project_stats(
                 project,
             })
             .collect();
-        result.sort_by(|a, b| b.messages.cmp(&a.messages));
+        result.sort_by_key(|p| std::cmp::Reverse(p.messages));
         Ok(result)
     })
     .await

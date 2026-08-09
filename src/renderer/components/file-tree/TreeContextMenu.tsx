@@ -222,14 +222,14 @@ export const TreeContextMenu = memo(function TreeContextMenu({
               item.disabled
                 ? 'text-muted-foreground/40 cursor-default'
                 : item.danger
-                  ? 'text-red-400 hover:bg-red-500/10'
+                  ? 'text-destructive hover:bg-destructive/10'
                   : 'text-foreground/80 hover:bg-accent/60',
             )}
           >
             {item.icon && <span className="shrink-0 text-muted-foreground">{item.icon}</span>}
             <span className="flex-1 text-left">{item.label}</span>
             {item.shortcut && (
-              <span className="ml-4 text-[10px] text-muted-foreground/60">{item.shortcut}</span>
+              <span className="ml-4 text-[11px] text-muted-foreground/60">{item.shortcut}</span>
             )}
           </button>
           {item.separator && <div className="my-1 h-px bg-border/50" />}

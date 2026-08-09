@@ -18,7 +18,7 @@ const KEYMAP: KeymapEntry[] = [
   { group: 'Panels', command: 'Toggle terminal', keys: `${MOD}+J` },
   { group: 'Panels', command: 'Open settings', keys: `${MOD}+,` },
   { group: 'Actions', command: 'New project', keys: `${MOD}+O` },
-  { group: 'Actions', command: 'New thread', keys: `${MOD}+N` },
+  { group: 'Actions', command: 'New chat', keys: `${MOD}+N` },
   { group: 'Actions', command: 'Close thread', keys: `${MOD}+W` },
   { group: 'Chat', command: 'Send message', keys: 'Enter' },
   { group: 'Chat', command: 'New line', keys: `${SHIFT}+Enter` },
@@ -71,7 +71,7 @@ export const KeymapSection = memo(function KeymapSection() {
             {filtered.filter((e) => e.group === group).map((entry) => (
               <div key={entry.command} className="flex items-center justify-between px-4 py-2 transition-colors hover:bg-muted/10">
                 <span className="text-[12px] text-foreground/90">{t(entry.command)}</span>
-                <span className="shrink-0 font-mono text-[10px] text-muted-foreground/70">{t(entry.keys)}</span>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground/70">{t(entry.keys)}</span>
               </div>
             ))}
           </SettingsCard>

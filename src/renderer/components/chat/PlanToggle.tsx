@@ -71,7 +71,7 @@ export const PlanToggle = memo(function PlanToggle() {
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        aria-label={`Current mode: ${t(current.labelKey)}`}
+        aria-label={t('Current mode: {mode}', { mode: t(current.labelKey) })}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(

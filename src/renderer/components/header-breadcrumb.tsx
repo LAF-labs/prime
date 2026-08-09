@@ -94,7 +94,7 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
           </TooltipTrigger>
           <TooltipContent side="bottom">
             Toggle sidebar{" "}
-            <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">
+            <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">
               {MOD_PREFIX}B
             </kbd>
           </TooltipContent>
@@ -153,7 +153,7 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
       ) : pendingWorkspace ? (
         <>
           <Sep />
-          <span className="text-[13px] text-muted-foreground">{t('New thread')}</span>
+          <span className="text-[13px] text-muted-foreground">{t('New chat')}</span>
         </>
       ) : !workspace ? (
         <>

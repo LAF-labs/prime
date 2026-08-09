@@ -112,7 +112,7 @@ const TurnChip = memo(function TurnChip({
             onClick={handleRollback}
             aria-label={t('Rollback to this turn')}
             className={cn(
-              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors',
+              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] transition-colors',
               'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60',
               confirm
                 ? 'bg-destructive/10 text-destructive'
@@ -259,7 +259,7 @@ export const AssistantTextRow = memo(function AssistantTextRow({ row }: { row: A
             </Tooltip>
           )}
           {row.durationMs != null && row.durationMs > 0 && (
-            <span className="ml-1 text-[10px] tabular-nums text-muted-foreground/40">
+            <span className="ml-1 text-[11px] tabular-nums text-muted-foreground/40">
               {formatDurationLabel(row.durationMs)}
             </span>
           )}

@@ -111,7 +111,7 @@ fn start_watcher(
     if project_path.is_some() {
         let home_agent = dirs::home_dir().map(|h| h.join(".prime").join("agent"));
         let project_count = watchers.keys()
-            .filter(|k| home_agent.as_ref().map_or(true, |g| *k != g))
+            .filter(|k| home_agent.as_ref() != Some(*k))
             .count();
         if project_count >= MAX_PROJECT_WATCHERS {
             log::warn!(
@@ -124,6 +124,9 @@ fn start_watcher(
     }
     let app_handle = app.clone();
     let project = Arc::new(project_path);
+    // The debouncer closure takes `project` by move; keep a handle for the
+    // failure paths below.
+    let project_for_events = Arc::clone(&project);
     let debouncer = new_debouncer(Duration::from_millis(500), move |result: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>| {
         let Ok(events) = result else { return };
         if !events.iter().any(|e| e.kind == DebouncedEventKind::Any) {
@@ -145,14 +148,14 @@ fn start_watcher(
             // Watch each relevant subdir non-recursively
             for subdir in WATCHED_SUBDIRS {
                 let path = agent_dir.join(subdir);
-                if path.is_dir() {
-                    if watcher.watcher().watch(&path, notify::RecursiveMode::NonRecursive).is_ok() {
+                if path.is_dir()
+                    && watcher.watcher().watch(&path, notify::RecursiveMode::NonRecursive).is_ok() {
                         watched += 1;
                     }
-                }
             }
             if watched == 0 {
                 log::warn!("No watchable subdirs in {}", agent_dir.display());
+                emit_watch_failed(&app, (*project_for_events).clone(), "no watchable subdirectories");
                 return;
             }
             log::info!("Watching {} ({} paths)", agent_dir.display(), watched);
@@ -160,6 +163,17 @@ fn start_watcher(
         }
         Err(e) => {
             log::error!("Failed to create watcher for {}: {}", agent_dir.display(), e);
+            emit_watch_failed(&app, (*project_for_events).clone(), &e.to_string());
         }
     }
+}
+
+/// Tell the frontend that live resource updates are off for this path, so the
+/// panel can show a degraded state instead of silently rendering stale
+/// skills/prompts forever. Log-and-continue alone left no signal at all.
+fn emit_watch_failed(app: &AppHandle, project_path: Option<String>, reason: &str) {
+    let _ = app.emit(
+        "agent-resources-watch-failed",
+        serde_json::json!({ "projectPath": project_path, "reason": reason }),
+    );
 }

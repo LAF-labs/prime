@@ -253,7 +253,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
               {server.enabled && isReady && toolCount > 0 && (
                 <span
                   className={cn(
-                    'shrink-0 rounded-full px-1.5 py-px text-[9px] tabular-nums leading-none',
+                    'shrink-0 rounded-full px-1.5 py-px text-[11px] tabular-nums leading-none',
                     allToolsDisabled
                       ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                       : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
@@ -269,13 +269,13 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
           </TooltipTrigger>
           <TooltipContent side="right" className="max-w-[260px]">
             <p className="text-[11px] font-medium">{server.name}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {server.transport} · {server.source}{server.enabled ? '' : ' · disabled'}
             </p>
-            {statusTooltip && <p className="mt-0.5 text-[10px] text-muted-foreground">{statusTooltip}</p>}
-            {allToolsDisabled && <p className="text-[10px] text-amber-600 dark:text-amber-400">{t('All tools disabled')}</p>}
-            {server.error && <p className="mt-0.5 text-[9px] text-red-600 dark:text-red-400 font-mono break-all">{server.error}</p>}
-            <p className="mt-1 text-[9px] text-muted-foreground">{t('Right-click for actions · changes apply to new threads')}</p>
+            {statusTooltip && <p className="mt-0.5 text-[11px] text-muted-foreground">{statusTooltip}</p>}
+            {allToolsDisabled && <p className="text-[11px] text-amber-600 dark:text-amber-400">{t('All tools disabled')}</p>}
+            {server.error && <p className="mt-0.5 text-[11px] text-red-600 dark:text-red-400 font-mono break-all">{server.error}</p>}
+            <p className="mt-1 text-[11px] text-muted-foreground">{t('Right-click for actions · changes apply to new threads')}</p>
           </TooltipContent>
         </Tooltip>
 
@@ -283,7 +283,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
         {expanded && isExpandable && (
           <ul className="ml-4 flex flex-col gap-px py-0.5">
             {allToolsDisabled && (
-              <li className="px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400 italic">{t('All tools disabled')}</li>
+              <li className="px-1.5 py-0.5 text-[11px] text-amber-600 dark:text-amber-400 italic">{t('All tools disabled')}</li>
             )}
             {serverTools.length > 0 ? (
               serverTools.map((tool) => {
@@ -293,20 +293,24 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
                   <li key={tool.name} className="flex items-center gap-1.5 px-1.5 h-5">
                     <button
                       type="button"
+                      role="checkbox"
+                      aria-checked={!isDisabled}
                       onClick={() => handleToggleTool(tool.name)}
                       className={cn(
+                        // Checked state mirrors the shared Checkbox primitive
+                        // (bg-primary/text-primary-foreground), not a one-off emerald.
                         'size-3 shrink-0 rounded border transition-colors',
                         isDisabled
                           ? 'border-muted-foreground/30 bg-transparent'
-                          : 'border-emerald-500 bg-emerald-500',
+                          : 'border-primary bg-primary',
                       )}
-                      aria-label={isDisabled ? `Enable ${toolShort}` : `Disable ${toolShort}`}
+                      aria-label={isDisabled ? t('Enable {tool}', { tool: toolShort }) : t('Disable {tool}', { tool: toolShort })}
                     >
-                      {!isDisabled && <IconCheck className="size-2.5 text-white" />}
+                      {!isDisabled && <IconCheck className="size-2.5 text-primary-foreground" />}
                     </button>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={cn('text-[10px] truncate', isDisabled && 'line-through text-muted-foreground/60')}>
+                        <span className={cn('text-[11px] truncate', isDisabled && 'line-through text-muted-foreground/60')}>
                           {toolShort}
                         </span>
                       </TooltipTrigger>
@@ -316,7 +320,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
                 )
               })
             ) : (
-              <li className="px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              <li className="px-1.5 py-0.5 text-[11px] text-muted-foreground">
                 {liveMcp?.toolCount ?? 0} tools available
               </li>
             )}

@@ -138,7 +138,7 @@ export const ChatTextarea = memo(function ChatTextarea({
               >
                 <IconX className="size-3" />
               </button>
-              <span className="mt-0.5 block max-w-[80px] truncate text-center text-[10px] text-foreground/60">{a.name}</span>
+              <span className="mt-0.5 block max-w-[80px] truncate text-center text-[11px] text-foreground/60">{a.name}</span>
             </div>
           ))}
         </div>

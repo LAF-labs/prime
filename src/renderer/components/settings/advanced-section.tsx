@@ -101,8 +101,8 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             label={t('Max concurrent agents')}
             description={
               isConcurrencyUnlimited
-                ? t('No limit. Every thread you open starts its own Node process and Python kernel — lift the cap only if your machine can take it.')
-                : t('Up to {count} threads run at once. Each one is a Node process with its own Python kernel, so this caps machine load. Set 0 for no limit.', { count: concurrentAgents })
+                ? t('No limit. Every chat you open runs its own agent process — lift the cap only if your machine can take it.')
+                : t('Up to {count} chats run at once. Each one runs its own agent process, so this caps machine load. Set 0 for no limit.', { count: concurrentAgents })
             }
           >
             <input

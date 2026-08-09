@@ -12,6 +12,15 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.1.1',
+    highlights: [
+      'Web research now fans out to parallel subagents, with a three-level effort picker',
+      'Fetched web pages are read as clean articles instead of raw page source',
+      'One simpler surface — the separate simple/developer modes are gone',
+      'Sign in now opens Settings → Providers instead of a terminal window',
+    ],
+  },
+  {
     version: '0.1.0',
     highlights: [
       'First release of LAF Agent',

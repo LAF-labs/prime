@@ -41,13 +41,15 @@ const ToolProgressRing = memo(function ToolProgressRing() {
     <span className="relative flex size-4 shrink-0 items-center justify-center">
       <svg viewBox="0 0 16 16" className="absolute inset-0 animate-spin" style={{ animationDuration: '1.2s' }} aria-hidden>
         <defs>
+          {/* Primary-derived two-stop gradient — the violet→blue hex pair was
+              a retired brand accent living outside the token system. */}
           <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#a78bfa" />
-            <stop offset="100%" stopColor="#60a5fa" />
+            <stop offset="0%" stopColor="var(--primary)" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.45" />
           </linearGradient>
         </defs>
         {/* Track */}
-        <circle cx="8" cy="8" r={r} fill="none" stroke="rgba(139,92,246,0.15)" strokeWidth="2" />
+        <circle cx="8" cy="8" r={r} fill="none" stroke="var(--primary)" strokeOpacity="0.15" strokeWidth="2" />
         {/* Progress arc */}
         <circle
           cx="8" cy="8" r={r} fill="none"
@@ -167,7 +169,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
   return (
     <div data-testid="tool-call-entry" className={cn(
       'group/entry',
-      isRunning && 'rounded-lg border border-purple-500/20 bg-purple-500/[0.03]',
+      isRunning && 'rounded-lg border border-primary/20 bg-primary/[0.03]',
     )}>
       <button
         onClick={handleClick}
@@ -240,14 +242,14 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
 
         {/* Right metadata */}
         {rightMeta && (
-          <span className="hidden sm:inline shrink-0 tabular-nums text-[10px] text-muted-foreground/70">
+          <span className="hidden sm:inline shrink-0 tabular-nums text-[11px] text-muted-foreground/70">
             {rightMeta}
           </span>
         )}
 
         {/* Cancelled label */}
         {isCancelled && (
-          <span className="shrink-0 rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-500">
+          <span className="shrink-0 rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-500">
             {t('Cancelled')}
           </span>
         )}
@@ -443,7 +445,7 @@ const FallbackRaw = memo(function FallbackRaw({ label, raw }: { label: string; r
   const text = unwrapped ?? (typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2) ?? '')
   return (
     <div>
-      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{label}</p>
+      <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{label}</p>
       <pre className="max-h-32 overflow-auto rounded-md bg-background/80 p-2 font-mono text-[11px] leading-[1.6] text-foreground/70">
         {text.slice(0, 1500)}{text.length > 1500 ? '\n…(truncated)' : ''}
       </pre>

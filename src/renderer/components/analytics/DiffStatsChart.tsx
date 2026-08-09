@@ -27,8 +27,8 @@ export const DiffStatsChart = ({ diffEvents, fileEvents }: { diffEvents: Analyti
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Bar dataKey="value" name={t('Additions')} fill="#22c55e" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="value2" name={t('Deletions')} fill="#ef4444" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value" name={t('Additions')} fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value2" name={t('Deletions')} fill="var(--chart-8)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

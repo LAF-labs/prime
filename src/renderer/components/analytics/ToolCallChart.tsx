@@ -11,7 +11,7 @@ export const ToolCallChart = ({ events }: { events: AnalyticsEvent[] }) => {
   return (
     <ChartCard title={t('Tool calls')}>
       <StatRow label={t('Total tool calls')} value={total} />
-      <HorizontalBarSection data={data} fill="#ec4899" emptyMessage={t('No tool call data yet')} />
+      <HorizontalBarSection data={data} fill="var(--chart-6)" emptyMessage={t('No tool call data yet')} />
     </ChartCard>
   )
 }

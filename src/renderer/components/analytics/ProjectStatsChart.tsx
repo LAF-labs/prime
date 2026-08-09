@@ -24,8 +24,8 @@ export const ProjectStatsChart = ({ threadEvents, messageEvents }: { threadEvent
           <YAxis type="category" dataKey="project" tick={{ fontSize: 10 }} width={100} />
           <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
           <Legend wrapperStyle={{ fontSize: 10 }} />
-          <Bar dataKey="threads" name={t('Threads')} fill="#6366f1" radius={[0, 3, 3, 0]} />
-          <Bar dataKey="messages" name={t('Messages')} fill="#22c55e" radius={[0, 3, 3, 0]} />
+          <Bar dataKey="threads" name={t('Threads')} fill="var(--chart-7)" radius={[0, 3, 3, 0]} />
+          <Bar dataKey="messages" name={t('Messages')} fill="var(--chart-2)" radius={[0, 3, 3, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

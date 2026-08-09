@@ -289,6 +289,7 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: TreeEntry | null } | null>(null)
 
   const rootEntries = useFileTreeStore((s) => s.rootEntries)
+  const loadError = useFileTreeStore((s) => s.loadError)
   const loadingDirs = useFileTreeStore((s) => s.loadingDirs)
   const previewFile = useFileTreeStore((s) => s.previewFile)
   const showIgnored = useFileTreeStore((s) => s.showIgnored)
@@ -467,7 +468,21 @@ export const FileTreePanel = memo(function FileTreePanel({ onClose, workspace: w
                 <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
             )}
-            {!isRootLoading && visibleRootEntries.length === 0 && (
+            {/* A failed scan (deleted/unreadable folder) is not an empty folder —
+                say what happened and offer a retry. */}
+            {!isRootLoading && loadError !== null && (
+              <div className="flex flex-col items-center gap-2 px-2 py-4 text-center">
+                <p className="text-[11px] text-muted-foreground">{t('Could not read this folder — it may have been moved or deleted.')}</p>
+                <button
+                  type="button"
+                  onClick={() => { if (effectiveWorkspace) loadRoot(effectiveWorkspace) }}
+                  className="rounded-lg border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  {t('Retry')}
+                </button>
+              </div>
+            )}
+            {!isRootLoading && loadError === null && visibleRootEntries.length === 0 && (
               <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">{t('No files found')}</p>
             )}
 

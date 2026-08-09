@@ -66,8 +66,16 @@ export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
         ))}
       </div>
 
-      <p className="text-[10px] text-muted-foreground">
-        {t('Type')} <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">/</kbd> {t('or')} <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">@</kbd> {t('in the input to get started')}
+      <p className="text-[11px] text-muted-foreground">
+        {/* Single interpolated sentence (not stitched fragments) so Korean can
+            reorder around the two key chips. */}
+        {t('Type {slash} or {at} in the input to get started').split(/(\{slash\}|\{at\})/).map((part, i) =>
+          part === '{slash}' || part === '{at}' ? (
+            <kbd key={i} className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[11px]">{part === '{slash}' ? '/' : '@'}</kbd>
+          ) : (
+            <span key={i}>{part}</span>
+          ),
+        )}
       </p>
     </div>
   )

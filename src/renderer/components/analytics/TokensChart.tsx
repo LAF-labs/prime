@@ -35,7 +35,7 @@ export const TokensChart = ({ events, modelEvents = [] }: TokensChartProps) => {
       <div className="flex flex-col gap-1 mb-2">
         <StatRow label={t('Total tokens')} value={fmtTokens(total)} />
         {estimatedCost > 0 && (
-          <StatRow label={t('Est. cost')} value={`~${fmtCost(estimatedCost)}`} color="text-amber-400" />
+          <StatRow label={t('Est. cost')} value={`~${fmtCost(estimatedCost)}`} color="text-amber-600 dark:text-amber-400" />
         )}
       </div>
       {data.length === 0 ? (
@@ -46,12 +46,12 @@ export const TokensChart = ({ events, modelEvents = [] }: TokensChartProps) => {
             <XAxis dataKey="day" tick={{ fontSize: 10 }} tickFormatter={(d: string) => d.slice(5)} />
             <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtTokens} />
             <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} formatter={(v: number) => fmtTokens(v)} />
-            <Bar dataKey="value" name={t('Tokens')} fill="#f59e0b" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value" name={t('Tokens')} fill="var(--chart-3)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}
       {estimatedCost > 0 && (
-        <p className="mt-2 text-[10px] text-muted-foreground/50">
+        <p className="mt-2 text-[11px] text-muted-foreground/50">
           {t('Cost estimate based on most-used model pricing. Assumes ~75% input, ~25% output tokens.')}
         </p>
       )}

@@ -181,7 +181,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
               autoFocus
             />
             {name && !isValidName && (
-              <p className="text-[10px] text-red-600 dark:text-red-400">
+              <p className="text-[11px] text-red-600 dark:text-red-400">
                 Name must start with a letter or digit and contain only letters, digits, dashes, or underscores.
               </p>
             )}
@@ -201,7 +201,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
                 divider
               />
             </div>
-            <p className="font-mono text-[10px] text-muted-foreground/70">
+            <p className="font-mono text-[11px] text-muted-foreground/70">
               {scope === 'global'
                 ? '~/.prime/agent/settings.json'
                 : '.prime/agent/settings.json'}
@@ -240,7 +240,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://api.example.com/mcp"
               />
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 {t('OAuth flows trigger automatically the first time the server connects.')}
               </p>
             </div>
@@ -258,14 +258,14 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
               placeholder={'BRAVE_API_KEY=${BRAVE_API_KEY}\nFASTMCP_LOG_LEVEL=ERROR'}
               className="font-mono text-[12px]"
             />
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {t('Use')} <code className="font-mono">{'${VAR}'}</code> to reference env vars from your shell instead of hardcoding secrets.
             </p>
           </div>
         </div>
 
         <DialogFooter>
-          <span className="text-[10px] text-muted-foreground/70 sm:mr-auto sm:self-center">
+          <span className="text-[11px] text-muted-foreground/70 sm:mr-auto sm:self-center">
             {t('Esc to cancel · {mod}↵ to add', { mod: MOD_KEY })}
           </span>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>

@@ -59,7 +59,7 @@ export function Onboarding() {
             <div key={s} className="flex items-center gap-2">
               {i > 0 && <div className={cn('h-px w-8', isPast || isCurrent ? 'bg-primary/40' : 'bg-border')} />}
               <div className={cn(
-                'flex size-6 items-center justify-center rounded-full text-[10px] font-bold transition-colors',
+                'flex size-6 items-center justify-center rounded-full text-[11px] font-bold transition-colors',
                 isCurrent
                   ? 'bg-primary text-primary-foreground'
                   : isPast

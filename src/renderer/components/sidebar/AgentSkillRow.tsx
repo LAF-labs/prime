@@ -51,7 +51,7 @@ export const SkillRow = memo(function SkillRow({ skill, onOpen }: { skill: Agent
       </TooltipTrigger>
       <TooltipContent side="right" className="max-w-[220px]">
         <p className="text-[11px] font-medium">{formatName(skill.name)}</p>
-        <p className="mt-0.5 text-[10px] text-muted-foreground">{t('Click to view · drag into chat to attach as')} <code className="rounded bg-muted/60 px-1 font-mono text-[9px]">@skill:{skill.name}</code></p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{t('Click to view · drag into chat to attach as')} <code className="rounded bg-muted/60 px-1 font-mono text-[11px]">@skill:{skill.name}</code></p>
       </TooltipContent>
     </Tooltip>
   )

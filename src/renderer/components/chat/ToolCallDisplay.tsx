@@ -90,41 +90,42 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ toolCalls, inline
           <IconBolt className="size-3 text-amber-500" />
         </span>
         <span className="font-medium text-foreground/80">
-          {runningCount > 0 ? 'Working' : 'Tool calls'}
+          {runningCount > 0 ? t('Working') : t('Tool calls')}
         </span>
-        <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+        <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
           {toolCalls.length}
         </span>
 
         <div className="flex-1" />
 
-        {/* Status summary pills */}
+        {/* Status summary pills — running is emerald like every other
+            running-status surface (the retired violet was a one-off). */}
         {runningCount > 0 && (
-          <span className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
             <span className="relative flex size-3 items-center justify-center">
               <svg viewBox="0 0 16 16" className="absolute inset-0 animate-spin" style={{ animationDuration: '1.2s' }} aria-hidden>
-                <circle cx="8" cy="8" r="6" fill="none" stroke="rgba(139,92,246,0.2)" strokeWidth="2" />
+                <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2" />
                 <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 6}`} strokeDashoffset={`${2 * Math.PI * 6 * 0.7}`} />
               </svg>
             </span>
-            {runningCount} running
+            {t('{count} running', { count: runningCount })}
           </span>
         )}
         {failedCount > 0 && (
-          <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">
+          <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-500">
             <IconX className="size-2.5" />
-            {failedCount} failed
+            {t('{count} failed', { count: failedCount })}
           </span>
         )}
         {cancelledCount > 0 && (
-          <span className="flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-500">
+          <span className="flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-500">
             <IconPlayerStop className="size-2.5" />
-            {cancelledCount} cancelled
+            {t('{count} cancelled', { count: cancelledCount })}
           </span>
         )}
         {completedCount > 0 && runningCount === 0 && failedCount === 0 && cancelledCount === 0 && (
-          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
+          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-500">
             <IconCheck className="size-2.5" strokeWidth={3} />
             {t('Done')}
           </span>

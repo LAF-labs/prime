@@ -92,7 +92,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
   return (
     <PanelShell onDismiss={onDismiss}>
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('Models')}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Models')}</span>
       </div>
       {models.length > 5 && (
         <div className="px-3 pb-1">
@@ -104,7 +104,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
             placeholder={t('Search models…')}
             // eslint-disable-next-line jsx-a11y/no-autofocus -- initial focus inside a just-opened popover panel
             autoFocus
-            className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-border/80"
+            className="w-full rounded-md border border-border/40 bg-background/50 px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
           />
         </div>
       )}
@@ -124,7 +124,7 @@ export const ModelPickerPanel = memo(function ModelPickerPanel({ onDismiss }: { 
             >
               <span className={cn('size-1.5 shrink-0 rounded-full', isActive ? 'bg-primary' : 'bg-transparent')} />
               <span className={cn('flex-1 truncate', isActive && 'font-medium')}>{m.name}</span>
-              {isActive && <span className="text-[10px] text-primary">active</span>}
+              {isActive && <span className="text-[11px] text-primary">active</span>}
             </li>
           )
         })}

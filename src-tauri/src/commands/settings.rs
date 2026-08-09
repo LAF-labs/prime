@@ -18,18 +18,12 @@ pub struct AgentProfile {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TextGenerationPolicy {
-    /// Custom instructions appended to commit message prompts.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub commit_instructions: Option<String>,
-    /// Custom instructions appended to branch name generation prompts.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub branch_instructions: Option<String>,
     /// Custom instructions appended to thread title generation prompts.
+    /// Config-file-only for now — there is no settings UI writing it.
+    /// (The commit/branch/PR instruction fields died with the git features;
+    /// serde ignores their keys in old configs.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thread_title_instructions: Option<String>,
-    /// Custom instructions appended to PR content generation prompts.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pr_instructions: Option<String>,
 }
 
 /// User-supplied token pricing for a single provider.
@@ -93,10 +87,6 @@ pub struct ProjectPrefs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_rules: Option<Vec<PermissionRule>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub worktree_enabled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub symlink_directories: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub tight_sandbox: Option<bool>,
     /// Icon override set by the user (framework, file, or emoji).
     /// Stored as opaque JSON to avoid replicating the TypeScript union type.
@@ -114,12 +104,6 @@ pub struct AppSettings {
     pub agent_bin: String,
     #[serde(default)]
     pub agent_profiles: Vec<AgentProfile>,
-    #[serde(default = "default_font_size")]
-    pub font_size: u32,
-    /// Chat content font size in px. Falls back to {@link font_size} on the
-    /// frontend when missing.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub chat_font_size: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_model: Option<String>,
     #[serde(default)]
@@ -239,9 +223,6 @@ pub const DEFAULT_MAX_CONCURRENT_AGENTS: u32 = 8;
 fn default_agent_bin() -> String {
     "prime-agent".to_string()
 }
-fn default_font_size() -> u32 {
-    14
-}
 fn default_theme() -> String {
     "dark".to_string()
 }
@@ -254,8 +235,6 @@ impl Default for AppSettings {
         Self {
             agent_bin: default_agent_bin(),
             agent_profiles: vec![],
-            font_size: default_font_size(),
-            chat_font_size: None,
             default_model: None,
             auto_approve: false,
             permission_mode: None,
@@ -511,7 +490,6 @@ mod tests {
     fn default_settings_values() {
         let s = AppSettings::default();
         assert_eq!(s.agent_bin, "prime-agent");
-        assert_eq!(s.font_size, 14);
         assert!(!s.auto_approve);
         assert!(s.respect_gitignore);
         assert!(s.co_author);
@@ -530,8 +508,6 @@ mod tests {
             ProjectPrefs {
                 model_id: Some("claude-4".to_string()),
                 auto_approve: Some(true),
-                worktree_enabled: Some(true),
-                symlink_directories: Some(vec!["node_modules".to_string(), ".next".to_string()]),
                 tight_sandbox: Some(true),
                 icon_override: Some(serde_json::json!({"type": "emoji", "emoji": "🚀"})),
                 ..Default::default()
@@ -539,7 +515,6 @@ mod tests {
         );
         let settings = AppSettings {
             agent_bin: "/usr/local/bin/prime-agent".to_string(),
-            font_size: 16,
             auto_approve: true,
             has_onboarded_v2: true,
             respect_gitignore: false,
@@ -550,15 +525,12 @@ mod tests {
         let json = serde_json::to_string(&settings).unwrap();
         let restored: AppSettings = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.agent_bin, "/usr/local/bin/prime-agent");
-        assert_eq!(restored.font_size, 16);
         assert!(restored.auto_approve);
         assert!(restored.has_onboarded_v2);
         assert!(!restored.respect_gitignore);
         assert!(!restored.co_author);
         let pp = restored.project_prefs.unwrap();
         assert_eq!(pp["proj"].model_id.as_deref(), Some("claude-4"));
-        assert_eq!(pp["proj"].worktree_enabled, Some(true));
-        assert_eq!(pp["proj"].symlink_directories.as_deref(), Some(vec!["node_modules".to_string(), ".next".to_string()]).as_deref());
         assert_eq!(pp["proj"].tight_sandbox, Some(true));
         assert_eq!(pp["proj"].icon_override, Some(serde_json::json!({"type": "emoji", "emoji": "🚀"})));
     }
@@ -624,10 +596,55 @@ mod tests {
         let json = r#"{"agentBin": "/bin/agent"}"#;
         let settings: AppSettings = serde_json::from_str(json).unwrap();
         assert_eq!(settings.agent_bin, "/bin/agent");
-        assert_eq!(settings.font_size, 14);
         assert!(settings.respect_gitignore);
         assert!(settings.co_author);
         assert!(!settings.has_onboarded_v2);
+    }
+
+    /// Old configs persisted fields that no longer exist (fontSize,
+    /// chatFontSize, worktreeEnabled, symlinkDirectories, commit/branch/PR
+    /// instructions). Serde must ignore the unknown keys, and — critically —
+    /// `quarantine_if_corrupt`'s TOML parse must not treat such a file as
+    /// corrupt, or every pre-removal install would be quarantined on upgrade.
+    #[test]
+    fn configs_with_removed_keys_still_load() {
+        let json = r#"{
+            "agentBin": "/bin/agent",
+            "fontSize": 16,
+            "chatFontSize": 15,
+            "projectPrefs": {
+                "/ws": {
+                    "worktreeEnabled": true,
+                    "symlinkDirectories": ["node_modules"],
+                    "textGenerationPolicy": {
+                        "commitInstructions": "old",
+                        "branchInstructions": "old",
+                        "prInstructions": "old",
+                        "threadTitleInstructions": "keep me"
+                    }
+                }
+            }
+        }"#;
+        let settings: AppSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.agent_bin, "/bin/agent");
+        let pp = settings.project_prefs.unwrap();
+        let policy = pp["/ws"].text_generation_policy.as_ref().unwrap();
+        assert_eq!(policy.thread_title_instructions.as_deref(), Some("keep me"));
+
+        let toml_text = r#"
+recentProjects = []
+
+[settings]
+agentBin = "prime-agent"
+fontSize = 16
+chatFontSize = 15
+
+[settings.projectPrefs."/ws"]
+worktreeEnabled = true
+symlinkDirectories = ["node_modules"]
+"#;
+        let store: StoreData = toml::from_str(toml_text).expect("old TOML must still parse");
+        assert_eq!(store.settings.agent_bin, "prime-agent");
     }
 
 
@@ -742,7 +759,6 @@ mod tests {
         let settings = AppSettings::default();
         let json = serde_json::to_string(&settings).unwrap();
         assert!(json.contains("agentBin"));
-        assert!(json.contains("fontSize"));
         assert!(json.contains("autoApprove"));
         assert!(json.contains("hasOnboardedV2"));
         assert!(!json.contains("agent_bin"));

@@ -83,14 +83,14 @@ const JsDebugRow = memo(function JsDebugRow({
             ? <IconChevronDown className="size-3 shrink-0 text-muted-foreground/70" />
             : <IconChevronRight className="size-3 shrink-0 text-muted-foreground/70" />}
 
-          <span className="shrink-0 font-mono text-[10px] text-muted-foreground w-[78px]">
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground w-[78px]">
             {formatTime(entry.timestamp)}
           </span>
 
           <Badge
             variant={CATEGORY_VARIANT[entry.category]}
             size="sm"
-            className="shrink-0 h-4 px-1 text-[8px] uppercase"
+            className="shrink-0 h-4 px-1 text-[11px] uppercase"
           >
             {entry.category}
           </Badge>
@@ -99,7 +99,7 @@ const JsDebugRow = memo(function JsDebugRow({
             <Badge
               variant="secondary"
               size="sm"
-              className="shrink-0 h-4 px-1 text-[8px] font-bold"
+              className="shrink-0 h-4 px-1 text-[11px] font-bold"
             >
               {entry.method}
             </Badge>
@@ -107,7 +107,7 @@ const JsDebugRow = memo(function JsDebugRow({
 
           {isNetwork && entry.status !== undefined && (
             <span className={cn(
-              'shrink-0 font-mono text-[10px] font-bold',
+              'shrink-0 font-mono text-[11px] font-bold',
               entry.status >= 400 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400',
             )}>
               {formatStatus(entry.status)}
@@ -115,12 +115,12 @@ const JsDebugRow = memo(function JsDebugRow({
           )}
 
           {isNetwork && entry.duration !== undefined && (
-            <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+            <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
               {entry.duration}ms
             </span>
           )}
 
-          <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
             {entry.message}
           </span>
         </button>
@@ -142,7 +142,7 @@ const JsDebugRow = memo(function JsDebugRow({
 
       {expanded && (
         <div className="border-t border-border/50 bg-background/50 px-3 py-2">
-          <pre className="max-h-64 overflow-auto rounded-md bg-card p-2 font-mono text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
+          <pre className="max-h-64 overflow-auto rounded-md bg-card p-2 font-mono text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
             {entry.detail}
           </pre>
         </div>
@@ -268,13 +268,13 @@ export const JsDebugTab = memo(function JsDebugTab() {
           value={filter.search}
           onChange={(e) => setFilter({ search: e.target.value })}
           placeholder={t('Filter...')}
-          className="h-5 w-32 rounded border border-border/50 bg-background px-1.5 text-[10px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ring/50"
+          className="h-5 w-32 rounded border border-border/50 bg-background px-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ring/50"
         />
 
         <select
           value={filter.category}
           onChange={(e) => setFilter({ category: e.target.value as JsDebugCategory | 'all' })}
-          className="h-5 rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none"
+          className="h-5 rounded border border-border/50 bg-background px-1 text-[11px] text-foreground outline-none"
         >
           {JS_CATEGORIES.map((c) => (
             <option key={c} value={c}>{c === 'all' ? t('All types') : c}</option>
@@ -285,7 +285,7 @@ export const JsDebugTab = memo(function JsDebugTab() {
           <select
             value={filter.threadName}
             onChange={(e) => setFilter({ threadName: e.target.value })}
-            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none truncate"
+            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[11px] text-foreground outline-none truncate"
             aria-label={t('Filter by thread')}
           >
             <option value="">{t('All threads')}</option>
@@ -299,7 +299,7 @@ export const JsDebugTab = memo(function JsDebugTab() {
           <select
             value={filter.projectName}
             onChange={(e) => setFilter({ projectName: e.target.value })}
-            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none truncate"
+            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[11px] text-foreground outline-none truncate"
             aria-label={t('Filter by project')}
           >
             <option value="">{t('All projects')}</option>
@@ -309,7 +309,7 @@ export const JsDebugTab = memo(function JsDebugTab() {
           </select>
         )}
 
-        <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer select-none">
+        <label className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-pointer select-none">
           <input
             type="checkbox"
             checked={filter.errorsOnly}
@@ -319,7 +319,7 @@ export const JsDebugTab = memo(function JsDebugTab() {
           {t('Errors')}
         </label>
 
-        <span className="ml-auto text-[9px] tabular-nums text-muted-foreground">
+        <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
           {filtered.length}/{entries.length}
         </span>
 

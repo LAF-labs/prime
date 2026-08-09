@@ -99,7 +99,7 @@ export const ChatToolbar = memo(function ChatToolbar({
         />
         {/* Send hint — visible only when Cmd is held */}
         {isMetaHeld && (
-          <kbd className="rounded-sm bg-muted px-1 font-mono text-[10px] text-muted-foreground">{MOD_KEY}⏎</kbd>
+          <kbd className="rounded-sm bg-muted px-1 font-mono text-[11px] text-muted-foreground">{MOD_KEY}⏎</kbd>
         )}
         {isRunning ? (
           <Tooltip>
@@ -110,7 +110,7 @@ export const ChatToolbar = memo(function ChatToolbar({
                 aria-label={t('Pause agent (Escape)')}
                 data-testid="pause-button"
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-full text-white transition-all duration-150 hover:scale-105',
+                  'flex h-8 w-8 items-center justify-center rounded-full text-primary-foreground transition-all duration-150 hover:scale-105',
                   isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-primary/90 hover:bg-primary',
                 )}
               >
@@ -121,7 +121,7 @@ export const ChatToolbar = memo(function ChatToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px]">
-              {t('Pause agent')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{t('Esc')}</kbd>
+              {t('Pause agent')} <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">{t('Esc')}</kbd>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -134,8 +134,10 @@ export const ChatToolbar = memo(function ChatToolbar({
                 aria-label={isRunning ? t('Queue message (Enter)') : t('Send message (Enter)')}
                 data-testid="send-button"
                 className={cn(
-                  'relative flex h-8 w-8 items-center justify-center rounded-full text-white transition-all duration-200 ease-out',
-                  canSend ? buttonBg : 'bg-muted/60',
+                  'relative flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ease-out',
+                  // Disabled must not be white-on-near-white in the light theme:
+                  // muted arrow on a muted wash, not text-white on bg-muted.
+                  canSend ? cn(buttonBg, 'text-primary-foreground') : 'bg-muted/60 text-muted-foreground',
                   canSend && 'hover:scale-105',
                   'disabled:pointer-events-none disabled:hover:scale-100',
                 )}
@@ -151,7 +153,7 @@ export const ChatToolbar = memo(function ChatToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px]">
-              {t('Send message')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">⏎</kbd>
+              {t('Send message')} <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">⏎</kbd>
             </TooltipContent>
           </Tooltip>
         )}

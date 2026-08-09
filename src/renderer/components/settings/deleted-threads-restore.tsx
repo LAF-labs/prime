@@ -52,7 +52,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
   return (
     <div className="px-5 py-3">
       <div className="mb-2 flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
           {icon ? <ProjectIcon icon={icon} /> : <span className="size-3.5 shrink-0 rounded-full bg-muted-foreground/30" />}
           {displayName}
         </p>
@@ -62,7 +62,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
               type="button"
               aria-label={t('Delete all threads from {project}', { project: displayName })}
               onClick={() => setIsConfirmDeleteAllOpen(true)}
-              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
+              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
             >
               <IconTrash className="size-3" />
               <span>{t('Delete all')}</span>
@@ -76,7 +76,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
           <div key={id} className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted/20">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[12.5px] text-foreground/90">{task.name}</p>
-              <p className="text-[10px] text-muted-foreground">{formatTimeRemaining(deletedAt)}</p>
+              <p className="text-[11px] text-muted-foreground">{formatTimeRemaining(deletedAt)}</p>
             </div>
             <div className="flex items-center gap-1">
               <Tooltip>

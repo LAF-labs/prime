@@ -13,7 +13,7 @@ export const FEATURES = [
 ] as const
 
 export const LoginMethod = ({ Icon, label }: { Icon: React.ElementType; label: string }) => (
-  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
     <Icon size={12} /> {label}
   </div>
 )

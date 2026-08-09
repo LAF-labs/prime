@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { IconPlus, IconArrowsUpDown, IconCheck, IconLayoutSidebarLeftCollapse, IconLayoutSidebarRightCollapse, IconFolderOpen, IconLayoutColumns, IconX, IconReplace, IconArrowsExchange, IconGitBranch, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { useTaskStore, isChatWorkspace } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -44,7 +45,7 @@ const _NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRigh
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          {t('Back')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{modKey}[</kbd>
+          {t('Back')} <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">{modKey}[</kbd>
         </TooltipContent>
       </Tooltip>
       <Tooltip>
@@ -61,7 +62,7 @@ const _NavHistoryButtons = memo(function NavHistoryButtons({ isRight }: { isRigh
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          {t('Forward')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{modKey}]</kbd>
+          {t('Forward')} <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">{modKey}]</kbd>
         </TooltipContent>
       </Tooltip>
     </div>
@@ -116,7 +117,7 @@ const SortDropdown = memo(function SortDropdown({ sort, onChange }: { sort: Sort
                 onClick={() => { onChange(opt.key); setOpen(false) }}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground hover:bg-accent transition-colors">
                 <IconCheck className={cn('size-3 shrink-0', sort === opt.key ? 'opacity-100' : 'opacity-0')} />
-                {opt.label}
+                {t(opt.label)}
               </button>
             ))}
           </div>
@@ -261,7 +262,7 @@ const SplitViewsList = memo(function SplitViewsList() {
               >
                 <IconLayoutColumns className={cn('size-3.5 shrink-0', isActive && 'text-primary/70')} />
                 <span className="min-w-0 truncate">{leftName}</span>
-                <span className="shrink-0 text-[10px] text-muted-foreground/30">⇄</span>
+                <span className="shrink-0 text-[11px] text-muted-foreground/30">⇄</span>
                 <span className="min-w-0 truncate">{rightName}</span>
               </button>
               <button
@@ -538,7 +539,11 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
   const handleNewChat = useCallback(() => {
     ipc.ensureChatsDir()
       .then((dir) => { useTaskStore.getState().setPendingWorkspace(dir) })
-      .catch((err) => { console.error('[chats] ensure_chats_dir failed:', err) })
+      .catch((err) => {
+        // A denied Documents permission is a realistic first-run event; a
+        // silent dead end on the primary CTA must explain itself.
+        toast.error(t('Could not create the chats folder'), { description: err instanceof Error ? err.message : String(err) })
+      })
   }, [])
 
   // Sidebar edge resize

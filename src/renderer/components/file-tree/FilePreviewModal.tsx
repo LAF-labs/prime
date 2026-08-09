@@ -192,7 +192,7 @@ export const FilePreviewModal = memo(function FilePreviewModal({ filePath, onClo
         <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">{fileName}</p>
-            <p className="truncate text-[10px] font-mono text-muted-foreground mt-0.5">{shortPath}</p>
+            <p className="truncate text-[11px] font-mono text-muted-foreground mt-0.5">{shortPath}</p>
           </div>
           {kind === 'svg' && (
             <Tooltip>

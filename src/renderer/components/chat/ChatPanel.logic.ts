@@ -44,7 +44,7 @@ export function deriveInputState(
   disabledReason: string | undefined
 } {
   if (!task) return { disabled: true, disabledReason: undefined }
-  if (task.status === 'cancelled') return { disabled: true, disabledReason: 'Task was cancelled' }
+  if (task.status === 'cancelled') return { disabled: true, disabledReason: 'Chat was cancelled' }
   return { disabled: false, disabledReason: undefined }
 }
 

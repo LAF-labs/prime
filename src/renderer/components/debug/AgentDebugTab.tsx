@@ -80,14 +80,14 @@ const DebugRow = memo(function DebugRow({
             ? <IconChevronDown className="size-3 shrink-0 text-muted-foreground/70" />
             : <IconChevronRight className="size-3 shrink-0 text-muted-foreground/70" />}
 
-          <span className="shrink-0 font-mono text-[10px] text-muted-foreground w-[78px]">
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground w-[78px]">
             {formatTime(entry.timestamp)}
           </span>
 
           <Badge
             variant={entry.direction === 'in' ? 'info' : 'success'}
             size="sm"
-            className="shrink-0 h-4 min-w-[26px] px-1 text-[8px] font-bold uppercase"
+            className="shrink-0 h-4 min-w-[26px] px-1 text-[11px] font-bold uppercase"
           >
             {entry.direction === 'in' ? 'IN' : 'OUT'}
           </Badge>
@@ -95,20 +95,20 @@ const DebugRow = memo(function DebugRow({
           <Badge
             variant={categoryVariant[entry.category] ?? 'outline'}
             size="sm"
-            className="shrink-0 h-4 px-1 text-[8px]"
+            className="shrink-0 h-4 px-1 text-[11px]"
           >
             {entry.category}
           </Badge>
 
-          <span className="shrink-0 font-mono text-[10px] text-muted-foreground w-[56px] truncate">
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground w-[56px] truncate">
             {entry.taskId ? entry.taskId.slice(0, 8) : 'global'}
           </span>
 
-          <span className="shrink-0 font-mono text-[10px] text-primary max-w-[160px] truncate">
+          <span className="shrink-0 font-mono text-[11px] text-primary max-w-[160px] truncate">
             {entry.type}
           </span>
 
-          <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
             {entry.summary}
           </span>
         </button>
@@ -130,7 +130,7 @@ const DebugRow = memo(function DebugRow({
 
       {expanded && (
         <div className="border-t border-border/50 bg-background/50 px-3 py-2">
-          <pre className="max-h-64 overflow-auto rounded-md bg-card p-2 font-mono text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
+          <pre className="max-h-64 overflow-auto rounded-md bg-card p-2 font-mono text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
             {typeof entry.payload === 'string'
               ? entry.payload
               : JSON.stringify(entry.payload, null, 2)}
@@ -276,13 +276,13 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           value={filter.search}
           onChange={(e) => setFilter({ search: e.target.value })}
           placeholder={t('Filter...')}
-          className="h-5 w-32 rounded border border-border/50 bg-background px-1.5 text-[10px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ring/50"
+          className="h-5 w-32 rounded border border-border/50 bg-background px-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ring/50"
         />
 
         <select
           value={filter.category}
           onChange={(e) => setFilter({ category: e.target.value as DebugCategory | 'all' })}
-          className="h-5 rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none"
+          className="h-5 rounded border border-border/50 bg-background px-1 text-[11px] text-foreground outline-none"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>{c === 'all' ? t('All types') : c}</option>
@@ -293,7 +293,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           <select
             value={filter.threadName}
             onChange={(e) => setFilter({ threadName: e.target.value })}
-            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none truncate"
+            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[11px] text-foreground outline-none truncate"
             aria-label={t('Filter by thread')}
           >
             <option value="">{t('All threads')}</option>
@@ -307,7 +307,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           <select
             value={filter.projectName}
             onChange={(e) => setFilter({ projectName: e.target.value })}
-            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none truncate"
+            className="h-5 max-w-[120px] rounded border border-border/50 bg-background px-1 text-[11px] text-foreground outline-none truncate"
             aria-label={t('Filter by project')}
           >
             <option value="">{t('All projects')}</option>
@@ -317,7 +317,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           </select>
         )}
 
-        <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer select-none">
+        <label className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-pointer select-none">
           <input
             type="checkbox"
             checked={filter.errorsOnly}
@@ -331,14 +331,14 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           <button
             type="button"
             onClick={() => setFilter({ mcpServerName: '' })}
-            className="flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-600 dark:text-sky-400 hover:bg-sky-500/25 transition-colors"
+            className="flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-400 hover:bg-sky-500/25 transition-colors"
           >
             MCP: {filter.mcpServerName}
-            <span className="text-[9px]">✕</span>
+            <span className="text-[11px]">✕</span>
           </button>
         )}
 
-        <span className="ml-auto text-[9px] tabular-nums text-muted-foreground">
+        <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
           {filtered.length}/{entries.length}
         </span>
 

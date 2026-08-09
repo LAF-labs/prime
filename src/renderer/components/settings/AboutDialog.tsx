@@ -8,6 +8,7 @@ import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import { useUpdateStore } from '@/stores/updateStore'
+import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/lib/utils'
 import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-external'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -29,7 +30,16 @@ interface AboutDialogProps {
 export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
   const [appVersion, setAppVersion] = useState('')
   const [harness, setHarness] = useState<HarnessInfo | null>(null)
-  const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore()
+  const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore(
+    useShallow((s) => ({
+      status: s.status,
+      updateInfo: s.updateInfo,
+      progress: s.progress,
+      error: s.error,
+      triggerDownload: s.triggerDownload,
+      triggerRestart: s.triggerRestart,
+    })),
+  )
   const customAppIcon = useSettingsStore((s) => s.settings.customAppIcon)
   const displayIcon = customAppIcon || defaultAppIcon
 
@@ -96,13 +106,13 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
             LAF Agent
           </DialogTitle>
           <DialogDescription className="mt-1 text-center text-[13px] text-muted-foreground">
-            {appVersion ? `Version ${appVersion}` : 'Loading…'}
+            {appVersion ? t('Version {version}', { version: appVersion }) : t('Loading…')}
           </DialogDescription>
-          <p className="mt-1 text-center text-[10px] text-muted-foreground/60">
-            Powered by Prime Agent (PrimeIntellect-ai/prime-agent)
+          <p className="mt-1 text-center text-[11px] text-muted-foreground/60">
+            {t('Powered by Prime Agent (PrimeIntellect-ai/prime-agent)')}
           </p>
           {harness && (
-            <p className="mt-0.5 text-center text-[10px] text-muted-foreground/60">
+            <p className="mt-0.5 text-center text-[11px] text-muted-foreground/60">
               {t('Harness {version} ({commit})', { version: harness.ref, commit: harness.commit.slice(0, 7) })}
             </p>
           )}
@@ -111,7 +121,7 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
             onClick={handleExternalLinkClick}
             onKeyDown={handleExternalLinkKeyDown}
             tabIndex={0}
-            className="mt-1 text-center text-[10px] text-muted-foreground/60 transition-colors hover:text-muted-foreground hover:underline"
+            className="mt-1 text-center text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground hover:underline"
           >
             {t('Third-party notices')}
           </a>
@@ -121,7 +131,7 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
             {isChecking && (
               <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
                 <IconLoader2 className="size-3.5 animate-spin" />
-                Checking for updates…
+                {t('Checking for updates...')}
               </span>
             )}
             {isAvailable && updateInfo && (
@@ -131,13 +141,13 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <IconDownload className="size-3.5" />
-                Update to v{updateInfo.version}
+                {t('Update to v{version}', { version: updateInfo.version })}
               </button>
             )}
             {isDownloading && (
               <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
                 <IconLoader2 className="size-3.5 animate-spin" />
-                {pct !== null ? `Downloading… ${pct}%` : 'Downloading…'}
+                {pct !== null ? t('Downloading… {pct}%', { pct }) : t('Downloading…')}
               </span>
             )}
             {isReady && (
@@ -151,7 +161,7 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
               </button>
             )}
             {isError && (
-              <span className="text-[12px] text-red-600 dark:text-red-400">{error ?? 'Update check failed'}</span>
+              <span className="text-[12px] text-red-600 dark:text-red-400">{error ?? t('Update check failed')}</span>
             )}
             {status === 'idle' && (
               <button

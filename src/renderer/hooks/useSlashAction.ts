@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useTaskStore, markThreadCleared } from '@/stores/taskStore'
+import { useTaskStore, markThreadCleared, isChatWorkspace } from '@/stores/taskStore'
 import * as threadDb from '@/lib/thread-db'
 import { attempt } from '@/lib/ipc-report'
 import { t } from '@/lib/i18n'
@@ -148,9 +148,17 @@ export const useSlashAction = (): SlashActionResult => {
       }
       case 'close':
       case 'exit': {
-        const { selectedTaskId, archiveTask, pendingWorkspace, setPendingWorkspace } = useTaskStore.getState()
+        const { selectedTaskId, tasks, archiveTask, setSelectedTask, pendingWorkspace, setPendingWorkspace } = useTaskStore.getState()
         if (selectedTaskId) {
-          archiveTask(selectedTaskId)
+          const ws = tasks[selectedTaskId]?.workspace
+          if (ws && isChatWorkspace(ws)) {
+            // Archiving a chat removes it from every sidebar surface with no
+            // unarchive path — to the user the conversation looks deleted.
+            // "/close" on a chat means "put it away": just deselect.
+            setSelectedTask(null)
+          } else {
+            archiveTask(selectedTaskId)
+          }
         } else if (pendingWorkspace) {
           setPendingWorkspace(null)
         }

@@ -45,6 +45,9 @@ interface FileTreeStore {
   previewFile: string | null
   clipboard: ClipboardEntry | null
   showIgnored: boolean
+  /** Non-null when the last root scan failed — an unreadable folder must not
+   *  masquerade as an empty one. */
+  loadError: string | null
 
   // Actions
   toggle: () => void
@@ -83,6 +86,7 @@ export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
   previewFile: null,
   clipboard: null,
   showIgnored: false,
+  loadError: null,
 
   toggle: () => {
     set({ isOpen: !get().isOpen })
@@ -96,7 +100,7 @@ export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
   setWorkspace: (workspace) => set({ workspace }),
 
   loadRoot: async (workspace: string) => {
-    set({ workspace, loadingDirs: new Set(['']) })
+    set({ workspace, loadingDirs: new Set(['']), loadError: null })
     try {
       // The backend respects gitignore when `respectGitignore=true` and emits
       // unfiltered entries when it's `false`. Mapping our `showIgnored` flag
@@ -114,7 +118,7 @@ export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
       await ipc.watchProjectTree(workspace).catch(() => {})
     } catch (e) {
       console.error('[fileTree] loadRoot failed:', e)
-      set({ rootEntries: [], loadingDirs: new Set() })
+      set({ rootEntries: [], loadingDirs: new Set(), loadError: e instanceof Error ? e.message : String(e) })
     }
   },
 

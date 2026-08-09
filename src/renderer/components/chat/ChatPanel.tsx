@@ -363,12 +363,13 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
       if (opt?.kind === 'allow_always') {
         useSettingsStore.getState().addPermissionRule({ tool: task.pendingPermission.toolName })
       }
-      ipc.selectPermissionOption(task.id, task.pendingPermission.requestId, optionId).catch(() => {})
+      // A swallowed failure leaves the permission banner up forever — surface it.
+      attempt(t('Could not answer the permission request'), ipc.selectPermissionOption(task.id, task.pendingPermission.requestId, optionId))
     }
   }, [resolvedTaskId])
 
   const handlePause = useCallback(() => {
-    if (resolvedTaskId) ipc.pauseTask(resolvedTaskId)
+    if (resolvedTaskId) attempt(t('Could not pause the agent'), ipc.pauseTask(resolvedTaskId))
   }, [resolvedTaskId])
 
   if (!taskStatus) {
@@ -377,12 +378,12 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
         <EmptyHeader>
           {/* Brand name, deliberately not localized */}
           <EmptyTitle>LAF Agent</EmptyTitle>
-          <EmptyDescription>{t('Pick a thread from the sidebar, or start a new one and type your first message below.')}</EmptyDescription>
+          <EmptyDescription>{t('Pick a chat from the sidebar, or start a new one and type your first message below.')}</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" className="gap-1.5" onClick={() => useTaskStore.getState().startNewThread()}>
             <IconPlus size={14} stroke={2} />
-            {t('Start a new thread')}
+            {t('Start a new chat')}
           </Button>
         </EmptyContent>
       </Empty>
@@ -444,7 +445,7 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
 
         <ChatInput
           disabled={inputDisabled}
-          disabledReason={disabledReason}
+          disabledReason={disabledReason ? t(disabledReason) : undefined}
           contextUsage={contextUsage}
           messageCount={messageCount}
           isRunning={isRunning}

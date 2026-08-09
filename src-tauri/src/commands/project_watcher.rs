@@ -236,8 +236,7 @@ impl ExclusionMatcher {
 
         for p in patterns {
             // Extract simple dir names from **/dirname patterns
-            if p.starts_with("**/") {
-                let name = &p[3..];
+            if let Some(name) = p.strip_prefix("**/") {
                 if !name.contains('/') && !name.contains('*') {
                     dir_names.push(name.to_string());
                 }

@@ -71,13 +71,3 @@ describe('fuzzyScore', () => {
     expect(fuzzyScore('helloworld', 'hello')).toBeNull()
   })
 })
-
-
-describe('fuzzyMatch (backend wrapper)', () => {
-  it('returns [] for empty candidate list without invoking IPC', async () => {
-    // Dynamic import keeps the vitest mock isolated to this test.
-    const { fuzzyMatch } = await import('./fuzzy-search')
-    const result = await fuzzyMatch('anything', [])
-    expect(result).toEqual([])
-  })
-})

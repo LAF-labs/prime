@@ -114,7 +114,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        aria-label={`Permissions: ${t(current.labelKey)}`}
+        aria-label={t('Permissions: {mode}', { mode: t(current.labelKey) })}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
@@ -157,7 +157,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
                 <Icon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                 <span className="min-w-0">
                   <span className="block">{t(m.labelKey)}</span>
-                  <span className="block text-[10.5px] font-normal text-muted-foreground">{t(m.descKey)}</span>
+                  <span className="block text-[11px] font-normal text-muted-foreground">{t(m.descKey)}</span>
                 </span>
               </button>
             )

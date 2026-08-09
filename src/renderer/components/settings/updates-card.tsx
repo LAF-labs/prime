@@ -3,10 +3,20 @@ import { useState } from 'react'
 import { IconDownload, IconRefresh, IconLoader2 } from '@tabler/icons-react'
 import { useUpdateStore } from '@/stores/updateStore'
 import { useTaskStore } from '@/stores/taskStore'
+import { useShallow } from 'zustand/react/shallow'
 import { SettingRow } from './settings-shared'
 
 export const UpdatesCard = () => {
-  const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore()
+  const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore(
+    useShallow((s) => ({
+      status: s.status,
+      updateInfo: s.updateInfo,
+      progress: s.progress,
+      error: s.error,
+      triggerDownload: s.triggerDownload,
+      triggerRestart: s.triggerRestart,
+    })),
+  )
   const [isChecking, setIsChecking] = useState(false)
 
   const handleCheck = async () => {
@@ -95,7 +105,7 @@ export const UpdatesCard = () => {
             className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
           >
             {isCheckingState ? <IconLoader2 className="size-3 animate-spin" /> : <IconRefresh className="size-3" />}
-            Check
+            {t('Check')}
           </button>
         )}
         {status === 'downloading' && <IconLoader2 className="size-4 animate-spin text-primary" />}

@@ -111,13 +111,13 @@ const PreviewPopover = memo(function PreviewPopover({
       <div className="flex items-center justify-between border-t border-border/60 px-3 py-2">
         <div className="min-w-0">
           <p className="truncate text-[11px] font-medium text-foreground/85">{attachment.name}</p>
-          <p className="text-[10px] text-muted-foreground">{formatSize(attachment.size)}</p>
+          <p className="text-[11px] text-muted-foreground">{formatSize(attachment.size)}</p>
         </div>
         {attachment.path && (
           <button
             type="button"
             onClick={onOpenExternal}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground/85"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground/85"
           >
             <IconExternalLink className="size-3" />
             {t('Open')}

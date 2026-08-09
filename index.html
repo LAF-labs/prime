@@ -12,7 +12,6 @@
                 var t='dark';try{t=localStorage.getItem('laf-agent-theme')||'dark'}catch(e){}
                 if(t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}
                 if(t==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}
-                window.__laf-agent_resolved_theme=t;
             })();
         </script>
     </head>

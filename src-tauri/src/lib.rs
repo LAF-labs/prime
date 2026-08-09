@@ -1,6 +1,6 @@
 pub mod commands;
 
-use commands::{rpc, analytics, kernel_setup, checkpoint, everyday_memory, fs_ops, fuzzy, agent_resources, history_guard, resource_watcher, markdown, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
+use commands::{rpc, analytics, checkpoint, everyday_memory, fs_ops, agent_resources, history_guard, resource_watcher, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -377,7 +377,11 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tau
         .close_window()
         .build()?;
 
+    let website = MenuItemBuilder::new("LAF Agent Website")
+        .id("help_website")
+        .build(app)?;
     let help_submenu = SubmenuBuilder::new(app, "Help")
+        .item(&website)
         .build()?;
 
     MenuBuilder::new(app)
@@ -442,7 +446,6 @@ pub fn run() {
         .manage(thread_db::ThreadDbState {
             db: thread_db::ThreadDatabase::open(),
         })
-        .manage(fuzzy::FuzzyState::default())
         .manage(app_tracing::TraceState::default())
         .setup(|app| {
             let _window = app.get_webview_window("main")
@@ -462,6 +465,11 @@ pub fn run() {
                     }
                     "new_project" => {
                         let _ = app_handle.emit("menu-new-project", ());
+                    }
+                    "help_website" => {
+                        if let Err(e) = open::that("https://laf-co.com/") {
+                            log::warn!("Could not open the website: {e}");
+                        }
                     }
                     "clear_recent" => {
                         if let Some(state) = app_handle.try_state::<settings::SettingsState>() {
@@ -524,7 +532,7 @@ pub fn run() {
                             // before calling relaunch(). Skip the flush-before-quit/ack
                             // cycle — the webview is being torn down and can't respond.
                             log::info!("Relaunch flag set — skipping flush, shutting down immediately");
-                            shutdown_app(&app);
+                            shutdown_app(app);
                             return;
                         }
                     }
@@ -555,7 +563,7 @@ pub fn run() {
                         // handler (plus its captured Sender) for the app's
                         // lifetime.
                         window.unlisten(listener);
-                        kill_window_ptys(&app, window.label());
+                        kill_window_ptys(app, window.label());
                         return;
                     }
                     // Last window — show quit confirmation
@@ -635,13 +643,10 @@ pub fn run() {
             fs_ops::auth_set_api_key,
             fs_ops::auth_set_custom_provider,
             fs_ops::repair_custom_providers,
-            kernel_setup::kernel_status,
-            kernel_setup::kernel_setup,
             fs_ops::auth_list_providers,
             provider_discovery::provider_discover_models,
             fs_ops::auth_remove_provider,
             fs_ops::auth_logout,
-            fs_ops::open_terminal_with_command,
             fs_ops::detect_project_icon,
             fs_ops::list_small_images,
             // Agent RPC
@@ -709,11 +714,6 @@ pub fn run() {
             analytics::analytics_mode_usage,
             analytics::analytics_project_stats,
             analytics::analytics_totals,
-            // Markdown parsing
-            markdown::parse_markdown,
-            // Fuzzy match
-            fuzzy::fuzzy_match,
-            // MCP Transport
             // Thread title generation
             thread_title::generate_thread_title,
             process_diagnostics::list_child_processes,

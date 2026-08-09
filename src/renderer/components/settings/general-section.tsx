@@ -4,6 +4,7 @@ import {
   IconSearch, IconRefresh,
 } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useShallow } from 'zustand/react/shallow'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
 import { ipc } from '@/lib/ipc'
@@ -22,7 +23,18 @@ interface GeneralSectionProps {
 
 export const GeneralSection = memo(function GeneralSection({ draft, updateDraft }: GeneralSectionProps) {
   const t = useT()
-  const { availableModels, currentModelId, modelsLoading, modelsError, fetchModels, activeWorkspace } = useSettingsStore()
+  // Per-field selection: a whole-store subscription re-renders this memoized
+  // section on every settings/model/auth change, defeating the memo().
+  const { availableModels, currentModelId, modelsLoading, modelsError, fetchModels, activeWorkspace } = useSettingsStore(
+    useShallow((s) => ({
+      availableModels: s.availableModels,
+      currentModelId: s.currentModelId,
+      modelsLoading: s.modelsLoading,
+      modelsError: s.modelsError,
+      fetchModels: s.fetchModels,
+      activeWorkspace: s.activeWorkspace,
+    })),
+  )
   const [cliStatus, setCliStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
   const [isDetecting, setIsDetecting] = useState(false)
 
@@ -98,7 +110,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
 
       <EverydayMemoryCard />
 
-      <SettingsGrid label={t('Connection')} description={t('Path to the prime-agent binary')}>
+      <SettingsGrid label={t('Connection')} description={t('Where the agent runs from')}>
         <SettingsCard>
           <div className="py-1">
             <div className="flex gap-2">
@@ -133,7 +145,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                     className="flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
                     {isDetecting ? <IconLoader2 className="size-3 animate-spin" /> : <IconSearch className="size-3" />}
-                    Detect
+                    {t('Detect')}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">{t('Auto-detect from PATH')}</TooltipContent>
@@ -145,13 +157,13 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   <button
                     type="button"
                     onClick={handleTestCli}
-                    aria-label={t('Test CLI connection')}
+                    aria-label={t('Test the agent connection')}
                     className="rounded-md border border-input px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground"
                   >
                     {t('Test')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">{t('Test connection to prime-agent')}</TooltipContent>
+                <TooltipContent side="top">{t('Check that the agent responds')}</TooltipContent>
               </Tooltip>
               {cliStatus === 'ok' && <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400"><IconCheck className="size-3" /> {t('Connected')}</span>}
               {cliStatus === 'fail' && <span className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400"><IconAlertCircle className="size-3" /> {t('Failed')}</span>}
@@ -177,7 +189,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   )}
                 >
                   {availableModels.length === 0 && !modelsLoading && <option value="">{t('No models loaded')}</option>}
-                  {modelsLoading && <option value="">Loading…</option>}
+                  {modelsLoading && <option value="">{t('Loading…')}</option>}
                   {availableModels.map((m) => <option key={m.modelId} value={m.modelId}>{m.name}</option>)}
                 </select>
                 <IconChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground/70" />
@@ -204,8 +216,8 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
 
       <SettingsGrid label={t('Workspace')} description={t('Sandbox and ignored files')}>
         <SettingsCard>
-          <SettingRow label={t('Respect .gitignore')} description={t('Hide gitignored files from @ mentions')}>
-            <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label={t('Toggle respect gitignore')} />
+          <SettingRow label={t('Hide ignored files')} description={t('Keep files your project excludes out of @ mentions')}>
+            <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label={t('Toggle hiding ignored files')} />
           </SettingRow>
           <Divider />
           <SettingRow label={t('Tight sandbox')} description={t('Confine file writes, shell commands, and Python to this project, and keep credentials unreadable. Network access is not restricted.')}>

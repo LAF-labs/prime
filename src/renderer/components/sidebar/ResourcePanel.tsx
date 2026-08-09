@@ -27,12 +27,13 @@ const MEMORY_CHECK_INTERVAL_MS = 5000
 const hasUpdateIndicator = (status: UpdateStatus): boolean =>
   status === 'available' || status === 'downloading' || status === 'ready'
 
+/** Labels are translated at render time via t(); colors are the semantic status tokens. */
 const CONNECTION_DOT: Record<ConnectionUiState, { color: string; label: string; pulse: boolean }> = {
-  connected: { color: '#34d399', label: 'Connected', pulse: false },
-  connecting: { color: '#fbbf24', label: 'Connecting…', pulse: true },
-  reconnecting: { color: '#fbbf24', label: 'Reconnecting…', pulse: true },
-  error: { color: '#f87171', label: 'Connection error', pulse: false },
-  offline: { color: '#9a9a9a', label: 'Offline', pulse: false },
+  connected: { color: 'var(--success)', label: 'Connected', pulse: false },
+  connecting: { color: 'var(--warning)', label: 'Connecting…', pulse: true },
+  reconnecting: { color: 'var(--warning)', label: 'Reconnecting…', pulse: true },
+  error: { color: 'var(--destructive)', label: 'Connection error', pulse: false },
+  offline: { color: 'var(--muted-foreground)', label: 'Offline', pulse: false },
 }
 
 export const ResourcePanel = memo(function ResourcePanel({
@@ -191,7 +192,7 @@ export const ResourcePanel = memo(function ResourcePanel({
         <div className="flex w-full min-w-0 flex-col">
           <div className="mb-0.5 flex items-center justify-between pr-1.5">
             <button type="button" onClick={onToggleCollapse}
-              className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
+              className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
               <AgentGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
               LAF Agent
             </button>
@@ -199,28 +200,28 @@ export const ResourcePanel = memo(function ResourcePanel({
               {connectionUi !== 'connected' && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span role="status" aria-label={connectionDot.label} className="relative flex size-5 shrink-0 items-center justify-center">
-                      {connectionDot.pulse && <span className="absolute size-2 animate-ping rounded-full" style={{ background: `${connectionDot.color}55` }} />}
+                    <span role="status" aria-label={t(connectionDot.label)} className="relative flex size-5 shrink-0 items-center justify-center">
+                      {connectionDot.pulse && <span className="absolute size-2 animate-ping rounded-full opacity-35" style={{ background: connectionDot.color }} />}
                       <span className="relative size-1.5 rounded-full" style={{ background: connectionDot.color }} />
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent side="top">{connectionDot.label}</TooltipContent>
+                  <TooltipContent side="top">{t(connectionDot.label)}</TooltipContent>
                 </Tooltip>
               )}
               {isMemorySpike && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button type="button" onClick={handleSettingsClick} aria-label={`Memory spike: ${spikeTotal}`}
-                      className="inline-flex h-5 items-center gap-1 rounded-full bg-destructive/15 px-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/25 transition-colors">
+                    <button type="button" onClick={handleSettingsClick} aria-label={t('Memory spike: {size}', { size: spikeTotal })}
+                      className="inline-flex h-5 items-center gap-1 rounded-full bg-destructive/15 px-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/25 transition-colors">
                       <span className="size-1.5 rounded-full bg-destructive" /> {t('Memory')}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top">Memory spike: {spikeTotal}</TooltipContent>
+                  <TooltipContent side="top">{t('Memory spike: {size}', { size: spikeTotal })}</TooltipContent>
                 </Tooltip>
               )}
               {!isMemorySpike && isUpdateAvailable && (
                 <button type="button" aria-label={t('Download and install update')} onClick={handleUpdateClick}
-                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium leading-none text-primary-foreground transition-colors hover:bg-primary/80">
+                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium leading-none text-primary-foreground transition-colors hover:bg-primary/80">
                   <IconDownload size={10} /> {t('Update')}
                 </button>
               )}
@@ -255,7 +256,7 @@ export const ResourcePanel = memo(function ResourcePanel({
               className="flex w-full h-8 items-center gap-2 rounded-lg px-2 text-[13px] text-left text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             >
               <IconPlus className="size-3.5 shrink-0" aria-hidden />
-              <IconPlug className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+              <IconPlug className="size-3.5 shrink-0 text-primary" aria-hidden />
               <span className="flex-1 truncate">{t('Add MCP server…')}</span>
             </button>
           )}
@@ -267,8 +268,8 @@ export const ResourcePanel = memo(function ResourcePanel({
             <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[180px] -translate-y-full rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: menuPos.top, left: menuPos.left }}>
               <button type="button" role="menuitem" onClick={handleSettingsClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
                 <IconSettings className={cn('size-3.5', isMemorySpike && 'text-destructive')} aria-hidden />
-                <span className={cn(isMemorySpike && 'font-medium text-destructive')}>{isMemorySpike ? 'Memory Spike' : 'Settings'}</span>
-                {isMemorySpike && <span className="ml-auto text-[10px] text-destructive">{spikeTotal}</span>}
+                <span className={cn(isMemorySpike && 'font-medium text-destructive')}>{isMemorySpike ? t('Memory spike') : t('Settings')}</span>
+                {isMemorySpike && <span className="ml-auto text-[11px] text-destructive">{spikeTotal}</span>}
               </button>
               <button type="button" role="menuitem" onClick={handleDebugClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
                 <IconBug className="size-3.5" aria-hidden /> {t('Debug panel')}
@@ -284,7 +285,7 @@ export const ResourcePanel = memo(function ResourcePanel({
               {appVersion && (
                 <>
                   <div className="my-1 border-t border-border/50" />
-                  <div className="px-3 py-1 text-[10px] tabular-nums text-muted-foreground/70">v{appVersion}</div>
+                  <div className="px-3 py-1 text-[11px] tabular-nums text-muted-foreground/70">v{appVersion}</div>
                 </>
               )}
             </div>
@@ -301,7 +302,7 @@ export const ResourcePanel = memo(function ResourcePanel({
       <div className="flex w-full min-w-0 flex-col">
         <div className="mb-0.5 flex items-center justify-between pr-1.5">
           <button type="button" onClick={onToggleCollapse}
-            className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
+            className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
             <AgentGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
             LAF Agent
           </button>
@@ -316,7 +317,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[220px]">
                     <p className="text-[11px] font-medium">{t('Drag into chat')}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground leading-relaxed">{t('Drop any agent, skill, or steering rule into the message box to attach it as context.')}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{t('Drop any agent, skill, or steering rule into the message box to attach it as context.')}</p>
                   </TooltipContent>
                 </Tooltip>
                 {(skills.length + mcpServers.length) > 10 && (
@@ -336,28 +337,28 @@ export const ResourcePanel = memo(function ResourcePanel({
             {connectionUi !== 'connected' && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span role="status" aria-label={connectionDot.label} className="relative flex size-5 shrink-0 items-center justify-center">
-                    {connectionDot.pulse && <span className="absolute size-2 animate-ping rounded-full" style={{ background: `${connectionDot.color}55` }} />}
+                  <span role="status" aria-label={t(connectionDot.label)} className="relative flex size-5 shrink-0 items-center justify-center">
+                    {connectionDot.pulse && <span className="absolute size-2 animate-ping rounded-full opacity-35" style={{ background: connectionDot.color }} />}
                     <span className="relative size-1.5 rounded-full" style={{ background: connectionDot.color }} />
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="top">{connectionDot.label}</TooltipContent>
+                <TooltipContent side="top">{t(connectionDot.label)}</TooltipContent>
               </Tooltip>
             )}
             {isMemorySpike && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button type="button" onClick={handleSettingsClick} aria-label={`Memory spike: ${spikeTotal}`}
-                    className="inline-flex h-5 items-center gap-1 rounded-full bg-destructive/15 px-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/25 transition-colors">
+                  <button type="button" onClick={handleSettingsClick} aria-label={t('Memory spike: {size}', { size: spikeTotal })}
+                    className="inline-flex h-5 items-center gap-1 rounded-full bg-destructive/15 px-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/25 transition-colors">
                     <span className="size-1.5 rounded-full bg-destructive" /> {t('Memory')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Memory spike: {spikeTotal}</TooltipContent>
+                <TooltipContent side="top">{t('Memory spike: {size}', { size: spikeTotal })}</TooltipContent>
               </Tooltip>
             )}
             {!isMemorySpike && isUpdateAvailable && (
               <button type="button" aria-label={t('Download and install update')} onClick={handleUpdateClick}
-                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium leading-none text-primary-foreground transition-colors hover:bg-primary/80">
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium leading-none text-primary-foreground transition-colors hover:bg-primary/80">
                 <IconDownload size={10} /> {t('Update')}
               </button>
             )}
@@ -392,7 +393,7 @@ export const ResourcePanel = memo(function ResourcePanel({
 
 
             {skills.length > 0 && (filteredSkills.length > 0 || !search) && (
-              <SectionToggle icon={IconBolt} iconColor="text-amber-600 dark:text-amber-400" label="Skills" count={filteredSkills.length} expanded={skillsOpen} onToggle={() => setSkillsOpen((v) => !v)} />
+              <SectionToggle icon={IconBolt} iconColor="text-amber-600 dark:text-amber-400" label={t('Skills')} count={filteredSkills.length} expanded={skillsOpen} onToggle={() => setSkillsOpen((v) => !v)} />
             )}
             {skillsOpen && filteredSkills.length > 0 && (
               <ul className="flex min-w-0 flex-col gap-px border-l border-border/30 mx-1 px-1.5 py-px">
@@ -403,7 +404,7 @@ export const ResourcePanel = memo(function ResourcePanel({
 
             {mcpServers.length > 0 && (filteredMcp.length > 0 || !search) && (
               <div className="flex items-center">
-                <SectionToggle icon={IconPlug} iconColor="text-sky-600 dark:text-sky-400" label="MCP" count={filteredMcp.length} errorCount={mcpErrorCount} expanded={mcpOpen} onToggle={() => setMcpOpen((v) => !v)} />
+                <SectionToggle icon={IconPlug} iconColor="text-primary" label="MCP" count={filteredMcp.length} errorCount={mcpErrorCount} expanded={mcpOpen} onToggle={() => setMcpOpen((v) => !v)} />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -441,7 +442,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                 className="flex w-full h-8 items-center gap-2 rounded-lg px-2 text-[13px] text-left text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <IconPlus className="size-3.5 shrink-0" aria-hidden />
-                <IconPlug className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+                <IconPlug className="size-3.5 shrink-0 text-primary" aria-hidden />
                 <span className="flex-1 truncate">{t('Add MCP server…')}</span>
               </button>
             )}
@@ -452,7 +453,7 @@ export const ResourcePanel = memo(function ResourcePanel({
             )}
 
             {prompts.length > 0 && (filteredPrompts.length > 0 || !search) && (
-              <SectionToggle icon={IconAlignLeft} iconColor="text-indigo-600 dark:text-indigo-400" label="Prompts" count={filteredPrompts.length} expanded={promptsOpen} onToggle={() => setPromptsOpen((v) => !v)} />
+              <SectionToggle icon={IconAlignLeft} iconColor="text-primary" label={t('Prompts')} count={filteredPrompts.length} expanded={promptsOpen} onToggle={() => setPromptsOpen((v) => !v)} />
             )}
             {promptsOpen && filteredPrompts.length > 0 && (
               <ul className="flex min-w-0 flex-col gap-px border-l border-border/30 mx-1 px-1.5 py-px">
@@ -463,16 +464,16 @@ export const ResourcePanel = memo(function ResourcePanel({
                       onClick={() => openViewer({ filePath: prompt.filePath, title: prompt.name })}
                       className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-[12px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                     >
-                      <IconAlignLeft className="size-3 shrink-0 text-indigo-500 dark:text-indigo-400" aria-hidden />
+                      <IconAlignLeft className="size-3 shrink-0 text-muted-foreground" aria-hidden />
                       <span className="flex-1 truncate">{prompt.name}</span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground/60">{prompt.source}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground/60">{prompt.source}</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
 
-            {noResults && <p className="px-2 py-3 text-center text-[10px] text-muted-foreground">{t('No matches')}</p>}
+            {noResults && <p className="px-2 py-3 text-center text-[11px] text-muted-foreground">{t('No matches')}</p>}
           </>
         )}
       </div>
@@ -486,7 +487,7 @@ export const ResourcePanel = memo(function ResourcePanel({
             <button type="button" role="menuitem" onClick={handleSettingsClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
               <IconSettings className={cn('size-3.5', isMemorySpike && 'text-destructive')} aria-hidden />
               <span className={cn(isMemorySpike && 'font-medium text-destructive')}>{isMemorySpike ? 'Memory Spike' : 'Settings'}</span>
-              {isMemorySpike && <span className="ml-auto text-[10px] text-destructive">{spikeTotal}</span>}
+              {isMemorySpike && <span className="ml-auto text-[11px] text-destructive">{spikeTotal}</span>}
             </button>
             <button type="button" role="menuitem" onClick={handleDebugClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
               <IconBug className="size-3.5" aria-hidden /> {t('Debug panel')}
@@ -502,7 +503,7 @@ export const ResourcePanel = memo(function ResourcePanel({
             {appVersion && (
               <>
                 <div className="my-1 border-t border-border/50" />
-                <div className="px-3 py-1 text-[10px] tabular-nums text-muted-foreground/70">v{appVersion}</div>
+                <div className="px-3 py-1 text-[11px] tabular-nums text-muted-foreground/70">v{appVersion}</div>
               </>
             )}
           </div>

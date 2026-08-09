@@ -20,7 +20,7 @@ export const CodingHoursChart = ({ events }: { events: AnalyticsEvent[] }) => {
             <XAxis dataKey="day" tick={{ fontSize: 10 }} tickFormatter={(d: string) => d.slice(5)} />
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
-            <Bar dataKey="value" name={t('Hours')} fill="#6366f1" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value" name={t('Hours')} fill="var(--chart-7)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

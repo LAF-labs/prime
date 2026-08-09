@@ -57,9 +57,9 @@
       "signingIdentity": null,
       "entitlements": "LafAgent.entitlements"
     },
-    "category": "DeveloperTool",
-    "shortDescription": "AI coding agents on your desktop",
-    "longDescription": "A native macOS desktop client for the prime-agent coding agent. Chat with agents, manage tasks, view diffs, and run terminals — all in one app.",
+    "category": "Productivity",
+    "shortDescription": "Your everyday AI assistant on your desktop",
+    "longDescription": "LAF Agent is a native desktop assistant for everyday work. Chat in plain language, let the agent research the web, organize files, and handle repetitive tasks — everything runs locally on your machine, in one app.",
     "createUpdaterArtifacts": true
   },
   "plugins": {

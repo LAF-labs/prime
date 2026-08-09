@@ -29,8 +29,8 @@ export const MessagesChart = ({ sent, received }: { sent: AnalyticsEvent[]; rece
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Bar dataKey="value" name={t('Sent')} fill="#22c55e" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="value2" name={t('Received')} fill="#3b82f6" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value" name={t('Sent')} fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value2" name={t('Received')} fill="var(--chart-4)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

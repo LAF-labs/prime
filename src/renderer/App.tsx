@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { useEffect, useCallback, useState, useRef, lazy, Suspense } from "react";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { applyTheme, listenSystemTheme, persistTheme } from "@/lib/theme";
@@ -97,12 +97,12 @@ function LoginBanner() {
 
   return (
     <div className="mx-auto mb-3 flex w-full max-w-2xl items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 lg:max-w-3xl xl:max-w-4xl">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-amber-400" aria-hidden>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
         <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.674 6.674 0 0 0 8 1.333Zm0 10.334a.667.667 0 1 1 0-1.334.667.667 0 0 1 0 1.334ZM8.667 8a.667.667 0 0 1-1.334 0V5.333a.667.667 0 0 1 1.334 0V8Z" fill="currentColor"/>
       </svg>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-amber-700 dark:text-amber-200/90">{t('Sign in to LAF Agent to start using AI agents')}</p>
-        <p className="text-[11px] text-amber-600/70 dark:text-amber-400">{t('Authentication is required to create threads and interact with agents')}</p>
+        <p className="text-[11px] text-amber-600/70 dark:text-amber-600 dark:text-amber-400">{t('Authentication is required to create threads and interact with agents')}</p>
       </div>
       <button
         type="button"
@@ -120,8 +120,8 @@ const SHOWCASE_FEATURES = [
     icon: IconMessageChatbot,
     label: "Just ask",
     desc: "Answers questions, writes and summarizes documents, and thinks things through with you",
-    color: "text-cyan-400",
-    bgColor: "bg-cyan-500/10",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
   },
   {
     icon: IconWorld,
@@ -134,14 +134,14 @@ const SHOWCASE_FEATURES = [
     icon: IconFiles,
     label: "Work with your files",
     desc: "Reads, writes, and organizes documents in the folders you choose",
-    color: "text-emerald-400",
+    color: "text-emerald-600 dark:text-emerald-400",
     bgColor: "bg-emerald-500/10",
   },
   {
     icon: IconBulb,
     label: "Remembers you",
     desc: "Keeps track of your preferences and picks up where you left off",
-    color: "text-amber-400",
+    color: "text-amber-600 dark:text-amber-600 dark:text-amber-400",
     bgColor: "bg-amber-500/10",
   },
 ] as const;
@@ -154,7 +154,11 @@ function EmptyState() {
   const handleNewChat = useCallback(() => {
     ipc.ensureChatsDir()
       .then((dir) => { useTaskStore.getState().setPendingWorkspace(dir) })
-      .catch((err) => { console.error('[chats] ensure_chats_dir failed:', err) })
+      .catch((err) => {
+        // A denied macOS Documents permission lands here on first run; the
+        // primary CTA must never be a silent dead end.
+        toast.error(t('Could not create the chats folder'), { description: err instanceof Error ? err.message : String(err) })
+      })
   }, []);
 
   const handleOpenFolder = useCallback(() => {
@@ -197,12 +201,12 @@ function EmptyState() {
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
           >
             <IconFolderOpen size={15} stroke={1.5} />
-            {hasProjects ? t('New Thread') : t('Open Folder')}
+            {hasProjects ? t('New chat in folder') : t('Open Folder')}
           </button>
         </div>
         {!hasProjects && (
           <p className="text-[11px] text-muted-foreground">
-            {t('Or press')} <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px]">{MOD_PREFIX}O</kbd> {t('to open a folder')}
+            {t('Or press')} <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px]">{MOD_PREFIX}O</kbd> {t('to open a folder')}
           </p>
         )}
 
@@ -268,6 +272,7 @@ export function App() {
     })),
   );
   const debugOpen = useDebugStore((s) => s.isOpen);
+  const isSettingsOpen = useTaskStore((s) => s.isSettingsOpen);
   const settingsLoaded = useSettingsStore((s) => s.isLoaded);
   const hasOnboardedV2 = useSettingsStore((s) => s.settings.hasOnboardedV2);
   const theme = useSettingsStore((s) => s.settings.theme ?? 'dark');
@@ -429,20 +434,37 @@ export function App() {
     const purgeInterval = setInterval(() => {
       useTaskStore.getState().purgeExpiredSoftDeletes();
     }, 60 * 60 * 1000);
-    // Auto-save thread history every 30s as a safety net
+    // Auto-save thread history every 30s as a safety net — but only when the
+    // store actually changed since the last tick. persistHistory re-serializes
+    // the whole thread index and issues one SQLite write per non-empty thread,
+    // which is pointless I/O on an idle app; the event-driven persists already
+    // cover every mutation, so this timer only backstops missed ones.
+    let historyDirty = false;
+    const unsubAutoSaveDirty = useTaskStore.subscribe(() => { historyDirty = true });
     const autoSaveInterval = setInterval(() => {
+      if (!historyDirty) return;
+      historyDirty = false;
       useTaskStore.getState().persistHistory()
       useTaskStore.getState().persistUiState()
     }, 30_000);
     // Request notification permission so end_turn alerts work
+    let notifActionListener: { unregister: () => void } | null = null;
     import("@tauri-apps/plugin-notification").then(({ isPermissionGranted, requestPermission, onAction }) => {
       isPermissionGranted().then((granted) => {
         if (!granted) requestPermission();
       });
-      // Navigate to the task when user clicks a notification
+      // Navigate to the task when user clicks a notification. Registration is
+      // async — same cancelled-flag pattern as the menu listeners below, or
+      // StrictMode's double-mount registers the handler twice.
       onAction((notification) => {
         const tid = (notification as { extra?: Record<string, unknown> }).extra?.taskId as string | undefined;
         if (tid) navigateToNotifiedTask(tid);
+      }).then((listener) => {
+        if (listenersCancelled) {
+          try { listener.unregister() } catch { /* stale listener */ }
+        } else {
+          notifActionListener = listener;
+        }
       }).catch(() => {});
     }).catch(() => {});
     // Clear notification badges when the user returns to the app — if they
@@ -562,11 +584,16 @@ export function App() {
       window.removeEventListener("focus", handleWindowFocus);
       clearInterval(purgeInterval);
       clearInterval(autoSaveInterval);
+      unsubAutoSaveDirty();
       stopAutoFlush();
       cleanupTask();
       cleanupResources();
       cleanupHealth();
       listenersCancelled = true
+      if (notifActionListener) {
+        try { notifActionListener.unregister() } catch { /* already removed */ }
+        notifActionListener = null
+      }
       for (const fn of menuUnlistens) {
         // Defer to avoid the "listeners[eventId].handlerId" crash during
         // HMR/StrictMode cleanup (see tauriListen in lib/ipc.ts)
@@ -740,11 +767,15 @@ export function App() {
       <ErrorBoundary>
         <NewProjectSheet />
       </ErrorBoundary>
-      <ErrorBoundary>
-        <Suspense fallback={<PanelFallback />}>
-          <SettingsPanel />
-        </Suspense>
-      </ErrorBoundary>
+      {/* Mount only while open: keeps the ~90 kB settings chunk out of the
+          startup fetch and stops the closed panel from subscribing to stores. */}
+      {isSettingsOpen && (
+        <ErrorBoundary>
+          <Suspense fallback={<PanelFallback />}>
+            <SettingsPanel />
+          </Suspense>
+        </ErrorBoundary>
+      )}
       <Toaster
         position="bottom-right"
         toastOptions={{
@@ -756,7 +787,7 @@ export function App() {
             actionButton: 'sonner-action',
           },
         }}
-        theme="dark"
+        theme={theme}
       />
       <UpdateAvailableDialog />
       <ErrorBoundary>

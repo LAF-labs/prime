@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import { useUpdateStore } from '@/stores/updateStore'
+import { useShallow } from 'zustand/react/shallow'
 import { t } from '@/lib/i18n'
 
 import type { Update } from '@tauri-apps/plugin-updater'
@@ -8,7 +9,19 @@ import type { Update } from '@tauri-apps/plugin-updater'
 const CHECK_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 
 export const useUpdateChecker = () => {
-  const store = useUpdateStore()
+  // Select only the fields the hook and its lone consumer
+  // (UpdateAvailableDialog, mounted permanently in App) actually read — a
+  // whole-store subscription re-rendered that dialog on every store change.
+  const store = useUpdateStore(
+    useShallow((s) => ({
+      status: s.status,
+      updateInfo: s.updateInfo,
+      progress: s.progress,
+      error: s.error,
+      dismissedVersion: s.dismissedVersion,
+      dismissVersion: s.dismissVersion,
+    })),
+  )
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pendingUpdateRef = useRef<Update | null>(null)
 

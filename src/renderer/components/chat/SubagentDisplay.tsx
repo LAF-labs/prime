@@ -156,7 +156,7 @@ export const SubagentDisplay = memo(function SubagentDisplay({ allToolCalls }: S
                   <span className="text-[13px] font-medium leading-[1.6] text-foreground/85">
                     {stage.name}
                   </span>
-                  <span className="rounded bg-muted/80 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="rounded bg-muted/80 px-1.5 py-0.5 text-[11px] text-muted-foreground">
                     {getRoleLabel(stage.role)}
                   </span>
                 </div>

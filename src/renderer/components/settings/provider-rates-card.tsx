@@ -116,10 +116,10 @@ export const ProviderRatesCard = memo(function ProviderRatesCard({ draft, update
             <div className="flex flex-col gap-1.5">
               <div className="grid grid-cols-[minmax(0,1fr)_repeat(4,68px)] items-end gap-2 px-1">
                 <span className="sr-only">{t('Provider')}</span>
-                <span className="text-[10px] font-medium text-muted-foreground">{t('Input')}</span>
-                <span className="text-[10px] font-medium text-muted-foreground">{t('Output')}</span>
-                <span className="text-[10px] font-medium text-muted-foreground">{t('Cache read')}</span>
-                <span className="text-[10px] font-medium text-muted-foreground">{t('Cache write')}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">{t('Input')}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">{t('Output')}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">{t('Cache read')}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">{t('Cache write')}</span>
               </div>
 
               {providers.map((p) => {
@@ -132,7 +132,7 @@ export const ProviderRatesCard = memo(function ProviderRatesCard({ draft, update
                   >
                     <div className="min-w-0">
                       <p className="truncate text-[12px] font-medium text-foreground">{label}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">
+                      <p className="truncate text-[11px] text-muted-foreground">
                         {p.isCustom ? t('Custom endpoint — enter rates manually') : t('Priced automatically')}
                       </p>
                     </div>

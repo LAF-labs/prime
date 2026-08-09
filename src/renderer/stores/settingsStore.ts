@@ -256,7 +256,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   openLogin: async () => {
     const { settings } = get()
-    // If already logged in, just refresh state instead of opening terminal
+    // If already logged in, just refresh state instead of opening settings
     try {
       const result = await ipc.authStatus(settings.agentBin)
       if (result.accountType) {
@@ -269,11 +269,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         })
         return
       }
-    } catch (err) {
+    } catch {
+      /* fall through to the settings panel */
     }
-    ipc.openTerminalWithCommand(`${settings.agentBin} login`).catch((err) => {
-      console.error('[auth] openTerminalWithCommand failed:', err)
-    })
+    // Sign-in happens by adding a provider key in Settings → Providers. The
+    // old path opened a Terminal running `${agentBin} login`, which on a
+    // DMG-only install (bundled sidecar, nothing on PATH) died with
+    // "command not found" — never do that to an everyday user.
+    const { useTaskStore } = await import('@/stores/taskStore')
+    useTaskStore.getState().setSettingsOpen(true, 'account')
   },
 }))
 

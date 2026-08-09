@@ -35,7 +35,7 @@ describe('deriveInputState', () => {
 
   it('returns disabled with reason for cancelled task', () => {
     const task = makeTask({ status: 'cancelled' })
-    expect(deriveInputState(task)).toEqual({ disabled: true, disabledReason: 'Task was cancelled' })
+    expect(deriveInputState(task)).toEqual({ disabled: true, disabledReason: 'Chat was cancelled' })
   })
 
   it('returns enabled for active task', () => {

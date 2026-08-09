@@ -90,7 +90,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           </div>
           <div className="flex gap-1.5">
             <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/prime-agent"
-              className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/40" />
+              className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50" />
             <button type="button" onClick={handleBrowse} aria-label={t('Browse for prime-agent')} tabIndex={0}
               className="rounded-lg border border-border px-2.5 py-2 text-muted-foreground transition-colors hover:text-foreground/70">
               <IconFolderOpen size={16} />

@@ -5,7 +5,7 @@ import { App } from './App'
 import '../tailwind.css'
 
 // Apply persisted theme immediately to prevent flash
-import { readPersistedTheme, applyTheme } from './lib/theme'
+import { readPersistedTheme, applyTheme, getResolvedTheme } from './lib/theme'
 applyTheme(readPersistedTheme())
 
 function showError(err: unknown) {
@@ -58,19 +58,27 @@ class ErrorBoundary extends React.Component<
   render() {
     if (!this.state.error) return this.props.children
 
+    // The crash screen renders before/without the app CSS, so it uses inline
+    // styles — but it must still honor the persisted theme with the documented
+    // token hex pairs instead of a hardcoded dark palette.
+    const isDark = getResolvedTheme(readPersistedTheme()) === 'dark'
+    const c = isDark
+      ? { bg: '#262624', fg: '#ecebe6', muted: '#a6a39a', faint: '#73726c', border: '#3a3a3a', danger: '#f87171' }
+      : { bg: '#faf9f5', fg: '#2b2a27', muted: '#73726c', faint: '#9b9a94', border: '#e8e6dc', danger: '#dc2626' }
+
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         height: '100vh', gap: '16px', padding: '24px', textAlign: 'center',
         fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-        color: '#e0e0e0', background: '#0D0D0D',
+        color: c.fg, background: c.bg,
       }}>
         <div style={{ fontSize: '32px', marginBottom: '4px' }}>⚠️</div>
         <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{t('LAF Agent failed to start')}</h2>
-        <p style={{ fontSize: '13px', color: '#888', maxWidth: '360px', margin: 0, lineHeight: 1.5 }}>
-          This usually happens when app data gets corrupted. You can reset it to start fresh, or try reloading.
+        <p style={{ fontSize: '13px', color: c.muted, maxWidth: '360px', margin: 0, lineHeight: 1.5 }}>
+          {t('This usually happens when app data gets corrupted. You can reset it to start fresh, or try reloading.')}
         </p>
-        <p style={{ fontSize: '11px', color: '#555', maxWidth: '400px', margin: 0, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+        <p style={{ fontSize: '11px', color: c.faint, maxWidth: '400px', margin: 0, fontFamily: 'monospace', wordBreak: 'break-all' }}>
           {this.state.error.message}
         </p>
         <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
@@ -78,7 +86,7 @@ class ErrorBoundary extends React.Component<
             onClick={() => window.location.reload()}
             style={{
               padding: '8px 16px', fontSize: '13px', fontWeight: 500, borderRadius: '8px',
-              border: '1px solid #333', background: 'transparent', color: '#ccc', cursor: 'pointer',
+              border: `1px solid ${c.border}`, background: 'transparent', color: c.fg, cursor: 'pointer',
             }}
           >
             {t('Reload')}
@@ -88,7 +96,7 @@ class ErrorBoundary extends React.Component<
               onClick={() => this.setState({ showRecovery: true })}
               style={{
                 padding: '8px 16px', fontSize: '13px', fontWeight: 500, borderRadius: '8px',
-                border: '1px solid #dc2626', background: 'transparent', color: '#ef4444', cursor: 'pointer',
+                border: `1px solid ${c.danger}`, background: 'transparent', color: c.danger, cursor: 'pointer',
               }}
             >
               {t('Reset app data')}
@@ -101,7 +109,7 @@ class ErrorBoundary extends React.Component<
                 border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer',
               }}
             >
-              Confirm reset — delete all history
+              {t('Confirm reset — delete all history')}
             </button>
           )}
         </div>

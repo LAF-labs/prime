@@ -75,12 +75,12 @@ export const UpdateAvailableDialog = () => {
           </DialogTitle>
           <DialogDescription>
             {isReady
-              ? 'The update has been downloaded. Restart to apply.'
+              ? t('The update has been downloaded. Restart to apply.')
               : isDownloading
                 ? downloadPercent !== null
-                  ? `Downloading update... ${downloadPercent}%`
-                  : 'Downloading update...'
-                : 'A new version is ready to install.'}
+                  ? t('Downloading update... {percent}%', { percent: downloadPercent })
+                  : t('Downloading update...')
+                : t('A new version is ready to install.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,7 +103,7 @@ export const UpdateAvailableDialog = () => {
               </Button>
               <Button size="sm" onClick={handleRestart} disabled={isRestarting}>
                 {isRestarting ? (
-                  <><IconLoader2 className="size-4 animate-spin" aria-hidden /> Restarting…</>
+                  <><IconLoader2 className="size-4 animate-spin" aria-hidden /> {t('Restarting…')}</>
                 ) : (
                   <><IconRefresh className="size-4" aria-hidden /> {t('Restart now')}</>
                 )}
@@ -116,7 +116,7 @@ export const UpdateAvailableDialog = () => {
               </Button>
               <Button variant="ghost" size="sm" disabled>
                 <IconLoader2 className="size-4 animate-spin" aria-hidden />
-                Downloading…
+                {t('Downloading…')}
               </Button>
             </>
           ) : (

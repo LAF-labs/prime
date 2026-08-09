@@ -174,7 +174,7 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
       : null
 
   const placeholderText = disabled
-    ? (disabledReason ?? t('Task ended'))
+    ? (disabledReason ?? t('Chat ended'))
     : t('Ask anything, @ to mention files, / for commands — Shift+Enter for newline')
 
   if (isCollapsed) {
@@ -191,7 +191,7 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
               'hover:border-muted-foreground/30',
             )}
           >
-            <span className="text-muted-foreground" style={{ fontSize: 'var(--chat-font-size, 15px)' }}>Type a message…</span>
+            <span className="text-muted-foreground" style={{ fontSize: 'var(--chat-font-size, 15px)' }}>{t('Type a message…')}</span>
             <IconChevronUp className="size-4 text-muted-foreground/80" />
           </button>
         </div>

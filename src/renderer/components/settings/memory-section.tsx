@@ -42,10 +42,10 @@ const StatCard = ({ label, value, hint, icon: Icon, accentClass }: StatCardProps
     <div className={cn('absolute inset-y-0 left-0 w-[3px] rounded-l-xl', accentClass)} />
     <div className="flex items-center gap-2">
       <Icon className={cn('size-3.5', accentClass.replace('bg-', 'text-'))} />
-      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
     <p className="font-mono text-[18px] font-bold tabular-nums text-foreground leading-tight">{value}</p>
-    {hint && <p className="text-[10.5px] text-muted-foreground/60 leading-snug">{hint}</p>}
+    {hint && <p className="text-[11px] text-muted-foreground/60 leading-snug">{hint}</p>}
   </div>
 )
 
@@ -90,17 +90,19 @@ const CategoryRow = ({ label, bytes, total, accentClass, icon: Icon }: CategoryR
 /* ── Status badge for per-thread rows ────────────────────────────── */
 
 const StatusBadge = ({ status }: { status: string }) => {
+  // pending_permission is amber (warning) to match ThreadItem's status map —
+  // one status, one color everywhere.
   const config: Record<string, { bg: string; text: string; label: string }> = {
-    running: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', label: 'Running' },
-    paused: { bg: 'bg-amber-500/15', text: 'text-amber-400', label: 'Paused' },
+    running: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', label: 'Running' },
+    paused: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-600 dark:text-amber-400', label: 'Paused' },
     error: { bg: 'bg-destructive/15', text: 'text-destructive', label: 'Error' },
-    pending_permission: { bg: 'bg-sky-500/15', text: 'text-sky-400', label: 'Pending' },
+    pending_permission: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-600 dark:text-amber-400', label: 'Pending' },
     completed: { bg: 'bg-muted/50', text: 'text-muted-foreground', label: 'Done' },
   }
   const c = config[status] ?? { bg: 'bg-muted/50', text: 'text-muted-foreground/60', label: status }
   return (
-    <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide', c.bg, c.text)}>
-      {c.label}
+    <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide', c.bg, c.text)}>
+      {t(c.label)}
     </span>
   )
 }
@@ -151,10 +153,10 @@ const ThreadRow = ({ thread, total }: { thread: ThreadMemoryBreakdown; total: nu
           <p className="truncate text-[12px] font-medium text-foreground">
             {threadName}
             {thread.isArchived && (
-              <span className="ml-1.5 text-[10px] text-muted-foreground/50">({t('archived')})</span>
+              <span className="ml-1.5 text-[11px] text-muted-foreground/50">({t('archived')})</span>
             )}
           </p>
-          <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/70">
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">
             {thread.messageCount} msg
             {thread.toolCalls > 0 && ` · ${formatBytes(thread.toolCalls)} tools`}
             {thread.liveTurn > 0 && ` · ${formatBytes(thread.liveTurn)} live`}
@@ -286,13 +288,13 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 'flex size-11 items-center justify-center rounded-xl',
                 isHot ? 'bg-amber-500/15' : 'bg-primary/10',
               )}>
-                <IconCpu className={cn('size-5', isHot ? 'text-amber-400' : 'text-primary')} />
+                <IconCpu className={cn('size-5', isHot ? 'text-amber-600 dark:text-amber-400' : 'text-primary')} />
               </div>
               <div>
-                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">{t('Tracked total')}</p>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('Tracked total')}</p>
                 <p className={cn(
                   'font-mono text-[24px] font-bold tabular-nums leading-tight',
-                  isHot ? 'text-amber-400' : 'text-foreground',
+                  isHot ? 'text-amber-600 dark:text-amber-400' : 'text-foreground',
                 )}>
                   {report ? formatBytes(report.grandTotal) : '—'}
                 </p>
@@ -323,12 +325,11 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           {/* Hot warning */}
           {isHot && (
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3">
-              <IconFlame className="mt-0.5 size-4 shrink-0 text-amber-400" />
+              <IconFlame className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-600 dark:text-amber-400" />
               <div>
-                <p className="text-[12px] font-medium text-amber-300">{t('High memory usage')}</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-200/70">
-                  Renderer is holding {report ? formatBytes(report.grandTotal) : ''} across threads, drafts, and debug buffers.
-                  Purge soft-deleted threads or clear debug buffers below.
+                <p className="text-[12px] font-medium text-amber-700 dark:text-amber-300">{t('High memory usage')}</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700/80 dark:text-amber-200/70">
+                  {t('Renderer is holding {size} across threads, drafts, and debug buffers. Purge soft-deleted threads or clear debug buffers below.', { size: report ? formatBytes(report.grandTotal) : '' })}
                 </p>
               </div>
             </div>
@@ -352,7 +353,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                   : 'none'
                 : undefined}
               icon={IconArchive}
-              accentClass="bg-violet-500"
+              accentClass="bg-[var(--chart-5)]"
             />
             <StatCard
               label={t('Soft-deleted')}
@@ -376,7 +377,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 value={formatBytes(heap.used)}
                 hint={`of ${formatBytes(heap.total)} allocated`}
                 icon={IconCpu}
-                accentClass="bg-sky-500"
+                accentClass="bg-[var(--chart-4)]"
               />
             )}
           </div>
@@ -399,7 +400,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 label={t('Tool calls')}
                 bytes={report.threads.reduce((s, t) => s + t.toolCalls, 0)}
                 total={report.grandTotal}
-                accentClass="bg-violet-500"
+                accentClass="bg-[var(--chart-5)]"
                 icon={IconTool}
               />
               <CategoryRow
@@ -413,7 +414,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 label={t('Queued')}
                 bytes={report.threads.reduce((s, t) => s + t.queued, 0)}
                 total={report.grandTotal}
-                accentClass="bg-sky-500"
+                accentClass="bg-[var(--chart-4)]"
                 icon={IconStack2}
               />
               <CategoryRow
@@ -427,7 +428,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 label={t('Drafts')}
                 bytes={report.drafts}
                 total={report.grandTotal}
-                accentClass="bg-pink-500"
+                accentClass="bg-[var(--chart-6)]"
                 icon={IconNote}
               />
               <CategoryRow
@@ -456,7 +457,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 <ThreadRow key={t.taskId} thread={t} total={report.threadsTotal || 1} />
               ))}
               {remaining > 0 && (
-                <p className="px-3 pt-2 text-[10.5px] text-muted-foreground/50">
+                <p className="px-3 pt-2 text-[11px] text-muted-foreground/50">
                   + {remaining} more thread{remaining === 1 ? '' : 's'} below 1% each
                 </p>
               )}
@@ -575,7 +576,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
         </SettingsCard>
       </SettingsGrid>
 
-      <p className="flex items-start gap-1.5 px-1 pt-1 text-[10.5px] leading-relaxed text-muted-foreground/50">
+      <p className="flex items-start gap-1.5 px-1 pt-1 text-[11px] leading-relaxed text-muted-foreground/50">
         <IconTerminal2 className="mt-0.5 size-3 shrink-0" aria-hidden />
         Scrollback estimates assume ~80 cols × 16 B per cell × the line cap. Real WASM heap usage varies.
       </p>

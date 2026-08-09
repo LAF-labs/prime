@@ -28,7 +28,7 @@ export const UsagePanel = memo(function UsagePanel({ onDismiss }: { onDismiss: (
   return (
     <PanelShell onDismiss={onDismiss}>
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{t('Token Usage')}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{t('Token Usage')}</span>
       </div>
       <div className="mx-3 mb-1 rounded-lg bg-muted/30 px-3 py-2">
         <div className="flex items-baseline justify-between">
@@ -43,7 +43,7 @@ export const UsagePanel = memo(function UsagePanel({ onDismiss }: { onDismiss: (
             />
           </div>
         )}
-        <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+        <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
           <span>{entries.length} task{entries.length !== 1 ? 's' : ''} with usage</span>
           <span>{currentModel ?? 'unknown model'}</span>
         </div>
@@ -62,7 +62,7 @@ export const UsagePanel = memo(function UsagePanel({ onDismiss }: { onDismiss: (
                     <span className="truncate">{task.name || task.id.slice(0, 8)}</span>
                   </div>
                 </div>
-                <span className="shrink-0 text-[10px] text-muted-foreground">{pct.toFixed(0)}%</span>
+                <span className="shrink-0 text-[11px] text-muted-foreground">{pct.toFixed(0)}%</span>
                 <span className="shrink-0 text-[11px]">{formatTokens(cu.used)}</span>
               </li>
             )

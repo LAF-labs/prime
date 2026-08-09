@@ -6,17 +6,13 @@
  *   1. `fuzzyScore` (sync, JS) — kept for backwards compatibility with the
  *      existing pickers (slash commands, agent, model). Cheap on small lists.
  *
- *   2. `fuzzyMatch` (async, Rust via IPC) — backed by `nucleo-matcher` in the
  *      backend. Use this when scoring more than ~200 candidates or when you
  *      want fzf-grade scoring quality. It hands off to the same matcher
  *      Helix and Zed use, off the renderer thread.
  *
- * Future migration: replace direct `fuzzyScore` callers with `fuzzyMatch`,
- * one picker at a time. The async signature is a wrapper so async/await
  * lands cleanly in components that already have `useEffect` for queries.
  */
 
-import { ipc } from '@/lib/ipc'
 
 /** Fuzzy match scoring: lower = better, null = no match */
 export const fuzzyScore = (query: string, target: string): number | null => {
@@ -67,17 +63,3 @@ export interface FuzzyMatch {
  * - Results are sorted by descending score; the caller should not re-sort.
  * - Use `limit` to cap result count (the backend truncates after sort).
  */
-export const fuzzyMatch = async (
-  query: string,
-  candidates: readonly FuzzyCandidate[],
-  limit?: number,
-): Promise<FuzzyMatch[]> => {
-  if (candidates.length === 0) return []
-  // The IPC layer only deals with plain JS objects; spread to drop readonly markers.
-  const payload = candidates.map((c) => ({
-    id: c.id,
-    text: c.text,
-    ...(c.secondary !== undefined ? { secondary: c.secondary } : {}),
-  }))
-  return ipc.fuzzyMatch(query, payload, limit)
-}

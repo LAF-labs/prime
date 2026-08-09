@@ -64,7 +64,7 @@ export const SplitPanelHeader = memo(function SplitPanelHeader({
         )}>
           {taskName}
         </span>
-        <span className="min-w-0 max-w-[160px] truncate text-[10.5px] leading-tight text-muted-foreground/50">
+        <span className="min-w-0 max-w-[160px] truncate text-[11px] leading-tight text-muted-foreground/50">
           {projectName}
         </span>
       </div>

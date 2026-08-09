@@ -119,7 +119,7 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
       )}
       {filteredBuiltIn.length > 0 && (
         <>
-          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('Agents')}</span></div>
+          <div className="px-3 pt-2 pb-1"><span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Agents')}</span></div>
           <ul className="pb-1">
             {filteredBuiltIn.map((agent) => {
               const isActive = currentModeId === agent.id
@@ -128,8 +128,8 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
                 <li key={agent.id} role="option" aria-selected={isActive} onMouseDown={(e) => { e.preventDefault(); handleSelectAgent(agent.id) }} className={cn('flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors', isActive ? 'text-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground')}>
                   <Icon className={cn('size-3.5 shrink-0', isActive ? agent.color : 'text-muted-foreground')} />
                   <span className={cn('flex-1', isActive && 'font-medium')}>{agent.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{agent.description}</span>
-                  {isActive && <span className="text-[10px] text-primary">active</span>}
+                  <span className="text-[11px] text-muted-foreground">{agent.description}</span>
+                  {isActive && <span className="text-[11px] text-primary">active</span>}
                 </li>
               )
             })}
@@ -139,7 +139,7 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
       {filteredResources.length > 0 && (
         <>
           <div className="mx-3 border-t border-border/40" />
-          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">.agent Agents</span></div>
+          <div className="px-3 pt-2 pb-1"><span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">.agent Agents</span></div>
           <ul className="max-h-[160px] overflow-y-auto pb-1">
             {filteredResources.map((agent) => {
               const isActive = currentModeId === agent.name
@@ -147,8 +147,8 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
                 <li key={`${agent.source}-${agent.name}`} role="option" aria-selected={isActive} onMouseDown={(e) => { e.preventDefault(); handleSelectAgent(agent.name) }} className={cn('flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors', isActive ? 'text-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground')}>
                   <IconRobot className={cn('size-3.5 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
                   <span className={cn('flex-1 truncate', isActive && 'font-medium')}>{formatName(agent.name)}</span>
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{agent.description.slice(0, 60)}</span>
-                  {isActive && <span className="shrink-0 text-[10px] text-primary">active</span>}
+                  <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">{agent.description.slice(0, 60)}</span>
+                  {isActive && <span className="shrink-0 text-[11px] text-primary">active</span>}
                 </li>
               )
             })}
@@ -158,7 +158,7 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
       {filteredServers.length > 0 && (
         <>
           <div className="mx-3 border-t border-border/40" />
-          <div className="px-3 pt-2 pb-1"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{t('MCP Servers')}</span></div>
+          <div className="px-3 pt-2 pb-1"><span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{t('MCP Servers')}</span></div>
           <div className="max-h-[160px] overflow-y-auto pb-1">
             {filteredServers.map((server) => {
               const dot = STATUS_DOT[server.status] ?? STATUS_DOT.loading
@@ -166,8 +166,8 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
                 <div key={server.name} className="flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-muted-foreground">
                   <span className={cn('size-1.5 shrink-0 rounded-full', dot.cls)} />
                   <span className="flex-1 truncate text-foreground/90">{server.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{dot.label}</span>
-                  <span className="text-[10px] text-muted-foreground/70">{server.toolCount > 0 ? `${server.toolCount} tools` : '—'}</span>
+                  <span className="text-[11px] text-muted-foreground">{dot.label}</span>
+                  <span className="text-[11px] text-muted-foreground/70">{server.toolCount > 0 ? `${server.toolCount} tools` : '—'}</span>
                 </div>
               )
             })}

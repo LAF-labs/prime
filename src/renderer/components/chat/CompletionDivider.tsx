@@ -22,7 +22,7 @@ export const CompletionDivider = memo(function CompletionDivider({ durationMs }:
   return (
     <div className="my-3 flex items-center gap-3">
       <span className="h-px flex-1 bg-border/60" />
-      <span className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60">
+      <span className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground/60">
         {label}
       </span>
       <span className="h-px flex-1 bg-border/60" />

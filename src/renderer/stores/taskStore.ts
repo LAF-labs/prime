@@ -181,8 +181,13 @@ export { initTaskListeners, applyTurnEnd } from './task-store-listeners'
  */
 export const CHATS_DIR_MARKER = '/LAF Agent Chats'
 const LEGACY_CHATS_DIR_MARKER = '/.laf-agent/chats'
-export const isChatWorkspace = (ws: string | null | undefined): boolean =>
-  !!ws && (ws.endsWith(CHATS_DIR_MARKER) || ws.includes(`${CHATS_DIR_MARKER}/`) || ws.includes(LEGACY_CHATS_DIR_MARKER))
+export const isChatWorkspace = (ws: string | null | undefined): boolean => {
+  if (!ws) return false
+  // ensure_chats_dir builds the path with the platform separator; normalize
+  // Windows backslashes or every chat gets promoted into the projects list.
+  const normalized = ws.replace(/\\/g, '/')
+  return normalized.endsWith(CHATS_DIR_MARKER) || normalized.includes(`${CHATS_DIR_MARKER}/`) || normalized.includes(LEGACY_CHATS_DIR_MARKER)
+}
 const withoutChatDirs = (list: string[]): string[] => list.filter((w) => !isChatWorkspace(w))
 
 export const useTaskStore = create<TaskStore>((set, get) => ({

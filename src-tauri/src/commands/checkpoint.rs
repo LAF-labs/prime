@@ -195,13 +195,24 @@ pub fn create_snapshot(cwd: &str, task_id: &str, turn: u32) -> Result<Checkpoint
 }
 
 /// List all checkpoints for a given task, sorted by turn number ascending.
+///
+/// Async with the git2 work on the blocking pool, like [`checkpoint_create`]:
+/// ref enumeration plus commit peeling over a long thread's checkpoints must
+/// not run on the main thread.
 #[tauri::command]
-pub fn checkpoint_list(
+pub async fn checkpoint_list(
     state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<Vec<Checkpoint>, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    let repo = Repository::discover(&cwd)?;
+    tauri::async_runtime::spawn_blocking(move || list_snapshots(&cwd, &task_id))
+        .await
+        .map_err(|e| AppError::Other(format!("checkpoint list task failed: {e}")))?
+}
+
+/// Workspace-addressed core of [`checkpoint_list`], split out for testing.
+pub fn list_snapshots(cwd: &str, task_id: &str) -> Result<Vec<Checkpoint>, AppError> {
+    let repo = Repository::discover(cwd)?;
     let prefix = format!("{REF_PREFIX}{task_id}/");
 
     let mut checkpoints: Vec<Checkpoint> = Vec::new();
@@ -244,15 +255,20 @@ pub fn checkpoint_list(
 
 /// Compute the diff between two checkpoint turns for a task.
 /// If `to_turn` is 0, diffs against the live working tree.
+///
+/// Async with the git2 work on the blocking pool — tree reads plus a full
+/// text diff over every changed file scale with the turn's size.
 #[tauri::command]
-pub fn checkpoint_diff(
+pub async fn checkpoint_diff(
     state: tauri::State<'_, AgentState>,
     task_id: String,
     from_turn: u32,
     to_turn: u32,
 ) -> Result<CheckpointDiff, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    diff_snapshots(&cwd, &task_id, from_turn, to_turn)
+    tauri::async_runtime::spawn_blocking(move || diff_snapshots(&cwd, &task_id, from_turn, to_turn))
+        .await
+        .map_err(|e| AppError::Other(format!("checkpoint diff task failed: {e}")))?
 }
 
 /// Workspace-addressed core of [`checkpoint_diff`], split out for testing.
@@ -499,9 +515,19 @@ pub fn restore_snapshot(cwd: &str, task_id: &str, turn: u32, force: bool) -> Res
 /// commit against `git gc` forever. Age comes from the ref's own reflog entry
 /// (refs are lightweight; the target commit's date says nothing about when
 /// the checkpoint was taken).
+///
+/// Async with the git2 work on the blocking pool: iterating thousands of refs
+/// and reading each reflog must not run on the main thread.
 #[tauri::command]
-pub fn checkpoint_prune(cwd: String, keep_days: u32) -> Result<u32, AppError> {
-    let repo = Repository::discover(&cwd)?;
+pub async fn checkpoint_prune(cwd: String, keep_days: u32) -> Result<u32, AppError> {
+    tauri::async_runtime::spawn_blocking(move || prune_snapshots(&cwd, keep_days))
+        .await
+        .map_err(|e| AppError::Other(format!("checkpoint prune task failed: {e}")))?
+}
+
+/// Workspace-addressed core of [`checkpoint_prune`], split out for testing.
+pub fn prune_snapshots(cwd: &str, keep_days: u32) -> Result<u32, AppError> {
+    let repo = Repository::discover(cwd)?;
     let cutoff = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -547,13 +573,23 @@ pub fn checkpoint_prune(cwd: String, keep_days: u32) -> Result<u32, AppError> {
 }
 
 /// Delete all checkpoints for a task (cleanup on thread delete).
+///
+/// Async with the git2 work on the blocking pool — a long thread can own
+/// hundreds of refs, and thread deletion should never stall the UI.
 #[tauri::command]
-pub fn checkpoint_cleanup(
+pub async fn checkpoint_cleanup(
     state: tauri::State<'_, AgentState>,
     task_id: String,
 ) -> Result<u32, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    let repo = Repository::discover(&cwd)?;
+    tauri::async_runtime::spawn_blocking(move || cleanup_snapshots(&cwd, &task_id))
+        .await
+        .map_err(|e| AppError::Other(format!("checkpoint cleanup task failed: {e}")))?
+}
+
+/// Workspace-addressed core of [`checkpoint_cleanup`], split out for testing.
+pub fn cleanup_snapshots(cwd: &str, task_id: &str) -> Result<u32, AppError> {
+    let repo = Repository::discover(cwd)?;
     let prefix = format!("{REF_PREFIX}{task_id}/");
 
     let mut deleted: u32 = 0;
@@ -918,7 +954,7 @@ mod prune_tests {
         repo.reference("refs/laf-agent/cp/task-a/1", oid, true, "cp").unwrap();
         repo.reference("refs/laf-agent/cp/task-a/2", oid, true, "cp").unwrap();
 
-        let deleted = checkpoint_prune(dir.path().to_string_lossy().into_owned(), 30).unwrap();
+        let deleted = prune_snapshots(&dir.path().to_string_lossy(), 30).unwrap();
         assert_eq!(deleted, 0);
         assert!(repo.find_reference("refs/laf-agent/cp/task-a/1").is_ok());
     }
@@ -930,7 +966,7 @@ mod prune_tests {
         let oid = repo.head().unwrap().peel_to_commit().unwrap().id();
         repo.reference("refs/laf-agent/cp/task-b/1", oid, true, "cp").unwrap();
 
-        let deleted = checkpoint_prune(dir.path().to_string_lossy().into_owned(), 0).unwrap();
+        let deleted = prune_snapshots(&dir.path().to_string_lossy(), 0).unwrap();
         assert_eq!(deleted, 1);
         assert!(repo.find_reference("refs/laf-agent/cp/task-b/1").is_err());
     }
@@ -942,7 +978,7 @@ mod prune_tests {
         let oid = repo.head().unwrap().peel_to_commit().unwrap().id();
         repo.reference("refs/heads/feature-x", oid, true, "user branch").unwrap();
 
-        checkpoint_prune(dir.path().to_string_lossy().into_owned(), 0).unwrap();
+        prune_snapshots(&dir.path().to_string_lossy(), 0).unwrap();
         assert!(repo.find_reference("refs/heads/feature-x").is_ok());
     }
 }

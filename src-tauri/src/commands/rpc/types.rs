@@ -287,9 +287,10 @@ pub struct CreateTaskParams {
     pub launch_options: Option<LaunchOptions>,
     /// When true, register the task in state but do not spawn a prime-agent
     /// subprocess and do not push an empty user message. The connection is
-    /// spawned lazily on the first call to `task_send_message`. Used by the
-    /// worktree creation flow which pre-creates a thread before the user has
-    /// typed anything.
+    /// spawned lazily on the first call to `task_send_message`. In practice
+    /// the empty-prompt path in `task_create` is what triggers deferral (it
+    /// ORs this flag with "prompt is empty"); no frontend caller sets it
+    /// explicitly anymore.
     #[serde(default)]
     pub defer_spawn: bool,
 }

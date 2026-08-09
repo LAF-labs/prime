@@ -594,7 +594,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
             type="button"
             onClick={() => setActiveTab('frameworks')}
             className={cn(
-              'px-3 py-2 text-[12px] font-medium transition-colors border-b-2 -mb-px outline-none',
+              'px-3 py-2 text-[12px] font-medium transition-colors border-b-2 -mb-px outline-none focus-visible:ring-1 focus-visible:ring-ring',
               activeTab === 'frameworks'
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -606,7 +606,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
             type="button"
             onClick={() => setActiveTab('emoji')}
             className={cn(
-              'px-3 py-2 text-[12px] font-medium transition-colors border-b-2 -mb-px outline-none',
+              'px-3 py-2 text-[12px] font-medium transition-colors border-b-2 -mb-px outline-none focus-visible:ring-1 focus-visible:ring-ring',
               activeTab === 'emoji'
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -618,13 +618,13 @@ export const IconPickerDialog = memo(function IconPickerDialog({
             type="button"
             onClick={() => setActiveTab('file')}
             className={cn(
-              'px-3 py-2 text-[12px] font-medium transition-colors border-b-2 -mb-px outline-none',
+              'px-3 py-2 text-[12px] font-medium transition-colors border-b-2 -mb-px outline-none focus-visible:ring-1 focus-visible:ring-ring',
               activeTab === 'file'
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
-            Project File
+            {t('Project File')}
           </button>
         </div>
 
@@ -649,7 +649,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                       )}
                     >
                       <Icon className="size-6 shrink-0" aria-hidden />
-                      <span className="text-[10px] text-muted-foreground truncate w-full text-center leading-tight">{FRAMEWORK_LABELS[id]}</span>
+                      <span className="text-[11px] text-muted-foreground truncate w-full text-center leading-tight">{FRAMEWORK_LABELS[id]}</span>
                     </button>
                   )
                 })}
@@ -663,7 +663,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[12px] font-medium text-foreground">{FRAMEWORK_LABELS[selectedFramework]}</span>
-                    <span className="text-[10px] text-muted-foreground">{t('Framework icon')}</span>
+                    <span className="text-[11px] text-muted-foreground">{t('Framework icon')}</span>
                   </div>
                 </div>
               )}
@@ -698,7 +698,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                   const hasMore = !isSearching && category.emojis.length > CATEGORY_PREVIEW_COUNT
                   return (
                     <div key={category.label} className="flex flex-col gap-1">
-                      <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider">{category.label}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider">{t(category.label)}</span>
                       <div className="grid grid-cols-8 gap-0.5">
                         {visibleEmojis.map((emoji) => (
                           <button
@@ -720,7 +720,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                         <button
                           type="button"
                           onClick={() => toggleCategoryExpand(category.label)}
-                          className="flex items-center gap-1 self-start rounded px-1 py-0.5 text-[10px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+                          className="flex items-center gap-1 self-start rounded px-1 py-0.5 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
                         >
                           <IconChevronDown className={cn('size-3 transition-transform', isExpanded && 'rotate-180')} aria-hidden />
                           {isExpanded ? 'Show less' : `+${category.emojis.length - CATEGORY_PREVIEW_COUNT} more`}
@@ -739,7 +739,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[12px] font-medium text-foreground">{t('Emoji icon')}</span>
-                    <span className="text-[10px] text-muted-foreground">{t('Custom emoji')}</span>
+                    <span className="text-[11px] text-muted-foreground">{t('Custom emoji')}</span>
                   </div>
                 </div>
               )}
@@ -783,7 +783,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                           >
                             <IconPhoto className="size-3 shrink-0 text-muted-foreground/50" aria-hidden />
                             <span className="truncate text-foreground/80">{file.path}</span>
-                            <span className="shrink-0 text-[9px] text-muted-foreground/50 ml-auto">{file.width === 0 && file.height === 0 ? 'SVG' : `${file.width}×${file.height}`}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground/50 ml-auto">{file.width === 0 && file.height === 0 ? 'SVG' : `${file.width}×${file.height}`}</span>
                           </button>
                         </li>
                       ))}
@@ -803,15 +803,15 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                           aria-hidden
                         />
                       </div>
-                      <span className="text-[10px] text-muted-foreground text-center truncate w-full">{selectedFile.split('/').pop()}</span>
+                      <span className="text-[11px] text-muted-foreground text-center truncate w-full">{selectedFile.split('/').pop()}</span>
                       {selectedImage && (
-                        <span className="text-[9px] text-muted-foreground/60">{selectedImage.width === 0 && selectedImage.height === 0 ? 'SVG (vector)' : `${selectedImage.width}×${selectedImage.height}px`}</span>
+                        <span className="text-[11px] text-muted-foreground/60">{selectedImage.width === 0 && selectedImage.height === 0 ? 'SVG (vector)' : `${selectedImage.width}×${selectedImage.height}px`}</span>
                       )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-center">
                       <IconPhoto className="size-6 text-muted-foreground/30" aria-hidden />
-                      <span className="text-[10px] text-muted-foreground/50 leading-tight">{t('Select a file to preview')}</span>
+                      <span className="text-[11px] text-muted-foreground/50 leading-tight">{t('Select a file to preview')}</span>
                     </div>
                   )}
                 </div>

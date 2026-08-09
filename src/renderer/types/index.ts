@@ -171,10 +171,7 @@ export interface ActivityEntry {
 }
 
 export interface TextGenerationPolicy {
-  commitInstructions?: string
-  branchInstructions?: string
   threadTitleInstructions?: string
-  prInstructions?: string
 }
 
 /** Three-tier permission model. See `lib/permission-rules.ts`. */
@@ -209,8 +206,6 @@ export interface ProjectPrefs {
   permissionMode?: PermissionMode
   /** Per-project allow-rules, merged on top of the global list at spawn. */
   permissionRules?: PermissionRule[]
-  worktreeEnabled?: boolean
-  symlinkDirectories?: string[]
   tightSandbox?: boolean
   iconOverride?: { type: 'framework'; id: string } | { type: 'file'; path: string } | { type: 'emoji'; emoji: string } | null
   textGenerationPolicy?: TextGenerationPolicy

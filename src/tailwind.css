@@ -107,6 +107,25 @@
     --warning-foreground: #b45309;
     --pink: #ec4899;
     --pink-foreground: #ffffff;
+    /* Categorical chart palette (analytics dashboard) — charts read
+       var(--chart-N) instead of hardcoding hex in TSX. */
+    --chart-1: #c96442;
+    --chart-2: #059669;
+    --chart-3: #d97706;
+    --chart-4: #0891b2;
+    --chart-5: #7c3aed;
+    --chart-6: #db2777;
+    --chart-7: #4f46e5;
+    --chart-8: #dc2626;
+    /* Context-ring gradient ramps (chat/ContextRing.tsx). */
+    --ctx-compacting-from: #3b82f6;
+    --ctx-compacting-to: #8b5cf6;
+    --ctx-low-from: #10b981;
+    --ctx-low-to: #0891b2;
+    --ctx-mid-from: #f59e0b;
+    --ctx-mid-to: #ea580c;
+    --ctx-high-from: #dc2626;
+    --ctx-high-to: #db2777;
     /* Fixed typography — the app has no zoom and no font-size setting. */
     --app-font-size: 14px;
     --chat-font-size: 16px;
@@ -142,6 +161,22 @@
     --warning-foreground: #fcd34d;
     --pink: #f472b6;
     --pink-foreground: #ffffff;
+    --chart-1: #d97757;
+    --chart-2: #34d399;
+    --chart-3: #fbbf24;
+    --chart-4: #22d3ee;
+    --chart-5: #a78bfa;
+    --chart-6: #f472b6;
+    --chart-7: #818cf8;
+    --chart-8: #f87171;
+    --ctx-compacting-from: #60a5fa;
+    --ctx-compacting-to: #a855f7;
+    --ctx-low-from: #34d399;
+    --ctx-low-to: #22d3ee;
+    --ctx-mid-from: #fbbf24;
+    --ctx-mid-to: #fb923c;
+    --ctx-high-from: #f87171;
+    --ctx-high-to: #ec4899;
 }
 
 /* Fixed root size — matches the Claude desktop app's UI density. There is no
@@ -523,40 +558,46 @@ input[type="search"] {
 
 
 /* ── Sonner toast overrides ─────────────────────────────────────── */
+/* Token-driven so toasts follow the active theme (the old rules hardcoded a
+   dark palette and a retired blue action button). */
 .sonner-toast {
-    background-color: #1a1a1a !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background-color: var(--popover) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 12px !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
-    color: #f0f0f0 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+    color: var(--popover-foreground) !important;
     padding: 14px 16px !important;
+}
+
+.dark .sonner-toast {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 
 .sonner-title {
     font-weight: 500 !important;
     font-size: 13px !important;
-    color: #f0f0f0 !important;
+    color: var(--popover-foreground) !important;
 }
 
 .sonner-description {
     font-size: 12px !important;
-    color: #9a9a9a !important;
+    color: var(--muted-foreground) !important;
 }
 
 .sonner-action {
-    background-color: #3b82f6 !important;
-    color: #ffffff !important;
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
     border: none !important;
     border-radius: 8px !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     padding: 6px 14px !important;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: opacity 0.15s ease;
 }
 
 .sonner-action:hover {
-    background-color: #2563eb !important;
+    opacity: 0.9;
 }
 
 /* Floating panel background — hardcoded to bypass Tailwind v4 CSS variable

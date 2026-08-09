@@ -5,6 +5,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
 import type { WorkingRow as WorkingRowData } from '@/lib/timeline'
 import { ipc } from '@/lib/ipc'
+import { attempt } from '@/lib/ipc-report'
 
 // Source strings — rendered through t() at display time so the cycling
 // status word follows the app language (was always English).
@@ -83,7 +84,7 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
 
   const handleCancel = useCallback(() => {
     if (resolvedTaskId) {
-      ipc.cancelTask(resolvedTaskId).catch(() => {})
+      attempt(t('Could not cancel'), ipc.cancelTask(resolvedTaskId))
     }
   }, [resolvedTaskId])
 
@@ -109,7 +110,7 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
               type="button"
               onClick={handleCancel}
               className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-amber-600 ring-1 ring-amber-500/40 hover:bg-amber-500/10 dark:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              aria-label={t('Cancel stuck task')}
+              aria-label={t('Stop the stuck response')}
             >
               {t('Cancel')}
             </button>

@@ -83,7 +83,7 @@ fn scan_skills(base: &Path, is_global: bool) -> Vec<AgentSkill> {
         .filter(|e| {
             let name = e.file_name();
             !name.to_string_lossy().starts_with('.')
-                && (e.file_type().map_or(false, |t| t.is_dir() || t.is_symlink()))
+                && (e.file_type().is_ok_and(|t| t.is_dir() || t.is_symlink()))
         })
         .map(|e| {
             let skill_md = e.path().join("SKILL.md");

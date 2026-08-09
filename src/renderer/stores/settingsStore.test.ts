@@ -7,7 +7,6 @@ vi.mock('@/lib/ipc', () => ({
     listModels: vi.fn().mockResolvedValue({ availableModels: [{ modelId: 'm1', name: 'Model 1' }], currentModelId: 'm1' }),
     authStatus: vi.fn().mockResolvedValue({ accountType: 'anthropic', email: 'test@test.com' }),
     authLogout: vi.fn().mockResolvedValue(undefined),
-    openTerminalWithCommand: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -293,13 +292,18 @@ describe('settingsStore', () => {
       vi.mocked(ipc.authStatus).mockResolvedValue({ accountType: 'pro', email: 'a@b.com' } as never)
       await useSettingsStore.getState().openLogin()
       expect(useSettingsStore.getState().agentAuth?.accountType).toBe('pro')
-      expect(ipc.openTerminalWithCommand).not.toHaveBeenCalled()
+      const { useTaskStore } = await import('./taskStore')
+      expect(useTaskStore.getState().isSettingsOpen).toBe(false)
     })
 
-    it('opens terminal when not logged in', async () => {
+    it('opens Settings on the Providers section when not logged in — never a terminal', async () => {
       vi.mocked(ipc.authStatus).mockRejectedValue(new Error('not logged in'))
       await useSettingsStore.getState().openLogin()
-      expect(ipc.openTerminalWithCommand).toHaveBeenCalledWith('prime-agent login')
+      // A DMG-only install has no `prime-agent` on PATH, so the old terminal
+      // path died with "command not found" — sign-in must go to Providers.
+      const { useTaskStore } = await import('./taskStore')
+      expect(useTaskStore.getState().isSettingsOpen).toBe(true)
+      expect(useTaskStore.getState().settingsInitialSection).toBe('account')
     })
   })
 

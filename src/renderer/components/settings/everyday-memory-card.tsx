@@ -106,9 +106,11 @@ export const EverydayMemoryCard = memo(function EverydayMemoryCard() {
                 className="flex items-start gap-2 rounded-md border border-border/50 bg-background/40 px-2.5 py-1.5"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] leading-relaxed text-foreground">{memory.fact}</p>
+                  {/* break-words: a saved fact can be one long unbroken token
+                      (URL, Korean compound) and must wrap, not overflow. */}
+                  <p className="break-words text-[12px] leading-relaxed text-foreground">{memory.fact}</p>
                   {formatDate(memory.at) && (
-                    <p className="mt-0.5 text-[10.5px] text-muted-foreground">{formatDate(memory.at)}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{formatDate(memory.at)}</p>
                   )}
                 </div>
                 <Tooltip>

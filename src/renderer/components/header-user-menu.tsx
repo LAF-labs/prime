@@ -72,7 +72,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                 <p className="text-[12px] font-medium text-foreground/90 truncate">
                   {agentAuth.email ?? agentAuth.accountType}
                 </p>
-                <p className="text-[10px] text-foreground/70">
+                <p className="text-[11px] text-foreground/70">
                   {agentAuth.accountType}
                 </p>
               </div>

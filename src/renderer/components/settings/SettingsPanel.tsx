@@ -3,6 +3,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { IconX, IconArrowLeft, IconBrandGithub, IconSearch, IconRotate, IconCircleFilled, IconAlertTriangle } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore, buildRestoredDefaults } from '@/stores/settingsStore'
+import { useShallow } from 'zustand/react/shallow'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -32,7 +33,9 @@ export const SettingsPanel = () => {
   const open = useTaskStore((s) => s.isSettingsOpen)
   const setOpen = useTaskStore((s) => s.setSettingsOpen)
   const settingsInitialSection = useTaskStore((s) => s.settingsInitialSection)
-  const { settings, saveSettings, authChecked, checkAuth } = useSettingsStore()
+  const { settings, saveSettings, authChecked, checkAuth } = useSettingsStore(
+    useShallow((s) => ({ settings: s.settings, saveSettings: s.saveSettings, authChecked: s.authChecked, checkAuth: s.checkAuth })),
+  )
 
   const [section, setSection] = useState<Section>('general')
   const [draft, setDraft] = useState<AppSettings>(settings)
@@ -186,7 +189,7 @@ export const SettingsPanel = () => {
                     {navItem && <navItem.icon className="size-3.5 shrink-0 text-muted-foreground/60" />}
                     <div className="min-w-0">
                       <p className="text-[12px] font-medium text-foreground">{t(item.label)}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">{t(item.description)}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{t(item.description)}</p>
                     </div>
                   </button>
                 )
@@ -232,7 +235,7 @@ export const SettingsPanel = () => {
             </button>
             <div className="flex items-center justify-between px-2 py-1">
               <button type="button" onClick={() => setIsAboutOpen(true)} className="text-left transition-colors hover:text-foreground">
-                <p className="text-[10px] text-muted-foreground">LAF Agent {appVersion ? `v${appVersion}` : ''}</p>
+                <p className="text-[11px] text-muted-foreground">LAF Agent {appVersion ? `v${appVersion}` : ''}</p>
               </button>
               <a href="https://laf-co.com/" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown} aria-label={t('LAF Agent website')} tabIndex={0} className="text-muted-foreground transition-colors hover:text-foreground">
                 <IconBrandGithub className="size-3.5" />
@@ -243,7 +246,7 @@ export const SettingsPanel = () => {
               onClick={handleExternalLinkClick}
               onKeyDown={handleExternalLinkKeyDown}
               tabIndex={0}
-              className="block px-2 pb-1 text-[9px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              className="block px-2 pb-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
             >
               {t('Powered by Prime Agent (PrimeIntellect-ai/prime-agent)')}
             </a>
@@ -284,7 +287,7 @@ export const SettingsPanel = () => {
                 )}
               >
                 {hasDirtyState && (
-                  <IconCircleFilled className="absolute -right-1 -top-1 size-2.5 text-amber-400" />
+                  <IconCircleFilled className="absolute -right-1 -top-1 size-2.5 text-amber-600 dark:text-amber-400" />
                 )}
                 {t('Save changes')}
               </button>
@@ -294,7 +297,7 @@ export const SettingsPanel = () => {
                     <IconX className="size-4" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">{t('Close')} <kbd className="ml-1 rounded-sm bg-background/15 px-1 text-[10px]">{t('Esc')}</kbd></TooltipContent>
+                <TooltipContent side="bottom">{t('Close')} <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">{t('Esc')}</kbd></TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -330,7 +333,7 @@ export const SettingsPanel = () => {
                             <p className="text-[13px] font-medium text-foreground">{t(item.label)}</p>
                             <p className="text-[11px] text-muted-foreground">{t(item.description)}</p>
                           </div>
-                          <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{t(navItem?.label ?? '')}</span>
+                          <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{t(navItem?.label ?? '')}</span>
                         </button>
                       )
                     })}
@@ -355,7 +358,7 @@ export const SettingsPanel = () => {
           {hasDirtyState && (
             <div className="shrink-0 border-t border-border/60 bg-card/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
               <p className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                <IconCircleFilled className="size-2 text-amber-400" />
+                <IconCircleFilled className="size-2 text-amber-600 dark:text-amber-400" />
                 {t('You have unsaved changes')}
               </p>
               <div className="flex items-center gap-2">
@@ -381,7 +384,7 @@ export const SettingsPanel = () => {
         <DialogContent className="max-w-sm" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
-              <IconAlertTriangle className="size-4 text-amber-400" />
+              <IconAlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
               {t('Unsaved changes')}
             </DialogTitle>
             <DialogDescription>

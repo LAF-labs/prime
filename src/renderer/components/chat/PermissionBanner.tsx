@@ -21,7 +21,7 @@ interface PermissionBannerProps {
 }
 
 function formatToolName(raw: string): string {
-  if (!raw || raw === 'unknown') return 'a tool'
+  if (!raw || raw === 'unknown') return t('a tool')
   return raw
     .replace(/[_-]/g, ' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -53,10 +53,14 @@ export const PermissionBanner = memo(function PermissionBanner({
     <div data-testid="permission-banner" className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-2 sm:px-6 lg:max-w-4xl xl:max-w-5xl">
       <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
         <IconShieldExclamation className="size-5 shrink-0 text-amber-500 dark:text-amber-400" />
-        <p className="min-w-0 flex-1 truncate text-[13px] text-foreground">
-          <span className="font-medium">LAF Agent</span>
-          <span className="text-muted-foreground"> {t('wants to use')} </span>
-          <span className="font-medium">{displayName}</span>
+        <p className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
+          {/* One interpolated sentence so Korean can put the tool before the
+              verb — never stitch word-order-sensitive fragments. */}
+          {t('LAF Agent wants to use {tool}').split('{tool}').map((part, i) =>
+            i === 0
+              ? <span key="before">{part}</span>
+              : [<span key="tool" className="font-medium text-foreground">{displayName}</span>, <span key="after">{part}</span>],
+          )}
         </p>
         <div className="flex shrink-0 items-center gap-1">
           {sorted.map((opt) => {

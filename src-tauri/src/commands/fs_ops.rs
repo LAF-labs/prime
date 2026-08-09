@@ -177,21 +177,29 @@ pub fn read_text_file(path: String) -> Option<String> {
     }
 }
 
+/// Async with the file I/O on the blocking pool: a sync command runs on the
+/// main thread, and reading + base64-encoding an arbitrarily large file there
+/// freezes the window for the duration.
 #[tauri::command]
-pub fn read_file_base64(path: String) -> Option<String> {
+pub async fn read_file_base64(path: String) -> Option<String> {
     log::debug!("[fs] read_file_base64 called with path: {}", path);
     if is_sensitive_path(&path) {
         log::warn!("[fs] read_file_base64 blocked sensitive path: {}", path);
         return None;
     }
-    use base64::Engine;
-    match std::fs::read(&path) {
-        Ok(bytes) => Some(base64::engine::general_purpose::STANDARD.encode(&bytes)),
-        Err(e) => {
-            log::warn!("[fs] read_file_base64 failed for '{}': {}", path, e);
-            None
+    tauri::async_runtime::spawn_blocking(move || {
+        use base64::Engine;
+        match std::fs::read(&path) {
+            Ok(bytes) => Some(base64::engine::general_purpose::STANDARD.encode(&bytes)),
+            Err(e) => {
+                log::warn!("[fs] read_file_base64 failed for '{}': {}", path, e);
+                None
+            }
         }
-    }
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 #[tauri::command]
@@ -386,7 +394,7 @@ pub fn open_in_editor(path: String, editor: String) -> Result<(), AppError> {
         }
         "tmux" => {
             // Create a detached session named after the directory, then attach in default terminal
-            let slug = path.split('/').last().unwrap_or("laf-agent")
+            let slug = path.split('/').next_back().unwrap_or("laf-agent")
                 .replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
             let session = format!("kdx-{slug}");
             // Try to create session; if it already exists, that's fine
@@ -655,7 +663,7 @@ fn xdg_data_dirs() -> Vec<PathBuf> {
 
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), AppError> {
-    open::that(&url).map_err(|e| AppError::Io(e))
+    open::that(&url).map_err(AppError::Io)
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -692,7 +700,7 @@ const IGNORED_DIRS: &[&str] = &[
 ];
 
 fn is_ignored_dir(name: &str) -> bool {
-    IGNORED_DIRS.iter().any(|&d| d == name)
+    IGNORED_DIRS.contains(&name)
 }
 
 /// Convert git2 status flags to a short status string
@@ -835,7 +843,7 @@ fn list_via_git2(root: &Path) -> Option<Vec<ProjectFile>> {
 
         let name = rel.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
         let dir = rel.parent().map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-        if dir.split('/').any(|part| is_ignored_dir(part)) { continue; }
+        if dir.split('/').any(is_ignored_dir) { continue; }
         let ext = rel.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
         let git_status = git_status_label(entry.status());
         let delta = line_deltas.get(path_str).copied().unwrap_or_default();
@@ -859,7 +867,7 @@ fn list_via_git2(root: &Path) -> Option<Vec<ProjectFile>> {
             let rel = Path::new(&path_str);
             let name = rel.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
             let dir = rel.parent().map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            if dir.split('/').any(|part| is_ignored_dir(part)) { continue; }
+            if dir.split('/').any(is_ignored_dir) { continue; }
 
             // Detect submodules (mode 0o160000) or entries that are directories on disk
             let is_submodule = entry.mode == 0o160000;
@@ -986,21 +994,28 @@ fn list_via_walk(root: &Path, respect_gitignore: bool) -> Vec<ProjectFile> {
     files
 }
 
+/// Async with the walk on the blocking pool: a sync command runs on the main
+/// thread, and a full-repository scan of a large project froze the entire
+/// window event loop for its duration.
 #[tauri::command]
-pub fn list_project_files(root: String, respect_gitignore: bool) -> Result<Vec<ProjectFile>, AppError> {
-    let root_path = Path::new(&root);
-    if !root_path.is_dir() {
-        return Err(AppError::Other(format!("Not a directory: {}", root)));
-    }
+pub async fn list_project_files(root: String, respect_gitignore: bool) -> Result<Vec<ProjectFile>, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root_path = Path::new(&root);
+        if !root_path.is_dir() {
+            return Err(AppError::Other(format!("Not a directory: {}", root)));
+        }
 
-    let mut files = if respect_gitignore {
-        list_via_git2(root_path).unwrap_or_else(|| list_via_walk(root_path, true))
-    } else {
-        list_via_walk(root_path, false)
-    };
+        let mut files = if respect_gitignore {
+            list_via_git2(root_path).unwrap_or_else(|| list_via_walk(root_path, true))
+        } else {
+            list_via_walk(root_path, false)
+        };
 
-    files.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.path.cmp(&b.path)));
-    Ok(files)
+        files.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.path.cmp(&b.path)));
+        Ok(files)
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("project file scan task failed: {e}")))?
 }
 
 // ── prime-agent CLI authentication ──────────────────────────────────────
@@ -1402,137 +1417,6 @@ pub fn auth_logout(agent_bin: Option<String>) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Subcommands `open_terminal_with_command` accepts after the binary.
-const ALLOWED_SUBCOMMANDS: &[&str] = &["login", "logout", "whoami"];
-
-/// Characters that change meaning under `sh -c` / Terminal `do script`. The
-/// command string ends up in a shell either way, so any of these anywhere in
-/// it is an injection vector, not a valid agent invocation.
-const SHELL_METACHARACTERS: &[char] = &[
-    ';', '|', '&', '$', '`', '\\', '(', ')', '<', '>', '\n', '\r', '\t', '\'', '"', '*', '?',
-];
-
-/// Filesystem locations a full-path invocation may resolve to, beyond the
-/// user-configured binary: the same candidates `detect_agent_cli` probes,
-/// plus whatever PATH resolves. Canonicalized, so symlink games don't help.
-fn allowed_agent_binaries(configured_bin: &str) -> Vec<PathBuf> {
-    let mut out: Vec<PathBuf> = Vec::new();
-    let mut push = |p: Option<PathBuf>| {
-        if let Some(canonical) = p.and_then(|p| std::fs::canonicalize(p).ok()) {
-            if !out.contains(&canonical) {
-                out.push(canonical);
-            }
-        }
-    };
-    let configured = configured_bin.trim();
-    if !configured.is_empty() {
-        push(Some(PathBuf::from(configured)));
-    }
-    push(dirs::home_dir().map(|h| h.join(".local/bin/prime-agent")));
-    push(Some(PathBuf::from("/usr/local/bin/prime-agent")));
-    push(Some(PathBuf::from("/opt/homebrew/bin/prime-agent")));
-    push(dirs::home_dir().map(|h| h.join(".npm-global/bin/prime-agent")));
-    push(dirs::home_dir().map(|h| h.join(".prime/bin/prime-agent")));
-    push(which::which("prime-agent").ok());
-    out
-}
-
-/// Validate a terminal command against the allowlist.
-///
-/// The old check looked only at `Path::file_name()` of the first
-/// space-separated token, so `/tmp/x;y/prime-agent` passed and the `;` was
-/// then interpreted by the shell the command runs in. Now: no shell
-/// metacharacter may appear anywhere in the string, the optional second token
-/// must be an exact allowlisted subcommand, and a path-form first token must
-/// canonicalize to a known prime-agent location — not merely end in the right
-/// basename.
-fn validate_terminal_command(command: &str, allowed_binaries: &[PathBuf]) -> Result<(), AppError> {
-    let deny = |reason: &str| -> Result<(), AppError> {
-        Err(AppError::Other(format!("Command not in allowlist ({reason}): {command}")))
-    };
-    if command.chars().any(|c| SHELL_METACHARACTERS.contains(&c)) {
-        return deny("contains shell metacharacters");
-    }
-    let mut parts = command.splitn(2, ' ');
-    let first = parts.next().unwrap_or("");
-    if first.is_empty() {
-        return deny("empty command");
-    }
-    if let Some(sub) = parts.next() {
-        if !ALLOWED_SUBCOMMANDS.contains(&sub) {
-            return deny("unknown subcommand");
-        }
-    }
-    // Bare name: the shell resolves it via PATH, no path tricks possible
-    // once metacharacters are excluded.
-    if first == "prime-agent" {
-        return Ok(());
-    }
-    // Path form: the whole token must resolve to a known agent binary.
-    let Ok(canonical) = std::fs::canonicalize(first) else {
-        return deny("binary path does not resolve");
-    };
-    if canonical.file_name().and_then(|n| n.to_str()) != Some("prime-agent") {
-        return deny("not the prime-agent binary");
-    }
-    if !allowed_binaries.contains(&canonical) {
-        return deny("binary path not in a known location");
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn open_terminal_with_command(
-    settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
-    command: String,
-) -> Result<(), AppError> {
-    let configured_bin = settings_state.0.lock().settings.agent_bin.clone();
-    validate_terminal_command(&command, &allowed_agent_binaries(&configured_bin))?;
-    let parts: Vec<&str> = command.splitn(2, ' ').collect();
-    // prime-agent has no `login` subcommand — auth happens via /login inside
-    // the interactive TUI, so launch the bare binary instead.
-    let command = if parts.len() == 2 && parts[1] == "login" {
-        parts[0].to_string()
-    } else {
-        command
-    };
-    #[cfg(target_os = "macos")]
-    {
-        // Use AppleScript's `system attribute` to safely read the env var
-        let script = "tell application \"Terminal\"\nactivate\ndo script (system attribute \"LAF_AGENT_CMD\")\nend tell";
-        std::process::Command::new("osascript")
-            .arg("-e")
-            .arg(script)
-            .env("LAF_AGENT_CMD", &command)
-            .spawn()
-            .map_err(|e| AppError::Other(format!("Failed to open Terminal: {}", e)))?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let terminals = ["gnome-terminal", "konsole", "xfce4-terminal", "xterm"];
-        let mut launched = false;
-        for term in terminals {
-            let result = if term == "gnome-terminal" {
-                std::process::Command::new(term).arg("--").arg("sh").arg("-c").arg(&command).spawn()
-            } else {
-                std::process::Command::new(term).arg("-e").arg(&command).spawn()
-            };
-            if result.is_ok() { launched = true; break; }
-        }
-        if !launched {
-            return Err(AppError::Other("No terminal emulator found".to_string()));
-        }
-    }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "cmd", "/k", &command])
-            .spawn()
-            .map_err(|e| AppError::Other(format!("Failed to open terminal: {}", e)))?;
-    }
-    Ok(())
-}
-
 // ── Project icon detection ───────────────────────────────────────
 
 #[derive(Serialize, Clone, Debug)]
@@ -1804,9 +1688,18 @@ fn is_svg(name: &str) -> bool {
 /// List image files in a project that are ≤ max_size pixels in both dimensions.
 /// SVG files are always included (vector format, no pixel dimensions).
 /// Reads only file headers for dimensions (fast, no full decode).
+///
+/// Async with the tree walk on the blocking pool — same reasoning as
+/// [`list_project_files`]: the scan must not run on the main thread.
 #[tauri::command]
-pub fn list_small_images(cwd: String, max_size: usize) -> Vec<SmallImageInfo> {
-    let root = std::path::Path::new(&cwd);
+pub async fn list_small_images(cwd: String, max_size: usize) -> Vec<SmallImageInfo> {
+    tauri::async_runtime::spawn_blocking(move || list_small_images_sync(&cwd, max_size))
+        .await
+        .unwrap_or_default()
+}
+
+fn list_small_images_sync(cwd: &str, max_size: usize) -> Vec<SmallImageInfo> {
+    let root = std::path::Path::new(cwd);
     if !root.is_dir() { return vec![]; }
 
     let walker = ignore::WalkBuilder::new(root)
@@ -1942,61 +1835,6 @@ mod tests {
     }
 
     #[test]
-    fn terminal_command_accepts_bare_binary_and_subcommands() {
-        assert!(validate_terminal_command("prime-agent", &[]).is_ok());
-        assert!(validate_terminal_command("prime-agent login", &[]).is_ok());
-        assert!(validate_terminal_command("prime-agent whoami", &[]).is_ok());
-    }
-
-    #[test]
-    fn terminal_command_rejects_shell_metacharacters() {
-        for cmd in [
-            "prime-agent;rm -rf ~",
-            "prime-agent login|cat /etc/passwd",
-            "prime-agent `id`",
-            "prime-agent $(id)",
-            "prime-agent login\nid",
-            "prime-agent \"login\"",
-            "prime-agent & id",
-        ] {
-            assert!(validate_terminal_command(cmd, &[]).is_err(), "should reject: {cmd}");
-        }
-    }
-
-    #[test]
-    fn terminal_command_rejects_unknown_subcommands() {
-        assert!(validate_terminal_command("prime-agent update", &[]).is_err());
-        assert!(validate_terminal_command("prime-agent login extra", &[]).is_err());
-    }
-
-    /// The old basename-only check waved through any path ending in
-    /// `prime-agent`; a full path must now resolve into the allowlist.
-    #[test]
-    fn terminal_command_rejects_lookalike_paths() {
-        let dir = tempfile::tempdir().unwrap();
-        let evil = dir.path().join("prime-agent");
-        std::fs::write(&evil, "#!/bin/sh\n").unwrap();
-        let cmd = evil.to_string_lossy().to_string();
-        assert!(validate_terminal_command(&cmd, &[]).is_err());
-    }
-
-    #[test]
-    fn terminal_command_accepts_allowlisted_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let bin = dir.path().join("prime-agent");
-        std::fs::write(&bin, "#!/bin/sh\n").unwrap();
-        let allowed = vec![std::fs::canonicalize(&bin).unwrap()];
-        let cmd = bin.to_string_lossy().to_string();
-        assert!(validate_terminal_command(&cmd, &allowed).is_ok());
-        assert!(validate_terminal_command(&format!("{cmd} logout"), &allowed).is_ok());
-    }
-
-    #[test]
-    fn terminal_command_rejects_nonexistent_path() {
-        assert!(validate_terminal_command("/nope/definitely-missing/prime-agent", &[]).is_err());
-    }
-
-    #[test]
     fn git_status_label_new_file() {
         assert_eq!(git_status_label(git2::Status::INDEX_NEW), "A");
         assert_eq!(git_status_label(git2::Status::WT_NEW), "A");
@@ -2085,7 +1923,7 @@ mod tests {
     #[test]
     fn find_favicon_in_root() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("favicon.ico"), &[0u8; 4]).unwrap();
+        std::fs::write(dir.path().join("favicon.ico"), [0u8; 4]).unwrap();
         let result = find_favicon_in(dir.path());
         assert!(result.is_some());
         assert!(result.unwrap().ends_with("favicon.ico"));
@@ -2095,7 +1933,7 @@ mod tests {
     fn detect_project_icon_favicon_over_framework() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("Cargo.toml"), "[package]").unwrap();
-        std::fs::write(dir.path().join("favicon.ico"), &[0u8; 4]).unwrap();
+        std::fs::write(dir.path().join("favicon.ico"), [0u8; 4]).unwrap();
         let result = detect_project_icon(dir.path().to_string_lossy().to_string());
         assert!(result.is_some());
         assert_eq!(result.unwrap().icon_type, "favicon");
@@ -2105,7 +1943,7 @@ mod tests {
     fn detect_project_icon_public_favicon() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("public")).unwrap();
-        std::fs::write(dir.path().join("public").join("favicon.ico"), &[0u8; 4]).unwrap();
+        std::fs::write(dir.path().join("public").join("favicon.ico"), [0u8; 4]).unwrap();
         let result = detect_project_icon(dir.path().to_string_lossy().to_string());
         assert!(result.is_some());
         assert_eq!(result.unwrap().icon_type, "favicon");
@@ -2126,7 +1964,7 @@ mod tests {
     fn find_favicon_svg_preferred() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("favicon.svg"), "<svg></svg>").unwrap();
-        std::fs::write(dir.path().join("favicon.ico"), &[0u8; 4]).unwrap();
+        std::fs::write(dir.path().join("favicon.ico"), [0u8; 4]).unwrap();
         let result = find_favicon_in(dir.path());
         assert!(result.is_some());
         assert!(result.unwrap().ends_with("favicon.svg"));

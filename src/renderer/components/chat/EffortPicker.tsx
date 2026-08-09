@@ -186,7 +186,7 @@ export const EffortPicker = memo(function EffortPicker() {
               >
                 <span className="min-w-0">
                   <span className="block">{t(info.label)}</span>
-                  <span className="block text-[10.5px] font-normal text-muted-foreground">{t(info.desc)}</span>
+                  <span className="block text-[11px] font-normal text-muted-foreground">{t(info.desc)}</span>
                 </span>
               </button>
             )

@@ -91,8 +91,8 @@ const FileTreeToggleButton = memo(function FileTreeToggleButton() {
           className={cn(
             "inline-flex size-7 items-center justify-center text-xs transition-colors",
             isOpen
-              ? "bg-white/[0.08] text-foreground"
-              : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+              ? "bg-accent text-foreground"
+              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
           )}
         >
           <IconFolderOpen className="size-3.5" aria-hidden />
@@ -137,8 +137,8 @@ export const HeaderToolbar = memo(function HeaderToolbar({
                   className={cn(
                     "inline-flex size-7 items-center justify-center text-xs transition-colors",
                     terminalOpen
-                      ? "bg-white/[0.08] text-foreground"
-                      : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                   )}
                 >
                   <IconTerminal2 className="size-3.5" aria-hidden />

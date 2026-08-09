@@ -1,5 +1,6 @@
 import type { AgentTask } from '@/types'
 import { playNotificationSound } from '@/lib/sounds'
+import { t } from '@/lib/i18n'
 
 /** Debounce window per task (ms). Prevents notification stacking from rapid turn ends. */
 const DEBOUNCE_MS = 3000
@@ -47,10 +48,10 @@ export const stripMarkdown = (text: string): string => {
 /** Build a notification body with status prefix and content preview. */
 const buildNotificationBody = (task: AgentTask, status: 'completed' | 'error' | 'permission'): string => {
   if (status === 'permission') {
-    const toolName = task.pendingPermission?.toolName ?? 'a tool'
-    return `⏳ Waiting for approval: ${toolName}`
+    const toolName = task.pendingPermission?.toolName ?? t('a tool')
+    return t('⏳ Waiting for approval: {tool}', { tool: toolName })
   }
-  const prefix = status === 'error' ? '⚠ Error' : '✓ Done'
+  const prefix = status === 'error' ? t('⚠ Error') : t('✓ Done')
   const lastMsg = task.messages
     ?.filter((m) => m.role === 'assistant' && m.content.trim())
     .at(-1)?.content
@@ -90,7 +91,7 @@ export const sendTaskNotification = ({
   const lastTime = lastNotifiedAt[task.id] ?? 0
   if (now - lastTime < DEBOUNCE_MS) return
   lastNotifiedAt[task.id] = now
-  const title = task.name || 'Agent update'
+  const title = task.name || t('Agent update')
   const body = buildNotificationBody(task, status)
   onNotified(task.id)
   if (isSoundEnabled) playNotificationSound()

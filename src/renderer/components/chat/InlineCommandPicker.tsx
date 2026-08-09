@@ -145,7 +145,7 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
           <span className="font-mono text-muted-foreground">/{kind} {query}</span>
           <span className="text-muted-foreground/70">{t('No matches')}</span>
         </div>
-        <div className="border-t border-border/40 px-3 py-1.5 text-[10px] text-muted-foreground/70">
+        <div className="border-t border-border/40 px-3 py-1.5 text-[11px] text-muted-foreground/70">
           esc to cancel
         </div>
       </div>
@@ -162,7 +162,7 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
         <span className="font-mono text-[11px] text-muted-foreground">
           /{kind}{query ? ` ${query}` : ''}
         </span>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
           {kind === 'model' ? 'Models' : 'Agents'}
         </span>
       </div>
@@ -185,18 +185,18 @@ export const InlineCommandPicker = memo(function InlineCommandPicker({
               <span className={cn('truncate', (isActive || isCurrent) && 'font-medium text-foreground')}>{it.label}</span>
               <span className="ml-auto flex shrink-0 items-center gap-2">
                 {it.hint && (
-                  <span className="hidden max-w-[180px] truncate text-[10px] text-muted-foreground/80 sm:inline">{it.hint}</span>
+                  <span className="hidden max-w-[180px] truncate text-[11px] text-muted-foreground/80 sm:inline">{it.hint}</span>
                 )}
-                <span className="rounded-md border border-border/40 px-1.5 py-px font-mono text-[10px] text-muted-foreground/80">
+                <span className="rounded-md border border-border/40 px-1.5 py-px font-mono text-[11px] text-muted-foreground/80">
                   {kind === 'model' ? 'model' : 'agent'}
                 </span>
-                {isCurrent && <IconCheck className="size-3.5 text-primary" aria-label="current" />}
+                {isCurrent && <IconCheck className="size-3.5 text-primary" aria-label={t('Currently selected')} />}
               </span>
             </li>
           )
         })}
       </ul>
-      <div className="flex items-center justify-between border-t border-border/40 px-3 py-1.5 text-[10px] text-muted-foreground/70">
+      <div className="flex items-center justify-between border-t border-border/40 px-3 py-1.5 text-[11px] text-muted-foreground/70">
         <span>↑↓ {t('navigate')} · ↵ {t('commit')} · esc {t('cancel')}</span>
         <button
           type="button"

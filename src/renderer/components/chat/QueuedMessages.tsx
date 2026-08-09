@@ -21,7 +21,7 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
   return (
     <div className="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl px-4 sm:px-6">
       <div className="flex flex-col gap-1 pb-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
           Queued ({messages.length})
         </span>
         {messages.map((msg, i) => {
@@ -76,7 +76,7 @@ export const QueuedMessages = memo(function QueuedMessages({ messages, onRemove,
                   <TooltipTrigger asChild>
                     <span className="flex shrink-0 items-center gap-0.5 text-muted-foreground" aria-label={`${attachmentCount} image${attachmentCount > 1 ? 's' : ''} attached`}>
                       <IconPhoto className="size-3.5" />
-                      {attachmentCount > 1 && <span className="text-[10px]">{attachmentCount}</span>}
+                      {attachmentCount > 1 && <span className="text-[11px]">{attachmentCount}</span>}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-[11px]">

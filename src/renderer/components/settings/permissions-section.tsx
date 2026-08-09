@@ -158,7 +158,7 @@ export const PermissionsSection = memo(function PermissionsSection({ draft, upda
               </button>
             </div>
             {showUnknownHint && (
-              <p className="text-[10.5px] text-amber-600 dark:text-amber-400">
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
                 {t('"{tool}" is not a known built-in tool — double-check the name.', { tool: trimmedTool })}
               </p>
             )}

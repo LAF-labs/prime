@@ -12,21 +12,24 @@ import type { SidebarTask } from '@/hooks/useSidebarTasks'
 
 type StatusShape = 'spin' | 'solid' | 'half' | 'ring' | 'x'
 
+/** Status palette rides the semantic tokens so it adapts to both themes. */
 const STATUS_DOT: Record<string, { color: string; shape: StatusShape; label: string }> = {
-  running: { color: '#34d399', shape: 'spin', label: 'Agent is working' },
-  pending_permission: { color: '#fbbf24', shape: 'half', label: 'Waiting for permission' },
-  pending_question: { color: '#60a5fa', shape: 'half', label: 'Question needs your answer' },
-  error: { color: '#f87171', shape: 'x', label: 'Error occurred' },
-  cancelled: { color: '#9a9a9a', shape: 'ring', label: 'Cancelled' },
+  running: { color: 'var(--success)', shape: 'spin', label: 'Agent is working' },
+  pending_permission: { color: 'var(--warning)', shape: 'half', label: 'Waiting for permission' },
+  pending_question: { color: 'var(--info)', shape: 'half', label: 'Question needs your answer' },
+  error: { color: 'var(--destructive)', shape: 'x', label: 'Error occurred' },
+  cancelled: { color: 'var(--muted-foreground)', shape: 'ring', label: 'Cancelled' },
 }
 
 function StatusIndicator({ shape, color }: { shape: StatusShape; color: string }) {
   if (shape === 'spin') {
+    // Layered track + spinner: the faint track uses opacity instead of an
+    // appended hex-alpha suffix, which var(--token) colors cannot take.
     return (
-      <span
-        className="size-2.5 animate-spin rounded-full border-[1.5px]"
-        style={{ borderColor: `${color}33`, borderTopColor: color }}
-      />
+      <span className="relative size-2.5">
+        <span className="absolute inset-0 rounded-full border-[1.5px] opacity-20" style={{ borderColor: color }} />
+        <span className="absolute inset-0 animate-spin rounded-full border-[1.5px] border-transparent" style={{ borderTopColor: color }} />
+      </span>
     )
   }
   if (shape === 'solid') {
@@ -47,11 +50,9 @@ function StatusIndicator({ shape, color }: { shape: StatusShape; color: string }
   }
   if (shape === 'x') {
     return (
-      <span
-        className="inline-flex size-2.5 items-center justify-center rounded-full"
-        style={{ background: `${color}33` }}
-      >
-        <IconX className="size-2" strokeWidth={3} style={{ color }} />
+      <span className="relative inline-flex size-2.5 items-center justify-center rounded-full">
+        <span className="absolute inset-0 rounded-full opacity-20" style={{ background: color }} />
+        <IconX className="relative size-2" strokeWidth={3} style={{ color }} />
       </span>
     )
   }
@@ -189,7 +190,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
         // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- row nests a rename <input> and hover action <button>s; nested interactive content is invalid inside <button>
         role="button"
         tabIndex={0}
-        aria-label={task.isDraft ? `${task.name}, draft` : undefined}
+        aria-label={task.isDraft ? t('{name}, draft', { name: task.name }) : undefined}
         onClick={onSelect}
         onContextMenu={handleContextMenu}
         onKeyDown={(e) => e.key === 'Enter' && onSelect()}
@@ -247,7 +248,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
           </Tooltip>
         )}
         {jumpLabel ? (
-          <kbd className="pointer-events-none shrink-0 rounded-sm bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground select-none">
+          <kbd className="pointer-events-none shrink-0 rounded-sm bg-muted px-1 font-mono text-[11px] font-medium text-muted-foreground select-none">
             {jumpLabel}
           </kbd>
         ) : task.isDraft ? (

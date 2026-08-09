@@ -125,7 +125,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
           <EmptyThreadSplash />
         )}
       </div>
-      <ChatInput autoFocus disabled={isLoggedOut} initialValue={draft} initialAttachments={draftAttachments} initialPastedChunks={draftPastedChunks} initialMentionedFiles={draftMentionedFiles} onDraftChange={handleDraftChange} onAttachmentsChange={handleAttachmentsChange} onPastedChunksChange={handlePastedChunksChange} onMentionedFilesChange={handleMentionedFilesChange} onSendMessage={handleSend} workspace={workspace} />
+      <ChatInput autoFocus disabled={isLoggedOut} disabledReason={t('Sign in to start chatting')} initialValue={draft} initialAttachments={draftAttachments} initialPastedChunks={draftPastedChunks} initialMentionedFiles={draftMentionedFiles} onDraftChange={handleDraftChange} onAttachmentsChange={handleAttachmentsChange} onPastedChunksChange={handlePastedChunksChange} onMentionedFilesChange={handleMentionedFilesChange} onSendMessage={handleSend} workspace={workspace} />
       {isWorkspaceTerminalOpen && (
         <TerminalDrawer
           key={`pending:${workspace}`}

@@ -1,22 +1,23 @@
 import { memo, useId } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { t } from '@/lib/i18n'
 import type { CompactionStatus } from '@/types'
 
 type ColorTier = {
   from: string
   to: string
   text: string
-  trackTint: string
 }
 
 // Gradient palette per fill tier — keeps the existing thresholds (50/80) but makes each tier
-// distinct and lively rather than a single flat stroke colour.
+// distinct and lively rather than a single flat stroke colour. Ramp colors live
+// as CSS custom properties in src/tailwind.css so both themes get proper shades.
 const TIERS = {
-  compacting: { from: '#60a5fa', to: '#a855f7', text: 'text-blue-400', trackTint: 'rgba(96,165,250,0.22)' }, // blue → purple
-  low:        { from: '#34d399', to: '#22d3ee', text: 'text-emerald-400', trackTint: 'rgba(52,211,153,0.20)' }, // emerald → cyan
-  mid:        { from: '#fbbf24', to: '#fb923c', text: 'text-amber-400', trackTint: 'rgba(251,191,36,0.22)' }, // amber → orange
-  high:       { from: '#f87171', to: '#ec4899', text: 'text-red-400', trackTint: 'rgba(248,113,113,0.24)' }, // red → pink
+  compacting: { from: 'var(--ctx-compacting-from)', to: 'var(--ctx-compacting-to)', text: 'text-blue-600 dark:text-blue-400' },
+  low:        { from: 'var(--ctx-low-from)', to: 'var(--ctx-low-to)', text: 'text-emerald-600 dark:text-emerald-400' },
+  mid:        { from: 'var(--ctx-mid-from)', to: 'var(--ctx-mid-to)', text: 'text-amber-600 dark:text-amber-400' },
+  high:       { from: 'var(--ctx-high-from)', to: 'var(--ctx-high-to)', text: 'text-red-600 dark:text-red-400' },
 } as const satisfies Record<string, ColorTier>
 
 export const ContextRing = memo(function ContextRing({ used, size, compactionStatus }: { used: number; size: number; compactionStatus?: CompactionStatus }) {
@@ -37,10 +38,10 @@ export const ContextRing = memo(function ContextRing({ used, size, compactionSta
   const isHot = !isCompacting && pct >= 80
 
   const tooltipText = isCompacting
-    ? 'Compacting context...'
+    ? t('Compacting context...')
     : isPercentage
-      ? `Context window ${pct}% used`
-      : `Context: ${pct}% (${Math.round(used / 1000)}k / ${Math.round(size / 1000)}k tokens)`
+      ? t('Context window {pct}% used', { pct })
+      : t('Context: {pct}% ({used}k / {size}k tokens)', { pct, used: Math.round(used / 1000), size: Math.round(size / 1000) })
 
   return (
     <Tooltip>
@@ -61,7 +62,7 @@ export const ContextRing = memo(function ContextRing({ used, size, compactionSta
               </linearGradient>
             </defs>
             {/* Track — tinted to the active tier so the unfilled portion still hints at state */}
-            <circle cx="12" cy="12" r={r} fill="none" stroke={tier.trackTint} strokeWidth="2.5" />
+            <circle cx="12" cy="12" r={r} fill="none" stroke={tier.from} strokeOpacity="0.22" strokeWidth="2.5" />
             {/* Progress arc */}
             <circle
               cx="12" cy="12" r={r} fill="none"
@@ -71,7 +72,7 @@ export const ContextRing = memo(function ContextRing({ used, size, compactionSta
               className="transition-[stroke-dashoffset] duration-500 ease-out"
             />
           </svg>
-          <span className={cn('relative text-[8px] font-semibold tabular-nums', tier.text)}>
+          <span className={cn('relative text-[11px] font-semibold tabular-nums', tier.text)}>
             {isCompacting ? '...' : pct}
           </span>
         </span>

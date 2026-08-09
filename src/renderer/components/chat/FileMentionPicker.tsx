@@ -48,7 +48,7 @@ const EXT_ICONS: Record<string, { label: string; cls: string }> = {
 const FileIcon = memo(function FileIcon({ ext, isDir }: { ext: string; isDir: boolean }) {
   if (isDir) {
     return (
-      <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-500/20 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+      <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-500/20 text-[11px] font-bold text-amber-600 dark:text-amber-400">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
@@ -58,13 +58,13 @@ const FileIcon = memo(function FileIcon({ ext, isDir }: { ext: string; isDir: bo
   const info = EXT_ICONS[ext.toLowerCase()]
   if (info) {
     return (
-      <span className={cn('flex h-5 w-5 items-center justify-center rounded text-[8px] font-bold', info.cls)}>
+      <span className={cn('flex h-5 w-5 items-center justify-center rounded text-[11px] font-bold', info.cls)}>
         {info.label}
       </span>
     )
   }
   return (
-    <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[9px] text-muted-foreground">
+    <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[11px] text-muted-foreground">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
       </svg>
@@ -105,7 +105,7 @@ const GitChangeBadge = memo(function GitChangeBadge({
     <Tooltip>
       <TooltipTrigger asChild>
         <span className={cn(
-          'inline-flex items-center gap-1 rounded-md border px-1 py-px text-[10px] font-medium leading-none',
+          'inline-flex items-center gap-1 rounded-md border px-1 py-px text-[11px] font-medium leading-none',
           info.bgCls,
         )}>
           <span className={cn('font-bold', info.cls)}>{info.label}</span>
@@ -203,8 +203,8 @@ export const FileMentionPill = memo(function FileMentionPill({ path, onRemove }:
     icon = <IconBolt className="size-3.5 text-yellow-600 dark:text-yellow-400" />
     pillCls = 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'
   } else if (isPrompt) {
-    icon = <IconAlignLeft className="size-3.5 text-indigo-600 dark:text-indigo-400" />
-    pillCls = 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+    icon = <IconAlignLeft className="size-3.5 text-primary" />
+    pillCls = 'bg-primary/15 text-primary'
   } else {
     icon = <FileIcon ext={ext} isDir={false} />
     pillCls = 'bg-accent/60 text-foreground/70'
@@ -371,7 +371,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.2" />
             <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
-          Loading project files…
+          {t('Loading project files…')}
         </div>
       </div>
     )
@@ -408,8 +408,8 @@ export const FileMentionPicker = memo(function FileMentionPicker({
           const formatName = (name: string): string =>
             name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
           const ItemIcon = item.builtinIcon ?? (item.type === 'agent' ? IconRobot : item.type === 'skill' ? IconBolt : IconAlignLeft)
-          const iconColor = item.builtinColor ?? (item.type === 'agent' ? 'text-primary' : item.type === 'skill' ? 'text-yellow-600 dark:text-yellow-400' : 'text-indigo-600 dark:text-indigo-400')
-          const iconBg = item.builtinBgCls ?? (item.type === 'agent' ? 'bg-primary/20' : item.type === 'skill' ? 'bg-yellow-500/20' : 'bg-indigo-500/20')
+          const iconColor = item.builtinColor ?? (item.type === 'agent' ? 'text-primary' : item.type === 'skill' ? 'text-yellow-600 dark:text-yellow-400' : 'text-primary')
+          const iconBg = item.builtinBgCls ?? (item.type === 'agent' ? 'bg-primary/20' : item.type === 'skill' ? 'bg-yellow-500/20' : 'bg-primary/20')
           const displayName = item.builtinIcon
             ? BUILT_IN_MENTION_AGENTS.find((b) => b.id === item.name)?.name ?? item.name
             : formatName(item.name)
@@ -436,7 +436,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
                 <span className="truncate text-[13px] font-medium">{displayName}</span>
                 {item.description && <span className="truncate text-[11px] text-muted-foreground">{item.description.slice(0, 50)}</span>}
               </span>
-              <span className="shrink-0 text-[10px] text-muted-foreground">{item.type}</span>
+              <span className="shrink-0 text-[11px] text-muted-foreground">{item.type}</span>
             </li>
           )
         })}
@@ -463,7 +463,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
                 <GitChangeBadge status={file.gitStatus} linesAdded={file.linesAdded} linesDeleted={file.linesDeleted} />
               </span>
               {file.modifiedAt > 0 && !file.isDir && (
-                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                   {formatRelativeTime(file.modifiedAt)}
                 </span>
               )}

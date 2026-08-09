@@ -653,8 +653,10 @@ use crate::commands::settings::{AppSettings, ProjectPrefs};
 use crate::commands::rpc::commands::resolve_initial_model;
 
 fn make_settings(default_model: Option<&str>, project_model: Option<&str>, workspace: &str) -> AppSettings {
-    let mut settings = AppSettings::default();
-    settings.default_model = default_model.map(|s| s.to_string());
+    let mut settings = AppSettings {
+        default_model: default_model.map(|s| s.to_string()),
+        ..Default::default()
+    };
     if let Some(pm) = project_model {
         let mut prefs = std::collections::HashMap::new();
         prefs.insert(workspace.to_string(), ProjectPrefs {
@@ -703,8 +705,10 @@ fn resolve_model_skips_empty_explicit() {
 
 #[test]
 fn resolve_model_skips_empty_project_pref() {
-    let mut settings = AppSettings::default();
-    settings.default_model = Some("global-model".to_string());
+    let mut settings = AppSettings {
+        default_model: Some("global-model".to_string()),
+        ..Default::default()
+    };
     let mut prefs = std::collections::HashMap::new();
     prefs.insert("/ws".to_string(), ProjectPrefs {
         model_id: Some("".to_string()),

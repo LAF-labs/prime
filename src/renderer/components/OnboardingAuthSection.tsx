@@ -58,7 +58,7 @@ export const OnboardingAuthSection = ({ bin, isCliReady, onAuthChange }: Onboard
           </p>
         </div>
         {authState === 'authenticated' && authAccountType && (
-          <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
             {authAccountType}
           </span>
         )}

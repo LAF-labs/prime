@@ -30,8 +30,9 @@ fn line_count(s: &str) -> u32 {
 /// Compute `(lines_added, lines_removed)` for a single before/after pair.
 ///
 /// Every diff hunk contributes `before.len()` to removed and `after.len()`
-/// to added, summed across all hunks. For pure creates / deletes, takes a
-/// fast path that matches `count_lines` from `fs::fake_git_repo`.
+/// to added, summed across all hunks. Pure creates / deletes take a fast
+/// path: every line of the new (or old) text counts, with no trailing-newline
+/// phantom line.
 pub fn count_diff_lines(old_text: &str, new_text: &str) -> (u32, u32) {
     if old_text.is_empty() && new_text.is_empty() {
         return (0, 0);

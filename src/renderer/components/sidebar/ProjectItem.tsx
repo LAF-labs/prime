@@ -90,7 +90,7 @@ export const ProjectItem = memo(function ProjectItem({
           <ProjectIcon icon={projectIcon} />
           <span className={cn('flex-1 truncate text-[13px] text-foreground/85', isActiveProject ? 'font-medium' : 'font-normal')}>{name}</span>
           {jumpLabel && (
-            <kbd className="pointer-events-none ml-auto mr-1 inline-flex h-4 shrink-0 items-center rounded-sm bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground select-none">
+            <kbd className="pointer-events-none ml-auto mr-1 inline-flex h-4 shrink-0 items-center rounded-sm bg-muted px-1 font-mono text-[11px] font-medium text-muted-foreground select-none">
               {jumpLabel}
             </kbd>
           )}
@@ -102,14 +102,14 @@ export const ProjectItem = memo(function ProjectItem({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={`New thread in ${name}`}
+                aria-label={t('New chat in {name}', { name })}
                 onClick={onNewThread}
                 className="flex size-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground outline-none focus-visible:opacity-100"
               >
                 <IconEdit className="size-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">{t('New thread')}</TooltipContent>
+            <TooltipContent side="top">{t('New chat')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -132,7 +132,7 @@ export const ProjectItem = memo(function ProjectItem({
         <div ref={ctxRef} className="fixed z-[300] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
             onClick={() => { onNewThread(); setCtxMenu(null) }}>
-            <IconMessagePlus className="size-3.5" /> {t('New Thread')}
+            <IconMessagePlus className="size-3.5" /> {t('New Chat')}
           </button>
           <div className="my-1 border-t border-border/50" />
           <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"

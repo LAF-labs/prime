@@ -912,10 +912,6 @@ export const ko: Record<string, string> = {
   'Reverts messages only': '메시지만 되돌립니다',
   'Regenerate response': '응답 다시 생성',
   'Edit and resend': '수정 후 다시 보내기',
-  'Checkpoint history': '체크포인트 기록',
-  'No checkpoints yet — one is saved each time you send a message in a git repository.':
-    '아직 체크포인트가 없습니다 — git 저장소에서 메시지를 보낼 때마다 하나씩 저장됩니다.',
-  'Could not revert to the checkpoint': '체크포인트로 되돌리지 못했습니다',
 
   // ── Empty-thread splash ───────────────────────────────────────────
   'Explain this codebase': '이 코드베이스를 설명해줘',

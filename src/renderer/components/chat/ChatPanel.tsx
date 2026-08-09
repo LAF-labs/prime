@@ -20,7 +20,6 @@ import { BtwOverlay } from './BtwOverlay'
 import { PanelProvider } from './PanelContext'
 import { StickyTaskList } from './StickyTaskList'
 
-import { CheckpointTimeline } from '@/components/diff/CheckpointTimeline'
 import { useMessageSearch } from '@/hooks/useMessageSearch'
 import { ipc } from '@/lib/ipc'
 import { record } from '@/lib/analytics-collector'
@@ -354,8 +353,6 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
   const [isInputCollapsed, setIsInputCollapsed] = useState(false)
   const handleToggleCollapse = useCallback(() => setIsInputCollapsed((v) => !v), [])
 
-  const [checkpointsOpen, setCheckpointsOpen] = useState(false)
-  const handleToggleCheckpoints = useCallback(() => setCheckpointsOpen((v) => !v), [])
 
   const handlePermissionSelect = useCallback((optionId: string) => {
     const state = useTaskStore.getState()
@@ -446,14 +443,6 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
 
         <StickyTaskList taskId={resolvedTaskId} />
 
-        {checkpointsOpen && resolvedTaskId && (
-          <div className="shrink-0 px-4 sm:px-6">
-            <div className="mx-auto w-full min-w-0 max-w-3xl lg:max-w-4xl xl:max-w-5xl">
-              <CheckpointTimeline taskId={resolvedTaskId} />
-            </div>
-          </div>
-        )}
-
         <ChatInput
           disabled={inputDisabled}
           disabledReason={disabledReason}
@@ -469,8 +458,6 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
           isWorktree={isWorktree}
           isCollapsed={isInputCollapsed}
           onToggleCollapse={handleToggleCollapse}
-          checkpointsOpen={checkpointsOpen}
-          onToggleCheckpoints={handleToggleCheckpoints}
         />
       </div>
       {terminalOpen && taskWorkspace && resolvedTaskId && (

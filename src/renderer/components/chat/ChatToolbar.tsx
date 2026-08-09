@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo } from 'react'
-import { IconPaperclip, IconHistory } from '@tabler/icons-react'
+import { IconPaperclip } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { MOD_KEY } from '@/lib/platform'
@@ -34,8 +34,6 @@ interface ChatToolbarProps {
   onFileInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onSend: () => void
   onPause?: () => void
-  checkpointsOpen?: boolean
-  onToggleCheckpoints?: () => void
 }
 
 export const ChatToolbar = memo(function ChatToolbar({
@@ -51,8 +49,6 @@ export const ChatToolbar = memo(function ChatToolbar({
   onFileInputChange,
   onSend,
   onPause,
-  checkpointsOpen,
-  onToggleCheckpoints,
 }: ChatToolbarProps) {
   const buttonBg = isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-blue-500/90 hover:bg-blue-500'
 
@@ -85,26 +81,6 @@ export const ChatToolbar = memo(function ChatToolbar({
           </TooltipTrigger>
           <TooltipContent side="top" className="text-[11px]">{t('Attach files or images')}</TooltipContent>
         </Tooltip>
-        {onToggleCheckpoints && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onToggleCheckpoints}
-                aria-label={t('Checkpoint history')}
-                aria-pressed={checkpointsOpen === true}
-                data-testid="checkpoint-toggle-button"
-                className={cn(
-                  'flex size-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted/60',
-                  checkpointsOpen ? 'text-violet-400' : 'text-muted-foreground/70 hover:text-muted-foreground/70',
-                )}
-              >
-                <IconHistory className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-[11px]">{t('Checkpoint history')}</TooltipContent>
-          </Tooltip>
-        )}
         <BranchSelector workspace={workspace ?? null} isWorktree={isWorktree} />
         <input
           ref={fileInputRef}

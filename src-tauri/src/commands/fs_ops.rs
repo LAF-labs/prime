@@ -1029,9 +1029,13 @@ pub fn auth_status(agent_bin: Option<String>) -> Result<AuthIdentity, AppError> 
 /// persisted locally by the existing thread store.
 #[tauri::command]
 pub fn ensure_chats_dir() -> Result<String, AppError> {
-    let dir = dirs::home_dir()
-        .map(|h| h.join(".laf-agent").join("chats"))
+    // A visible folder: anything the agent saves during a project-less chat
+    // must be findable in Finder, not buried in a dotfolder. Documents is the
+    // natural home; fall back to the home directory when it doesn't resolve.
+    let base = dirs::document_dir()
+        .or_else(dirs::home_dir)
         .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
+    let dir = base.join("LAF Agent Chats");
     std::fs::create_dir_all(&dir)?;
     Ok(dir.to_string_lossy().to_string())
 }
@@ -1187,8 +1191,17 @@ pub fn repair_custom_providers() -> Result<u32, AppError> {
     let mut root: serde_json::Value = serde_json::from_str(&content)?;
     let mut repaired = 0u32;
     if let Some(providers) = root.get_mut("providers").and_then(|v| v.as_object_mut()) {
-        for (_name, cfg) in providers.iter_mut() {
+        for (name, cfg) in providers.iter_mut() {
             let Some(obj) = cfg.as_object_mut() else { continue };
+            // DeepSeek registrations from before the Responses-API switch:
+            // migrate them so provider-side web search starts working.
+            if name == "deepseek" && obj.get("api").and_then(|v| v.as_str()) == Some("openai-completions") {
+                obj.insert("api".to_string(), serde_json::json!("openai-responses"));
+                obj.insert("baseUrl".to_string(), serde_json::json!("https://api.deepseek.com"));
+                obj.remove("compat");
+                repaired += 1;
+                continue;
+            }
             // Only OpenAI-compatible entries need the conservative subset.
             if obj.get("api").and_then(|v| v.as_str()) != Some("openai-completions") {
                 continue;
@@ -1210,14 +1223,26 @@ pub fn repair_custom_providers() -> Result<u32, AppError> {
 /// Register a custom OpenAI-compatible provider (e.g. Upstage Solar, vLLM,
 /// a proxy) in prime-agent's `~/.prime/agent/models.json`, and mirror the key
 /// into auth.json so the app's auth status reflects it. models.json schema:
-/// `{providers: {<name>: {baseUrl, api: "openai-completions", apiKey, models: [{id}]}}}`.
+/// `{providers: {<name>: {baseUrl, api, apiKey, models: [{id}]}}}`.
+///
+/// `api` picks the wire protocol: `openai-completions` (the default) or
+/// `openai-responses` for endpoints that serve the Responses API — DeepSeek
+/// needs the latter for its server-side `web_search` tool.
 #[tauri::command]
 pub fn auth_set_custom_provider(
     name: String,
     base_url: String,
     api_key: String,
     model_ids: Vec<String>,
+    api: Option<String>,
 ) -> Result<(), AppError> {
+    let api = match api.as_deref() {
+        None | Some("") | Some("openai-completions") => "openai-completions",
+        Some("openai-responses") => "openai-responses",
+        Some(other) => {
+            return Err(AppError::Other(format!("Unsupported provider api '{other}'")));
+        }
+    };
     let name = name.trim().to_lowercase();
     if name.is_empty()
         || name.len() > 32
@@ -1266,16 +1291,18 @@ pub fn auth_set_custom_provider(
     let providers = providers
         .as_object_mut()
         .ok_or_else(|| AppError::Other("models.json providers is not an object".to_string()))?;
-    providers.insert(
-        name.clone(),
-        serde_json::json!({
-            "baseUrl": base_url,
-            "api": "openai-completions",
-            "apiKey": api_key,
-            "compat": conservative_compat(),
-            "models": models.iter().map(|id| serde_json::json!({ "id": id })).collect::<Vec<_>>(),
-        }),
-    );
+    let mut entry = serde_json::json!({
+        "baseUrl": base_url,
+        "api": api,
+        "apiKey": api_key,
+        "models": models.iter().map(|id| serde_json::json!({ "id": id })).collect::<Vec<_>>(),
+    });
+    // The conservative compat subset exists for quirky chat-completions
+    // endpoints; Responses endpoints ignore unknown params on their own.
+    if api == "openai-completions" {
+        entry["compat"] = conservative_compat();
+    }
+    providers.insert(name.clone(), entry);
     write_atomic(&models_path, serde_json::to_string_pretty(&serde_json::Value::Object(root))?.as_bytes())?;
     #[cfg(unix)]
     {

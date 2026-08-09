@@ -1,17 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
-const mockGitDetect = vi.fn()
-const mockGitInit = vi.fn()
-const mockGitDiffStats = vi.fn()
-
-vi.mock('@/lib/ipc', () => ({
-  ipc: {
-    gitDetect: (...args: unknown[]) => mockGitDetect(...args),
-    gitInit: (...args: unknown[]) => mockGitInit(...args),
-    gitDiffStats: (...args: unknown[]) => mockGitDiffStats(...args),
-  },
-}))
+const mockToggleFileTree = vi.fn()
 
 vi.mock('@/stores/taskStore', () => ({
   useTaskStore: (selector: (s: Record<string, unknown>) => unknown) =>
@@ -20,18 +10,20 @@ vi.mock('@/stores/taskStore', () => ({
       tasks: {},
       terminalOpenTasks: new Set(),
       toggleTerminal: vi.fn(),
+      activeSplitId: null,
+    }),
+}))
+
+vi.mock('@/stores/fileTreeStore', () => ({
+  useFileTreeStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({
+      isOpen: false,
+      toggle: mockToggleFileTree,
     }),
 }))
 
 vi.mock('@/lib/utils', () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
-}))
-
-// These tests exercise the developer surface (git init, diff toggle,
-// terminal); simple mode hides all of it, so pin the mode explicitly.
-vi.mock('@/lib/ui-mode', () => ({
-  useIsSimpleMode: () => false,
-  useUiMode: () => 'developer',
 }))
 
 vi.mock('@/components/ui/tooltip', () => ({
@@ -48,97 +40,31 @@ vi.mock('@/components/OpenInEditorGroup', () => ({
   OpenInEditorGroup: () => null,
 }))
 
-vi.mock('@/components/GitActionsGroup', () => ({
-  GitActionsGroup: () => <div data-testid="git-actions-group" />,
-}))
-
-const mockReportFailure = vi.fn()
-vi.mock('@/lib/ipc-report', () => ({
-  reportFailure: (...args: unknown[]) => mockReportFailure(...args),
-  attempt: vi.fn(),
-}))
-
 import { HeaderToolbar } from './header-toolbar'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockGitDiffStats.mockResolvedValue({ additions: 0, deletions: 0, fileCount: 0 })
 })
 
 describe('HeaderToolbar', () => {
-  it('shows Initialize Git button when not a git repo', async () => {
-    mockGitDetect.mockResolvedValue(false)
-    render(
-      <HeaderToolbar
-        workspace="/tmp/no-git"
-        sidePanelOpen={false}
-        onToggleSidePanel={vi.fn()}
-      />,
-    )
-    await waitFor(() => {
-      expect(screen.getByTestId('git-init-button')).toBeInTheDocument()
-    })
-    expect(screen.getByText('Initialize Git')).toBeInTheDocument()
-    expect(screen.queryByTestId('toggle-diff-button')).not.toBeInTheDocument()
+  it('always shows the file tree toggle', () => {
+    render(<HeaderToolbar workspace="/tmp/anywhere" />)
+    expect(screen.getByTestId('toggle-file-tree-button')).toBeInTheDocument()
   })
 
-  it('shows diff stats when workspace is a git repo', async () => {
-    mockGitDetect.mockResolvedValue(true)
-    render(
-      <HeaderToolbar
-        workspace="/tmp/has-git"
-        sidePanelOpen={false}
-        onToggleSidePanel={vi.fn()}
-      />,
-    )
-    await waitFor(() => {
-      expect(screen.getByTestId('toggle-diff-button')).toBeInTheDocument()
-    })
-    expect(screen.queryByTestId('git-init-button')).not.toBeInTheDocument()
+  it('toggles the file tree store on click', () => {
+    render(<HeaderToolbar workspace="/tmp/anywhere" />)
+    fireEvent.click(screen.getByTestId('toggle-file-tree-button'))
+    expect(mockToggleFileTree).toHaveBeenCalledTimes(1)
   })
 
-  it('calls gitInit and switches to git toolbar on click', async () => {
-    mockGitDetect.mockResolvedValue(false)
-    mockGitInit.mockResolvedValue(undefined)
-    render(
-      <HeaderToolbar
-        workspace="/tmp/no-git"
-        sidePanelOpen={false}
-        onToggleSidePanel={vi.fn()}
-      />,
-    )
-    await waitFor(() => {
-      expect(screen.getByTestId('git-init-button')).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByTestId('git-init-button'))
-    expect(mockGitInit).toHaveBeenCalledWith('/tmp/no-git')
-    await waitFor(() => {
-      expect(screen.getByTestId('toggle-diff-button')).toBeInTheDocument()
-    })
-    expect(screen.queryByTestId('git-init-button')).not.toBeInTheDocument()
+  it('hides the terminal toggle when no thread is selected', () => {
+    render(<HeaderToolbar workspace="/tmp/anywhere" />)
+    expect(screen.queryByTestId('toggle-terminal-button')).not.toBeInTheDocument()
   })
 
-  it('surfaces a git init failure instead of silently swallowing it', async () => {
-    mockGitDetect.mockResolvedValue(false)
-    mockGitInit.mockRejectedValue(new Error('permission denied'))
-    render(
-      <HeaderToolbar
-        workspace="/tmp/no-git"
-        sidePanelOpen={false}
-        onToggleSidePanel={vi.fn()}
-      />,
-    )
-    await waitFor(() => {
-      expect(screen.getByTestId('git-init-button')).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByTestId('git-init-button'))
-    await waitFor(() => {
-      expect(mockReportFailure).toHaveBeenCalledWith(
-        'Could not initialize the git repository',
-        expect.any(Error),
-      )
-    })
-    // Still not a repo — the button stays for a retry.
-    expect(screen.getByTestId('git-init-button')).toBeInTheDocument()
+  it('hides the split toggle when no thread is selected', () => {
+    render(<HeaderToolbar workspace="/tmp/anywhere" />)
+    expect(screen.queryByTestId('toggle-split-button')).not.toBeInTheDocument()
   })
 })

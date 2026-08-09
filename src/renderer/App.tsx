@@ -26,9 +26,6 @@ const SettingsPanel = lazy(() =>
     default: m.SettingsPanel,
   })),
 );
-const CodePanel = lazy(() =>
-  import("@/components/code/CodePanel").then((m) => ({ default: m.CodePanel })),
-);
 const DebugPanel = lazy(() =>
   import("@/components/debug/DebugPanel").then((m) => ({
     default: m.DebugPanel,
@@ -47,7 +44,6 @@ const AnalyticsDashboard = lazy(() =>
 import { useTaskStore, initTaskListeners } from "@/stores/taskStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useDebugStore } from "@/stores/debugStore";
-import { useDiffStore } from "@/stores/diffStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { initResourceListeners } from "@/stores/resourceStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -61,8 +57,6 @@ import { CHANGELOG, isNewerVersion } from "@/lib/changelog";
 import type { ChangelogEntry } from "@/lib/changelog";
 import { useUpdateStore } from "@/stores/updateStore";
 import { startAutoFlush, stopAutoFlush } from "@/lib/analytics-collector";
-import { WorktreeCleanupDialog } from "@/components/sidebar/WorktreeCleanupDialog";
-import { CloneRepoDialog } from "@/components/CloneRepoDialog";
 import { GlobalFilePreviewModal } from "@/components/GlobalFilePreviewModal";
 import { getVersion } from "@tauri-apps/api/app";
 import { useShallow } from "zustand/react/shallow";
@@ -72,11 +66,10 @@ import {
   IconPlus,
   IconFolderOpen,
   IconLayoutColumns,
-  IconArrowsShuffle,
-  IconGitBranch,
-  IconTerminal2,
+  IconWorld,
+  IconFiles,
+  IconBulb,
   IconMessageChatbot,
-  IconGitCompare,
 } from "@tabler/icons-react";
 /**
  * Shown while a lazily-loaded panel's chunk is fetched.
@@ -125,46 +118,32 @@ function LoginBanner() {
 
 const SHOWCASE_FEATURES = [
   {
-    icon: IconLayoutColumns,
-    labelKey: "feature.sideBySide" as const,
-    descKey: "feature.sideBySideDesc" as const,
+    icon: IconMessageChatbot,
+    label: "Just ask",
+    desc: "Answers questions, writes and summarizes documents, and thinks things through with you",
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500/10",
+  },
+  {
+    icon: IconWorld,
+    label: "Research the web",
+    desc: "Looks things up online and pulls several sources together into one answer",
     color: "text-blue-400",
     bgColor: "bg-blue-500/10",
   },
   {
-    icon: IconArrowsShuffle,
-    labelKey: "feature.spinThreads" as const,
-    descKey: "feature.spinThreadsDesc" as const,
-    color: "text-violet-400",
-    bgColor: "bg-violet-500/10",
-  },
-  {
-    icon: IconGitBranch,
-    labelKey: "feature.worktrees" as const,
-    descKey: "feature.worktreesDesc" as const,
+    icon: IconFiles,
+    label: "Work with your files",
+    desc: "Reads, writes, and organizes documents in the folders you choose",
     color: "text-emerald-400",
     bgColor: "bg-emerald-500/10",
   },
   {
-    icon: IconGitCompare,
-    labelKey: "feature.diffs" as const,
-    descKey: "feature.diffsDesc" as const,
+    icon: IconBulb,
+    label: "Remembers you",
+    desc: "Keeps track of your preferences and picks up where you left off",
     color: "text-amber-400",
     bgColor: "bg-amber-500/10",
-  },
-  {
-    icon: IconTerminal2,
-    labelKey: "feature.terminal" as const,
-    descKey: "feature.terminalDesc" as const,
-    color: "text-pink-400",
-    bgColor: "bg-pink-500/10",
-  },
-  {
-    icon: IconMessageChatbot,
-    labelKey: "feature.slash" as const,
-    descKey: "feature.slashDesc" as const,
-    color: "text-cyan-400",
-    bgColor: "bg-cyan-500/10",
   },
 ] as const;
 
@@ -173,7 +152,13 @@ function EmptyState() {
   const projects = useTaskStore((s) => s.projects);
   const hasProjects = projects.length > 0;
 
-  const handleNew = useCallback(() => {
+  const handleNewChat = useCallback(() => {
+    ipc.ensureChatsDir()
+      .then((dir) => { useTaskStore.getState().setPendingWorkspace(dir) })
+      .catch((err) => { console.error('[chats] ensure_chats_dir failed:', err) })
+  }, []);
+
+  const handleOpenFolder = useCallback(() => {
     if (projects.length > 0) {
       useTaskStore.getState().setPendingWorkspace(projects[0]);
     } else {
@@ -189,32 +174,33 @@ function EmptyState() {
         </div>
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground">
-            {hasProjects ? t('Start a new thread') : t('Open a project to get started')}
+            {t('What can I help with?')}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-            {hasProjects
-              ? t('Pick a project and start chatting with LAF Agent')
-              : t('Point LAF Agent at any folder on your machine. The AI agent works directly with your files, runs commands, and helps you build.')}
+            {t('Start a chat, or open a folder to work with your documents and files.')}
           </p>
         </div>
         <LoginBanner />
-        <button
-          type="button"
-          onClick={handleNew}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          {hasProjects ? (
-            <>
-              <IconPlus size={15} stroke={2} />
-              {t('New Thread')}
-            </>
-          ) : (
-            <>
-              <IconFolderOpen size={15} stroke={1.5} />
-              {t('Import Project')}
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="empty-new-chat-button"
+            onClick={handleNewChat}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <IconPlus size={15} stroke={2} />
+            {t('New Chat')}
+          </button>
+          <button
+            type="button"
+            data-testid="empty-open-folder-button"
+            onClick={handleOpenFolder}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <IconFolderOpen size={15} stroke={1.5} />
+            {hasProjects ? t('New Thread') : t('Open Folder')}
+          </button>
+        </div>
         {!hasProjects && (
           <p className="text-[11px] text-muted-foreground">
             {t('Or press')} <kbd className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px]">{MOD_PREFIX}O</kbd> {t('to open a folder')}
@@ -229,15 +215,15 @@ function EmptyState() {
           <div className="grid grid-cols-2 gap-2">
             {SHOWCASE_FEATURES.map((feature) => (
               <div
-                key={feature.labelKey}
+                key={feature.label}
                 className="group flex items-start gap-3 rounded-xl border border-border/50 bg-card/50 px-3.5 py-3 transition-colors hover:border-border hover:bg-card"
               >
                 <div className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", feature.bgColor)}>
                   <feature.icon size={16} stroke={1.5} className={cn(feature.color, "transition-transform group-hover:scale-110")} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12.5px] font-medium text-foreground/90">{t(feature.labelKey)}</p>
-                  <p className="text-[11px] leading-snug text-muted-foreground">{t(feature.descKey)}</p>
+                  <p className="text-[12.5px] font-medium text-foreground/90">{t(feature.label)}</p>
+                  <p className="text-[11px] leading-snug text-muted-foreground">{t(feature.desc)}</p>
                 </div>
               </div>
             ))}
@@ -356,7 +342,6 @@ export function App() {
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240);
-  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [whatsNewEntry, setWhatsNewEntry] = useState<ChangelogEntry | null>(null);
 
   // Refs to expose current values to the flush-before-quit event listener
@@ -365,20 +350,13 @@ export function App() {
   const sidebarCollapsedRef = useRef(isSidebarCollapsed);
   sidebarCollapsedRef.current = isSidebarCollapsed;
 
-  // Sync diffStore.isOpen → sidePanelOpen (for openToFile)
-  // Note: sidePanelOpen intentionally excluded from deps — we only react to diffIsOpen changes
-  const diffIsOpen = useDiffStore((s) => s.isOpen);
-  useEffect(() => {
-    if (diffIsOpen && !sidePanelOpen) setSidePanelOpen(true);
-    if (diffIsOpen) useFileTreeStore.getState().setOpen(false);
-  }, [diffIsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Sync fileTreeStore.isOpen → sidePanelOpen
-  // Note: sidePanelOpen intentionally excluded from deps — we only react to fileTreeIsOpen changes
+  // The side panel is the file tree — mirror the store's open state so the
+  // header toggle, ProjectItem's "Reveal in file tree", and ⌘-shortcuts all
+  // agree on one source of truth.
   const fileTreeIsOpen = useFileTreeStore((s) => s.isOpen);
   useEffect(() => {
-    if (fileTreeIsOpen && !sidePanelOpen) setSidePanelOpen(true);
-  }, [fileTreeIsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    setSidePanelOpen(fileTreeIsOpen);
+  }, [fileTreeIsOpen]);
 
   useEffect(() => {
     useTaskStore.getState().loadTasks().then(() => {
@@ -391,13 +369,6 @@ export function App() {
         ipc.checkpointPrune(ws, 90).catch(() => {/* not a git repo, or gone */});
       }
       useTaskStore.getState().autoArchiveStaleThreads();
-      // Initialize VCS status for all known projects
-      import('@/stores/vcsStatusStore').then(({ initVcsStatus }) => {
-        const projects = useTaskStore.getState().projects
-        initVcsStatus(projects)
-      }).catch((e) => {
-        if (import.meta.env.DEV) console.warn('[App] vcsStatusStore init failed:', e)
-      })
       // Restore persisted UI state (selected thread, view, panels)
       import('@/lib/history-store').then(({ loadUiState }) => {
         loadUiState().then((ui) => {
@@ -412,7 +383,7 @@ export function App() {
               state.setView(ui.view as typeof validViews[number])
             }
           }
-          setSidePanelOpen(ui.sidePanelOpen ?? false)
+          useFileTreeStore.getState().setOpen(ui.sidePanelOpen ?? false)
           setIsSidebarCollapsed(ui.sidebarCollapsed ?? false)
           // Restore split views
           if (ui.splitViews && ui.splitViews.length > 0) {
@@ -504,15 +475,6 @@ export function App() {
     // Begin probing the prime-agent subprocess so we can show "reconnecting…"
     // banners and clear stale latency entries on disconnect.
     const cleanupHealth = startConnectionHealthMonitor();
-    // When a `diff.ready` receipt is published (after `turn_end`), refresh
-    // the diff panel if it's open. This replaces the old pattern of polling
-    // `gitDiffStats` from the panel itself.
-    const unsubDiffReceipt = getReceiptBus().subscribe('diff.ready', (receipt) => {
-      const diffStore = useDiffStore.getState()
-      if (diffStore.isOpen) {
-        void diffStore.fetchDiff(receipt.taskId)
-      }
-    });
     startAutoFlush();
     // Listen for native menu events. Registration is async, and under
     // StrictMode's double-mount the first cleanup can run before `listen()`
@@ -585,9 +547,6 @@ export function App() {
         state.addProject(path)
         state.setPendingWorkspace(path)
       }).then(keepUnlisten).catch(() => {})
-      listen('menu-clone-from-github', () => {
-        setIsCloneDialogOpen(true)
-      }).then(keepUnlisten).catch(() => {})
     }).catch(() => {})
     // Cross-window state sync — reload when another window persists changes.
     // Same async-registration hazard as the menu listeners above.
@@ -623,7 +582,6 @@ export function App() {
       cleanupTask();
       cleanupResources();
       cleanupHealth();
-      unsubDiffReceipt();
       listenersCancelled = true
       for (const fn of menuUnlistens) {
         // Defer to avoid the "listeners[eventId].handlerId" crash during
@@ -699,17 +657,9 @@ export function App() {
   }, []);
 
   const toggleSidePanel = useCallback(() => {
-    setSidePanelOpen((prev) => {
-      if (prev) {
-        useDiffStore.getState().setOpen(false)
-        useFileTreeStore.getState().setOpen(false)
-      }
-      return !prev
-    })
+    useFileTreeStore.getState().toggle()
   }, [])
   const closeSidePanel = useCallback(() => {
-    setSidePanelOpen(false)
-    useDiffStore.getState().setOpen(false)
     useFileTreeStore.getState().setOpen(false)
   }, [])
   const toggleSidebar = useCallback(() => setIsSidebarCollapsed((v) => !v), []);
@@ -740,7 +690,7 @@ export function App() {
       <div data-testid="app-container" className="flex h-full gap-3 p-3 bg-background text-foreground">
         {/* Sidebar — full height, bleeds into top */}
         <ErrorBoundary>
-          {!isSidebarCollapsed && <TaskSidebar width={sidebarWidth} onResize={setSidebarWidth} position={sidebarPosition} onCollapse={toggleSidebar} onCloneFromGitHub={() => setIsCloneDialogOpen(true)} />}
+          {!isSidebarCollapsed && <TaskSidebar width={sidebarWidth} onResize={setSidebarWidth} position={sidebarPosition} onCollapse={toggleSidebar} />}
         </ErrorBoundary>
 
         {/* Right column: header + content */}
@@ -748,8 +698,6 @@ export function App() {
           {/* Top-level breadcrumb header */}
           <ErrorBoundary>
             <AppHeader
-              sidePanelOpen={sidePanelOpen}
-              onToggleSidePanel={toggleSidePanel}
               isSidebarCollapsed={isSidebarCollapsed}
               onToggleSidebar={toggleSidebar}
               sidebarPosition={sidebarPosition}
@@ -788,11 +736,7 @@ export function App() {
             {sidePanelOpen && !activeSplitId && (selectedTaskId || pendingWorkspace) && (
               <ErrorBoundary>
                 <Suspense fallback={<PanelFallback />}>
-                  {fileTreeIsOpen ? (
-                    <FileTreePanel onClose={closeSidePanel} workspace={pendingWorkspace ?? undefined} />
-                  ) : (
-                    <CodePanel onClose={closeSidePanel} workspace={pendingWorkspace ?? undefined} />
-                  )}
+                  <FileTreePanel onClose={closeSidePanel} workspace={pendingWorkspace ?? undefined} />
                 </Suspense>
               </ErrorBoundary>
             )}
@@ -831,8 +775,6 @@ export function App() {
         theme="dark"
       />
       <UpdateAvailableDialog />
-      <WorktreeCleanupDialog />
-      <CloneRepoDialog open={isCloneDialogOpen} onOpenChange={setIsCloneDialogOpen} />
       <ErrorBoundary>
         <GlobalFilePreviewModal />
       </ErrorBoundary>

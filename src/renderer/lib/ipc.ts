@@ -162,66 +162,12 @@ export const ipc = {
   /** Delete analytics events older than keepDays. Maintenance. */
   analyticsPrune: (keepDays: number): Promise<number> =>
     invoke('analytics_prune', { keepDays }),
-  gitDetect: (path: string): Promise<boolean> =>
-    invoke('git_detect', { path }),
-  gitInit: (path: string): Promise<void> =>
-    invoke('git_init', { path }),
-  gitClone: (url: string, targetDir: string): Promise<string> =>
-    invoke('git_clone', { url, targetDir }),
-  gitListBranches: (cwd: string): Promise<{
-    local: Array<{ name: string; current: boolean; worktreeLocked: boolean }>;
-    remotes: Record<string, Array<{ name: string; fullRef: string }>>;
-    currentBranch: string;
-  }> =>
-    invoke('git_list_branches', { cwd }),
-  gitCheckout: (cwd: string, branch: string, force?: boolean): Promise<{ branch: string }> =>
-    invoke('git_checkout', { cwd, branch, force }),
-  gitCheckoutRemote: (cwd: string, remoteRef: string, force?: boolean): Promise<{ branch: string }> =>
-    invoke('git_checkout_remote', { cwd, remoteRef, force }),
-  gitCreateBranch: (cwd: string, branch: string): Promise<{ branch: string }> =>
-    invoke('git_create_branch', { cwd, branch }),
-  gitDeleteBranch: (cwd: string, branch: string): Promise<{ branch: string }> =>
-    invoke('git_delete_branch', { cwd, branch }),
-  getTaskDiff: (taskId: string): Promise<string> =>
-    invoke('task_diff', { taskId }),
-  getTaskDiffStats: (taskId: string): Promise<{ additions: number; deletions: number; fileCount: number }> =>
-    invoke('task_diff_stats', { taskId }),
-  gitDiff: (cwd: string): Promise<string> =>
-    invoke('git_diff', { cwd }),
-  gitDiffFile: (taskId: string, filePath: string): Promise<string> =>
-    invoke('git_diff_file', { taskId, filePath }),
-  gitDiffStats: (cwd: string): Promise<{ additions: number; deletions: number; fileCount: number }> =>
-    invoke('git_diff_stats', { cwd }),
-  gitStagedStats: (cwd: string): Promise<{ additions: number; deletions: number; fileCount: number }> =>
-    invoke('git_staged_stats', { cwd }),
-  gitRemoteUrl: (cwd: string): Promise<string> =>
-    invoke('git_remote_url', { cwd }),
-  gitWorktreeCreate: (cwd: string, slug: string): Promise<{ worktreePath: string; branch: string }> =>
-    invoke('git_worktree_create', { cwd, slug }),
-  gitWorktreeRemove: (cwd: string, worktreePath: string): Promise<void> =>
-    invoke('git_worktree_remove', { cwd, worktreePath }),
-  gitWorktreeSetup: (cwd: string, worktreePath: string, symlinkDirs: string[]): Promise<{ symlinkCount: number; copiedFiles: string[] }> =>
-    invoke('git_worktree_setup', { cwd, worktreePath, symlinkDirs }),
-  gitWorktreeHasChanges: (worktreePath: string): Promise<boolean> =>
-    invoke('git_worktree_has_changes', { worktreePath }),
   openInEditor: (path: string, editor: string): Promise<void> =>
     invoke('open_in_editor', { path, editor }),
   detectEditors: (): Promise<string[]> =>
     invoke('detect_editors'),
   detectEditorsBackground: (known: string[]): Promise<void> =>
     invoke('detect_editors_background', { known }),
-  gitCommit: (cwd: string, message: string): Promise<void> =>
-    invoke('git_commit', { cwd, message }),
-  gitPush: (cwd: string): Promise<string> =>
-    invoke('git_push', { cwd }),
-  gitPull: (cwd: string): Promise<string> =>
-    invoke('git_pull', { cwd }),
-  gitFetch: (cwd: string): Promise<string> =>
-    invoke('git_fetch', { cwd }),
-  gitStage: (taskId: string, filePath: string): Promise<void> =>
-    invoke('git_stage', { taskId, filePath }),
-  gitRevert: (taskId: string, filePath: string): Promise<void> =>
-    invoke('git_revert', { taskId, filePath }),
   /** Send any prime-agent RPC command to a live thread and await its data. */
   agentRpcRequest: (taskId: string, command: string, params?: Record<string, unknown>): Promise<unknown> =>
     invoke('agent_rpc_request', { taskId, command, params: params ?? null }),
@@ -310,8 +256,6 @@ export const ipc = {
     invoke('open_in_default_app', { workspace, relPath }),
   openTerminalAt: (workspace: string, relPath: string): Promise<void> =>
     invoke('open_terminal_at', { workspace, relPath }),
-  addToGitignore: (workspace: string, relPath: string): Promise<void> =>
-    invoke('add_to_gitignore', { workspace, relPath }),
   openUrl: (url: string): Promise<void> =>
     invoke('open_url', { url }),
   detectProjectIcon: (cwd: string): Promise<{ iconType: string; value: string } | null> =>
@@ -337,8 +281,8 @@ export const ipc = {
     tauriListen('kernel_setup_progress', cb),
   repairCustomProviders: (): Promise<number> =>
     invoke('repair_custom_providers'),
-  authSetCustomProvider: (name: string, baseUrl: string, apiKey: string, modelIds: string[]): Promise<void> =>
-    invoke('auth_set_custom_provider', { name, baseUrl, apiKey, modelIds }),
+  authSetCustomProvider: (name: string, baseUrl: string, apiKey: string, modelIds: string[], api?: 'openai-completions' | 'openai-responses'): Promise<void> =>
+    invoke('auth_set_custom_provider', { name, baseUrl, apiKey, modelIds, api: api ?? null }),
   providerDiscoverModels: (args: { provider?: string; baseUrl?: string; apiKey: string }): Promise<Array<{ id: string; name: string }>> =>
     invoke('provider_discover_models', { provider: args.provider ?? null, baseUrl: args.baseUrl ?? null, apiKey: args.apiKey }),
   authRemoveProvider: (provider: string): Promise<void> =>
@@ -409,12 +353,6 @@ export const ipc = {
   onAgentResourcesChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>
     tauriListen('agent-resources-changed', cb),
 
-  // ── Structured diff parsing (replaces @pierre/diffs parsePatchFiles) ────────
-  taskDiffStructured: (taskId: string): Promise<import('@/types/diff').ParsedDiff> =>
-    invoke('task_diff_structured', { taskId }),
-  gitDiffStructured: (cwd: string): Promise<import('@/types/diff').ParsedDiff> =>
-    invoke('git_diff_structured', { cwd }),
-
   // ── Markdown parsing (replaces react-markdown for assistant messages) ───────
   parseMarkdown: (text: string): Promise<import('@/types/markdown').ParsedMarkdown> =>
     invoke('parse_markdown', { text }),
@@ -446,12 +384,6 @@ export const ipc = {
   // ── Thread title generation ──────────────────────────────────────────────────
   generateThreadTitle: (message: string, workspace: string): Promise<{ title: string }> =>
     invoke('generate_thread_title', { message, workspace }),
-  generateBranchName: (message: string, workspace: string): Promise<{ branch: string }> =>
-    invoke('generate_branch_name', { message, workspace }),
-  renameWorktreeBranch: (cwd: string, oldBranch: string, newBranch: string): Promise<{ branch: string }> =>
-    invoke('rename_worktree_branch', { cwd, oldBranch, newBranch }),
-  generatePrContent: (cwd: string, baseBranch: string, workspace?: string): Promise<{ title: string; body: string }> =>
-    invoke('generate_pr_content', { cwd, baseBranch, workspace }),
 
   // ── Thread Database (SQLite persistence) ────────────────────────────────────
   threadDbList: (): Promise<Array<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown; messageCount: number }>> =>
@@ -479,39 +411,10 @@ export const ipc = {
   threadDbAutoArchive: (days: number): Promise<Array<{ id: string; name: string; workspace: string; createdAt: string; lastActivityAt: string; messageCount: number; parentTaskId?: string }>> =>
     invoke('thread_db_auto_archive', { days }),
 
-  // ── Git: commit dialog & VCS status ────────────────────────────────────
-  gitVcsStatus: (cwd: string): Promise<{ branch: string; aheadCount: number; behindCount: number; isDirty: boolean; changedFileCount: number; hasUpstream: boolean }> =>
-    invoke('git_vcs_status', { cwd }),
-  gitListStack: (cwd: string): Promise<{ baseBranch: string; entries: Array<{ branch: string; isCurrent: boolean; commitsAhead: number; hasRemote: boolean }> }> =>
-    invoke('git_list_stack', { cwd }),
-  gitStackedPush: (cwd: string): Promise<{ branch: string; remoteUrl: string; pushed: boolean }> =>
-    invoke('git_stacked_push', { cwd }),
   listChildProcesses: (): Promise<{ processes: Array<{ pid: number; ppid: number; cpuPercent: number; rssMb: number; elapsed: string; command: string; status: string }>; totalRssMb: number; processCount: number }> =>
     invoke('list_child_processes'),
   signalProcess: (pid: number, signal: string): Promise<void> =>
     invoke('signal_process', { pid, signal }),
-  gitChangedFiles: (cwd: string): Promise<Array<{ path: string; insertions: number; deletions: number; status: string }>> =>
-    invoke('git_changed_files', { cwd }),
-  gitStageFiles: (cwd: string, filePaths: string[]): Promise<void> =>
-    invoke('git_stage_files', { cwd, filePaths }),
-  gitCommitFiles: (cwd: string, message: string, filePaths: string[]): Promise<string> =>
-    invoke('git_commit_files', { cwd, message, filePaths }),
-  gitCreateAndCheckoutBranch: (cwd: string, branch: string): Promise<{ branch: string }> =>
-    invoke('git_create_and_checkout_branch', { cwd, branch }),
-  gitAddRemote: (cwd: string, name: string, url: string): Promise<void> =>
-    invoke('git_add_remote', { cwd, name, url }),
-  gitGenerateCommitMessage: (cwd: string): Promise<{ subject: string; body: string }> =>
-    invoke('git_generate_commit_message', { cwd }),
-
-  // ── PR / MR creation (GitHub + GitLab) ──────────────────────────────────
-  gitDetectProvider: (cwd: string): Promise<{ provider: 'github' | 'gitlab' | null; cliAvailable: boolean; remoteUrl: string; authenticated: boolean }> =>
-    invoke('git_detect_provider', { cwd }),
-  gitCreatePr: (cwd: string, title: string, body: string, base: string, draft?: boolean): Promise<{ provider: string; url: string; number: number; title: string }> =>
-    invoke('git_create_pr', { cwd, title, body, base, draft }),
-  gitPrStatus: (cwd: string): Promise<{ hasOpenPr: boolean; prUrl?: string; prNumber?: number; prTitle?: string; prState?: string }> =>
-    invoke('git_pr_status', { cwd }),
-  gitPrOpenInBrowser: (cwd: string): Promise<void> =>
-    invoke('git_pr_open_in_browser', { cwd }),
 
   // ── Structured tracing (NDJSON debug traces) ────────────────────────────
   traceReadRecent: (limit?: number): Promise<Array<{ name: string; timestamp: string; durationMs: number; attributes: Record<string, unknown>; exit: string }>> =>
@@ -540,25 +443,7 @@ export const ipc = {
     invoke('checkpoint_revert', { taskId, turn, force }),
   checkpointCleanup: (taskId: string): Promise<number> =>
     invoke('checkpoint_cleanup', { taskId }),
-
-  // ── Git History (commit log, stash) ─────────────────────────────────────
-  gitCommitHistory: (cwd: string, limit?: number, skip?: number, includeStats?: boolean): Promise<Array<{
-    shortOid: string; oid: string; subject: string; body: string;
-    authorName: string; authorEmail: string; timestamp: number;
-    additions: number; deletions: number; fileCount: number;
-    parents: string[]; isHead: boolean;
-  }>> =>
-    invoke('git_commit_history', { cwd, limit, skip, includeStats }),
-  gitCommitDiff: (cwd: string, oid: string): Promise<string> =>
-    invoke('git_commit_diff', { cwd, oid }),
-  gitCommitStats: (cwd: string, oids: string[]): Promise<Array<{ oid: string; additions: number; deletions: number; fileCount: number }>> =>
-    invoke('git_commit_stats', { cwd, oids }),
-  gitStashList: (cwd: string): Promise<Array<{ index: number; message: string; oid: string; timestamp: number }>> =>
-    invoke('git_stash_list', { cwd }),
-  gitStashPop: (cwd: string, index?: number): Promise<void> =>
-    invoke('git_stash_pop', { cwd, index }),
-  gitStashDrop: (cwd: string, index?: number): Promise<void> =>
-    invoke('git_stash_drop', { cwd, index }),
-  gitStashSave: (cwd: string, message?: string): Promise<string> =>
-    invoke('git_stash_save', { cwd, message }),
+  /** Whether per-message rollback works in this workspace. */
+  checkpointSupported: (cwd: string): Promise<boolean> =>
+    invoke('checkpoint_supported', { cwd }),
 }

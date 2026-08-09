@@ -154,7 +154,7 @@ const getGhostty = (): NonNullable<typeof ghosttyPromise> => {
           log: (ptr: number, len: number) => {
             const mem = (instance.exports as { memory: WebAssembly.Memory }).memory
             const bytes = new Uint8Array(mem.buffer, ptr, len)
-            console.log('[ghostty-vt]', new TextDecoder().decode(bytes))
+            if (import.meta.env.DEV) console.log('[ghostty-vt]', new TextDecoder().decode(bytes))
           },
         },
       })

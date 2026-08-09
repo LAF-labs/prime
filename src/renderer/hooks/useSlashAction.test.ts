@@ -149,10 +149,8 @@ describe('useSlashAction /fork', () => {
     expect(handled!).toBe(true)
   })
 
-  it('/fork clears panel', () => {
+  it('/fork leaves no panel open', () => {
     const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/branch') })
-    expect(result.current.panel).toBe('branch')
     act(() => { result.current.execute('/fork') })
     expect(result.current.panel).toBeNull()
   })
@@ -187,52 +185,6 @@ describe('createTask passes modeId', () => {
     expect(ipc.createTask).toHaveBeenCalledWith(
       expect.objectContaining({ modeId: undefined }),
     )
-  })
-})
-
-describe('useSlashAction /branch', () => {
-  it('/branch opens branch panel', () => {
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/branch') })
-    expect(result.current.panel).toBe('branch')
-  })
-
-  it('/branch toggles panel off when already open', () => {
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/branch') })
-    expect(result.current.panel).toBe('branch')
-    act(() => { result.current.execute('/branch') })
-    expect(result.current.panel).toBeNull()
-  })
-
-  it('execute returns true for /branch', () => {
-    const { result } = renderHook(() => useSlashAction())
-    let handled: boolean
-    act(() => { handled = result.current.execute('/branch') })
-    expect(handled!).toBe(true)
-  })
-})
-
-describe('useSlashAction /worktree', () => {
-  it('/worktree opens worktree panel', () => {
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/worktree') })
-    expect(result.current.panel).toBe('worktree')
-  })
-
-  it('/worktree toggles panel off when already open', () => {
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/worktree') })
-    expect(result.current.panel).toBe('worktree')
-    act(() => { result.current.execute('/worktree') })
-    expect(result.current.panel).toBeNull()
-  })
-
-  it('execute returns true for /worktree', () => {
-    const { result } = renderHook(() => useSlashAction())
-    let handled: boolean
-    act(() => { handled = result.current.execute('/worktree') })
-    expect(handled!).toBe(true)
   })
 })
 

@@ -260,7 +260,6 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
   const globalModeId = useSettingsStore((s) => s.currentModeId)
   const isPlanMode = (taskModeId ?? globalModeId) === 'plan'
   const taskWorkspace = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.workspace : null)
-  const isWorktree = useTaskStore((s) => resolvedTaskId ? !!s.tasks[resolvedTaskId]?.worktreePath : false)
   const messageCount = useTaskStore((s) => resolvedTaskId ? s.tasks[resolvedTaskId]?.messages?.length ?? 0 : 0)
   const terminalOpen = useTaskStore((s) => resolvedTaskId ? s.terminalOpenTasks.has(resolvedTaskId) : false)
   const toggleTerminal = useTaskStore((s) => s.toggleTerminal)
@@ -455,7 +454,6 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
           onSendMessage={handleSendMessage}
           onPause={handlePause}
           workspace={taskWorkspace}
-          isWorktree={isWorktree}
           isCollapsed={isInputCollapsed}
           onToggleCollapse={handleToggleCollapse}
         />

@@ -174,10 +174,15 @@ export const markThreadCleared = (taskId: string): void => {
 export type { TaskStore, BtwCheckpoint } from './task-store-types'
 export { initTaskListeners, applyTurnEnd } from './task-store-listeners'
 
-/** Project-independent chats live here; they must never appear as a project. */
-export const CHATS_DIR_MARKER = '/.laf-agent/chats'
+/**
+ * Project-independent chats live here; they must never appear as a project.
+ * The current location is a visible Documents folder; the dotfolder marker
+ * keeps threads from older versions classified as chats.
+ */
+export const CHATS_DIR_MARKER = '/LAF Agent Chats'
+const LEGACY_CHATS_DIR_MARKER = '/.laf-agent/chats'
 export const isChatWorkspace = (ws: string | null | undefined): boolean =>
-  !!ws && ws.includes(CHATS_DIR_MARKER)
+  !!ws && (ws.endsWith(CHATS_DIR_MARKER) || ws.includes(`${CHATS_DIR_MARKER}/`) || ws.includes(LEGACY_CHATS_DIR_MARKER))
 const withoutChatDirs = (list: string[]): string[] => list.filter((w) => !isChatWorkspace(w))
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
@@ -222,7 +227,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   sessionIds: {},
   isForking: false,
   lastAddedProject: null,
-  worktreeCleanupPending: null,
   splitViews: [],
   pinnedThreadIds: [],
   activeSplitId: null,
@@ -537,23 +541,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   archiveTask: (id) => {
     const task = get().tasks[id]
     if (!task || task.isArchived) return
-    // Worktree threads: show confirmation dialog BEFORE deleting
-    if (task.worktreePath && task.originalWorkspace) {
-      const branch = task.worktreePath.split('/').pop() ?? 'unknown'
-      // Set pending immediately with hasChanges=null (loading), then check async
-      set({ worktreeCleanupPending: { taskId: id, worktreePath: task.worktreePath, branch, originalWorkspace: task.originalWorkspace, action: 'archive', hasChanges: null } })
-      void ipc.gitWorktreeHasChanges(task.worktreePath).then((hasChanges) => {
-        set((s) => s.worktreeCleanupPending?.taskId === id
-          ? { worktreeCleanupPending: { ...s.worktreeCleanupPending!, hasChanges } }
-          : s)
-      }).catch(() => {
-        set((s) => s.worktreeCleanupPending?.taskId === id
-          ? { worktreeCleanupPending: { ...s.worktreeCleanupPending!, hasChanges: false } }
-          : s)
-      })
-      return
-    }
-    // Non-worktree: proceed immediately
     void ipc.cancelTask(id).catch(() => {})
     set((s) => ({
       tasks: { ...s.tasks, [id]: { ...s.tasks[id], isArchived: true, status: 'completed' } },
@@ -579,22 +566,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return
     }
     if (!task) return
-    // Worktree threads: show confirmation dialog BEFORE deleting
-    if (task.worktreePath && task.originalWorkspace) {
-      const branch = task.worktreePath.split('/').pop() ?? 'unknown'
-      set({ worktreeCleanupPending: { taskId: id, worktreePath: task.worktreePath, branch, originalWorkspace: task.originalWorkspace, action: 'delete', hasChanges: null } })
-      void ipc.gitWorktreeHasChanges(task.worktreePath).then((hasChanges) => {
-        set((s) => s.worktreeCleanupPending?.taskId === id
-          ? { worktreeCleanupPending: { ...s.worktreeCleanupPending!, hasChanges } }
-          : s)
-      }).catch(() => {
-        set((s) => s.worktreeCleanupPending?.taskId === id
-          ? { worktreeCleanupPending: { ...s.worktreeCleanupPending!, hasChanges: false } }
-          : s)
-      })
-      return
-    }
-    // Non-worktree: proceed immediately
     void ipc.cancelTask(id).catch(() => {})
     attempt(t('Could not delete the thread'), ipc.deleteTask(id))
     set((state) => {
@@ -1445,7 +1416,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const sp of savedProjects) {
           if (sp.threadOrder?.length) threadOrders[sp.workspace] = sp.threadOrder
         }
-        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds: capDeletedIds(deletedTaskIds), threadOrders, connected: true, historyLoaded: true })
+        set((s) => {
+          // The map above was assembled across several awaits. A thread that
+          // was created or went live while the load was in flight exists only
+          // in the current state — a plain replacement would clobber it, so
+          // fold the current state in one more time inside the setter.
+          for (const [id, t] of Object.entries(s.tasks)) {
+            if (deletedTaskIds.has(id)) continue
+            if (t.status === 'running' || t.status === 'paused' || !tasks[id]) {
+              tasks[id] = t
+              delete archivedMeta[id]
+            }
+          }
+          return { tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds: capDeletedIds(deletedTaskIds), threadOrders, connected: true, historyLoaded: true }
+        })
         // One-time migration: sync JSON history threads into SQLite (background, best-effort).
         // This ensures all historical threads are available via the SQLite store going forward.
         threadDb.migrateFromJsonHistory(historyStore.loadThreads).then((result) => {
@@ -1538,7 +1522,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         for (const sp of savedProjects) {
           if (sp.threadOrder?.length) threadOrders[sp.workspace] = sp.threadOrder
         }
-        set({ tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds, threadOrders, connected: false, historyLoaded: true })
+        set((s) => {
+          // Same in-flight merge as the primary path: threads that appeared
+          // while this load awaited must survive the replacement.
+          for (const [id, t] of Object.entries(s.tasks)) {
+            if (deletedTaskIds.has(id)) continue
+            if (t.status === 'running' || t.status === 'paused' || !tasks[id]) {
+              tasks[id] = t
+              delete archivedMeta[id]
+            }
+          }
+          return { tasks, archivedMeta, projects: withoutChatDirs(projects), projectIds, projectNames, softDeleted, deletedTaskIds, threadOrders, connected: false, historyLoaded: true }
+        })
       } catch {
         set({ connected: false })
       }
@@ -1742,7 +1737,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // incrementally by the turn-end and send handlers.
     for (const task of Object.values(tasks)) {
       if (task.messages.length === 0) continue
-      threadDb.saveThread(task).catch(() => {})
+      // SQLite is the source of truth for messages — a failed write here must
+      // not be silent, or the conversation quietly stops being durable.
+      threadDb.saveThread(task).catch((err) => {
+        console.warn('[persistHistory] saveThread failed:', task.id, err)
+      })
     }
   },
 
@@ -1819,66 +1818,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const updatedSettings = { ...currentSettings, projectPrefs: {} }
     await useSettingsStore.getState().saveSettings(updatedSettings)
     useSettingsStore.setState({ settings: updatedSettings })
-  },
-
-  resolveWorktreeCleanup: (removeWorktree) => {
-    const pending = get().worktreeCleanupPending
-    if (!pending) return
-    set({ worktreeCleanupPending: null })
-    const { taskId, action, worktreePath, originalWorkspace } = pending
-    // Proceed with the actual delete/archive
-    if (action === 'archive') {
-      const task = get().tasks[taskId]
-      if (!task || task.isArchived) return
-      void ipc.cancelTask(taskId).catch(() => {})
-      set((s) => ({
-        tasks: { ...s.tasks, [taskId]: { ...s.tasks[taskId], isArchived: true, status: 'completed' } },
-        streamingChunks: { ...s.streamingChunks, [taskId]: '' },
-        thinkingChunks: { ...s.thinkingChunks, [taskId]: '' },
-        liveToolCalls: { ...s.liveToolCalls, [taskId]: [] },
-        liveToolSplits: { ...s.liveToolSplits, [taskId]: [] },
-      }))
-      attempt(t('Could not delete the thread'), ipc.deleteTask(taskId))
-    } else {
-      void ipc.cancelTask(taskId).catch(() => {})
-      attempt(t('Could not delete the thread'), ipc.deleteTask(taskId))
-      set((state) => {
-        const { [taskId]: removed, ...rest } = state.tasks
-        const { [taskId]: _c, ...chunks } = state.streamingChunks
-        const { [taskId]: _t, ...thinking } = state.thinkingChunks
-        const { [taskId]: _tc, ...tools } = state.liveToolCalls
-        const { [taskId]: _ts, ...splits } = state.liveToolSplits
-        const { [taskId]: _m, ...modes } = state.taskModes
-        const { [taskId]: _mdl, ...models } = state.taskModels
-        const { [taskId]: _ds, ...remainingSnapshots } = state.dispatchSnapshots
-        const deletedTaskIds = new Set(state.deletedTaskIds)
-        deletedTaskIds.add(taskId)
-        const softDeleted = {
-          ...state.softDeleted,
-          [taskId]: { task: { ...removed, isArchived: true, status: 'completed' as const }, deletedAt: new Date().toISOString() },
-        }
-        return {
-          tasks: rest,
-          streamingChunks: chunks,
-          thinkingChunks: thinking,
-          liveToolCalls: tools,
-          liveToolSplits: splits,
-          taskModes: modes,
-          taskModels: models,
-          dispatchSnapshots: remainingSnapshots,
-          deletedTaskIds,
-          softDeleted,
-          selectedTaskId: state.selectedTaskId === taskId ? null : state.selectedTaskId,
-        }
-      })
-      showUndoDeleteToast(taskId)
-    }
-    if (removeWorktree) {
-      // The user explicitly chose the destructive branch of the cleanup
-      // dialog — a silent failure would leave a worktree they believe gone.
-      attempt(t('Could not remove the worktree'), ipc.gitWorktreeRemove(originalWorkspace, worktreePath))
-    }
-    get().persistHistory()
   },
 
   enterBtwMode: (taskId, question) => {

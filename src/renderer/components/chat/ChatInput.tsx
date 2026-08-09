@@ -42,10 +42,9 @@ interface ChatInputProps {
   workspace?: string | null
   isCollapsed?: boolean
   onToggleCollapse?: () => void
-  isWorktree?: boolean
 }
 
-export const ChatInput = memo(function ChatInput({ disabled, disabledReason, contextUsage, messageCount = 0, isRunning, isActive, taskId, initialValue, initialAttachments, initialFolderPaths, initialPastedChunks, initialMentionedFiles, autoFocus, hasQueuedMessages, onSendMessage, onPause, onDraftChange, onAttachmentsChange, onFolderPathsChange, onPastedChunksChange, onMentionedFilesChange, workspace, isCollapsed, onToggleCollapse, isWorktree }: ChatInputProps) {
+export const ChatInput = memo(function ChatInput({ disabled, disabledReason, contextUsage, messageCount = 0, isRunning, isActive, taskId, initialValue, initialAttachments, initialFolderPaths, initialPastedChunks, initialMentionedFiles, autoFocus, hasQueuedMessages, onSendMessage, onPause, onDraftChange, onAttachmentsChange, onFolderPathsChange, onPastedChunksChange, onMentionedFilesChange, workspace, isCollapsed, onToggleCollapse }: ChatInputProps) {
   const t = useT()
   const {
     value, setValue, textareaRef, containerRef, canSend,
@@ -260,7 +259,6 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
             canSend={canSend}
             hasQueuedMessages={hasQueuedMessages}
             workspace={workspace ?? null}
-            isWorktree={isWorktree}
             isMetaHeld={isMetaHeld}
             fileInputRef={fileInputRef}
             onFilePickerClick={handleFilePickerClick}

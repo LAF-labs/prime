@@ -126,7 +126,7 @@ const SortDropdown = memo(function SortDropdown({ sort, onChange }: { sort: Sort
   )
 })
 
-const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub }: { onCloneFromGitHub?: () => void }) {
+const AddProjectDropdown = memo(function AddProjectDropdown() {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
@@ -148,11 +148,6 @@ const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub 
     setNewProjectOpen(true)
     setOpen(false)
   }, [setNewProjectOpen])
-
-  const handleCloneFromGitHub = useCallback(() => {
-    onCloneFromGitHub?.()
-    setOpen(false)
-  }, [onCloneFromGitHub])
 
   return (
     <div className="relative">
@@ -185,13 +180,6 @@ const AddProjectDropdown = memo(function AddProjectDropdown({ onCloneFromGitHub 
             >
               <IconFolderOpen className="size-3.5" aria-hidden /> {t('Import folder')}
             </button>
-            <button
-              type="button"
-              onClick={handleCloneFromGitHub}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-            >
-              <IconGitBranch className="size-3.5" aria-hidden /> {t('Clone from GitHub')}
-            </button>
           </div>
         </>
       )}
@@ -204,7 +192,6 @@ interface TaskSidebarProps {
   onResize: (width: number) => void
   position?: 'left' | 'right'
   onCollapse?: () => void
-  onCloneFromGitHub?: () => void
 }
 
 /** Sidebar section showing saved split view pairings */
@@ -414,7 +401,7 @@ const saveSortPreference = (sort: SortKey): void => {
   try { localStorage.setItem(SORT_STORAGE_KEY, sort) } catch { /* best-effort */ }
 }
 
-export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position = 'left', onCollapse, onCloneFromGitHub }: TaskSidebarProps) {
+export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position = 'left', onCollapse }: TaskSidebarProps) {
   const isRight = position === 'right'
   const [sort, setSort] = useState<SortKey>(loadSortPreference)
   const handleSortChange = useCallback((s: SortKey) => {
@@ -526,7 +513,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
 
   const t = useT()
 
-  // Project-independent chats live in ~/.laf-agent/chats — a neutral
+  // Project-independent chats live in Documents/LAF Agent Chats — a neutral
   // workspace with no repository context, so casual conversations stay
   // token-lean. Conversations persist locally like any other thread.
   const allTasks = useTaskStore((s) => s.tasks)
@@ -640,7 +627,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
         <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t('Projects')}</span>
         <div className="flex shrink-0 items-center gap-1">
           <SortDropdown sort={sort} onChange={handleSortChange} />
-          <AddProjectDropdown onCloneFromGitHub={onCloneFromGitHub} />
+          <AddProjectDropdown />
         </div>
       </div>
       <SidebarDivider />

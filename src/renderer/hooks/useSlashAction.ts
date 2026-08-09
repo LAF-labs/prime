@@ -8,7 +8,7 @@ import { isPassthroughCommand, parseCommand, runRpcCommand, GUI_COMMANDS, RPC_CO
 import { useDebugStore } from '@/stores/debugStore'
 import { record } from '@/lib/analytics-collector'
 
-export type SlashPanel = 'model' | 'agent' | 'branch' | 'worktree' | null
+export type SlashPanel = 'model' | 'agent' | null
 
 export interface SlashActionResult {
   panel: SlashPanel
@@ -157,12 +157,6 @@ export const useSlashAction = (): SlashActionResult => {
         setPanel(null)
         return true
       }
-      case 'branch':
-        setPanel((p) => (p === 'branch' ? null : 'branch'))
-        return true
-      case 'worktree':
-        setPanel((p) => (p === 'worktree' ? null : 'worktree'))
-        return true
       case 'btw':
       case 'tangent': {
         // When selected from the picker, exit btw mode if active

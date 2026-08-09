@@ -1204,4 +1204,24 @@ export const ko: Record<string, string> = {
   'Apply selected icon': '선택한 아이콘 적용',
   'Esc to cancel · {mod}↵ to add': 'Esc 취소 · {mod}↵ 추가',
   'Open full picker': '전체 선택기 열기',
+
+  // ── Everyday empty state ────────────────────────────────────────
+  'What can I help with?': '무엇을 도와드릴까요?',
+  'Start a chat, or open a folder to work with your documents and files.': '채팅을 시작하거나, 폴더를 열어 문서와 파일로 작업해 보세요.',
+  'Open Folder': '폴더 열기',
+  'Just ask': '무엇이든 물어보세요',
+  'Answers questions, writes and summarizes documents, and thinks things through with you': '질문에 답하고, 문서를 쓰고 요약하고, 함께 고민해 드려요',
+  'Research the web': '웹 리서치',
+  'Looks things up online and pulls several sources together into one answer': '온라인에서 자료를 찾아 여러 출처를 하나의 답으로 정리해요',
+  'Work with your files': '내 파일로 작업',
+  'Reads, writes, and organizes documents in the folders you choose': '선택한 폴더의 문서를 읽고, 쓰고, 정리해요',
+  'Remembers you': '나를 기억해요',
+  'Keeps track of your preferences and picks up where you left off': '취향과 진행 상황을 기억하고 이어서 도와드려요',
+
+  // ── Chat surface ────────────────────────────────────────────────
+  'Open file': '파일 열기',
+  'Sandbox and ignored files': '샌드박스와 무시 파일',
+  'Registers the server in the agent settings for the scope you pick. New chat threads pick it up automatically.': '선택한 범위의 에이전트 설정에 서버를 등록합니다. 새 채팅 스레드부터 자동으로 적용돼요.',
+  'Close side-by-side': '나란히 보기 닫기',
+  'Side-by-side · two threads at once': '나란히 보기 · 두 스레드를 한 번에',
 }

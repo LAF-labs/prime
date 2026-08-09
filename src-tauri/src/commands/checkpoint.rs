@@ -126,6 +126,14 @@ fn write_workdir_tree(repo: &Repository) -> Result<Oid, AppError> {
     Ok(tree_id)
 }
 
+/// Whether checkpointing is available for a workspace — i.e. whether `cwd`
+/// is inside a git repository. The frontend uses this to gate the per-message
+/// rollback button.
+#[tauri::command]
+pub fn checkpoint_supported(cwd: String) -> bool {
+    Repository::discover(&cwd).is_ok()
+}
+
 /// Snapshot the working tree at the given turn number.
 ///
 /// Non-destructive: it writes a commit reachable only from the checkpoint ref

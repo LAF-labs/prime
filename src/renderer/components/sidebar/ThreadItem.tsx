@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
-import { IconPencil, IconTrash, IconHistory, IconGitBranch, IconLayoutColumns, IconArrowsSplit, IconPin, IconPinnedOff, IconArrowUp, IconArrowDown, IconCopy, IconGitFork, IconX, IconFileExport } from '@tabler/icons-react'
+import { IconPencil, IconTrash, IconHistory, IconLayoutColumns, IconArrowsSplit, IconPin, IconPinnedOff, IconArrowUp, IconArrowDown, IconCopy, IconGitFork, IconX, IconFileExport } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { exportThread } from '@/lib/thread-export'
 import { reportFailure } from '@/lib/ipc-report'
@@ -220,14 +220,6 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
               </span>
             </TooltipTrigger>
             <TooltipContent side="right">{t('From history — agent reconnects on next send')}</TooltipContent>
-          </Tooltip>
-        )}
-        {task.worktreePath && !task.isArchived && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <IconGitBranch className="size-3 shrink-0 text-muted-foreground/70" aria-label={t('Worktree thread')} />
-            </TooltipTrigger>
-            <TooltipContent side="top">{t('Worktree')}</TooltipContent>
           </Tooltip>
         )}
         {isInSplit && (

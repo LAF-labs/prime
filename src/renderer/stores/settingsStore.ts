@@ -230,9 +230,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   checkAuth: async () => {
     try {
       const { settings } = get()
-      console.log('[auth] checkAuth called with agentBin:', settings.agentBin)
       const result = await ipc.authStatus(settings.agentBin)
-      console.log('[auth] whoami result:', JSON.stringify(result))
       if (result.accountType) {
         set({
           agentAuth: {
@@ -241,9 +239,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           },
           authChecked: true,
         })
-        console.log('[auth] authenticated:', result.accountType, result.email)
       } else {
-        console.log('[auth] whoami returned no accountType')
         set({ agentAuth: null, authChecked: true })
       }
     } catch (err) {
@@ -262,11 +258,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   openLogin: async () => {
     const { settings } = get()
-    console.log('[auth] openLogin called with agentBin:', settings.agentBin)
     // If already logged in, just refresh state instead of opening terminal
     try {
       const result = await ipc.authStatus(settings.agentBin)
-      console.log('[auth] openLogin whoami check:', JSON.stringify(result))
       if (result.accountType) {
         set({
           agentAuth: {
@@ -275,13 +269,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           },
           authChecked: true,
         })
-        console.log('[auth] already logged in, skipping terminal')
         return
       }
     } catch (err) {
-      console.log('[auth] openLogin whoami failed (not logged in):', err)
     }
-    console.log('[auth] opening terminal with:', `${settings.agentBin} login`)
     ipc.openTerminalWithCommand(`${settings.agentBin} login`).catch((err) => {
       console.error('[auth] openTerminalWithCommand failed:', err)
     })

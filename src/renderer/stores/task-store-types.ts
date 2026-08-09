@@ -125,8 +125,6 @@ export interface TaskStore {
   isForking: boolean
   /** Workspace path of the most recently added project (for auto-focus) */
   lastAddedProject: string | null
-  /** Pending worktree cleanup — set when a worktree thread is being deleted/archived */
-  worktreeCleanupPending: { taskId: string; worktreePath: string; branch: string; originalWorkspace: string; action: 'archive' | 'delete'; hasChanges: boolean | null } | null
   /** Thread IDs pinned to the top of the sidebar */
   pinnedThreadIds: string[]
   /** Saved split view pairings */
@@ -230,7 +228,6 @@ export interface TaskStore {
   persistHistory: () => void
   persistUiState: () => void
   clearHistory: () => Promise<void>
-  resolveWorktreeCleanup: (remove: boolean) => void
   enterBtwMode: (taskId: string, question: string) => void
   exitBtwMode: (keepTail: boolean) => void
   /** Create a saved split view pairing and activate it */

@@ -11,7 +11,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { ipc } from '@/lib/ipc'
 import { toast } from 'sonner'
 import { useMessageListTaskId } from './MessageList'
-import { useIsGitRepo } from '@/hooks/useIsGitRepo'
+import { useCheckpointSupported } from '@/hooks/useCheckpointSupported'
 import { findRevertCheckpoint } from './checkpoint-match'
 import type { AssistantTextRow as AssistantTextRowData } from '@/lib/timeline'
 
@@ -58,7 +58,7 @@ const TurnChip = memo(function TurnChip({
   }, [])
 
   // Checkpoints work in any git repository, not just worktree threads.
-  const fileRevertActive = useIsGitRepo(workspace)
+  const fileRevertActive = useCheckpointSupported(workspace)
 
   const handleRollback = useCallback(async () => {
     if (!taskId) return

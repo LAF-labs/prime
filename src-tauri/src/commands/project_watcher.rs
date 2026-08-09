@@ -1100,38 +1100,6 @@ pub fn open_terminal_at(workspace: String, rel_path: String) -> Result<(), Strin
     Ok(())
 }
 
-/// Add a path pattern to .gitignore.
-#[tauri::command]
-pub fn add_to_gitignore(workspace: String, rel_path: String) -> Result<(), String> {
-    let root = PathBuf::from(&workspace);
-    let gitignore_path = root.join(".gitignore");
-
-    let mut content = if gitignore_path.exists() {
-        std::fs::read_to_string(&gitignore_path)
-            .map_err(|e| format!("Failed to read .gitignore: {}", e))?
-    } else {
-        String::new()
-    };
-
-    // Check if already in .gitignore
-    let pattern = format!("/{}", rel_path);
-    if content.lines().any(|line| line.trim() == pattern || line.trim() == rel_path) {
-        return Ok(()); // Already ignored
-    }
-
-    // Append
-    if !content.ends_with('\n') && !content.is_empty() {
-        content.push('\n');
-    }
-    content.push_str(&pattern);
-    content.push('\n');
-
-    std::fs::write(&gitignore_path, content)
-        .map_err(|e| format!("Failed to write .gitignore: {}", e))?;
-
-    Ok(())
-}
-
 /// Open Finder with search bar active in the given directory.
 #[tauri::command]
 pub fn open_finder_search(path: String) -> Result<(), String> {

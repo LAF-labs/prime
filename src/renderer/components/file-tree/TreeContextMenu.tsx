@@ -153,12 +153,6 @@ export const TreeContextMenu = memo(function TreeContextMenu({
     onClose()
   }, [entry, onClose])
 
-  const handleAddToGitignore = useCallback(() => {
-    if (!entry) return
-    invoke('add_to_gitignore', { workspace, relPath: entry.path }).catch((e) => reportFailure(t('Could not update .gitignore'), e))
-    onClose()
-  }, [entry, workspace, onClose])
-
   const handleRename = useCallback(() => {
     if (!entry) return
     useFileTreeStore.getState().setRenamingPath(entry.path)
@@ -201,8 +195,6 @@ export const TreeContextMenu = memo(function TreeContextMenu({
     items.push({ label: t('Copy Path'), icon: <IconCopy className="size-3.5" />, shortcut: IS_MAC ? '⌥⌘C' : 'Ctrl+Alt+C', action: handleCopyPath })
     items.push({ label: t('Copy Relative Path'), icon: <IconCopy className="size-3.5" />, shortcut: IS_MAC ? '⌥⇧⌘C' : 'Ctrl+Alt+Shift+C', action: handleCopyRelPath, separator: true })
 
-    // Gitignore
-    items.push({ label: t('Add to .gitignore'), icon: <IconGitBranch className="size-3.5" />, action: handleAddToGitignore, separator: true })
 
     // Rename / Trash
     items.push({ label: t('Rename'), icon: <IconPencil className="size-3.5" />, shortcut: 'F2', action: handleRename })

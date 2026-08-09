@@ -4,7 +4,7 @@ import {
   IconChevronRight,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
-import { useDiffStore } from '@/stores/diffStore'
+import { useFilePreviewStore } from '@/stores/filePreviewStore'
 import { FileTypeIcon } from '@/components/file-tree/FileTypeIcon'
 import { isFileMutation } from './tool-call-utils'
 import type { ToolCall } from '@/types'
@@ -160,11 +160,7 @@ export const ChangedFilesSummary = memo(function ChangedFilesSummary({ row }: { 
   }, [dirGroups])
 
   const handleFileClick = useCallback((path: string) => {
-    useDiffStore.getState().openToFile(path)
-  }, [])
-
-  const handleViewDiff = useCallback(() => {
-    useDiffStore.getState().setOpen(true)
+    useFilePreviewStore.getState().openPreview(path)
   }, [])
 
   if (fileStats.length === 0) return null
@@ -210,13 +206,6 @@ export const ChangedFilesSummary = memo(function ChangedFilesSummary({ row }: { 
               {allCollapsed ? 'Expand all' : 'Collapse all'}
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleViewDiff}
-            className="rounded-md border border-input bg-popover px-2 py-0.5 text-[12px] font-medium text-foreground shadow-xs/5 transition-colors hover:bg-accent/50"
-          >
-            {t('View diff')}
-          </button>
         </div>
       </div>
 

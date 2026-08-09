@@ -112,8 +112,6 @@ export const GUI_COMMANDS: readonly AgentCommandSpec[] = [
   { name: 'agent', description: 'Switch between agents or list available ones', kind: 'gui' },
   { name: 'plan', description: 'Toggle plan mode on or off', kind: 'gui' },
   { name: 'upload', description: 'Attach images or files', kind: 'gui' },
-  { name: 'branch', description: 'Create and check out a git branch', kind: 'gui' },
-  { name: 'worktree', description: 'Create a worktree and a thread inside it', kind: 'gui' },
   { name: 'settings', description: 'Open settings', kind: 'gui' },
   { name: 'login', description: 'Configure provider authentication', kind: 'gui' },
   { name: 'logout', description: 'Remove provider authentication', kind: 'gui' },

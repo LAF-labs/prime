@@ -25,16 +25,12 @@ const handleHeaderMouseDown = (e: React.MouseEvent<HTMLElement>) => {
 
 // ── AppHeader ─────────────────────────────────────────────────────────
 interface AppHeaderProps {
-  sidePanelOpen: boolean
-  onToggleSidePanel: () => void
   isSidebarCollapsed: boolean
   onToggleSidebar: () => void
   sidebarPosition?: "left" | "right"
 }
 
 const AppHeaderInner = memo(function AppHeaderInner({
-  sidePanelOpen,
-  onToggleSidePanel,
   isSidebarCollapsed,
   onToggleSidebar,
   sidebarPosition = "left",
@@ -78,13 +74,7 @@ const AppHeaderInner = memo(function AppHeaderInner({
 
       {/* Actions right */}
       {!workspace && <HeaderGhostToolbar />}
-      {workspace && (
-        <HeaderToolbar
-          workspace={workspace}
-          sidePanelOpen={sidePanelOpen}
-          onToggleSidePanel={onToggleSidePanel}
-        />
-      )}
+      {workspace && <HeaderToolbar workspace={workspace} />}
 
       {/* Window controls for Windows/Linux */}
       {!IS_MAC && (

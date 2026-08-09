@@ -4,7 +4,6 @@ import { useEffect, useCallback, useState, useRef, memo } from "react"
 import {
   IconLayoutSidebarLeftExpand,
   IconLayoutSidebarRightExpand,
-  IconGitBranch,
 } from "@tabler/icons-react"
 import { useTaskStore } from "@/stores/taskStore"
 import {
@@ -35,9 +34,6 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
   )
   const taskOriginalWorkspace = useTaskStore((s) =>
     selectedTaskId ? s.tasks[selectedTaskId]?.originalWorkspace : null,
-  )
-  const isWorktree = useTaskStore((s) =>
-    selectedTaskId ? !!s.tasks[selectedTaskId]?.worktreePath : false,
   )
   const pendingWorkspace = useTaskStore((s) => s.pendingWorkspace)
   const renameTask = useTaskStore((s) => s.renameTask)
@@ -152,17 +148,6 @@ export const HeaderBreadcrumb = memo(function HeaderBreadcrumb({
             >
               {taskName}
             </button>
-          )}
-          {isWorktree && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <IconGitBranch
-                  className="size-3.5 shrink-0 text-violet-500 dark:text-violet-400"
-                  aria-label={t('Worktree thread')}
-                />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{t('Worktree')}</TooltipContent>
-            </Tooltip>
           )}
         </>
       ) : pendingWorkspace ? (

@@ -96,11 +96,6 @@ const COMMAND_ICONS: Record<string, () => React.ReactNode> = {
       <path d="M3 3v18h18" /><path d="M18 9l-5 5-4-4-3 3" />
     </svg>
   ),
-  worktree: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><line x1="6" y1="9" x2="6" y2="15" /><path d="M9 6h6" /><path d="M6 9c0 3 2 6 6 9" />
-    </svg>
-  ),
 }
 
 const DefaultIcon = () => (

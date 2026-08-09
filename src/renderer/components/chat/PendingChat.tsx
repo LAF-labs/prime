@@ -1,16 +1,13 @@
 import { t } from '@/lib/i18n'
 import { toast } from 'sonner'
-import { useCallback, useRef, useState } from 'react'
-import { IconGitBranch, IconPencil } from '@tabler/icons-react'
+import { useCallback } from 'react'
 import { ipc } from '@/lib/ipc'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { resolveModelId } from '@/lib/resolve-model'
-import { slugify, isValidWorktreeSlug } from '@/lib/utils'
 import { stripImageDataForTitleGen } from '@/lib/message-utils'
 import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { PastedChunk } from '@/hooks/useChatInput'
-import { Checkbox } from '@/components/ui/checkbox'
 import { ChatInput } from './ChatInput'
 import { claimTurn } from '@/lib/turn-ownership'
 import { captureDraft, restoreDraft } from './draft-recovery'
@@ -39,19 +36,9 @@ export function PendingChat({ workspace }: PendingChatProps) {
   const setDraftMentionedFiles = useTaskStore((s) => s.setDraftMentionedFiles)
   const removeDraftMentionedFiles = useTaskStore((s) => s.removeDraftMentionedFiles)
 
-  const [useWorktree, setUseWorktree] = useState(false)
-  const [worktreeSlug, setWorktreeSlug] = useState('')
-  const [isSlugEdited, setIsSlugEdited] = useState(false)
-  const [isEditingSlug, setIsEditingSlug] = useState(false)
-  const slugInputRef = useRef<HTMLInputElement>(null)
-
   const handleDraftChange = useCallback((val: string) => {
     setDraft(workspace, val)
-    // Auto-generate slug from message text if user hasn't manually edited it
-    if (!isSlugEdited) {
-      setWorktreeSlug(slugify(val.slice(0, 40)))
-    }
-  }, [workspace, setDraft, isSlugEdited])
+  }, [workspace, setDraft])
 
   const handleAttachmentsChange = useCallback((attachments: Attachment[]) => {
     setDraftAttachments(workspace, attachments)
@@ -64,29 +51,6 @@ export function PendingChat({ workspace }: PendingChatProps) {
   const handleMentionedFilesChange = useCallback((files: ProjectFile[]) => {
     setDraftMentionedFiles(workspace, files)
   }, [workspace, setDraftMentionedFiles])
-
-  const handleSlugChange = useCallback((val: string) => {
-    setWorktreeSlug(val)
-    setIsSlugEdited(true)
-  }, [])
-
-  const handleWorktreeToggle = useCallback((checked: boolean | 'indeterminate') => {
-    const next = checked === true
-    setUseWorktree(next)
-    useSettingsStore.getState().setProjectPref(workspace, { worktreeEnabled: next })
-  }, [workspace])
-
-  const handleEditSlug = useCallback(() => {
-    setIsEditingSlug(true)
-    setIsSlugEdited(true)
-    requestAnimationFrame(() => slugInputRef.current?.focus())
-  }, [])
-
-  const handleSlugKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === 'Escape') {
-      setIsEditingSlug(false)
-    }
-  }, [])
 
   const handleSend = useCallback(async (msg: string, attachments?: IpcAttachment[]) => {
     // Hold on to what we are about to clear. This is the very first message of
@@ -101,78 +65,12 @@ export function PendingChat({ workspace }: PendingChatProps) {
     removeDraftPastedChunks(workspace)
     removeDraftMentionedFiles(workspace)
     const cleanMsg = stripImageDataForTitleGen(msg.replace(/<\/?laf-agent_tangent>/g, '').trim())
-    const name = cleanMsg.length > 60 ? cleanMsg.slice(0, 57) + '\u2026' : cleanMsg
+    const name = cleanMsg.length > 60 ? cleanMsg.slice(0, 57) + '…' : cleanMsg
     const { settings: currentSettings, activeWorkspace, currentModeId, currentModelId } = useSettingsStore.getState()
     const prefs = activeWorkspace ? currentSettings.projectPrefs?.[activeWorkspace] : undefined
     const autoApprove = prefs?.autoApprove !== undefined ? prefs.autoApprove : currentSettings.autoApprove
     const modeId = currentModeId && currentModeId !== 'code' ? currentModeId : undefined
     const modelId = resolveModelId({ projectPrefs: prefs, settings: currentSettings, currentModelId })
-
-    if (useWorktree && worktreeSlug && isValidWorktreeSlug(worktreeSlug)) {
-      // Create worktree first, then create task in it
-      try {
-        const symlinkDirs = prefs?.symlinkDirectories ?? ['node_modules']
-        const wtResult = await ipc.gitWorktreeCreate(workspace, worktreeSlug)
-        try {
-          await ipc.gitWorktreeSetup(workspace, wtResult.worktreePath, symlinkDirs)
-        } catch {
-          void ipc.gitWorktreeRemove(workspace, wtResult.worktreePath).catch(() => {})
-          throw new Error(t('Worktree setup failed'))
-        }
-        const created = await ipc.createTask({ name, workspace: wtResult.worktreePath, prompt: msg, autoApprove, modeId, modelId, attachments })
-        upsertTask({
-          ...created,
-          projectId: getProjectId(workspace),
-          worktreePath: wtResult.worktreePath,
-          originalWorkspace: workspace,
-          messages: [
-            { role: 'system', content: t('Working in worktree `{path}` on branch `{branch}`', { path: wtResult.worktreePath, branch: wtResult.branch }), timestamp: new Date().toISOString() },
-            ...created.messages,
-          ],
-        })
-        if (currentModeId && currentModeId !== 'code') {
-          useTaskStore.getState().setTaskMode(created.id, currentModeId)
-        }
-        claimTurn(created.id)
-        useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
-        if (msg.includes('<laf-agent_tangent>')) {
-          const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
-          useTaskStore.getState().enterBtwMode(created.id, question)
-        }
-        return
-      } catch (wtErr) {
-        // Worktree failed — fall back to original workspace with inline error
-        const errMsg = wtErr instanceof Error ? wtErr.message : String(wtErr)
-        let created
-        try {
-          created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
-        } catch (err) {
-          // Both the worktree and the plain thread failed; give the prompt back.
-          putDraftBack()
-          const detail = err instanceof Error ? err.message : String(err)
-          toast.error(t('Could not start the thread'), { description: detail })
-          return
-        }
-        upsertTask({
-          ...created,
-          projectId: getProjectId(workspace),
-          messages: [
-            { role: 'system', content: t('\u26a0\ufe0f Worktree creation failed: {error}. Running in the original workspace.', { error: errMsg }), timestamp: new Date().toISOString() },
-            ...created.messages,
-          ],
-        })
-        if (currentModeId && currentModeId !== 'code') {
-          useTaskStore.getState().setTaskMode(created.id, currentModeId)
-        }
-        claimTurn(created.id)
-        useTaskStore.setState({ pendingWorkspace: null, selectedTaskId: created.id })
-        if (msg.includes('<laf-agent_tangent>')) {
-          const question = msg.replace(/<\/?laf-agent_tangent>/g, '').trim()
-          useTaskStore.getState().enterBtwMode(created.id, question)
-        }
-        return
-      }
-    }
 
     try {
       const created = await ipc.createTask({ name, workspace, prompt: msg, autoApprove, modeId, modelId, attachments })
@@ -192,13 +90,12 @@ export function PendingChat({ workspace }: PendingChatProps) {
       const detail = err instanceof Error ? err.message : String(err)
       toast.error(t('Could not start the thread'), { description: detail })
     }
-  }, [workspace, upsertTask, removeDraft, removeDraftAttachments, removeDraftPastedChunks, removeDraftMentionedFiles, useWorktree, worktreeSlug, getProjectId])
+  }, [workspace, upsertTask, removeDraft, removeDraftAttachments, removeDraftPastedChunks, removeDraftMentionedFiles, getProjectId])
 
   const agentAuth = useSettingsStore((s) => s.agentAuth)
   const authChecked = useSettingsStore((s) => s.authChecked)
   const openLogin = useSettingsStore((s) => s.openLogin)
   const isLoggedOut = authChecked && !agentAuth
-  const isSlugValid = !worktreeSlug || isValidWorktreeSlug(worktreeSlug)
   const isWorkspaceTerminalOpen = useTaskStore((s) => s.isWorkspaceTerminalOpen)
   const toggleWorkspaceTerminal = useTaskStore((s) => s.toggleWorkspaceTerminal)
 
@@ -228,60 +125,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
           <EmptyThreadSplash />
         )}
       </div>
-      {/* Worktree toggle */}
-      {!isLoggedOut && (
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center px-4 pb-2">
-          <div className="flex w-full max-w-md flex-col rounded-xl border border-border/40 bg-card/30 px-3 py-2.5">
-            {/* Toggle row */}
-            <label
-              htmlFor="worktree-toggle"
-              className="flex cursor-pointer items-center gap-2.5 select-none"
-            >
-              <Checkbox
-                id="worktree-toggle"
-                checked={useWorktree}
-                onCheckedChange={handleWorktreeToggle}
-                aria-label={t('Use worktree for this thread')}
-              />
-              <IconGitBranch className="size-3.5 text-violet-500 dark:text-violet-400" aria-hidden />
-              <span className="text-xs font-medium text-foreground/70">{t('Use worktree')}</span>
-              <span className="text-[11px] text-muted-foreground">{t('Isolate this thread in its own directory')}</span>
-            </label>
-            {/* Slug row */}
-            {useWorktree && (
-              <div className="mt-2 flex items-center gap-1.5 border-t border-border/30 pt-2 pl-[26px]">
-                <span className="shrink-0 rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground/70">.laf-agent/worktrees/</span>
-                {isEditingSlug ? (
-                  <input
-                    ref={slugInputRef}
-                    type="text"
-                    value={worktreeSlug}
-                    onChange={(e) => handleSlugChange(e.target.value)}
-                    onBlur={() => setIsEditingSlug(false)}
-                    onKeyDown={handleSlugKeyDown}
-                    maxLength={30}
-                    placeholder="slug"
-                    className={`min-w-0 flex-1 rounded border bg-background/60 px-1.5 py-0.5 font-mono text-[11px] text-foreground outline-none placeholder:text-muted-foreground/40 ${isSlugValid ? 'border-border/40 focus:border-violet-400/60' : 'border-red-400/60'}`}
-                    aria-label={t('Worktree slug')}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleEditSlug}
-                    className="group inline-flex min-w-0 items-center gap-1 rounded border border-transparent px-1.5 py-0.5 font-mono text-[11px] text-foreground/60 transition-colors hover:border-border/40 hover:bg-muted/40 hover:text-foreground"
-                    aria-label={t('Edit worktree slug')}
-                    tabIndex={0}
-                  >
-                    <span className="truncate">{worktreeSlug || 'slug'}</span>
-                    <IconPencil className="size-2.5 shrink-0 text-muted-foreground/30 transition-colors group-hover:text-foreground/50" aria-hidden />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      <ChatInput autoFocus disabled={isLoggedOut} initialValue={draft} initialAttachments={draftAttachments} initialPastedChunks={draftPastedChunks} initialMentionedFiles={draftMentionedFiles} onDraftChange={handleDraftChange} onAttachmentsChange={handleAttachmentsChange} onPastedChunksChange={handlePastedChunksChange} onMentionedFilesChange={handleMentionedFilesChange} onSendMessage={handleSend} workspace={workspace} isWorktree={useWorktree} />
+      <ChatInput autoFocus disabled={isLoggedOut} initialValue={draft} initialAttachments={draftAttachments} initialPastedChunks={draftPastedChunks} initialMentionedFiles={draftMentionedFiles} onDraftChange={handleDraftChange} onAttachmentsChange={handleAttachmentsChange} onPastedChunksChange={handlePastedChunksChange} onMentionedFilesChange={handleMentionedFilesChange} onSendMessage={handleSend} workspace={workspace} />
       {isWorkspaceTerminalOpen && (
         <TerminalDrawer
           key={`pending:${workspace}`}

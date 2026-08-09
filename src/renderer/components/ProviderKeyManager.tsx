@@ -99,7 +99,7 @@ export const ProviderKeyManager = ({ onChange, showConfigured = true }: Provider
         const name = endpointSelected.id === OTHER_ENDPOINT.id
           ? deriveProviderName(effectiveBaseUrl)
           : endpointSelected.id
-        await ipc.authSetCustomProvider(name, effectiveBaseUrl, apiKey.trim(), discovered.map((m) => m.id))
+        await ipc.authSetCustomProvider(name, effectiveBaseUrl, apiKey.trim(), discovered.map((m) => m.id), endpointSelected.api)
         setLastConnected({ label: endpointSelected.id === OTHER_ENDPOINT.id ? name : endpointSelected.label, count: discovered.length })
       } else if (nativeSelected) {
         const discovered = await ipc.providerDiscoverModels({ provider: nativeSelected.id, apiKey: apiKey.trim() })

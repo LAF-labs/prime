@@ -17,20 +17,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from 'sonner'
 import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useResourceStore } from '@/stores/resourceStore'
 import { cn } from '@/lib/utils'
 
 /**
- * Add a new MCP server through the prime-agent's own `mcp add` subcommand.
+ * Add a new MCP server by writing it into prime-agent's settings.json.
  *
- * We deliberately shell out to the CLI rather than rewriting `mcp.json`
- * directly so the user gets the CLI's validation, registry-mode enforcement,
- * and any future side effects for free. Behavior mirrors the docs at
- * https://github.com/PrimeIntellect-ai/prime-agent/blob/main/packages/coding-agent/docs/mcp-integrations.md
+ * prime-agent has no CLI subcommand for managing MCP servers, so the Rust
+ * side (`mcp_add_server`) does an atomic read-modify-write of the settings
+ * file for the chosen scope: `~/.prime/agent/settings.json` (global) or
+ * `<workspace>/.prime/agent/settings.json` (workspace).
  */
 
 type Transport = 'stdio' | 'http'
-type Scope = 'global' | 'workspace' | 'agent'
+type Scope = 'global' | 'workspace'
 
 interface Props {
   open: boolean
@@ -41,11 +40,9 @@ interface Props {
 
 export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
   const agentBin = useSettingsStore((s) => s.settings.agentBin)
-  const agents = useResourceStore((s) => s.config.agents)
 
   const [transport, setTransport] = useState<Transport>('stdio')
   const [scope, setScope] = useState<Scope>(workspace ? 'workspace' : 'global')
-  const [agentName, setAgentName] = useState<string>('')
   const [name, setName] = useState('')
   const [command, setCommand] = useState('')
   const [argsText, setArgsText] = useState('')
@@ -58,7 +55,6 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
     if (!open) return
     setTransport('stdio')
     setScope(workspace ? 'workspace' : 'global')
-    setAgentName(agents[0]?.name ?? '')
     setName('')
     setCommand('')
     setArgsText('')
@@ -91,18 +87,16 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
     !submitting &&
     name.trim().length > 0 &&
     isValidName &&
-    (transport === 'stdio' ? command.trim().length > 0 : url.trim().startsWith('http')) &&
-    (scope !== 'agent' || agentName.trim().length > 0)
+    (transport === 'stdio' ? command.trim().length > 0 : url.trim().startsWith('http'))
 
   const submit = useCallback(async () => {
     if (!canSubmit) return
     setSubmitting(true)
-    const fullScope = scope === 'agent' ? `agent:${agentName.trim()}` : scope
     try {
       await ipc.mcpAddServer(
         {
           name: name.trim(),
-          scope: fullScope,
+          scope,
           command: transport === 'stdio' ? command.trim() : undefined,
           args: transport === 'stdio' ? parsedArgs : [],
           url: transport === 'http' ? url.trim() : undefined,
@@ -113,19 +107,18 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
         agentBin,
       )
       toast.success(t('Added MCP server "{name}"', { name: name.trim() }), {
-        description: t('Scope: {scope}. New chat threads will pick it up automatically.', { scope: fullScope }),
+        description: t('Scope: {scope}. New chat threads will pick it up automatically.', { scope }),
       })
       // The resource_watcher will fire onAgentResourcesChanged → resourceStore reloads.
       // No need to invalidate here.
       onOpenChange(false)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      // Surface the CLI's own message — it's the most accurate diagnosis.
       toast.error(t('Could not add MCP server'), { description: msg })
     } finally {
       setSubmitting(false)
     }
-  }, [canSubmit, scope, agentName, name, transport, command, parsedArgs, url, parsedEnv, workspace, agentBin, onOpenChange])
+  }, [canSubmit, scope, name, transport, command, parsedArgs, url, parsedEnv, workspace, agentBin, onOpenChange])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
@@ -145,8 +138,7 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
         <DialogHeader>
           <DialogTitle>{t('Add MCP server')}</DialogTitle>
           <DialogDescription>
-            {t('Runs')} <code className="rounded bg-muted px-1 font-mono text-[11px]">prime-agent mcp add</code>. Validation,
-            registry checks, and config writes are handled by the CLI.
+            {t('Registers the server in the agent settings for the scope you pick. New chat threads pick it up automatically.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -199,42 +191,21 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-medium text-muted-foreground">{t('Scope')}</label>
             <div className="flex items-center rounded-md border border-border overflow-hidden">
-              <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.agent/settings/mcp.json" />
+              <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.prime/agent/settings.json" />
               <ScopeButton
                 active={scope === 'workspace'}
                 onClick={() => setScope('workspace')}
                 label="Workspace"
-                hint=".agent/settings/mcp.json"
+                hint=".prime/agent/settings.json"
                 disabled={!workspace}
-                divider
-              />
-              <ScopeButton
-                active={scope === 'agent'}
-                onClick={() => setScope('agent')}
-                label="Agent"
-                hint="Custom agent file"
-                disabled={agents.length === 0}
                 divider
               />
             </div>
             <p className="font-mono text-[10px] text-muted-foreground/70">
               {scope === 'global'
-                ? '~/.agent/settings/mcp.json'
-                : scope === 'workspace'
-                  ? '.agent/settings/mcp.json'
-                  : 'Custom agent file'}
+                ? '~/.prime/agent/settings.json'
+                : '.prime/agent/settings.json'}
             </p>
-            {scope === 'agent' && (
-              <select
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value)}
-                className="mt-1 h-8 rounded-md border border-border bg-background px-2 text-[12px] outline-none focus:ring-1 focus:ring-primary/50"
-              >
-                {agents.map((a) => (
-                  <option key={a.name} value={a.name}>{a.name}</option>
-                ))}
-              </select>
-            )}
           </div>
 
           {/* Connection details */}

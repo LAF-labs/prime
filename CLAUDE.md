@@ -7,9 +7,12 @@ LAF Agent is a native desktop client for the **prime-agent** coding agent
 own RPC protocol — newline-delimited JSON over stdin/stdout — and ships the
 agent runtime inside the app bundle, so a DMG install works with no CLI setup.
 
-The UI is a chat client with threaded conversations, a diff viewer, an
-integrated terminal, git operations, a local analytics dashboard, an onboarding
-wizard, multi-window support, and a full settings panel. macOS is the shipping
+The product is an **everyday agent for non-developers**: a chat client with
+threaded conversations, web research, plain-language file tools, an integrated
+terminal, a file tree, editor hand-off, a local analytics dashboard, an
+onboarding wizard, multi-window support, and a full settings panel. Git and
+worktree features were deliberately removed in 2026-08 (turn checkpoints
+remain — their git2 use is an implementation detail). macOS is the shipping
 platform; the Windows and Linux bundle targets build but are not exercised.
 
 Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). The
@@ -62,12 +65,11 @@ src/
 │   │   └── … (theme, sounds, fuzzy search, notifications, icons, …)
 │   ├── hooks/               # useChatInput, useSlashAction, useFileMention, …
 │   ├── stores/              # taskStore (largest), settingsStore, resourceStore,
-│   │                        # diffStore, debugStore, analyticsStore, updateStore
+│   │                        # fileTreeStore, debugStore, analyticsStore, updateStore
 │   └── components/
 │       ├── ui/              # Radix-based primitives
 │       ├── chat/            # ChatPanel, MessageList, ChatInput, pickers
 │       ├── sidebar/         # TaskSidebar, ResourcePanel, dialogs
-│       ├── code/            # CodePanel, DiffViewer
 │       ├── analytics/       # Dashboard + chart components
 │       ├── settings/        # SettingsPanel and its sections
 │       ├── unified-title-bar/ # Per-platform title bar
@@ -90,13 +92,12 @@ src-tauri/
 │       ├── provider_discovery.rs # Probe /models for a user-supplied key
 │       ├── fs_ops.rs        # File ops, agent detection, auth.json management
 │       ├── agent_resources.rs / resource_watcher.rs  # .agent/ discovery
-│       ├── git*.rs          # git2-backed operations (branches, worktrees,
-│       │                    # stack, PRs, history, diff stats, AI text)
 │       ├── analytics.rs     # Local usage stats (redb)
-│       ├── thread_db.rs     # Thread persistence (redb)
+│       ├── thread_db.rs     # Thread persistence (rusqlite + FTS5)
+│       ├── diff_stats.rs    # Annotates agent edit diffs (imara-diff)
+│       ├── checkpoint.rs    # Turn checkpoints (git2, internal only)
 │       ├── pty.rs           # Terminal emulation (portable-pty)
 │       ├── settings.rs      # Config persistence (confy) + recent projects
-│       ├── checkpoint.rs    # Turn checkpoints
 │       ├── markdown.rs      # Server-side markdown parsing
 │       └── error.rs         # Shared AppError (thiserror)
 ├── resources/
@@ -172,8 +173,9 @@ bun run clean
 - **State**: Zustand stores are the single source of truth. No Redux, no Context
   for global state.
 - **Persistence**: `tauri-plugin-store` (LazyStore) for tasks, projects, and
-  soft-deleted threads; redb for analytics and thread bodies. A self-write guard
-  (`_selfWriteCount`) prevents reload loops from autoSave-triggered events.
+  soft-deleted threads; rusqlite for thread bodies (FTS5 search), redb for
+  analytics. A self-write guard (`_selfWriteCount`) prevents reload loops from
+  autoSave-triggered events.
 - **Analytics are local**: `analytics-collector.ts` buffers events, flushes to
   redb via IPC, and the dashboard reads them back. There is no remote endpoint
   and no telemetry client — do not add one without asking.
@@ -185,7 +187,8 @@ bun run clean
 
 - Use `const` arrow functions for components and handlers
 - Prefix event handlers with `handle`; booleans with a verb (`isLoading`)
-- kebab-case file names, PascalCase components, camelCase values
+- Component files are PascalCase (matching the component); non-component
+  modules (lib/, hooks/, settings sections) are kebab-case. camelCase values
 - One export per file for components
 - Early returns for readability
 - Accessibility: semantic HTML, ARIA attributes, keyboard navigation
@@ -385,11 +388,6 @@ from persisted storage *before* `upsertTask` runs, then filter.
 `bun test` uses Bun's native runner, which has no jsdom, and every component
 test fails with `document is not defined`. `bunfig.toml` redirects it; always
 use `bun run test`.
-
-### Clean up orphaned worktrees on setup failure
-
-If `gitWorktreeSetup` fails after creating the directory, the caller must catch
-and call `gitWorktreeRemove`.
 
 ### Stamp context on debug entries at creation time
 

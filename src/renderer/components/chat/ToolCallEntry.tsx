@@ -2,13 +2,12 @@ import { t } from '@/lib/i18n'
 import { memo, useState, useId } from 'react'
 import {
   IconChevronDown, IconChevronRight, IconCheck, IconLoader2, IconX,
-  IconFilePencil, IconTerminal2, IconGitCompare, IconPlayerStop,
+  IconFilePencil, IconTerminal2, IconEye, IconPlayerStop,
 } from '@tabler/icons-react'
 import { createPatch } from 'diff'
 import type { ToolCall } from '@/types'
 import { cn } from '@/lib/utils'
-import { useDiffStore } from '@/stores/diffStore'
-import { useTaskStore } from '@/stores/taskStore'
+import { useFilePreviewStore } from '@/stores/filePreviewStore'
 import { ipc } from '@/lib/ipc'
 import { InlineDiff } from './InlineDiff'
 import { getToolIcon, getToolColor } from './tool-call-utils'
@@ -132,20 +131,14 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
 
   const fetchDiffIfNeeded = () => {
     if (!isEditOp || !isCompleted || !firstPath || fileDiff !== null || diffLoading) return
-    const taskId = useTaskStore.getState().selectedTaskId
-    if (!taskId) return
     setDiffLoading(true)
-    ipc.gitDiffFile(taskId, firstPath).then((diff) => {
-      if (diff) {
-        setFileDiff(diff)
+    Promise.resolve().then(() => {
+      const diffContent = toolCall.content?.find((c) => c.type === 'diff')
+      if (diffContent && (diffContent.oldText != null || diffContent.newText != null)) {
+        const generated = createPatch(firstPath, diffContent.oldText ?? '', diffContent.newText ?? '')
+        setFileDiff(generated)
       } else {
-        const diffContent = toolCall.content?.find((c) => c.type === 'diff')
-        if (diffContent && (diffContent.oldText != null || diffContent.newText != null)) {
-          const generated = createPatch(firstPath, diffContent.oldText ?? '', diffContent.newText ?? '')
-          setFileDiff(generated)
-        } else {
-          setFileDiff('')
-        }
+        setFileDiff('')
       }
       setDiffLoading(false)
     }).catch(() => {
@@ -160,10 +153,10 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
     if (!expanded) fetchDiffIfNeeded()
   }
 
-  const handleOpenDiff = (e: React.MouseEvent) => {
+  const handleOpenFile = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!firstPath) return
-    useDiffStore.getState().openToFile(firstPath)
+    useFilePreviewStore.getState().openPreview(firstPath)
   }
 
   const hasDiff = fileDiff !== null && fileDiff.length > 0
@@ -264,11 +257,11 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
           <span className="shrink-0 inline-flex items-center gap-0.5 opacity-50 transition-opacity group-hover/entry:opacity-100 focus-within:opacity-100">
             <button
               type="button"
-              onClick={handleOpenDiff}
+              onClick={handleOpenFile}
               className="rounded-md p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
-              aria-label={t('View diff')}
+              aria-label={t('Open file')}
             >
-              <IconGitCompare className="size-3" />
+              <IconEye className="size-3" />
             </button>
           </span>
         )}

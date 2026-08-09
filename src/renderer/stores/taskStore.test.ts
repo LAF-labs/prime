@@ -23,8 +23,6 @@ vi.mock('@/lib/ipc', () => ({
     listTasks: vi.fn().mockResolvedValue([]),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     forkTask: vi.fn().mockResolvedValue({ id: 'fork-1', name: 'Fork', workspace: '/ws', status: 'paused', createdAt: '', messages: [] }),
-    gitWorktreeHasChanges: vi.fn().mockResolvedValue(false),
-    gitWorktreeRemove: vi.fn().mockResolvedValue(undefined),
     addRecentProject: vi.fn().mockResolvedValue(undefined),
     rebuildRecentMenu: vi.fn().mockResolvedValue(undefined),
     threadDbAutoArchive: vi.fn().mockResolvedValue([]),
@@ -211,17 +209,6 @@ describe('soft delete undo toast', () => {
     expect(state.deletedTaskIds.has('task-1')).toBe(false)
   })
 
-  it('defers the toast for worktree threads until the cleanup dialog confirms the delete', () => {
-    useTaskStore.getState().upsertTask(makeTask({ worktreePath: '/wt/branch', originalWorkspace: '/orig' }))
-    useTaskStore.getState().softDeleteTask('task-1')
-    // Delete is pending behind the worktree dialog — nothing was deleted yet
-    expect(mockToast).not.toHaveBeenCalled()
-    expect(useTaskStore.getState().worktreeCleanupPending?.taskId).toBe('task-1')
-
-    useTaskStore.getState().resolveWorktreeCleanup(false)
-    expect(useTaskStore.getState().softDeleted['task-1']).toBeDefined()
-    expect(mockToast).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('startNewThread', () => {
@@ -1701,180 +1688,6 @@ describe('clearHistory clears softDeleted', () => {
     })
     await useTaskStore.getState().clearHistory()
     expect(Object.keys(useTaskStore.getState().softDeleted)).toHaveLength(0)
-  })
-})
-
-describe('worktree cleanup in archiveTask', () => {
-  it('calls gitWorktreeHasChanges for worktree tasks', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    useTaskStore.getState().upsertTask(makeTask({
-      status: 'running',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.getState().archiveTask('task-1')
-    // Wait for the async check to fire
-    await vi.waitFor(() => {
-      expect(ipc.gitWorktreeHasChanges).toHaveBeenCalledWith('/project/.laf-agent/worktrees/feat')
-    })
-  })
-
-  it('shows confirmation dialog for clean worktree on archive', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(false)
-    useTaskStore.getState().upsertTask(makeTask({
-      status: 'running',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.getState().archiveTask('task-1')
-    // Should set pending immediately, then resolve hasChanges
-    expect(useTaskStore.getState().worktreeCleanupPending?.taskId).toBe('task-1')
-    await vi.waitFor(() => {
-      expect(useTaskStore.getState().worktreeCleanupPending?.hasChanges).toBe(false)
-    })
-    // Task should NOT be archived yet
-    expect(useTaskStore.getState().tasks['task-1']?.isArchived).toBeFalsy()
-  })
-
-  it('sets worktreeCleanupPending when worktree has changes', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(true)
-    useTaskStore.getState().upsertTask(makeTask({
-      status: 'running',
-      worktreePath: '/project/.laf-agent/worktrees/dirty',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.getState().archiveTask('task-1')
-    await vi.waitFor(() => {
-      const pending = useTaskStore.getState().worktreeCleanupPending
-      expect(pending).toEqual({
-        taskId: 'task-1',
-        worktreePath: '/project/.laf-agent/worktrees/dirty',
-        branch: 'dirty',
-        originalWorkspace: '/project',
-        action: 'archive',
-        hasChanges: true,
-      })
-    })
-    // Task should NOT be archived yet — dialog is showing
-    expect(useTaskStore.getState().tasks['task-1']?.isArchived).toBeFalsy()
-  })
-
-  it('does not check worktree for non-worktree tasks', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.gitWorktreeHasChanges).mockClear()
-    useTaskStore.getState().upsertTask(makeTask({ status: 'running' }))
-    useTaskStore.getState().archiveTask('task-1')
-    // Give async a chance to fire (it shouldn't)
-    await new Promise((r) => setTimeout(r, 10))
-    expect(ipc.gitWorktreeHasChanges).not.toHaveBeenCalled()
-  })
-})
-
-describe('worktree cleanup in softDeleteTask', () => {
-  it('sets worktreeCleanupPending for worktree tasks', async () => {
-    useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.getState().softDeleteTask('task-1')
-    // Should set pending immediately (hasChanges=null while loading)
-    const pending = useTaskStore.getState().worktreeCleanupPending
-    expect(pending?.taskId).toBe('task-1')
-    expect(pending?.hasChanges).toBeNull()
-    // Task should still exist — not deleted yet
-    expect(useTaskStore.getState().tasks['task-1']).toBeDefined()
-  })
-
-  it('resolves hasChanges after async check', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(false)
-    useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.getState().softDeleteTask('task-1')
-    await vi.waitFor(() => {
-      expect(useTaskStore.getState().worktreeCleanupPending?.hasChanges).toBe(false)
-    })
-  })
-
-  it('sets worktreeCleanupPending with action delete when dirty', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.gitWorktreeHasChanges).mockResolvedValueOnce(true)
-    useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/dirty',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.getState().softDeleteTask('task-1')
-    await vi.waitFor(() => {
-      const pending = useTaskStore.getState().worktreeCleanupPending
-      expect(pending).toEqual({
-        taskId: 'task-1',
-        worktreePath: '/project/.laf-agent/worktrees/dirty',
-        branch: 'dirty',
-        originalWorkspace: '/project',
-        action: 'delete',
-        hasChanges: true,
-      })
-    })
-  })
-})
-
-describe('resolveWorktreeCleanup', () => {
-  it('removes worktree and deletes task when resolve(true) with delete action', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.setState({
-      worktreeCleanupPending: {
-        taskId: 'task-1',
-        worktreePath: '/project/.laf-agent/worktrees/feat',
-        branch: 'feat',
-        originalWorkspace: '/project',
-        action: 'delete',
-        hasChanges: false,
-      },
-    })
-    useTaskStore.getState().resolveWorktreeCleanup(true)
-    expect(ipc.gitWorktreeRemove).toHaveBeenCalledWith('/project', '/project/.laf-agent/worktrees/feat')
-    expect(useTaskStore.getState().worktreeCleanupPending).toBeNull()
-    // Task should be soft-deleted
-    expect(useTaskStore.getState().tasks['task-1']).toBeUndefined()
-    expect(useTaskStore.getState().softDeleted['task-1']).toBeDefined()
-  })
-
-  it('archives task when resolve with archive action', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.gitWorktreeRemove).mockClear()
-    useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    useTaskStore.setState({
-      worktreeCleanupPending: {
-        taskId: 'task-1',
-        worktreePath: '/project/.laf-agent/worktrees/feat',
-        branch: 'feat',
-        originalWorkspace: '/project',
-        action: 'archive',
-        hasChanges: false,
-      },
-    })
-    useTaskStore.getState().resolveWorktreeCleanup(false)
-    expect(ipc.gitWorktreeRemove).not.toHaveBeenCalled()
-    expect(useTaskStore.getState().worktreeCleanupPending).toBeNull()
-    // Task should be archived but still in tasks
-    expect(useTaskStore.getState().tasks['task-1']?.isArchived).toBe(true)
-  })
-
-  it('no-ops when no pending cleanup', () => {
-    useTaskStore.setState({ worktreeCleanupPending: null })
-    useTaskStore.getState().resolveWorktreeCleanup(true)
-    expect(useTaskStore.getState().worktreeCleanupPending).toBeNull()
   })
 })
 

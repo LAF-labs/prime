@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::error::AppError;
-use super::git_ai::{extract_first_json_object, extract_json_object_with_key, run_agent_oneshot};
+use super::agent_oneshot::{extract_first_json_object, extract_json_object_with_key, run_agent_oneshot};
 use super::settings::SettingsState;
 
 /// Maximum title length in characters.

@@ -5,7 +5,6 @@ import { sendTaskNotification } from '@/lib/notifications'
 import { useDebugStore } from '@/stores/debugStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
-import { useDiffStore } from '@/stores/diffStore'
 import { useTaskStore } from './taskStore'
 import type { TaskStore } from './task-store-types'
 import { t as msg } from '@/lib/i18n'
@@ -19,7 +18,7 @@ import {
   type SessionStats, type SpendSnapshot,
 } from '@/lib/token-spend'
 import { stripImageDataForTitleGen } from '@/lib/message-utils'
-import { getReceiptBus, createTurnQuiescedReceipt, createDiffReadyReceipt } from '@/lib/typed-receipts'
+import { getReceiptBus, createTurnQuiescedReceipt } from '@/lib/typed-receipts'
 import * as threadDb from '@/lib/thread-db'
 
 /** Get the project basename from a workspace path (privacy: no full paths). */
@@ -402,17 +401,26 @@ export function initTaskListeners(): () => void {
     if (!isKnown) flushPendingChunks()
     touchActivity(taskId)
     useTaskStore.getState().upsertToolCall(taskId, toolCall)
-    if (
-      toolCall.status === 'completed' &&
-      (toolCall.kind === 'edit' || toolCall.kind === 'delete' || toolCall.kind === 'move')
-    ) {
-      useDiffStore.getState().fetchDiff(taskId)
-    }
     // Analytics: record completed tool calls
     if (toolCall.status === 'completed') {
       const task = useTaskStore.getState().tasks[taskId]
       const proj = task ? projectName(task.originalWorkspace ?? task.workspace) : undefined
       record('tool_call', { project: proj, thread: taskId, detail: toolCall.kind ?? 'other' })
+      // Edit line counts come from the RPC client's diff annotation on the
+      // tool call itself (see Rust `diff_stats`), recorded incrementally per
+      // completed edit rather than from a workspace snapshot.
+      if (toolCall.kind === 'edit' || toolCall.kind === 'delete' || toolCall.kind === 'move') {
+        let additions = 0
+        let deletions = 0
+        for (const item of toolCall.content ?? []) {
+          if (item.type !== 'diff') continue
+          additions += item.linesAdded ?? 0
+          deletions += item.linesRemoved ?? 0
+        }
+        if (additions > 0 || deletions > 0) {
+          record('diff_stats', { project: proj, thread: taskId, value: additions, value2: deletions })
+        }
+      }
       if (toolCall.kind === 'edit' || toolCall.kind === 'delete' || toolCall.kind === 'move') {
         const filePath = toolCall.locations?.[0]?.path
         const fileName = filePath ? filePath.split('/').pop() ?? filePath : undefined
@@ -535,15 +543,6 @@ export function initTaskListeners(): () => void {
           }).finally(() => {
             titleGenerationInFlight.delete(taskId)
           })
-
-          // Generate a semantic branch name for worktree threads (fire-and-forget).
-          if (t.worktreePath) {
-            const currentBranch = t.worktreePath.split('/').pop() ?? ''
-            ipc.generateBranchName(firstMsg, t.worktreePath).then(({ branch }) => {
-              if (!branch || branch === currentBranch) return
-              ipc.renameWorktreeBranch(t.worktreePath!, currentBranch, branch).catch(() => {})
-            }).catch(() => {})
-          }
         }
       }
     }
@@ -572,14 +571,6 @@ export function initTaskListeners(): () => void {
             value: lastMsg.content.split(/\s+/).filter(Boolean).length,
           })
         }
-        const ws = t.worktreePath ?? t.workspace
-        ipc.gitDiffStats(ws).then((stats) => {
-          if (stats.additions > 0 || stats.deletions > 0) {
-            record('diff_stats', { project: proj, thread: taskId, value: stats.additions, value2: stats.deletions })
-            // Emit typed receipt for diff readiness
-            getReceiptBus().publish(createDiffReadyReceipt(taskId, stats))
-          }
-        }).catch(() => {})
         const model = useSettingsStore.getState().currentModelId
         if (model) record('model_used', { project: proj, thread: taskId, detail: model })
       }
@@ -656,7 +647,6 @@ export function initTaskListeners(): () => void {
   })
 
   const unsub10 = ipc.onSessionInit(({ taskId, sessionId, sessionFile, models, modes, thinkingLevel, availableThinkingLevels }) => {
-    console.log('[session_init] received', { taskId, sessionId, models, modes })
     // Re-arm plan-mode enforcement: the /plan-guard flag lives in the gate
     // extension's process, so a restarted agent comes back with it off even
     // though the UI still shows plan mode. session_init is the reconnect

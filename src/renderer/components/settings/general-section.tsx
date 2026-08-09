@@ -87,10 +87,6 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
     updateDraft({ projectPrefs: { ...prefs, [activeWorkspace]: { ...existing, [key]: value } } })
   }, [activeWorkspace, draft.projectPrefs, updateDraft])
 
-  const handleWorktreeChange = useCallback((checked: boolean) => {
-    updateProjectPref('worktreeEnabled', checked)
-  }, [updateProjectPref])
-
   const handleSandboxChange = useCallback((checked: boolean) => {
     updateProjectPref('tightSandbox', checked)
   }, [updateProjectPref])
@@ -231,19 +227,10 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label={t('Workspace')} description={t('Worktrees and sandbox')}>
+      <SettingsGrid label={t('Workspace')} description={t('Sandbox and ignored files')}>
         <SettingsCard>
           <SettingRow label={t('Respect .gitignore')} description={t('Hide gitignored files from @ mentions')}>
             <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label={t('Toggle respect gitignore')} />
-          </SettingRow>
-          <Divider />
-          <SettingRow label={t('Use worktrees')} description={t('Isolate threads in .laf-agent/worktrees/')}>
-            <Switch
-              checked={draft.projectPrefs?.[activeWorkspace ?? '']?.worktreeEnabled ?? false}
-              onCheckedChange={handleWorktreeChange}
-              disabled={!activeWorkspace}
-              aria-label={t('Toggle worktrees for new threads')}
-            />
           </SettingRow>
           <Divider />
           <SettingRow label={t('Tight sandbox')} description={t('Confine file writes, shell commands, and Python to this project, and keep credentials unreadable. Network access is not restricted.')}>

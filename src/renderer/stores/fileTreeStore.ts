@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { listen } from '@tauri-apps/api/event'
-import { useDiffStore } from './diffStore'
 import { ipc } from '@/lib/ipc'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -86,14 +85,11 @@ export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
   showIgnored: false,
 
   toggle: () => {
-    const next = !get().isOpen
-    if (next) useDiffStore.getState().setOpen(false)
-    set({ isOpen: next })
+    set({ isOpen: !get().isOpen })
   },
 
   setOpen: (open) => {
     if (open === get().isOpen) return
-    if (open) useDiffStore.getState().setOpen(false)
     set({ isOpen: open })
   },
 
@@ -313,13 +309,6 @@ export function startTreeWatcher() {
       refreshDebounceTimer = null
       useFileTreeStore.getState().refresh()
     }, 300)
-
-    // Also schedule a VCS status refresh (debounced separately at 2s)
-    import('@/stores/vcsStatusStore').then(({ scheduleVcsRefresh }) => {
-      scheduleVcsRefresh(event.payload.workspace)
-    }).catch((e) => {
-      if (import.meta.env.DEV) console.warn('[fileTreeStore] vcsStatusStore import failed:', e)
-    })
   }).then((unlisten) => {
     // If `stopTreeWatcher` (or another start) ran while we were registering,
     // discard this listener instead of leaking it.

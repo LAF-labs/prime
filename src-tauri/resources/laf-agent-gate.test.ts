@@ -5,6 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const GATE = new URL('./laf-agent-gate.ts', import.meta.url).pathname
 
+// These tests serve fixtures from 127.0.0.1, which the gate's outbound URL
+// guard refuses by design. The gate reads this at module scope, so it must be
+// set before the first cache-busted import below.
+process.env.LAF_ALLOW_LOCAL_FETCH = '1'
+
 interface CapturedTool {
   name: string
   execute: (id: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>
@@ -242,5 +247,36 @@ describe('gate article extraction', () => {
       details: { title: string }
     }
     expect(result.content[0]?.text).toContain('짧은 안내문')
+  })
+})
+
+describe('gate outbound URL guard', () => {
+  it('refuses private, loopback, and metadata addresses when the test hook is off', async () => {
+    delete process.env.LAF_ALLOW_LOCAL_FETCH
+    try {
+      const captured: Captured = { tools: new Map() }
+      const pi = {
+        registerTool: (tool: CapturedTool) => captured.tools.set(tool.name, tool),
+        registerCommand: () => {},
+        on: () => {},
+      }
+      const mod = await import(`${GATE}?guard=on`)
+      mod.default(pi)
+      const fetchTool = captured.tools.get('web_fetch')
+      expect(fetchTool).toBeTruthy()
+      for (const url of [
+        'http://127.0.0.1:8080/secrets',
+        'http://169.254.169.254/latest/meta-data/',
+        'http://10.0.0.5/',
+        'http://192.168.1.1/',
+        'http://localhost/',
+        'http://[::1]/',
+        'file:///etc/passwd',
+      ]) {
+        await expect(fetchTool?.execute('g', { url }), url).rejects.toThrow(/private or local|http\(s\)/)
+      }
+    } finally {
+      process.env.LAF_ALLOW_LOCAL_FETCH = '1'
+    }
   })
 })

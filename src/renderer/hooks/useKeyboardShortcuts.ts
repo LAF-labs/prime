@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
-import { useDiffStore } from '@/stores/diffStore'
 import { useDebugStore } from '@/stores/debugStore'
 import { ipc } from '@/lib/ipc'
 
@@ -90,13 +89,6 @@ export function useKeyboardShortcuts() {
           // Focus chat input with /btw prefilled
           document.dispatchEvent(new CustomEvent('btw-shortcut'))
         }
-        return
-      }
-
-      // ── Cmd+D → Toggle diff ────────────────────────────────
-      if (key === 'd' && !e.shiftKey) {
-        e.preventDefault()
-        useDiffStore.getState().toggleOpen()
         return
       }
 

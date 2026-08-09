@@ -1,6 +1,6 @@
 import { memo, useMemo, useCallback } from 'react'
 import { IconFile, IconPlus, IconMinus } from '@tabler/icons-react'
-import { useDiffStore } from '@/stores/diffStore'
+import { useFilePreviewStore } from '@/stores/filePreviewStore'
 
 interface LafAgentReport {
   status: 'done' | 'partial' | 'blocked'
@@ -96,7 +96,7 @@ export const TaskCompletionCard = memo(function TaskCompletionCard({ report }: {
   const hasMoreFiles = (report.filesChanged?.length ?? 0) > 10
 
   const handleFileClick = useCallback((path: string) => {
-    useDiffStore.getState().openToFile(path)
+    useFilePreviewStore.getState().openPreview(path)
   }, [])
 
   return (

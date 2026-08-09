@@ -1,6 +1,6 @@
 pub mod commands;
 
-use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, everyday_memory, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing, vcs_status};
+use commands::{rpc, analytics, kernel_setup, checkpoint, everyday_memory, fs_ops, fuzzy, agent_resources, history_guard, resource_watcher, markdown, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -282,11 +282,6 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tau
         .id("new_project")
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
-    let clone_from_github = MenuItemBuilder::new("Clone from GitHub…")
-        .id("clone_from_github")
-        .accelerator("CmdOrCtrl+Shift+O")
-        .build(app)?;
-
     // Build "Recent Projects" submenu from persisted data.
     let recent_projects: Vec<String> = app
         .try_state::<settings::SettingsState>()
@@ -349,12 +344,10 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tau
         .quit()
         .build()?;
 
-    let mut file_builder = SubmenuBuilder::new(app, "File")
+    let file_submenu = SubmenuBuilder::new(app, "File")
         .item(&new_window)
         .item(&new_thread)
-        .item(&new_project);
-    file_builder = file_builder.item(&clone_from_github);
-    let file_submenu = file_builder
+        .item(&new_project)
         .separator()
         .item(&recent_submenu)
         .separator()
@@ -467,9 +460,6 @@ pub fn run() {
                     }
                     "new_project" => {
                         let _ = app_handle.emit("menu-new-project", ());
-                    }
-                    "clone_from_github" => {
-                        let _ = app_handle.emit("menu-clone-from-github", ());
                     }
                     "clear_recent" => {
                         if let Some(state) = app_handle.try_state::<settings::SettingsState>() {
@@ -652,38 +642,6 @@ pub fn run() {
             fs_ops::open_terminal_with_command,
             fs_ops::detect_project_icon,
             fs_ops::list_small_images,
-            // Git
-            git::git_detect,
-            git::git_init,
-            git::git_clone,
-            git::git_list_branches,
-            git::git_checkout,
-            git::git_checkout_remote,
-            git::git_create_branch,
-            git::git_delete_branch,
-            git::git_commit,
-            git::git_push,
-            git::git_pull,
-            git::git_fetch,
-            git::git_stage,
-            git::git_revert,
-            git::task_diff,
-            git::task_diff_stats,
-            git::git_diff,
-            git::git_diff_file,
-            git::git_diff_stats,
-            git::git_staged_stats,
-            git::git_remote_url,
-            git_ai::git_generate_commit_message,
-            git::git_changed_files,
-            git::git_stage_files,
-            git::git_commit_files,
-            git::git_create_and_checkout_branch,
-            git::git_add_remote,
-            git::git_worktree_create,
-            git::git_worktree_remove,
-            git::git_worktree_has_changes,
-            git::git_worktree_setup,
             // Agent RPC
             rpc::task_create,
             rpc::task_list,
@@ -733,7 +691,6 @@ pub fn run() {
             project_watcher::reveal_in_finder,
             project_watcher::open_in_default_app,
             project_watcher::open_terminal_at,
-            project_watcher::add_to_gitignore,
             project_watcher::open_finder_search,
             // Analytics
             analytics::analytics_save,
@@ -750,10 +707,6 @@ pub fn run() {
             analytics::analytics_mode_usage,
             analytics::analytics_project_stats,
             analytics::analytics_totals,
-            // Streaming Diff
-            // Structured diff parsing
-            diff_parse::task_diff_structured,
-            diff_parse::git_diff_structured,
             // Markdown parsing
             markdown::parse_markdown,
             // Fuzzy match
@@ -761,29 +714,16 @@ pub fn run() {
             // MCP Transport
             // Thread title generation
             thread_title::generate_thread_title,
-            branch_ai::generate_branch_name,
-            branch_ai::rename_worktree_branch,
-            pr_ai::generate_pr_content,
-            vcs_status::git_vcs_status,
-            git_stack::git_list_stack,
-            git_stack::git_stacked_push,
             process_diagnostics::list_child_processes,
             process_diagnostics::signal_process,
             // Checkpoint
+            checkpoint::checkpoint_supported,
             checkpoint::checkpoint_create,
             checkpoint::checkpoint_list,
             checkpoint::checkpoint_diff,
             checkpoint::checkpoint_revert,
             checkpoint::checkpoint_cleanup,
             checkpoint::checkpoint_prune,
-            // Git History
-            git_history::git_commit_history,
-            git_history::git_commit_diff,
-            git_history::git_commit_stats,
-            git_history::git_stash_list,
-            git_history::git_stash_pop,
-            git_history::git_stash_drop,
-            git_history::git_stash_save,
             // Thread Database
             thread_db::thread_db_list,
             thread_db::thread_db_load,
@@ -806,11 +746,6 @@ pub fn run() {
             settings::add_recent_project,
             settings::clear_recent_projects,
             rebuild_recent_menu,
-            // PR / MR creation (GitHub + GitLab)
-            git_pr::git_detect_provider,
-            git_pr::git_create_pr,
-            git_pr::git_pr_status,
-            git_pr::git_pr_open_in_browser,
             // Pattern extraction (code signatures for agent context)
             // Structured tracing (NDJSON debug traces)
             app_tracing::trace_read_recent,

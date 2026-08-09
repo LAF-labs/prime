@@ -29,6 +29,12 @@ export interface CatalogProvider {
   keysUrl?: string
   /** Model-name hint for the brand icon, when we have one. */
   iconHint?: string
+  /**
+   * Wire protocol for compatible endpoints. Defaults to chat completions;
+   * `openai-responses` is for endpoints that serve the Responses API, which
+   * is what enables provider-side web search (e.g. DeepSeek).
+   */
+  api?: 'openai-completions' | 'openai-responses'
 }
 
 /** Providers prime-agent authenticates natively — key only, no endpoint. */
@@ -45,7 +51,9 @@ export const NATIVE_PROVIDERS: CatalogProvider[] = [
  * key validation and model discovery all go through the same pipeline.
  */
 export const COMPATIBLE_PROVIDERS: CatalogProvider[] = [
-  { id: 'deepseek', label: 'DeepSeek', group: 'compatible', baseUrl: 'https://api.deepseek.com/v1', keyPlaceholder: 'sk-…', keysUrl: 'https://platform.deepseek.com/api_keys', iconHint: 'deepseek' },
+  // Responses API on purpose: it is where DeepSeek serves its server-side
+  // web_search tool, which the gate injects into every request.
+  { id: 'deepseek', label: 'DeepSeek', group: 'compatible', baseUrl: 'https://api.deepseek.com', api: 'openai-responses', keyPlaceholder: 'sk-…', keysUrl: 'https://platform.deepseek.com/api_keys', iconHint: 'deepseek' },
   { id: 'minimax', label: 'MiniMax', group: 'compatible', baseUrl: 'https://api.minimax.io/v1', keyPlaceholder: 'API key', keysUrl: 'https://www.minimax.io/platform', iconHint: 'minimax' },
   { id: 'moonshot', label: 'Moonshot (Kimi)', group: 'compatible', baseUrl: 'https://api.moonshot.ai/v1', keyPlaceholder: 'sk-…', keysUrl: 'https://platform.moonshot.ai/console/api-keys' },
   { id: 'qwen', label: 'Qwen (DashScope)', group: 'compatible', baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', keyPlaceholder: 'sk-…', keysUrl: 'https://dashscope.console.aliyun.com/apiKey', iconHint: 'qwen' },

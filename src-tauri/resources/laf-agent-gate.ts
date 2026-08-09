@@ -17,6 +17,8 @@ import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join as joinPath, resolve as resolvePath } from "node:path";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createBashTool, createLocalBashOperations } from "@earendil-works/pi-coding-agent";
@@ -330,8 +332,10 @@ const PERMISSION_MODE: PermissionMode = (() => {
 	return raw === "acceptEdits" || raw === "auto" ? raw : "ask";
 })();
 
-/** File-editing tools auto-allowed under `acceptEdits`. */
-const EDIT_TOOLS = new Set(["edit", "write", "str_replace", "multi_edit"]);
+/** File-editing tools auto-allowed under `acceptEdits`. The everyday profile's
+ * mutating tools (`write_file`, `organize`) belong here too — otherwise the
+ * mode auto-allows only tools no everyday session ever calls. */
+const EDIT_TOOLS = new Set(["edit", "write", "str_replace", "multi_edit", "write_file", "organize"]);
 
 const PERMISSION_RULES: PermissionRule[] = (() => {
 	const raw = process.env.LAF_PERMISSION_RULES;
@@ -1177,6 +1181,97 @@ function registerWebSearch(pi: ExtensionAPI): void {
 
 const FETCH_TIMEOUT_MS = 20_000;
 
+// ── Outbound URL guard ───────────────────────────────────────────────
+//
+// `web_fetch` takes model-chosen URLs, and everyday sessions can read most of
+// the home directory — the classic prompt-injection exfiltration setup. The
+// missing leg is the network side, so close it here: no fetch may land on a
+// loopback, private, link-local, or cloud-metadata address, whether written
+// as a literal IP, reached through DNS, or smuggled in via a redirect.
+
+const MAX_FETCH_REDIRECTS = 5;
+
+/** Test hook only: the gate's own unit tests serve fixtures from 127.0.0.1. */
+const ALLOW_LOCAL_FETCH = process.env.LAF_ALLOW_LOCAL_FETCH === "1";
+
+/** IPv4 ranges no model-directed fetch has any business reaching. */
+const PRIVATE_V4 = [
+	/^0\./, // "this network"
+	/^10\./,
+	/^127\./, // loopback
+	/^169\.254\./, // link-local, incl. 169.254.169.254 cloud metadata
+	/^172\.(1[6-9]|2\d|3[01])\./,
+	/^192\.168\./,
+	/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT 100.64/10
+];
+
+function isPrivateAddress(address: string, family: number): boolean {
+	if (family === 4) return PRIVATE_V4.some((range) => range.test(address));
+	const a = address.toLowerCase();
+	if (a === "::" || a === "::1") return true; // unspecified / loopback
+	if (a.startsWith("fe80:")) return true; // link-local
+	if (a.startsWith("fc") || a.startsWith("fd")) return true; // unique-local fc00::/7
+	if (a.startsWith("::ffff:")) return isPrivateAddress(a.slice("::ffff:".length), 4);
+	return false;
+}
+
+/** Throw unless every address the hostname resolves to is public. */
+async function assertPublicHost(url: URL): Promise<void> {
+	if (ALLOW_LOCAL_FETCH) return;
+	const host = url.hostname.replace(/^\[|\]$/g, "");
+	const literalFamily = isIP(host);
+	if (literalFamily !== 0) {
+		if (isPrivateAddress(host, literalFamily)) {
+			throw new Error(`Refusing to fetch ${url.origin}: the address is private or local.`);
+		}
+		return;
+	}
+	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
+		throw new Error(`Refusing to fetch ${url.origin}: the address is private or local.`);
+	}
+	let addresses: Array<{ address: string; family: number }>;
+	try {
+		addresses = await dnsLookup(host, { all: true, verbatim: true });
+	} catch {
+		throw new Error(`Could not resolve ${host}.`);
+	}
+	if (addresses.length === 0) {
+		throw new Error(`Could not resolve ${host}.`);
+	}
+	// All-or-nothing: one private A record poisons the name (DNS rebinding
+	// setups mix a public and a private answer on purpose).
+	for (const { address, family } of addresses) {
+		if (isPrivateAddress(address, family)) {
+			throw new Error(`Refusing to fetch ${url.origin}: the address is private or local.`);
+		}
+	}
+}
+
+/**
+ * `fetch` with the guard applied to the initial URL and to every redirect
+ * target, which means redirects are followed by hand rather than by undici.
+ */
+async function fetchPublic(rawUrl: string, init: RequestInit): Promise<Response> {
+	let current = new URL(rawUrl);
+	for (let hop = 0; hop <= MAX_FETCH_REDIRECTS; hop++) {
+		if (current.protocol !== "http:" && current.protocol !== "https:") {
+			throw new Error(`Refusing to fetch ${current.href}: only http(s) is allowed.`);
+		}
+		await assertPublicHost(current);
+		const response = await fetch(current, { ...init, redirect: "manual" });
+		if ([301, 302, 303, 307, 308].includes(response.status)) {
+			const location = response.headers.get("location");
+			if (location) {
+				response.body?.cancel().catch(() => {});
+				current = new URL(location, current);
+				continue;
+			}
+		}
+		return response;
+	}
+	throw new Error(`Too many redirects fetching ${rawUrl}.`);
+}
+
 /**
  * How much of a page a fetch hands back.
  *
@@ -1367,9 +1462,8 @@ function registerWebFetch(pi: ExtensionAPI): void {
 			}
 			const timeout = AbortSignal.timeout(FETCH_TIMEOUT_MS);
 			const composite = signal ? AbortSignal.any([signal, timeout]) : timeout;
-			const response = await fetch(url, {
+			const response = await fetchPublic(url, {
 				signal: composite,
-				redirect: "follow",
 				headers: {
 					// Some sites serve a stub to unknown agents; identify as a browser.
 					"user-agent":
@@ -1494,7 +1588,7 @@ function buildEverydayPrompt(cwd: string): string {
  * Two roots are allowed, and the order matters. The session's own workspace
  * comes first because the user picked it explicitly and it may legitimately
  * sit outside the home directory — an external drive, a temp folder, or the
- * app's own `~/.laf-agent/chats/<id>` for a project-less chat. Confining to
+ * app's own visible chats folder (Documents/LAF Agent Chats) for a project-less chat. Confining to
  * the home directory alone made a session unable to read the very folder it
  * was opened on. The home directory is the second root, so "summarize the
  * thing in my Downloads" keeps working from any workspace.

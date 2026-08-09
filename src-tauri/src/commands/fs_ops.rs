@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use git2::{Repository, StatusOptions};
 use ignore::WalkBuilder;
 use serde::Serialize;
 use tauri::Emitter;
@@ -674,20 +673,9 @@ pub struct ProjectFile {
     pub dir: String,
     pub is_dir: bool,
     pub ext: String,
-    /// Git status: "M" modified, "A" added/new, "D" deleted, "R" renamed, "" clean/untracked
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub git_status: String,
-    /// Lines added (0 if unchanged or unavailable)
-    #[serde(skip_serializing_if = "is_zero")]
-    pub lines_added: u32,
-    /// Lines deleted (0 if unchanged or unavailable)
-    #[serde(skip_serializing_if = "is_zero")]
-    pub lines_deleted: u32,
     /// File modification time as Unix epoch seconds (0 if unavailable)
     pub modified_at: i64,
 }
-
-fn is_zero(v: &u32) -> bool { *v == 0 }
 
 const MAX_FILES: usize = 25_000;
 
@@ -703,21 +691,6 @@ fn is_ignored_dir(name: &str) -> bool {
     IGNORED_DIRS.contains(&name)
 }
 
-/// Convert git2 status flags to a short status string
-fn git_status_label(status: git2::Status) -> String {
-    if status.intersects(git2::Status::INDEX_NEW | git2::Status::WT_NEW) {
-        "A".to_string()
-    } else if status.intersects(git2::Status::INDEX_MODIFIED | git2::Status::WT_MODIFIED) {
-        "M".to_string()
-    } else if status.intersects(git2::Status::INDEX_DELETED | git2::Status::WT_DELETED) {
-        "D".to_string()
-    } else if status.intersects(git2::Status::INDEX_RENAMED | git2::Status::WT_RENAMED) {
-        "R".to_string()
-    } else {
-        String::new()
-    }
-}
-
 /// Get file modification time as Unix epoch seconds
 fn file_mtime(path: &Path) -> i64 {
     std::fs::metadata(path)
@@ -726,239 +699,6 @@ fn file_mtime(path: &Path) -> i64 {
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
-}
-
-/// Per-file line change counts
-#[derive(Default, Clone, Copy)]
-struct LineDelta {
-    added: u32,
-    deleted: u32,
-}
-
-/// Build a map of path -> (lines_added, lines_deleted) from git2 diffs.
-/// Combines staged (index vs HEAD) and unstaged (workdir vs index) changes
-/// in a single pass through each diff using the line callback.
-fn collect_line_deltas(repo: &Repository) -> std::collections::HashMap<String, LineDelta> {
-    let mut deltas: std::collections::HashMap<String, LineDelta> = std::collections::HashMap::new();
-
-    let head_tree = repo.head().ok()
-        .and_then(|r| r.peel_to_tree().ok());
-
-    // Shared line callback for both staged and unstaged diffs
-    let mut line_cb = |delta: git2::DiffDelta, _hunk: Option<git2::DiffHunk>, line: git2::DiffLine| -> bool {
-        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-            let entry = deltas.entry(path.to_string()).or_default();
-            match line.origin() {
-                '+' => entry.added += 1,
-                '-' => entry.deleted += 1,
-                _ => {}
-            }
-        }
-        true
-    };
-
-    // Staged changes: HEAD -> index
-    if let Ok(diff) = repo.diff_tree_to_index(head_tree.as_ref(), None, None) {
-        let _ = diff.foreach(&mut |_, _| true, None, None, Some(&mut line_cb));
-    }
-
-    // Unstaged changes: index -> workdir
-    if let Ok(diff) = repo.diff_index_to_workdir(None, None) {
-        let _ = diff.foreach(&mut |_, _| true, None, None, Some(&mut line_cb));
-    }
-
-    deltas
-}
-
-fn list_via_git2(root: &Path) -> Option<Vec<ProjectFile>> {
-    let repo = Repository::open(root).ok()?;
-    let mut opts = StatusOptions::new();
-    opts.include_untracked(true)
-        .recurse_untracked_dirs(true)
-        .include_unmodified(true)
-        .exclude_submodules(false);
-    let statuses = repo.statuses(Some(&mut opts)).ok()?;
-
-    // Collect per-file line deltas from diffs
-    let line_deltas = collect_line_deltas(&repo);
-
-    // Build a map of path -> git status from the status entries
-    let status_count = statuses.len();
-    let mut status_map: std::collections::HashMap<String, git2::Status> =
-        std::collections::HashMap::with_capacity(status_count);
-    for entry in statuses.iter() {
-        if let Some(p) = entry.path() {
-            status_map.insert(p.to_string(), entry.status());
-        }
-    }
-
-    let mut files: Vec<ProjectFile> = Vec::with_capacity(status_count.min(MAX_FILES));
-    let mut seen_dirs: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut seen_files: std::collections::HashSet<String> = std::collections::HashSet::with_capacity(status_count);
-
-    // Helper closure to add ancestor directories
-    let add_ancestors = |rel: &Path, files: &mut Vec<ProjectFile>, seen_dirs: &mut std::collections::HashSet<String>, root: &Path| {
-        let mut ancestor = rel.parent();
-        while let Some(dir) = ancestor {
-            if dir.as_os_str().is_empty() { break; }
-            let dir_str = dir.to_string_lossy().replace('\\', "/");
-            if !seen_dirs.insert(dir_str.clone()) { break; }
-            let dir_name = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            if is_ignored_dir(&dir_name) { break; }
-            let parent_dir = dir.parent().map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            let mtime = file_mtime(&root.join(dir));
-            files.push(ProjectFile {
-                path: dir_str, name: dir_name, dir: parent_dir,
-                is_dir: true, ext: String::new(), git_status: String::new(),
-                lines_added: 0, lines_deleted: 0, modified_at: mtime,
-            });
-            ancestor = dir.parent();
-        }
-    };
-
-    // First pass: files from status entries (these have git status info)
-    for entry in statuses.iter() {
-        if files.len() >= MAX_FILES { break; }
-        let Some(path_str) = entry.path() else { continue };
-        let rel = Path::new(path_str);
-
-        // Check if this entry is actually a directory on disk (e.g., submodule)
-        let full_path = root.join(path_str);
-        if full_path.is_dir() {
-            if !seen_dirs.insert(path_str.to_string()) { continue; }
-            let name = rel.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            if is_ignored_dir(&name) { continue; }
-            let dir = rel.parent().map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            add_ancestors(rel, &mut files, &mut seen_dirs, root);
-            let mtime = file_mtime(&full_path);
-            seen_files.insert(path_str.to_string());
-            files.push(ProjectFile {
-                path: path_str.to_string(), name, dir, is_dir: true, ext: String::new(),
-                git_status: String::new(), lines_added: 0, lines_deleted: 0, modified_at: mtime,
-            });
-            continue;
-        }
-
-        add_ancestors(rel, &mut files, &mut seen_dirs, root);
-
-        let name = rel.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        let dir = rel.parent().map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-        if dir.split('/').any(is_ignored_dir) { continue; }
-        let ext = rel.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
-        let git_status = git_status_label(entry.status());
-        let delta = line_deltas.get(path_str).copied().unwrap_or_default();
-        // Only call file_mtime for changed files — clean files get 0 (saves a syscall per file)
-        let is_changed = !git_status.is_empty();
-        let mtime = if is_changed { file_mtime(&full_path) } else { 0 };
-
-        seen_files.insert(path_str.to_string());
-        files.push(ProjectFile {
-            path: path_str.to_string(), name, dir, is_dir: false, ext, git_status,
-            lines_added: delta.added, lines_deleted: delta.deleted, modified_at: mtime,
-        });
-    }
-
-    // Second pass: tracked files from the index (fills in clean/unmodified files)
-    if let Ok(index) = repo.index() {
-        for entry in index.iter() {
-            if files.len() >= MAX_FILES { break; }
-            let path_str = String::from_utf8_lossy(&entry.path).to_string();
-            if seen_files.contains(&path_str) { continue; }
-            let rel = Path::new(&path_str);
-            let name = rel.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            let dir = rel.parent().map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            if dir.split('/').any(is_ignored_dir) { continue; }
-
-            // Detect submodules (mode 0o160000) or entries that are directories on disk
-            let is_submodule = entry.mode == 0o160000;
-            let full_path = root.join(&path_str);
-            let is_dir = is_submodule || full_path.is_dir();
-
-            if is_dir {
-                // Treat as a directory entry
-                if !seen_dirs.insert(path_str.clone()) { continue; }
-                if is_ignored_dir(&name) { continue; }
-                add_ancestors(rel, &mut files, &mut seen_dirs, root);
-                let mtime = file_mtime(&full_path);
-                seen_files.insert(path_str.clone());
-                files.push(ProjectFile {
-                    path: path_str, name, dir, is_dir: true, ext: String::new(),
-                    git_status: String::new(), lines_added: 0, lines_deleted: 0, modified_at: mtime,
-                });
-            } else {
-                let ext = rel.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
-                add_ancestors(rel, &mut files, &mut seen_dirs, root);
-
-                // These are tracked but clean — check status_map just in case
-                let git_status = status_map.get(&path_str).map(|s| git_status_label(*s)).unwrap_or_default();
-                let delta = line_deltas.get(&path_str).copied().unwrap_or_default();
-                // Skip mtime for clean index entries (no git status change)
-                let mtime = if !git_status.is_empty() { file_mtime(&full_path) } else { 0 };
-                seen_files.insert(path_str.clone());
-                files.push(ProjectFile {
-                    path: path_str, name, dir, is_dir: false, ext, git_status,
-                    lines_added: delta.added, lines_deleted: delta.deleted, modified_at: mtime,
-                });
-            }
-        }
-    }
-
-    // Third pass: recurse into directories that have no children listed.
-    // This handles submodules, nested git repos, and any directory the parent
-    // repo's index doesn't track into (e.g., gitignored dirs with content).
-    // Cap at 5 submodule recursions and 1000 files per submodule to avoid
-    // expensive traversals of large submodules.
-    const MAX_SUBMODULE_RECURSIONS: usize = 5;
-    const MAX_FILES_PER_SUBMODULE: usize = 1000;
-    let dirs_with_children: std::collections::HashSet<String> = files.iter()
-        .filter(|f| !f.dir.is_empty())
-        .map(|f| f.dir.clone())
-        .collect();
-    let empty_dirs: Vec<String> = files.iter()
-        .filter(|f| f.is_dir && !dirs_with_children.contains(&f.path))
-        .map(|f| f.path.clone())
-        .collect();
-    let mut recursion_count = 0;
-    for sub_dir in empty_dirs {
-        if files.len() >= MAX_FILES { break; }
-        if recursion_count >= MAX_SUBMODULE_RECURSIONS { break; }
-        let sub_root = root.join(&sub_dir);
-        if !sub_root.is_dir() { continue; }
-        recursion_count += 1;
-        let sub_files = list_via_walk(&sub_root, true);
-        let mut sub_file_count = 0;
-        for sf in sub_files {
-            if files.len() >= MAX_FILES { break; }
-            if sub_file_count >= MAX_FILES_PER_SUBMODULE { break; }
-            // Prefix the sub-relative path with the directory
-            let prefixed_path = format!("{}/{}", sub_dir, sf.path);
-            let prefixed_dir = if sf.dir.is_empty() {
-                sub_dir.clone()
-            } else {
-                format!("{}/{}", sub_dir, sf.dir)
-            };
-            if sf.is_dir {
-                if !seen_dirs.insert(prefixed_path.clone()) { continue; }
-            } else {
-                if seen_files.contains(&prefixed_path) { continue; }
-                seen_files.insert(prefixed_path.clone());
-            }
-            files.push(ProjectFile {
-                path: prefixed_path,
-                name: sf.name,
-                dir: prefixed_dir,
-                is_dir: sf.is_dir,
-                ext: sf.ext,
-                git_status: sf.git_status,
-                lines_added: sf.lines_added,
-                lines_deleted: sf.lines_deleted,
-                modified_at: sf.modified_at,
-            });
-            sub_file_count += 1;
-        }
-    }
-
-    Some(files)
 }
 
 fn list_via_walk(root: &Path, respect_gitignore: bool) -> Vec<ProjectFile> {
@@ -987,8 +727,7 @@ fn list_via_walk(root: &Path, respect_gitignore: bool) -> Vec<ProjectFile> {
         let ext = if is_dir { String::new() } else { rel.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default() };
         let mtime = file_mtime(entry.path());
         files.push(ProjectFile {
-            path: rel_str, name, dir, is_dir, ext,
-            git_status: String::new(), lines_added: 0, lines_deleted: 0, modified_at: mtime,
+            path: rel_str, name, dir, is_dir, ext, modified_at: mtime,
         });
     }
     files
@@ -1005,11 +744,7 @@ pub async fn list_project_files(root: String, respect_gitignore: bool) -> Result
             return Err(AppError::Other(format!("Not a directory: {}", root)));
         }
 
-        let mut files = if respect_gitignore {
-            list_via_git2(root_path).unwrap_or_else(|| list_via_walk(root_path, true))
-        } else {
-            list_via_walk(root_path, false)
-        };
+        let mut files = list_via_walk(root_path, respect_gitignore);
 
         files.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.path.cmp(&b.path)));
         Ok(files)
@@ -1832,34 +1567,6 @@ mod tests {
         let path = dir.path().join("auth.json");
         std::fs::write(&path, "[1,2,3]").unwrap();
         assert!(read_json_object_for_update(&path).is_err());
-    }
-
-    #[test]
-    fn git_status_label_new_file() {
-        assert_eq!(git_status_label(git2::Status::INDEX_NEW), "A");
-        assert_eq!(git_status_label(git2::Status::WT_NEW), "A");
-    }
-
-    #[test]
-    fn git_status_label_modified() {
-        assert_eq!(git_status_label(git2::Status::INDEX_MODIFIED), "M");
-        assert_eq!(git_status_label(git2::Status::WT_MODIFIED), "M");
-    }
-
-    #[test]
-    fn git_status_label_deleted() {
-        assert_eq!(git_status_label(git2::Status::INDEX_DELETED), "D");
-        assert_eq!(git_status_label(git2::Status::WT_DELETED), "D");
-    }
-
-    #[test]
-    fn git_status_label_renamed() {
-        assert_eq!(git_status_label(git2::Status::INDEX_RENAMED), "R");
-    }
-
-    #[test]
-    fn git_status_label_current_is_empty() {
-        assert_eq!(git_status_label(git2::Status::CURRENT), "");
     }
 
     #[test]

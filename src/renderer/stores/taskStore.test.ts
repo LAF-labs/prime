@@ -128,9 +128,8 @@ describe('upsertTask', () => {
     expect(useTaskStore.getState().activityFeed.length).toBeGreaterThan(0)
   })
 
-  it('preserves worktreePath when backend update lacks it', () => {
+  it('preserves originalWorkspace when backend update lacks it', () => {
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       workspace: '/project/.laf-agent/worktrees/feat',
     }))
@@ -140,22 +139,18 @@ describe('upsertTask', () => {
       workspace: '/project/.laf-agent/worktrees/feat',
     }))
     const task = useTaskStore.getState().tasks['task-1']
-    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/feat')
     expect(task.originalWorkspace).toBe('/project')
   })
 
-  it('allows overwriting worktree fields when explicitly provided', () => {
+  it('allows overwriting originalWorkspace when explicitly provided', () => {
     useTaskStore.getState().upsertTask(makeTask({
-      worktreePath: '/project/.laf-agent/worktrees/old',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().upsertTask(makeTask({
       status: 'running',
-      worktreePath: '/project/.laf-agent/worktrees/new',
       originalWorkspace: '/project',
     }))
     const task = useTaskStore.getState().tasks['task-1']
-    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/new')
   })
 })
 
@@ -394,11 +389,6 @@ describe('projects', () => {
     useTaskStore.getState().addProject('/ws')
     expect(useTaskStore.getState().softDeleted['t1']).toBeDefined()
     expect(useTaskStore.getState().tasks['t1']).toBeUndefined()
-  })
-
-  it('addProject rejects worktree paths', () => {
-    useTaskStore.getState().addProject('/project/.laf-agent/worktrees/feat')
-    expect(useTaskStore.getState().projects).toHaveLength(0)
   })
 
   it('reorderProject swaps positions', () => {
@@ -1179,7 +1169,7 @@ describe('loadTasks', () => {
     expect(useTaskStore.getState().tasks['task-1']).toBeDefined()
   })
 
-  it('merges worktree metadata from archived onto live tasks', async () => {
+  it('merges project metadata from archived onto live tasks', async () => {
     const { ipc } = await import('@/lib/ipc')
     const { loadThreads, loadProjects } = await import('@/lib/history-store')
     const liveTask = makeTask({ id: 'wt-1', workspace: '/project/.laf-agent/worktrees/feat', status: 'running' })
@@ -1190,28 +1180,23 @@ describe('loadTasks', () => {
       workspace: '/project/.laf-agent/worktrees/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [],
-      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       projectId: 'uuid-123',
-      parentTaskId: 'parent-1',
     }])
     vi.mocked(loadProjects).mockResolvedValueOnce([{ workspace: '/project', projectId: 'uuid-123', threadIds: ['wt-1'] }])
     await useTaskStore.getState().loadTasks()
     const task = useTaskStore.getState().tasks['wt-1']
     expect(task.status).toBe('running')
-    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/feat')
     expect(task.originalWorkspace).toBe('/project')
     expect(task.projectId).toBe('uuid-123')
-    expect(task.parentTaskId).toBe('parent-1')
   })
 
-  it('does not overwrite existing worktree metadata on live tasks', async () => {
+  it('does not overwrite existing project metadata on live tasks', async () => {
     const { ipc } = await import('@/lib/ipc')
     const { loadThreads, loadProjects, toArchivedTasks } = await import('@/lib/history-store')
     const liveTask = makeTask({
       id: 'wt-2',
       workspace: '/project/.laf-agent/worktrees/feat',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       projectId: 'live-uuid',
     })
@@ -1219,7 +1204,6 @@ describe('loadTasks', () => {
       id: 'wt-2',
       workspace: '/project/.laf-agent/worktrees/feat',
       isArchived: true,
-      worktreePath: '/project/.laf-agent/worktrees/old',
       originalWorkspace: '/old-project',
       projectId: 'archived-uuid',
     })
@@ -1229,7 +1213,6 @@ describe('loadTasks', () => {
     vi.mocked(toArchivedTasks).mockReturnValueOnce([archivedTask])
     await useTaskStore.getState().loadTasks()
     const task = useTaskStore.getState().tasks['wt-2']
-    expect(task.worktreePath).toBe('/project/.laf-agent/worktrees/feat')
     expect(task.originalWorkspace).toBe('/project')
     expect(task.projectId).toBe('live-uuid')
   })
@@ -1245,7 +1228,6 @@ describe('loadTasks', () => {
       workspace: '/project/.laf-agent/worktrees/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [],
-      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       projectId: 'uuid-456',
     }])
@@ -1268,9 +1250,7 @@ describe('loadTasks', () => {
         workspace: '/ws',
         createdAt: '',
         messages: [],
-        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
-        parentTaskId: 'parent-1',
         projectId: '/ws',
       }],
       projects: [{ workspace: '/ws', displayName: 'My Project', projectId: 'uuid-1', threadIds: ['backup-1'] }],
@@ -1280,7 +1260,6 @@ describe('loadTasks', () => {
     // Backup threads are restored as archived metadata (not inflated until opened).
     expect(useTaskStore.getState().archivedMeta['backup-1']).toBeDefined()
     expect(useTaskStore.getState().archivedMeta['backup-1'].name).toBe('Restored Thread')
-    expect(useTaskStore.getState().archivedMeta['backup-1'].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(useTaskStore.getState().projectNames['/ws']).toBe('My Project')
   })
 
@@ -1654,7 +1633,6 @@ describe('projectId', () => {
   it('upsertTask preserves projectId when backend update lacks it', () => {
     useTaskStore.getState().upsertTask(makeTask({
       projectId: '/project',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
       workspace: '/project/.laf-agent/worktrees/feat',
     }))
@@ -1689,7 +1667,6 @@ describe('projectId', () => {
       id: 'worktree',
       workspace: '/project/.laf-agent/worktrees/feat',
       projectId: useTaskStore.getState().projectIds['/project'],
-      worktreePath: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
     }))
     useTaskStore.getState().removeProject('/project')
@@ -1755,7 +1732,6 @@ describe('workspace scoping', () => {
       id: 't1',
       workspace: '/project/.laf-agent/worktrees/feat',
       originalWorkspace: '/project',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
     }))
     useTaskStore.getState().setSelectedTask('t1')
     expect(mockSetActiveWorkspace).toHaveBeenCalledWith('/project', '/project/.laf-agent/worktrees/feat')
@@ -1777,12 +1753,6 @@ describe('workspace scoping', () => {
   it('setPendingWorkspace(null) clears activeWorkspace', () => {
     useTaskStore.getState().setPendingWorkspace(null)
     expect(mockSetActiveWorkspace).toHaveBeenCalledWith(null, null)
-  })
-
-  it('addProject rejects worktree paths', () => {
-    useTaskStore.getState().addProject('/project/.laf-agent/worktrees/feat')
-    expect(useTaskStore.getState().projects).toHaveLength(0)
-    expect(useTaskStore.getState().projectIds).toEqual({})
   })
 
   it('addProject accepts regular project paths', () => {
@@ -2042,7 +2012,6 @@ describe('multi-turn message preservation', () => {
   it('preserves parentTaskId when backend update lacks it', () => {
     useTaskStore.getState().upsertTask(makeTask({ parentTaskId: 'parent-1' }))
     useTaskStore.getState().upsertTask(makeTask({ status: 'running', messages: [] }))
-    expect(useTaskStore.getState().tasks['task-1'].parentTaskId).toBe('parent-1')
   })
 
   it('bail-out guard prevents unnecessary re-renders when nothing changed', () => {

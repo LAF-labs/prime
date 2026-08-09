@@ -120,7 +120,7 @@ describe('computeStableTimelineRows', () => {
 
   it('preserves system-message row when variant unchanged', () => {
     const rows: TimelineRow[] = [
-      { kind: 'system-message', id: 'msg-0-system', content: 'Working in worktree', timestamp: '2024-01-01', variant: 'worktree' },
+      { kind: 'system-message', id: 'msg-0-system', content: 'Context compacted', timestamp: '2024-01-01', variant: 'info' },
     ]
 
     const first = computeStableTimelineRows(rows, EMPTY_STABLE_STATE)

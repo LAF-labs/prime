@@ -123,8 +123,6 @@ pub struct TreeEntry {
     pub is_excluded: bool,  // matched by scan exclusions
     pub ext: String,
     pub depth: u32,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub git_status: String,
     pub modified_at: i64,
 }
 
@@ -392,7 +390,6 @@ fn scan_directory_entries(
             is_excluded,
             ext,
             depth,
-            git_status: String::new(),
             modified_at,
         });
     }
@@ -404,65 +401,6 @@ fn scan_directory_entries(
     });
 
     entries
-}
-
-// ── Git Status Integration ───────────────────────────────────────────────────
-
-/// Collect git status for files in a workspace using git2.
-fn collect_git_statuses(root: &Path) -> HashMap<String, String> {
-    let mut statuses = HashMap::new();
-
-    let repo = match git2::Repository::open(root) {
-        Ok(r) => r,
-        Err(_) => return statuses,
-    };
-
-    let mut opts = git2::StatusOptions::new();
-    opts.include_untracked(true)
-        .recurse_untracked_dirs(true);
-
-    let status_list = match repo.statuses(Some(&mut opts)) {
-        Ok(s) => s,
-        Err(_) => return statuses,
-    };
-
-    for entry in status_list.iter() {
-        if let Some(path) = entry.path() {
-            let status = entry.status();
-            let label = if status.intersects(git2::Status::INDEX_NEW | git2::Status::WT_NEW) {
-                "A"
-            } else if status.intersects(git2::Status::INDEX_MODIFIED | git2::Status::WT_MODIFIED) {
-                "M"
-            } else if status.intersects(git2::Status::INDEX_DELETED | git2::Status::WT_DELETED) {
-                "D"
-            } else if status.intersects(git2::Status::INDEX_RENAMED | git2::Status::WT_RENAMED) {
-                "R"
-            } else {
-                continue;
-            };
-            statuses.insert(path.to_string(), label.to_string());
-        }
-    }
-
-    statuses
-}
-
-/// Apply git statuses to a set of entries.
-fn apply_git_statuses(entries: &mut [TreeEntry], root: &Path) {
-    let statuses = collect_git_statuses(root);
-    for entry in entries.iter_mut() {
-        if let Some(status) = statuses.get(&entry.path) {
-            entry.git_status = status.clone();
-        }
-        // For directories, check if any child has a status
-        if entry.is_dir {
-            let prefix = format!("{}/", entry.path);
-            let has_changes = statuses.keys().any(|k| k.starts_with(&prefix));
-            if has_changes && entry.git_status.is_empty() {
-                entry.git_status = "M".to_string();
-            }
-        }
-    }
 }
 
 // ── Filesystem Watcher ───────────────────────────────────────────────────────
@@ -549,7 +487,6 @@ pub fn watch_project_tree(workspace: String, app: AppHandle) -> Result<(), Strin
                 is_excluded: false,
                 ext,
                 depth,
-                git_status: String::new(),
                 modified_at,
             });
         }
@@ -621,10 +558,7 @@ pub fn scan_directory(
     }
 
     let exclusions = ExclusionMatcher::new(DEFAULT_SCAN_EXCLUSIONS);
-    let mut entries = scan_directory_entries(&root, &rel_path, &exclusions, respect_gitignore);
-
-    // Apply git statuses
-    apply_git_statuses(&mut entries, &root);
+    let entries = scan_directory_entries(&root, &rel_path, &exclusions, respect_gitignore);
 
     Ok(entries)
 }
@@ -677,7 +611,6 @@ pub fn create_file(workspace: String, rel_path: String) -> Result<TreeEntry, Str
         is_excluded: false,
         ext,
         depth,
-        git_status: "A".to_string(),
         modified_at,
     })
 }
@@ -706,7 +639,6 @@ pub fn create_directory(workspace: String, rel_path: String) -> Result<TreeEntry
         is_excluded: false,
         ext: String::new(),
         depth,
-        git_status: String::new(),
         modified_at: 0,
     })
 }
@@ -849,7 +781,6 @@ pub fn rename_entry(
         is_excluded: false,
         ext,
         depth,
-        git_status: "R".to_string(),
         modified_at,
     })
 }
@@ -911,7 +842,6 @@ pub fn copy_entry(
         is_excluded: false,
         ext,
         depth,
-        git_status: "A".to_string(),
         modified_at,
     })
 }

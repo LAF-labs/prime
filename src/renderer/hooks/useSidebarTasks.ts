@@ -23,7 +23,6 @@ export interface SidebarTask {
   readonly status: string
   readonly isArchived?: boolean
   readonly isDraft?: boolean
-  readonly worktreePath?: string
   readonly originalWorkspace?: string
   /** True when the last assistant message has unanswered questions */
   readonly hasPendingQuestion?: boolean
@@ -109,11 +108,11 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
       const pid = t.projectId ?? t.originalWorkspace ?? t.workspace
       const hasPendingQuestion = computeHasPendingQuestion(msgs)
       const p = prev.get(t.id)
-      if (p && p.name === t.name && p.status === t.status && p.createdAt === t.createdAt && p.workspace === t.workspace && p.isArchived === t.isArchived && p.worktreePath === t.worktreePath && p.originalWorkspace === t.originalWorkspace && p.projectId === pid && p.lastActivityAt === lastActivityAt && p.lastUserMessageAt === lastUserMessageAt && p.hasPendingQuestion === hasPendingQuestion && !p.isDraft) {
+      if (p && p.name === t.name && p.status === t.status && p.createdAt === t.createdAt && p.workspace === t.workspace && p.isArchived === t.isArchived && p.originalWorkspace === t.originalWorkspace && p.projectId === pid && p.lastActivityAt === lastActivityAt && p.lastUserMessageAt === lastUserMessageAt && p.hasPendingQuestion === hasPendingQuestion && !p.isDraft) {
         next.set(t.id, p)
       } else {
         changed = true
-        next.set(t.id, { id: t.id, name: t.name, workspace: t.workspace, projectId: pid, createdAt: t.createdAt, lastActivityAt, lastUserMessageAt, status: t.status, isArchived: t.isArchived, worktreePath: t.worktreePath, originalWorkspace: t.originalWorkspace, hasPendingQuestion })
+        next.set(t.id, { id: t.id, name: t.name, workspace: t.workspace, projectId: pid, createdAt: t.createdAt, lastActivityAt, lastUserMessageAt, status: t.status, isArchived: t.isArchived, originalWorkspace: t.originalWorkspace, hasPendingQuestion })
       }
     }
     // 2. Archived metadata — read-only, never have pending questions, never inflated
@@ -122,7 +121,7 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
       if (next.has(m.id)) continue
       const pid = m.projectId ?? m.originalWorkspace ?? m.workspace
       const p = prev.get(m.id)
-      if (p && p.name === m.name && p.status === 'completed' && p.createdAt === m.createdAt && p.workspace === m.workspace && p.isArchived === true && p.worktreePath === m.worktreePath && p.originalWorkspace === m.originalWorkspace && p.projectId === pid && p.lastActivityAt === m.lastActivityAt && !p.hasPendingQuestion && !p.isDraft) {
+      if (p && p.name === m.name && p.status === 'completed' && p.createdAt === m.createdAt && p.workspace === m.workspace && p.isArchived === true && p.originalWorkspace === m.originalWorkspace && p.projectId === pid && p.lastActivityAt === m.lastActivityAt && !p.hasPendingQuestion && !p.isDraft) {
         next.set(m.id, p)
       } else {
         changed = true
@@ -136,7 +135,6 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
           lastUserMessageAt: m.lastActivityAt, // Best approximation for archived threads
           status: 'completed',
           isArchived: true,
-          worktreePath: m.worktreePath,
           originalWorkspace: m.originalWorkspace,
           hasPendingQuestion: false,
         })
@@ -202,22 +200,12 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
       grouped.set(pid, [draftTask, ...existing])
     }
 
-    // Collect worktree workspace paths so they don't appear as top-level projects
-    const worktreeWorkspaces = new Set<string>()
-    for (const task of sidebarTasks.values()) {
-      if (task.worktreePath) {
-        worktreeWorkspaces.add(task.workspace)
-        worktreeWorkspaces.add(task.worktreePath)
-      }
-    }
-
-    // Build project list from all known workspaces (skip worktree paths)
+    // Build project list from all known workspaces
     const result: SidebarProject[] = []
     const seenPid = new Set<string>()
     const seenCwd = new Set<string>()
 
     for (const ws of projects) {
-      if (worktreeWorkspaces.has(ws)) continue
       if (seenCwd.has(ws)) continue
       const pid = projectIds[ws] ?? ws
       if (seenPid.has(pid)) continue
@@ -238,7 +226,6 @@ export function useSidebarTasks(sort: SortKey): SidebarData {
       const ws = idToWorkspace.get(pid) ?? pid
       // Skip orphaned UUID projectIds with no workspace mapping
       if (!idToWorkspace.has(pid) && !pid.startsWith('/')) continue
-      if (worktreeWorkspaces.has(ws)) continue
       // Project-independent chats have their own sidebar section. Without this
       // the chats directory gets promoted to a project here, so every chat
       // thread appeared twice — once under "Chats", once under a "chats"

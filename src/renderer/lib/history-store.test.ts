@@ -135,18 +135,16 @@ describe('saveThreads', () => {
     expect(savedThreads[0].messages[0]).not.toHaveProperty('thinking')
   })
 
-  it('persists worktree metadata when present', async () => {
+  it('persists project metadata when present', async () => {
     const tasks: Record<string, AgentTask> = {
       't1': {
         id: 't1', name: 'WT Task', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
       },
     }
     await saveThreads(tasks, {})
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
-    expect(savedThreads[0].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(savedThreads[0].originalWorkspace).toBe('/ws')
   })
 
@@ -196,15 +194,13 @@ describe('toArchivedTasks', () => {
     expect(actual[0].messages[0].thinking).toBe('hmm')
   })
 
-  it('preserves worktree metadata', () => {
+  it('preserves project metadata', () => {
     const saved = [{
       id: 't1', name: 'WT Thread', workspace: '/ws/.laf-agent/worktrees/feat',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
     }]
     const actual = toArchivedTasks(saved)
-    expect(actual[0].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(actual[0].originalWorkspace).toBe('/ws')
   })
 })
@@ -256,7 +252,6 @@ describe('projectId persistence', () => {
         id: 't1', name: 'WT Task', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
         projectId: '/ws',
-        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
       },
     }
@@ -287,7 +282,6 @@ describe('projectId persistence', () => {
         id: 't2', name: 'Worktree', workspace: '/ws/.laf-agent/worktrees/feat', status: 'paused',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
         originalWorkspace: '/ws',
-        worktreePath: '/ws/.laf-agent/worktrees/feat',
       },
     }
     await saveThreads(tasks, {})
@@ -304,7 +298,6 @@ describe('projectId persistence', () => {
       id: 't1', name: 'WT Thread', workspace: '/ws/.laf-agent/worktrees/feat',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
       projectId: '/ws',
-      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
     }]
     const actual = toArchivedTasks(saved)
@@ -353,21 +346,17 @@ describe('createBackup', () => {
     expect(mockSet).toHaveBeenCalledWith('settings', settings)
   })
 
-  it('preserves worktree fields in backup', async () => {
+  it('preserves project fields in backup', async () => {
     const threads = [{
       id: 't1', name: 'WT', workspace: '/ws/.laf-agent/worktrees/feat', createdAt: '',
       messages: [{ role: 'user', content: 'hi', timestamp: '' }],
-      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
-      parentTaskId: 'parent-1',
       projectId: '/ws',
     }]
     mockGet.mockImplementation((key: string) => key === 'threads' ? Promise.resolve(threads) : Promise.resolve([]))
     await createBackup()
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
-    expect(savedThreads[0].worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(savedThreads[0].originalWorkspace).toBe('/ws')
-    expect(savedThreads[0].parentTaskId).toBe('parent-1')
     expect(savedThreads[0].projectId).toBe('/ws')
   })
 })

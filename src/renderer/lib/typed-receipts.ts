@@ -21,29 +21,6 @@ export interface DiffReadyReceipt {
   readonly timestamp: number
 }
 
-export interface GitCommittedReceipt {
-  readonly type: 'git.committed'
-  readonly taskId: string
-  readonly commitHash: string
-  readonly message: string
-  readonly timestamp: number
-}
-
-export interface WorktreeCreatedReceipt {
-  readonly type: 'worktree.created'
-  readonly taskId: string
-  readonly worktreePath: string
-  readonly branch: string
-  readonly timestamp: number
-}
-
-export interface WorktreeRemovedReceipt {
-  readonly type: 'worktree.removed'
-  readonly taskId: string
-  readonly worktreePath: string
-  readonly timestamp: number
-}
-
 export interface TurnQuiescedReceipt {
   readonly type: 'turn.quiesced'
   readonly taskId: string
@@ -68,9 +45,6 @@ export interface CompactionCompleteReceipt {
 
 export type Receipt =
   | DiffReadyReceipt
-  | GitCommittedReceipt
-  | WorktreeCreatedReceipt
-  | WorktreeRemovedReceipt
   | TurnQuiescedReceipt
   | SessionReadyReceipt
   | CompactionCompleteReceipt

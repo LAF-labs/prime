@@ -62,7 +62,6 @@ describe('useSidebarTasks projectId grouping', () => {
           id: 't2',
           workspace: '/project/.laf-agent/worktrees/feat',
           projectId: '/project',
-          worktreePath: '/project/.laf-agent/worktrees/feat',
           originalWorkspace: '/project',
         }),
       },
@@ -81,7 +80,6 @@ describe('useSidebarTasks projectId grouping', () => {
           id: 't1',
           workspace: '/project/.laf-agent/worktrees/feat',
           projectId: '/project',
-          worktreePath: '/project/.laf-agent/worktrees/feat',
           originalWorkspace: '/project',
         }),
       },
@@ -99,7 +97,6 @@ describe('useSidebarTasks projectId grouping', () => {
           id: 't1',
           workspace: '/project/.laf-agent/worktrees/feat',
           originalWorkspace: '/project',
-          worktreePath: '/project/.laf-agent/worktrees/feat',
         }),
       },
       projects: ['/project'],
@@ -129,13 +126,11 @@ describe('useSidebarTasks projectId grouping', () => {
           id: 't2',
           workspace: '/project/.laf-agent/worktrees/feat-a',
           projectId: '/project',
-          worktreePath: '/project/.laf-agent/worktrees/feat-a',
         }),
         't3': makeTask({
           id: 't3',
           workspace: '/project/.laf-agent/worktrees/feat-b',
           projectId: '/project',
-          worktreePath: '/project/.laf-agent/worktrees/feat-b',
         }),
       },
       projects: ['/project'],
@@ -189,7 +184,6 @@ describe('useSidebarTasks projectId grouping', () => {
           id: 't2',
           workspace: '/project/.laf-agent/worktrees/feat',
           projectId: uuid,
-          worktreePath: '/project/.laf-agent/worktrees/feat',
         }),
       },
       projects: ['/project'],
@@ -199,26 +193,6 @@ describe('useSidebarTasks projectId grouping', () => {
     expect(result.current.projects).toHaveLength(1)
     expect(result.current.projects[0].cwd).toBe('/project')
     expect(result.current.projects[0].tasks).toHaveLength(2)
-  })
-
-  it('filters worktreePath from appearing as top-level project even if in projects array', () => {
-    const uuid = crypto.randomUUID()
-    useTaskStore.setState({
-      tasks: {
-        't1': makeTask({
-          id: 't1',
-          workspace: '/project/.laf-agent/worktrees/feat',
-          projectId: uuid,
-          worktreePath: '/project/.laf-agent/worktrees/feat',
-          originalWorkspace: '/project',
-        }),
-      },
-      projects: ['/project', '/project/.laf-agent/worktrees/feat'],
-      projectIds: { '/project': uuid },
-    })
-    const { result } = renderHook(() => useSidebarTasks('recent'))
-    expect(result.current.projects).toHaveLength(1)
-    expect(result.current.projects[0].cwd).toBe('/project')
   })
 
   it('does not create sidebar entry for orphaned UUID projectId with no workspace mapping', () => {

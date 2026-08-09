@@ -132,7 +132,6 @@ See [architecture.md](architecture.md) for the full module breakdown.
 
 ### Rust
 
-- Use `git2` for git operations, not `Command::new("git")`
 - Use `which::which()` for binary detection
 - Use `confy` for config persistence
 - Use `serde_yaml` for YAML parsing

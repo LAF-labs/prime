@@ -136,10 +136,6 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   const proj = extractProjectName(task)
   record('message_sent', { project: proj, thread: task.id, value: msg.split(/\s+/).filter(Boolean).length })
 
-  // Snapshot HEAD before the agent touches the tree so a turn can be rolled
-  // back from the timeline. Best-effort: no-op outside git repositories.
-  ipc.checkpointCreate(targetTaskId, task.messages.length).catch(() => {})
-
   try {
     await dispatchToAgent(targetTaskId, msg, attachments, { task, state, userMsg, shouldCreateNew, isResumed, proj })
   } catch (err) {
@@ -158,9 +154,9 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
 }
 
 // Callers that re-send a message (the compaction handoff) re-enter this exact
-// dispatch pipeline — checkpoint creation, dispatch snapshot, turn claim,
-// SQLite persistence — instead of duplicating it. Module-level registration:
-// ChatPanel is always loaded before any message row can render.
+// dispatch pipeline — dispatch snapshot, turn claim, SQLite persistence —
+// instead of duplicating it. Module-level registration: ChatPanel is always
+// loaded before any message row can render.
 registerResendHandler(sendMessageDirect)
 
 interface DispatchContext {

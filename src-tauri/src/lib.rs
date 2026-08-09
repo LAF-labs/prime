@@ -1,6 +1,6 @@
 pub mod commands;
 
-use commands::{rpc, analytics, checkpoint, everyday_memory, fs_ops, agent_resources, history_guard, resource_watcher, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
+use commands::{rpc, analytics, everyday_memory, fs_ops, agent_resources, history_guard, resource_watcher, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -717,14 +717,6 @@ pub fn run() {
             thread_title::generate_thread_title,
             process_diagnostics::list_child_processes,
             process_diagnostics::signal_process,
-            // Checkpoint
-            checkpoint::checkpoint_supported,
-            checkpoint::checkpoint_create,
-            checkpoint::checkpoint_list,
-            checkpoint::checkpoint_diff,
-            checkpoint::checkpoint_revert,
-            checkpoint::checkpoint_cleanup,
-            checkpoint::checkpoint_prune,
             // Thread Database
             thread_db::thread_db_list,
             thread_db::thread_db_load,

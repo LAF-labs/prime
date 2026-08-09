@@ -99,7 +99,6 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 |--------|---------|
 | `analytics.rs` | Local usage statistics in `redb`. Active hours, messages, tokens, tool calls, file-change stats, model usage. Nothing leaves the machine. |
 | `thread_db.rs` | Thread and conversation persistence via `redb`. |
-| `checkpoint.rs` | Per-turn working-tree snapshots behind hidden git refs, for turn rollback. Restoring rewrites files and the index; it never moves HEAD, so a commit the agent made during a turn survives the rollback. |
 
 ### Text generation and processing
 
@@ -261,7 +260,7 @@ State-changing actions that modify persisted data must call `persistHistory()` a
 | Layer | Technology |
 |-------|-----------|
 | Desktop framework | Tauri v2 |
-| Backend | Rust 2021, git2 (turn checkpoints), thiserror, confy, which, portable-pty, redb |
+| Backend | Rust 2021, thiserror, confy, which, portable-pty, redb |
 | Frontend | React 19, TypeScript 5, Vite 6 |
 | Styling | Tailwind CSS 4 |
 | State | Zustand 5 |

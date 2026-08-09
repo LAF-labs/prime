@@ -10,10 +10,11 @@ agent runtime inside the app bundle, so a DMG install works with no CLI setup.
 The product is an **everyday agent for non-developers**: a chat client with
 threaded conversations, web research, plain-language file tools, an integrated
 terminal, a file tree, editor hand-off, a local analytics dashboard, an
-onboarding wizard, multi-window support, and a full settings panel. Git and
-worktree features were deliberately removed in 2026-08 (turn checkpoints
-remain — their git2 use is an implementation detail). macOS is the shipping
-platform; the Windows and Linux bundle targets build but are not exercised.
+onboarding wizard, multi-window support, and a full settings panel. Every git
+feature was deliberately removed in 2026-08 — worktrees and the git panel
+first, then turn checkpoints, file-tree git status, and the `git2` crate
+itself. Do not reintroduce one without asking. macOS is the shipping platform;
+the Windows and Linux bundle targets build but are not exercised.
 
 Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). The
 release DMG is ~76 MB, most of which is the bundled Node runtime and `uv`.
@@ -39,7 +40,7 @@ release DMG is ~76 MB, most of which is the bundled Node runtime and `uv`.
   Build target `safari16`; manual vendor chunks.
 - **Testing**: Vitest 4 with jsdom, @testing-library/react, v8 coverage
 - **Agent**: prime-agent 0.7.0, bundled under `src-tauri/resources/prime-agent/`
-- **Rust crates**: git2, thiserror, which, confy, redb, rusqlite, parking_lot,
+- **Rust crates**: thiserror, which, confy, redb, rusqlite, parking_lot,
   reqwest, notify, ignore, nucleo-matcher, imara-diff, pulldown-cmark,
   imagesize, window-vibrancy, glob, base64, uuid, open, dirs, libc
 - **Tauri plugins**: store, notification, updater, process, log, dialog
@@ -95,7 +96,6 @@ src-tauri/
 │       ├── analytics.rs     # Local usage stats (redb)
 │       ├── thread_db.rs     # Thread persistence (rusqlite + FTS5)
 │       ├── diff_stats.rs    # Annotates agent edit diffs (imara-diff)
-│       ├── checkpoint.rs    # Turn checkpoints (git2, internal only)
 │       ├── pty.rs           # Terminal emulation (portable-pty)
 │       ├── settings.rs      # Config persistence (confy) + recent projects
 │       ├── markdown.rs      # Server-side markdown parsing
@@ -303,14 +303,14 @@ or editing docs or Rust triggers pointless frontend rebuilds.
 ### Rust error handling in Tauri commands
 
 Commands return `Result<T, AppError>`; `AppError` is a `thiserror` enum in
-`commands/error.rs` with `From` impls for `git2::Error`, `io::Error`,
-`serde_json::Error`, `confy::ConfyError`, and `PoisonError`, so `?` works.
+`commands/error.rs` with `From` impls for `io::Error`, `serde_json::Error`,
+`confy::ConfyError`, and `PoisonError`, so `?` works.
 The RPC module still uses `Result<T, String>` where errors come back as JSON.
 
 ### Prefer community crates over shelling out
 
-`git2` over `Command::new("git")`, `which::which()` over `which`, `confy` over
-hand-rolled JSON. Shelling out is PATH-dependent, slow, and loses error detail.
+`which::which()` over `which`, `confy` over hand-rolled JSON. Shelling out is
+PATH-dependent, slow, and loses error detail.
 
 ### React 19 + Zustand selector discipline
 

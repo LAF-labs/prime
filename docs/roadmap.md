@@ -63,8 +63,6 @@ heavy user).
 - Read path becomes SQLite-first; `history.json` shrinks to a thin index
   (ordering, project mapping). The recovery path built earlier is half of
   this flip already.
-- Checkpoint refs get a retention policy (~45k refs/year today, pinning
-  commits against `git gc`); `checkpoint_revert` gets a stash safety net.
 - Analytics events get a retention policy.
 
 **Gate:** per-turn disk writes are constant-size on a 1,000-message thread;

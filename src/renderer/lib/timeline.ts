@@ -24,7 +24,7 @@ export interface UserMessageRow {
   messageIndex?: number
 }
 
-export type SystemMessageVariant = 'error' | 'info' | 'worktree'
+export type SystemMessageVariant = 'error' | 'info'
 
 export interface SystemMessageRow {
   kind: 'system-message'
@@ -367,9 +367,11 @@ export function deriveTimeline(
       // Skipping it here retires those too, rather than leaving a permanent
       // scar in old conversations for an event that healed on the next send.
       if (msg.content.includes('Connection to the agent was lost')) continue
-      const isWorktree = msg.content.startsWith('Working in worktree')
+      // Git worktree threads are gone; transcripts written while they
+      // existed still carry the note. Skipping it retires those too.
+      if (msg.content.startsWith('Working in worktree')) continue
       const isError = msg.content.startsWith('⚠️') || msg.content.toLowerCase().includes('failed')
-      const variant: SystemMessageVariant = isWorktree ? 'worktree' : isError ? 'error' : 'info'
+      const variant: SystemMessageVariant = isError ? 'error' : 'info'
       rows.push({
         kind: 'system-message',
         id: `msg-${i}-system`,

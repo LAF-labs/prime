@@ -67,8 +67,6 @@ describe('saveThread', () => {
   it('converts AgentTask to DbThread and calls ipc.threadDbSave', async () => {
     vi.mocked(ipc.threadDbSave).mockResolvedValueOnce(undefined)
     const task = makeTask({
-      parentTaskId: 'parent-1',
-      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
       projectId: 'proj-1',
     })
@@ -81,10 +79,8 @@ describe('saveThread', () => {
       workspace: '/workspace',
       status: 'paused',
       createdAt: '2026-01-01T00:00:00Z',
-      parentThreadId: 'parent-1',
       autoApprove: false,
       metadata: {
-        worktreePath: '/ws/.laf-agent/worktrees/feat',
         originalWorkspace: '/ws',
         projectId: 'proj-1',
       },
@@ -97,7 +93,6 @@ describe('saveThread', () => {
 
     const call = vi.mocked(ipc.threadDbSave).mock.calls[0][0]
     expect(call.metadata).toEqual({})
-    expect(call.parentThreadId).toBeUndefined()
   })
 
   it('propagates errors from backend', async () => {
@@ -266,9 +261,8 @@ describe('loadFullThread', () => {
       status: 'completed',
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:01:00Z',
-      parentThreadId: 'parent-1',
       autoApprove: false,
-      metadata: { worktreePath: '/ws/.agent/wt', originalWorkspace: '/ws', projectId: 'p1' },
+      metadata: { originalWorkspace: '/ws', projectId: 'p1' },
     })
     vi.mocked(ipc.threadDbMessages).mockResolvedValueOnce([
       { id: 1, threadId: 't1', role: 'user', content: 'hi', timestamp: '2026-01-01T00:00:01Z', thinking: undefined, toolCalls: undefined },
@@ -284,8 +278,6 @@ describe('loadFullThread', () => {
       createdAt: '2026-01-01T00:00:00Z',
       messages: [{ role: 'user', content: 'hi', timestamp: '2026-01-01T00:00:01Z' }],
       isArchived: true,
-      parentTaskId: 'parent-1',
-      worktreePath: '/ws/.agent/wt',
       originalWorkspace: '/ws',
       projectId: 'p1',
     })

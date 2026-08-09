@@ -226,7 +226,6 @@ export const measureMemory = (
     archivedMeta += sizeOfString(m.id) + sizeOfString(m.name) +
       sizeOfString(m.workspace) + sizeOfString(m.createdAt) +
       sizeOfString(m.lastActivityAt) + 8 +
-      sizeOfString(m.parentTaskId) + sizeOfString(m.worktreePath) +
       sizeOfString(m.originalWorkspace) + sizeOfString(m.projectId)
   }
   const archivedMetaCount = Object.keys(store.archivedMeta).length

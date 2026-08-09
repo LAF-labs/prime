@@ -295,18 +295,10 @@ export const ko: Record<string, string> = {
   '⚠️ The agent refused to continue. You can try rephrasing your request or sending a new message.':
     '⚠️ 에이전트가 계속하기를 거부했습니다. 요청을 바꿔 말하거나 새 메시지를 보내 보세요.',
 
-  // ── Git ───────────────────────────────────────────────────────────
+  // ── Workspace toolbar ─────────────────────────────────────────────
   'Toggle side-by-side': '나란히 보기 전환',
   'Toggle file tree': '파일 트리 전환',
   'Toggle terminal': '터미널 전환',
-  Revert: '되돌리기',
-  Commit: '커밋',
-  'Branch name': '브랜치 이름',
-  Worktree: '워크트리',
-  HEAD: 'HEAD',
-  Checkpoints: '체크포인트',
-  Push: '푸시',
-  'Committed': '커밋 완료',
 
   // ── Files & terminal ──────────────────────────────────────────────
   'File tree': '파일 트리',

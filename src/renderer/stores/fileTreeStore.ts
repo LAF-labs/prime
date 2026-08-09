@@ -14,7 +14,6 @@ export interface TreeEntry {
   isExcluded: boolean
   ext: string
   depth: number
-  gitStatus?: string
   modifiedAt: number
 }
 

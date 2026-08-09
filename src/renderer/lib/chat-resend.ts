@@ -3,7 +3,7 @@
  *
  * Callers that need to push a message through the exact same dispatch path
  * the chat input uses —
- * checkpoint creation, dispatch snapshot, turn claiming, SQLite persistence,
+ * dispatch snapshot, turn claiming, SQLite persistence,
  * plan-mode prefixing — without duplicating any of that logic. ChatPanel owns
  * that path (`sendMessageDirect`) and registers it here once at module load;
  * consumers call `resendMessage`.

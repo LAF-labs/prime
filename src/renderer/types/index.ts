@@ -136,8 +136,6 @@ export interface AgentTask {
    *  next send spawns a fresh subprocess (stateless resumption)
    *  and the historical transcript is replayed as preamble context. */
   isArchived?: boolean
-  /** Path to the git worktree directory, if this thread uses one */
-  worktreePath?: string
   /** Original workspace path before worktree was created */
   originalWorkspace?: string
   /** Canonical project workspace path — threads always group under this */
@@ -318,12 +316,6 @@ export interface ProjectFile {
   dir: string
   isDir: boolean
   ext: string
-  /** Git status: "M" modified, "A" added/new, "D" deleted, "R" renamed, "" clean */
-  gitStatus?: string
-  /** Lines added in working copy (0 if unchanged) */
-  linesAdded?: number
-  /** Lines deleted in working copy (0 if unchanged) */
-  linesDeleted?: number
   /** File modification time as Unix epoch seconds */
   modifiedAt: number
 }

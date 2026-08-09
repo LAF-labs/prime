@@ -8,7 +8,7 @@ import type { ProjectFile } from '@/types'
 import {
   IconFile, IconFolder, IconTrash, IconCopy,
   IconPencil, IconExternalLink, IconTerminal, IconSearch,
-  IconGitBranch, IconAt,
+  IconAt,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { IS_MAC } from '@/lib/platform'
@@ -127,7 +127,6 @@ export const TreeContextMenu = memo(function TreeContextMenu({
       isDir: entry.isDir,
       ext: entry.ext,
       modifiedAt: entry.modifiedAt,
-      gitStatus: entry.gitStatus,
     }
     const existing = useTaskStore.getState().draftMentionedFiles[workspace] ?? []
     if (!existing.some((f) => f.path === file.path)) {

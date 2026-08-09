@@ -72,59 +72,6 @@ const FileIcon = memo(function FileIcon({ ext, isDir }: { ext: string; isDir: bo
   )
 })
 
-// ── Git change badge ─────────────────────────────────────────────────
-const GIT_STATUS_INFO: Record<string, { label: string; tooltip: string; cls: string; bgCls: string }> = {
-  M: { label: 'M', tooltip: 'Modified', cls: 'text-amber-600 dark:text-amber-400', bgCls: 'bg-amber-500/15 border-amber-500/20' },
-  A: { label: 'A', tooltip: 'Added (untracked)', cls: 'text-emerald-600 dark:text-emerald-400', bgCls: 'bg-emerald-500/15 border-emerald-500/20' },
-  D: { label: 'D', tooltip: 'Deleted', cls: 'text-red-600 dark:text-red-400', bgCls: 'bg-red-500/15 border-red-500/20' },
-  R: { label: 'R', tooltip: 'Renamed', cls: 'text-blue-600 dark:text-blue-400', bgCls: 'bg-blue-500/15 border-blue-500/20' },
-}
-
-const GitChangeBadge = memo(function GitChangeBadge({
-  status, linesAdded, linesDeleted,
-}: {
-  status?: string; linesAdded?: number; linesDeleted?: number
-}) {
-  if (!status) return null
-  const info = GIT_STATUS_INFO[status]
-  if (!info) return null
-
-  const added = linesAdded ?? 0
-  const deleted = linesDeleted ?? 0
-  const hasLineInfo = added > 0 || deleted > 0
-
-  const tooltipLines = [info.tooltip]
-  if (hasLineInfo) {
-    const parts: string[] = []
-    if (added > 0) parts.push(`+${added} line${added !== 1 ? 's' : ''}`)
-    if (deleted > 0) parts.push(`-${deleted} line${deleted !== 1 ? 's' : ''}`)
-    tooltipLines.push(parts.join(', '))
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className={cn(
-          'inline-flex items-center gap-1 rounded-md border px-1 py-px text-[11px] font-medium leading-none',
-          info.bgCls,
-        )}>
-          <span className={cn('font-bold', info.cls)}>{info.label}</span>
-          {hasLineInfo && (
-            <>
-              {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
-              {deleted > 0 && <span className="text-red-600 dark:text-red-400">-{deleted}</span>}
-            </>
-          )}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-[11px]">
-        {tooltipLines.map((line, i) => (
-          <span key={i} className={i > 0 ? 'block text-muted-foreground' : ''}>{line}</span>
-        ))}
-      </TooltipContent>
-    </Tooltip>
-  )
-})
 
 // ── Relative time formatter ──────────────────────────────────────────
 const formatRelativeTime = (epochSecs: number): string => {
@@ -353,7 +300,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
         const prefix = item.type === 'agent' ? 'agent' : item.type === 'skill' ? 'skill' : 'prompt'
         // Prompts use their name directly (no prefix) — they resolve by name in resolveMentions
         const path = item.type === 'prompt' ? item.name : `${prefix}:${item.name}`
-        onSelect({ path, name: item.name, dir: '', isDir: false, ext: '', gitStatus: '', linesAdded: 0, linesDeleted: 0, modifiedAt: 0 })
+        onSelect({ path, name: item.name, dir: '', isDir: false, ext: '', modifiedAt: 0 })
       } else {
         const file = filtered[(normalizedIdx - resourceItems.length) % filtered.length]
         if (file) onSelect(file)
@@ -422,7 +369,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
               aria-selected={isActive}
               onMouseDown={(e) => {
                 e.preventDefault()
-                onSelect({ path: selectPath, name: item.name, dir: '', isDir: false, ext: '', gitStatus: '', linesAdded: 0, linesDeleted: 0, modifiedAt: 0 })
+                onSelect({ path: selectPath, name: item.name, dir: '', isDir: false, ext: '', modifiedAt: 0 })
               }}
               className={cn(
                 'flex cursor-pointer items-center gap-2.5 px-3 py-1.5 transition-colors',
@@ -460,7 +407,6 @@ export const FileMentionPicker = memo(function FileMentionPicker({
               <FileIcon ext={file.ext} isDir={file.isDir} />
               <span className="min-w-0 flex-1 flex items-center gap-1.5">
                 <span className="truncate text-[13px] font-medium">{file.name}</span>
-                <GitChangeBadge status={file.gitStatus} linesAdded={file.linesAdded} linesDeleted={file.linesDeleted} />
               </span>
               {file.modifiedAt > 0 && !file.isDir && (
                 <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">

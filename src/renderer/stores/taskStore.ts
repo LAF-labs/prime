@@ -30,7 +30,6 @@ interface SavedThreadLike {
   lastActivityAt?: string
   messageCount?: number
   parentTaskId?: string
-  worktreePath?: string
   originalWorkspace?: string
   projectId?: string
 }
@@ -118,7 +117,6 @@ const projectMeta = (t: SavedThreadLike): ArchivedThreadMeta => {
     lastActivityAt: last,
     messageCount: t.messageCount ?? t.messages.length,
     ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-    ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
     ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
     ...(t.projectId ? { projectId: t.projectId } : {}),
   }
@@ -361,7 +359,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   setSettingsOpen: (open, section) => set({ isSettingsOpen: open, settingsInitialSection: section ?? null }),
   addProject: (workspace) => {
     if (get().projects.includes(workspace)) return
-    if (workspace.includes('/.laf-agent/worktrees/')) return
     if (isChatWorkspace(workspace)) return
     const id = crypto.randomUUID()
     set((s) => ({
@@ -481,7 +478,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         && prev.pendingPermission === task.pendingPermission
         && prev.plan === task.plan
         && prev.contextUsage === task.contextUsage
-        && prev.worktreePath === (task.worktreePath ?? prev.worktreePath)
         && prev.originalWorkspace === (task.originalWorkspace ?? prev.originalWorkspace)
         && prev.projectId === (task.projectId ?? prev.projectId)
       ) {
@@ -493,7 +489,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         messages,
         name,
         ...(prev?.parentTaskId && !task.parentTaskId ? { parentTaskId: prev.parentTaskId } : {}),
-        ...(prev?.worktreePath && !task.worktreePath ? { worktreePath: prev.worktreePath } : {}),
         ...(prev?.originalWorkspace && !task.originalWorkspace ? { originalWorkspace: prev.originalWorkspace } : {}),
         ...(prev?.projectId && !task.projectId ? { projectId: prev.projectId } : {}),
       }
@@ -552,7 +547,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       liveToolCalls: { ...s.liveToolCalls, [id]: [] },
       liveToolSplits: { ...s.liveToolSplits, [id]: [] },
     }))
-    void ipc.checkpointCleanup(id).catch(() => {})
     attempt(t('Could not delete the thread'), ipc.deleteTask(id))
     get().persistHistory()
   },
@@ -724,7 +718,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             messageCount: info.messageCount,
             ...(info.parentTaskId ? { parentTaskId: info.parentTaskId } : {}),
             // Preserve worktree/project info from the in-memory task if available
-            ...(task?.worktreePath ? { worktreePath: task.worktreePath } : {}),
             ...(task?.originalWorkspace ? { originalWorkspace: task.originalWorkspace } : {}),
             ...(task?.projectId ? { projectId: task.projectId } : {}),
           }
@@ -1204,7 +1197,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             tasks[saved.id] = {
               ...live,
               ...(savedMessages ? { messages: savedMessages } : {}),
-              ...(!live.worktreePath && saved.worktreePath ? { worktreePath: saved.worktreePath } : {}),
               ...(!live.originalWorkspace && saved.originalWorkspace ? { originalWorkspace: saved.originalWorkspace } : {}),
               ...(!live.projectId && saved.projectId ? { projectId: saved.projectId } : {}),
               ...(!live.parentTaskId && saved.parentTaskId ? { parentTaskId: saved.parentTaskId } : {}),
@@ -1213,7 +1205,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             archivedMeta[saved.id] = projectMeta(saved)
           }
         }
-        // Derive projects AFTER merge so worktree tasks use restored originalWorkspace.
+        // Derive projects AFTER merge so tasks use their restored originalWorkspace.
         // Start with saved project order, then append any new workspaces drawn
         // from live tasks AND archived metadata (so projects with only archived
         // threads still show up).
@@ -1552,8 +1544,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           createdAt: saved.createdAt,
           messages,
           isArchived: true,
-          ...(saved.parentTaskId ? { parentTaskId: saved.parentTaskId } : {}),
-          ...(saved.worktreePath ? { worktreePath: saved.worktreePath } : {}),
           ...(saved.originalWorkspace ? { originalWorkspace: saved.originalWorkspace } : {}),
           ...(saved.projectId ? { projectId: saved.projectId } : {}),
         }

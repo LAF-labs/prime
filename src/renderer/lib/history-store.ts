@@ -37,7 +37,6 @@ interface SavedThread {
   /** Message count; authoritative when `messages` is thin. */
   messageCount?: number
   parentTaskId?: string
-  worktreePath?: string
   originalWorkspace?: string
   projectId?: string
 }
@@ -125,7 +124,6 @@ export interface ArchivedThreadMeta {
   readonly lastActivityAt: string
   readonly messageCount: number
   readonly parentTaskId?: string
-  readonly worktreePath?: string
   readonly originalWorkspace?: string
   readonly projectId?: string
 }
@@ -160,7 +158,6 @@ const toMeta = (t: SavedThread): ArchivedThreadMeta => {
     lastActivityAt: last,
     messageCount: t.messageCount ?? t.messages.length,
     ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-    ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
     ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
     ...(t.projectId ? { projectId: t.projectId } : {}),
   }
@@ -222,8 +219,7 @@ export async function saveThreads(
           lastActivityAt: t.createdAt,
           messageCount: 0,
           ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-          ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
-          ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
+                ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
           ...(t.projectId ? { projectId: t.projectId } : {}),
         })
       } else {
@@ -245,8 +241,7 @@ export async function saveThreads(
       workspace: t.workspace,
       createdAt: t.createdAt,
       ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-      ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
-      ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
+        ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
       ...(t.projectId ? { projectId: t.projectId } : {}),
     }
     if (thinIds.has(t.id)) {
@@ -313,7 +308,6 @@ export function toArchivedTasks(saved: SavedThread[]): AgentTask[] {
     messages: t.messages.map(toTaskMessage),
     isArchived: true,
     ...(t.parentTaskId ? { parentTaskId: t.parentTaskId } : {}),
-    ...(t.worktreePath ? { worktreePath: t.worktreePath } : {}),
     ...(t.originalWorkspace ? { originalWorkspace: t.originalWorkspace } : {}),
     ...(t.projectId ? { projectId: t.projectId } : {}),
   }))

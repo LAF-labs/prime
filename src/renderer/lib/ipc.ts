@@ -154,9 +154,6 @@ export const ipc = {
   /** Move a damaged store aside instead of letting it be overwritten. */
   historyQuarantine: (name: string): Promise<string | null> =>
     invoke('history_quarantine', { name }),
-  /** Delete checkpoint refs older than keepDays in one repo. Maintenance. */
-  checkpointPrune: (cwd: string, keepDays: number): Promise<number> =>
-    invoke('checkpoint_prune', { cwd, keepDays }),
   /** Delete analytics events older than keepDays. Maintenance. */
   analyticsPrune: (keepDays: number): Promise<number> =>
     invoke('analytics_prune', { keepDays }),
@@ -416,22 +413,4 @@ export const ipc = {
   setModel: (taskId: string, modelId: string): Promise<void> =>
     invoke('set_model', { taskId, modelId }),
 
-  // ── Checkpoints (per-turn snapshots) ────────────────────────────────────
-  checkpointCreate: (taskId: string, turn: number): Promise<{ turn: number; refName: string; oid: string; message: string; timestamp: number }> =>
-    invoke('checkpoint_create', { taskId, turn }),
-  checkpointList: (taskId: string): Promise<Array<{ turn: number; refName: string; oid: string; message: string; timestamp: number }>> =>
-    invoke('checkpoint_list', { taskId }),
-  checkpointDiff: (taskId: string, fromTurn: number, toTurn: number): Promise<{
-    fromTurn: number; toTurn: number; additions: number; deletions: number;
-    fileCount: number; patch: string;
-    files: Array<{ path: string; additions: number; deletions: number; status: string }>;
-  }> =>
-    invoke('checkpoint_diff', { taskId, fromTurn, toTurn }),
-  checkpointRevert: (taskId: string, turn: number, force?: boolean): Promise<void> =>
-    invoke('checkpoint_revert', { taskId, turn, force }),
-  checkpointCleanup: (taskId: string): Promise<number> =>
-    invoke('checkpoint_cleanup', { taskId }),
-  /** Whether per-message rollback works in this workspace. */
-  checkpointSupported: (cwd: string): Promise<boolean> =>
-    invoke('checkpoint_supported', { cwd }),
 }

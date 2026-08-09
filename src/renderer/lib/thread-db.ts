@@ -110,7 +110,6 @@ function taskToDbThread(task: AgentTask): DbThread {
     parentThreadId: task.parentTaskId,
     autoApprove: false,
     metadata: {
-      ...(task.worktreePath ? { worktreePath: task.worktreePath } : {}),
       ...(task.originalWorkspace ? { originalWorkspace: task.originalWorkspace } : {}),
       ...(task.projectId ? { projectId: task.projectId } : {}),
     },
@@ -230,7 +229,6 @@ export async function loadFullThread(threadId: string): Promise<AgentTask | null
     messages,
     isArchived: true,
     ...(dbThread.parentThreadId ? { parentTaskId: dbThread.parentThreadId } : {}),
-    ...(metadata?.worktreePath ? { worktreePath: metadata.worktreePath } : {}),
     ...(metadata?.originalWorkspace ? { originalWorkspace: metadata.originalWorkspace } : {}),
     ...(metadata?.projectId ? { projectId: metadata.projectId } : {}),
   }
@@ -261,8 +259,7 @@ export async function listThreadMeta(): Promise<ArchivedThreadMeta[]> {
       lastActivityAt: t.updatedAt,
       messageCount: t.messageCount ?? 0,
       ...(t.parentThreadId ? { parentTaskId: t.parentThreadId } : {}),
-      ...(metadata?.worktreePath ? { worktreePath: metadata.worktreePath } : {}),
-      ...(metadata?.originalWorkspace ? { originalWorkspace: metadata.originalWorkspace } : {}),
+        ...(metadata?.originalWorkspace ? { originalWorkspace: metadata.originalWorkspace } : {}),
       ...(metadata?.projectId ? { projectId: metadata.projectId } : {}),
     }
   })
@@ -295,7 +292,7 @@ export async function getStats() {
  * writes them into SQLite. Idempotent — skips threads that already exist.
  */
 export async function migrateFromJsonHistory(
-  loadThreadsFn: () => Promise<Array<{ id: string; name: string; workspace: string; createdAt: string; messages: Array<{ role: string; content: string; timestamp: string; thinking?: string; toolCalls?: ToolCall[]; toolCallSplits?: ToolCallSplit[] }>; parentTaskId?: string; worktreePath?: string; originalWorkspace?: string; projectId?: string }>>,
+  loadThreadsFn: () => Promise<Array<{ id: string; name: string; workspace: string; createdAt: string; messages: Array<{ role: string; content: string; timestamp: string; thinking?: string; toolCalls?: ToolCall[]; toolCallSplits?: ToolCallSplit[] }>; originalWorkspace?: string; projectId?: string }>>,
 ): Promise<{ migrated: number; skipped: number; failed: number }> {
   const threads = await loadThreadsFn()
   let migrated = 0
@@ -326,8 +323,6 @@ export async function migrateFromJsonHistory(
           : saved.createdAt,
         autoApprove: false,
         metadata: {
-          ...(saved.parentTaskId ? { parentTaskId: saved.parentTaskId } : {}),
-          ...(saved.worktreePath ? { worktreePath: saved.worktreePath } : {}),
           ...(saved.originalWorkspace ? { originalWorkspace: saved.originalWorkspace } : {}),
           ...(saved.projectId ? { projectId: saved.projectId } : {}),
         },

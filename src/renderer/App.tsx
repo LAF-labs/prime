@@ -351,13 +351,9 @@ export function App() {
   useEffect(() => {
     useTaskStore.getState().loadTasks().then(() => {
       useTaskStore.getState().purgeExpiredSoftDeletes();
-      // Storage horizons (roadmap phase 4): checkpoint refs pin commits
-      // against git gc forever, and analytics grew ~1.6 MB/day unbounded.
-      // Both are maintenance, not user actions — failures just log.
+      // Storage horizon (roadmap phase 4): analytics grew ~1.6 MB/day
+      // unbounded. Maintenance, not a user action — failures just log.
       ipc.analyticsPrune(365).catch((e) => console.warn('[maintenance] analytics prune failed:', e));
-      for (const ws of useTaskStore.getState().projects) {
-        ipc.checkpointPrune(ws, 90).catch(() => {/* not a git repo, or gone */});
-      }
       useTaskStore.getState().autoArchiveStaleThreads();
       // Restore persisted UI state (selected thread, view, panels)
       import('@/lib/history-store').then(({ loadUiState }) => {

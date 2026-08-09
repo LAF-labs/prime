@@ -2,7 +2,6 @@ pub mod rpc;
 pub mod agent_launch;
 pub mod agent_oneshot;
 pub mod analytics;
-pub mod checkpoint;
 pub mod diff_stats;
 pub mod error;
 pub mod everyday_memory;

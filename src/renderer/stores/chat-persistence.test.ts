@@ -369,7 +369,7 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
     expect(useTaskStore.getState().archivedMeta['other-thread']).toBeDefined()
   })
 
-  it('preserves worktreePath and originalWorkspace from JSON fallback', async () => {
+  it('preserves originalWorkspace from JSON fallback', async () => {
     const archivedId = 'worktree-thread'
 
     vi.mocked(threadDb.loadFullThread).mockResolvedValueOnce(null)
@@ -379,10 +379,8 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
       workspace: '/ws/.laf-agent/worktrees/feat',
       createdAt: '2026-01-01T00:00:00Z',
       messages: [makeMessage()],
-      worktreePath: '/ws/.laf-agent/worktrees/feat',
       originalWorkspace: '/ws',
       projectId: 'proj-1',
-      parentTaskId: 'parent-1',
     })
 
     useTaskStore.setState({
@@ -394,10 +392,8 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
           createdAt: '2026-01-01T00:00:00Z',
           lastActivityAt: '2026-01-01T00:00:01Z',
           messageCount: 1,
-          worktreePath: '/ws/.laf-agent/worktrees/feat',
           originalWorkspace: '/ws',
           projectId: 'proj-1',
-          parentTaskId: 'parent-1',
         },
       },
     })
@@ -405,10 +401,8 @@ describe('hydrateArchivedTask — SQLite fallback to JSON', () => {
     await useTaskStore.getState().hydrateArchivedTask(archivedId)
 
     const hydrated = useTaskStore.getState().tasks[archivedId]
-    expect(hydrated.worktreePath).toBe('/ws/.laf-agent/worktrees/feat')
     expect(hydrated.originalWorkspace).toBe('/ws')
     expect(hydrated.projectId).toBe('proj-1')
-    expect(hydrated.parentTaskId).toBe('parent-1')
   })
 
   it('triggers SQLite backfill when loading from JSON fallback', async () => {

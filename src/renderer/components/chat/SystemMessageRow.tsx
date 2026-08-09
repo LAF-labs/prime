@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo } from 'react'
-import { IconGitBranch, IconInfoCircle, IconAlertTriangle } from '@tabler/icons-react'
+import { IconInfoCircle, IconAlertTriangle } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import type { SystemMessageRow as SystemMessageRowData } from '@/lib/timeline'
 import { HighlightText } from './HighlightText'
@@ -44,32 +44,7 @@ const ErrorActionButton = memo(function ErrorActionButton({
   )
 })
 
-/** Extract slug and branch from worktree system message content */
-const parseWorktreeMessage = (content: string): { slug: string; branch: string } => {
-  const pathMatch = content.match(/`([^`]+)`.*?`([^`]+)`/)
-  if (!pathMatch) return { slug: content, branch: '' }
-  const fullPath = pathMatch[1]
-  const branch = pathMatch[2]
-  const slug = fullPath.split('/').pop() ?? fullPath
-  return { slug, branch }
-}
-
 export const SystemMessageRow = memo(function SystemMessageRow({ row }: { row: SystemMessageRowData }) {
-  if (row.variant === 'worktree') {
-    const { slug, branch } = parseWorktreeMessage(row.content)
-    return (
-      <div className="pb-4" data-timeline-row-kind="system-message">
-        <div className="mx-auto flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground/60">
-          <IconGitBranch className="size-3.5 shrink-0" aria-hidden />
-          <span>
-            {t('Worktree')} <span className="text-muted-foreground/80 font-medium">{slug}</span>
-            {branch && <> on <span className="text-muted-foreground/80 font-medium">{branch}</span></>}
-          </span>
-        </div>
-      </div>
-    )
-  }
-
   if (row.variant === 'info') {
     return (
       <div className="pb-4" data-timeline-row-kind="system-message">

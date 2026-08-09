@@ -16,13 +16,6 @@ import { TreeContextMenu } from './TreeContextMenu'
 import { setInAppDragActive, setInAppDragData } from '@/hooks/useAttachments'
 import { cn } from '@/lib/utils'
 
-const GIT_STATUS_COLORS: Record<string, string> = {
-  M: 'bg-amber-400',
-  A: 'bg-emerald-400',
-  D: 'bg-red-400',
-  R: 'bg-blue-400',
-}
-
 // ── Inline Rename Input ──────────────────────────────────────────────────────
 
 const InlineRenameInput = memo(function InlineRenameInput({
@@ -120,7 +113,6 @@ const TreeItem = memo(function TreeItem({
   const isLoading = loadingDirs.has(entry.path)
   const isSelected = selectedPath === entry.path
   const isRenaming = renamingPath === entry.path
-  const isDeleted = entry.gitStatus === 'D'
   const children = childrenMap.get(entry.path)
   // Backend already applies the gitignore filter based on `showIgnored`
   // (`respectGitignore = !showIgnored`), so children arrive pre-filtered. We
@@ -132,14 +124,13 @@ const TreeItem = memo(function TreeItem({
   }, [children, showIgnored])
 
   const handleClick = useCallback(() => {
-    if (isDeleted) return
     setSelectedPath(entry.path)
     if (entry.isDir) {
       toggleDir(entry.path)
     } else {
       setPreviewFile(entry.path)
     }
-  }, [entry, isDeleted, toggleDir, setSelectedPath, setPreviewFile])
+  }, [entry, toggleDir, setSelectedPath, setPreviewFile])
 
   const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -149,7 +140,6 @@ const TreeItem = memo(function TreeItem({
   }, [entry, setSelectedPath, onContextMenu])
 
   const handleDragStart = useCallback((e: React.DragEvent) => {
-    if (isDeleted) { e.preventDefault(); return }
     e.dataTransfer.effectAllowed = 'copy'
     setInAppDragActive(true)
     if (entry.isDir) {
@@ -168,7 +158,7 @@ const TreeItem = memo(function TreeItem({
       setInAppDragData({ type: 'file', data: projectFile as any })
     }
     e.dataTransfer.setData('text/plain', `${workspace}/${entry.path}`)
-  }, [entry, isDeleted, workspace])
+  }, [entry, workspace])
 
   const handleRenameSubmit = useCallback((newName: string) => {
     renameEntry(entry.path, newName).catch((e) => reportFailure(t('Could not rename'), e))
@@ -202,20 +192,17 @@ const TreeItem = memo(function TreeItem({
         type="button"
         onClick={handleClick}
         onContextMenu={handleRightClick}
-        draggable={!isDeleted && !isRenaming}
+        draggable={!isRenaming}
         onDragStart={handleDragStart}
         className={cn(
           'flex w-full items-center gap-1 rounded-md px-1.5 py-[3px] text-[12px] transition-colors select-none',
           'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50',
           isSelected && 'bg-accent/80',
-          isDeleted
-            ? 'text-muted-foreground/40 cursor-default line-through decoration-muted-foreground/30'
-            : 'text-foreground/80 hover:bg-accent/60',
+          'text-foreground/80 hover:bg-accent/60',
           entry.isIgnored && 'opacity-50',
         )}
         style={{ paddingLeft: `${entry.depth * 12 + 6}px` }}
         aria-expanded={entry.isDir ? isExpanded : undefined}
-        aria-disabled={isDeleted || undefined}
       >
         {entry.isDir ? (
           <>
@@ -231,7 +218,7 @@ const TreeItem = memo(function TreeItem({
         ) : (
           <>
             <span className="size-3 shrink-0" />
-            <FileTypeIcon name={entry.name} isDir={false} className={cn('size-3.5', isDeleted && 'opacity-40')} />
+            <FileTypeIcon name={entry.name} isDir={false} className="size-3.5" />
           </>
         )}
         {isRenaming ? (
@@ -242,9 +229,6 @@ const TreeItem = memo(function TreeItem({
           />
         ) : (
           <span className="min-w-0 truncate">{entry.name}</span>
-        )}
-        {entry.gitStatus && GIT_STATUS_COLORS[entry.gitStatus] && (
-          <span className={cn('ml-auto size-1.5 shrink-0 rounded-full', GIT_STATUS_COLORS[entry.gitStatus])} title={entry.gitStatus} />
         )}
       </button>
 

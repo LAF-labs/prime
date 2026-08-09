@@ -17,8 +17,8 @@ import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join as joinPath, resolve as resolvePath } from "node:path";
-import { Readability } from "@mozilla/readability";
-import { parseHTML } from "linkedom";
+import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createBashTool, createLocalBashOperations } from "@earendil-works/pi-coding-agent";
 import type { BashOperations, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -1242,6 +1242,59 @@ function stripMarkup(html: string): string {
 		.trim();
 }
 
+/**
+ * Import a package that lives in the bundled sidecar's `node_modules`.
+ *
+ * The gate sits one level above the sidecar — `resources/laf-agent-gate.ts`
+ * beside `resources/prime-agent/` — and Node resolves bare specifiers by
+ * walking *up* from the importer, never down into a sibling. A static
+ * `import "@mozilla/readability"` therefore works in the checkout, where the
+ * repo's own `node_modules` is on the way up, and fails in the installed app,
+ * where it is not. That is exactly what happened: the gate failed to load
+ * entirely, and every session came up with no tools. The bare specifier is
+ * still tried first so the checkout keeps working unchanged.
+ */
+const SIDECAR_REQUIRE = (() => {
+	try {
+		const here = dirname(fileURLToPath(import.meta.url));
+		return createRequire(joinPath(here, "prime-agent", "package.json"));
+	} catch {
+		return null;
+	}
+})();
+
+async function importFromSidecar<T>(specifier: string): Promise<T | null> {
+	try {
+		return (await import(specifier)) as T;
+	} catch {
+		// Not resolvable from here; try the sidecar explicitly.
+	}
+	try {
+		const resolved = SIDECAR_REQUIRE?.resolve(specifier);
+		if (resolved) return (await import(pathToFileURL(resolved).href)) as T;
+	} catch {
+		// Neither path has it — the caller falls back.
+	}
+	return null;
+}
+
+type ReadabilityModule = { Readability: new (doc: unknown) => { parse(): { title?: string; textContent?: string } | null } };
+type LinkedomModule = { parseHTML: (html: string) => { document: unknown } };
+
+/** Loaded once, on the first fetch that needs them. */
+let extractorPromise: Promise<{ readability: ReadabilityModule; linkedom: LinkedomModule } | null> | null = null;
+
+function loadExtractor() {
+	extractorPromise ??= (async () => {
+		const [readability, linkedom] = await Promise.all([
+			importFromSidecar<ReadabilityModule>("@mozilla/readability"),
+			importFromSidecar<LinkedomModule>("linkedom"),
+		]);
+		return readability && linkedom ? { readability, linkedom } : null;
+	})();
+	return extractorPromise;
+}
+
 /** Collapse the runs of blank lines Readability's text output leaves behind. */
 function tidy(text: string): string {
 	return text
@@ -1257,12 +1310,14 @@ interface ExtractedPage {
 	text: string;
 }
 
-function extractArticle(html: string): ExtractedPage {
+async function extractArticle(html: string): Promise<ExtractedPage> {
+	const mods = await loadExtractor();
+	if (!mods) return { title: "", text: stripMarkup(html) };
 	try {
-		const { document } = parseHTML(html);
+		const { document } = mods.linkedom.parseHTML(html);
 		// Readability mutates the document it parses. This one exists only for
 		// this call, so that is exactly what we want.
-		const article = new Readability(document as never).parse();
+		const article = new mods.readability.Readability(document).parse();
 		const text = tidy(article?.textContent ?? "");
 		// A couple of hundred characters means it latched onto a caption or a
 		// cookie banner rather than an article; the whole page reads better.
@@ -1328,7 +1383,7 @@ function registerWebFetch(pi: ExtensionAPI): void {
 			const contentType = response.headers.get("content-type") ?? "";
 			const raw = await response.text();
 			const page = contentType.includes("html")
-				? extractArticle(raw)
+				? await extractArticle(raw)
 				: { title: "", text: raw.trim() };
 			const truncated = page.text.length > MAX_PAGE_CHARS;
 			const text = truncated ? `${page.text.slice(0, MAX_PAGE_CHARS)}\n\n…[truncated]` : page.text;

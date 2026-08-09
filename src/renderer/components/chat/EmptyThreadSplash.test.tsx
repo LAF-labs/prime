@@ -1,32 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { EmptyThreadSplash } from './EmptyThreadSplash'
-import { CLIENT_COMMANDS } from '@/lib/agent-commands'
 
 describe('EmptyThreadSplash', () => {
   afterEach(() => {
     vi.restoreAllMocks()
-  })
-
-  it('only advertises slash commands that exist in the registry', () => {
-    // An unrecognized /foo is sent to the model as literal text, so every
-    // command shown on the splash must be executable.
-    render(<EmptyThreadSplash />)
-    const known = new Set(CLIENT_COMMANDS.map((c) => `/${c.name}`))
-    const labels = screen
-      .getAllByRole('button')
-      .map((b) => b.getAttribute('aria-label') ?? '')
-      .filter((label) => label.startsWith('Insert /'))
-      .map((label) => label.slice('Insert '.length))
-    expect(labels.length).toBeGreaterThan(0)
-    for (const label of labels) {
-      expect(known.has(label), `${label} is not a registered command`).toBe(true)
-    }
-  })
-
-  it('does not advertise the nonexistent /tools command', () => {
-    render(<EmptyThreadSplash />)
-    expect(screen.queryByText('/tools')).toBeNull()
   })
 
   it('renders three starter prompts', () => {
@@ -46,5 +24,31 @@ describe('EmptyThreadSplash', () => {
     } finally {
       document.removeEventListener('splash-insert', listener)
     }
+  })
+
+  /**
+   * The splash used to carry its own copy of the command list, which could
+   * drift from the registry and advertise a `/foo` the app cannot run (an
+   * unrecognized command is sent to the model as literal text). Typing `/`
+   * opens the picker, which reads the registry directly. Keeping the splash
+   * free of commands is what makes that class of bug unreachable.
+   */
+  it('advertises no commands of its own — the picker owns that list', () => {
+    render(<EmptyThreadSplash />)
+    // `\w` after the sigil, so the bare `/` and `@` in the hint don't match.
+    expect(screen.queryByText(/^\/\w+/)).toBeNull()
+    expect(screen.queryByText(/^@\w+/)).toBeNull()
+  })
+
+  /** Three prompts and nothing else; the old screen opened with sixteen. */
+  it('stays small enough to not out-weigh the conversation', () => {
+    render(<EmptyThreadSplash />)
+    expect(screen.getAllByRole('button')).toHaveLength(3)
+  })
+
+  it('still points at both pickers so the commands stay discoverable', () => {
+    render(<EmptyThreadSplash />)
+    expect(screen.getByText('/')).toBeInTheDocument()
+    expect(screen.getByText('@')).toBeInTheDocument()
   })
 })

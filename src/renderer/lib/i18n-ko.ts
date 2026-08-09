@@ -940,9 +940,6 @@ export const ko: Record<string, string> = {
   'Find and fix a bug': '버그를 찾아서 고쳐줘',
   'Add tests for recent changes': '최근 변경 사항에 테스트를 추가해줘',
   'Quick side question': '빠른 곁가지 질문',
-  'Mention a file for context': '컨텍스트로 쓸 파일을 언급합니다',
-  'Reference an entire directory': '디렉터리 전체를 참조합니다',
-  'Mention an agent by name': '에이전트를 이름으로 언급합니다',
 
   // ── Pull request creation ─────────────────────────────────────────
   'Create Pull Request': '풀 리퀘스트 만들기',

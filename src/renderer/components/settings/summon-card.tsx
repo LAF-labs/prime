@@ -1,7 +1,7 @@
 import { memo, useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { Switch } from '@/components/ui/switch'
-import { SettingRow, Divider } from './settings-shared'
+import { SettingRow, SETTINGS_BUTTON_CLASS } from './settings-shared'
 import { ipc } from '@/lib/ipc'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -117,7 +117,6 @@ export const SummonCard = memo(function SummonCard({ draft, updateDraft }: Summo
       >
         <Switch checked={iconOn} onCheckedChange={handleIconChange} aria-label={t('Toggle menu bar icon')} />
       </SettingRow>
-      <Divider />
       <SettingRow
         label={t('Summon shortcut')}
         description={t('Works system-wide, so it is taken from other apps while set')}
@@ -130,10 +129,9 @@ export const SummonCard = memo(function SummonCard({ draft, updateDraft }: Summo
             data-testid="summon-shortcut-recorder"
             aria-label={t('Record summon shortcut')}
             className={cn(
-              'h-7 min-w-[7rem] rounded-md border px-2 font-mono text-xs transition-colors',
-              isRecording
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-input bg-transparent text-foreground/80 hover:bg-accent',
+              SETTINGS_BUTTON_CLASS,
+              'min-w-[7rem] justify-center font-mono',
+              isRecording && 'border-primary bg-primary/10 text-primary',
             )}
           >
             {isRecording ? t('Press keys…') : shortcut ? formatAccel(shortcut) : t('Not set')}
@@ -143,7 +141,7 @@ export const SummonCard = memo(function SummonCard({ draft, updateDraft }: Summo
               type="button"
               onClick={handleClear}
               aria-label={t('Clear summon shortcut')}
-              className="rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-lg px-1.5 py-1 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
             >
               {t('Clear')}
             </button>

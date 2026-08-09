@@ -48,6 +48,7 @@ import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { initResourceListeners } from "@/stores/resourceStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
+import { useZoomShortcuts } from "@/hooks/useZoomShortcuts";
 import { resolveLocale, useI18nStore, useT } from "@/lib/i18n";
 import { MOD_PREFIX } from "@/lib/platform";
 import { UpdateAvailableDialog } from "@/components/UpdateAvailableDialog";
@@ -284,10 +285,10 @@ export function App() {
   const isUpdateDialogActive = useUpdateStore((s) => s.status !== 'idle' && s.status !== 'error');
   useKeyboardShortcuts();
   useSessionTracker();
-  // Typography is fixed (14px UI / 16px chat, see tailwind.css). Earlier
-  // versions layered a webview zoom on top of user font-size settings; the
-  // trackpad's pinch gesture arrives as a ctrl+wheel event, so the whole UI
-  // grew and shrank on accidental pinches. Both systems are gone on purpose.
+  // Typography is fixed (14px UI / 16px chat, see tailwind.css); the font-size
+  // settings and the pinch-to-zoom handler are gone on purpose. ⌘+/⌘-/⌘0 stay
+  // as an explicit, uniform webview zoom.
+  useZoomShortcuts();
 
   // Keep the i18n locale in sync with the language setting (OS default).
   const language = useSettingsStore((s) => s.settings.language ?? 'system');

@@ -73,31 +73,32 @@
     animation-duration: 0s !important;
 }
 
-/* Warm neutral palette in the spirit of the Claude desktop app: paper-white
-   light theme, warm charcoal dark theme, clay accent. Hex only — oklch()
+/* Neutral-grey surfaces with a single blue accent. The greys are deliberately
+   untinted: the brand blue reads as a colour cast against warm beige, so the
+   canvas stays neutral and only `--primary` carries hue. Hex only — oklch()
    renders magenta in older WebKit. */
 :root {
     color-scheme: light;
     --radius: 0.75rem;
-    --background: #faf9f5;
-    --foreground: #2b2a27;
+    --background: #fafafa;
+    --foreground: #1f1f1f;
     --card: #ffffff;
-    --card-foreground: #2b2a27;
+    --card-foreground: #1f1f1f;
     --popover: #ffffff;
-    --popover-foreground: #2b2a27;
-    --primary: #c96442;
+    --popover-foreground: #1f1f1f;
+    --primary: #1e90ff;
     --primary-foreground: #ffffff;
-    --secondary: color-mix(in srgb, #706b57 8%, transparent);
-    --secondary-foreground: #2b2a27;
-    --muted: color-mix(in srgb, #706b57 7%, transparent);
-    --muted-foreground: #73726c;
-    --accent: color-mix(in srgb, #706b57 9%, transparent);
-    --sidebar: #f5f4ee;
-    --accent-foreground: #2b2a27;
+    --secondary: color-mix(in srgb, #000000 6%, transparent);
+    --secondary-foreground: #1f1f1f;
+    --muted: color-mix(in srgb, #000000 5%, transparent);
+    --muted-foreground: #6e6e6e;
+    --accent: color-mix(in srgb, #000000 7%, transparent);
+    --sidebar: #f4f4f5;
+    --accent-foreground: #1f1f1f;
     --destructive: #dc2626;
-    --border: #e8e6dc;
-    --input: color-mix(in srgb, #706b57 22%, transparent);
-    --ring: #c96442;
+    --border: #e6e6e6;
+    --input: color-mix(in srgb, #000000 18%, transparent);
+    --ring: #1e90ff;
     --destructive-foreground: #b91c1c;
     --info: #3b82f6;
     --info-foreground: #1d4ed8;
@@ -109,7 +110,7 @@
     --pink-foreground: #ffffff;
     /* Categorical chart palette (analytics dashboard) — charts read
        var(--chart-N) instead of hardcoding hex in TSX. */
-    --chart-1: #c96442;
+    --chart-1: #1e90ff;
     --chart-2: #059669;
     --chart-3: #d97706;
     --chart-4: #0891b2;
@@ -133,25 +134,25 @@
 
 .dark {
     color-scheme: dark;
-    --background: #262624;
-    --foreground: #ecebe6;
-    --card: #30302e;
-    --card-foreground: #ecebe6;
-    --popover: #30302e;
-    --popover-foreground: #ecebe6;
-    --primary: #d97757;
+    --background: #262626;
+    --foreground: #ececec;
+    --card: #303030;
+    --card-foreground: #ececec;
+    --popover: #303030;
+    --popover-foreground: #ececec;
+    --primary: #1e90ff;
     --primary-foreground: #ffffff;
-    --secondary: color-mix(in srgb, #eaddd8 7%, transparent);
-    --secondary-foreground: #ecebe6;
-    --muted: color-mix(in srgb, #eaddd8 7%, transparent);
-    --muted-foreground: #a6a39a;
-    --accent: color-mix(in srgb, #eaddd8 9%, transparent);
-    --sidebar: #1f1e1d;
-    --accent-foreground: #ecebe6;
+    --secondary: color-mix(in srgb, #ffffff 7%, transparent);
+    --secondary-foreground: #ececec;
+    --muted: color-mix(in srgb, #ffffff 7%, transparent);
+    --muted-foreground: #a1a1a1;
+    --accent: color-mix(in srgb, #ffffff 9%, transparent);
+    --sidebar: #1e1e1e;
+    --accent-foreground: #ececec;
     --destructive: #f87171;
-    --border: color-mix(in srgb, #eaddd8 10%, transparent);
-    --input: color-mix(in srgb, #eaddd8 14%, transparent);
-    --ring: #d97757;
+    --border: color-mix(in srgb, #ffffff 10%, transparent);
+    --input: color-mix(in srgb, #ffffff 14%, transparent);
+    --ring: #1e90ff;
     --destructive-foreground: #fca5a5;
     --info: #60a5fa;
     --info-foreground: #93c5fd;
@@ -161,7 +162,7 @@
     --warning-foreground: #fcd34d;
     --pink: #f472b6;
     --pink-foreground: #ffffff;
-    --chart-1: #d97757;
+    --chart-1: #1e90ff;
     --chart-2: #34d399;
     --chart-3: #fbbf24;
     --chart-4: #22d3ee;

@@ -13,7 +13,10 @@ import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import type { AppSettings } from '@/types'
 import { Switch } from '@/components/ui/switch'
-import { SectionHeader, SettingsCard, SettingsGrid, SettingRow, Divider, ConfirmDialog } from './settings-shared'
+import {
+  SectionHeader, SettingsSection, SettingBlock, SettingRow, ConfirmDialog,
+  SETTINGS_INPUT_CLASS, SETTINGS_BUTTON_CLASS,
+} from './settings-shared'
 
 const REFRESH_INTERVAL_MS = 2000
 const HOT_THREAD_BYTES = 5 * 1024 * 1024
@@ -35,17 +38,14 @@ interface StatCardProps {
 }
 
 const StatCard = ({ label, value, hint, icon: Icon, accentClass }: StatCardProps) => (
-  <div className={cn(
-    'relative flex flex-col gap-1 rounded-xl border border-border/40 bg-card/50 px-4 py-3',
-    'overflow-hidden transition-colors hover:bg-card/80',
-  )}>
-    <div className={cn('absolute inset-y-0 left-0 w-[3px] rounded-l-xl', accentClass)} />
-    <div className="flex items-center gap-2">
-      <Icon className={cn('size-3.5', accentClass.replace('bg-', 'text-'))} />
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+  <div className="relative min-w-0 overflow-hidden rounded-xl border border-border/60 px-3 py-2.5 transition-colors hover:bg-accent/30">
+    <div className={cn('absolute inset-y-0 left-0 w-[3px]', accentClass)} />
+    <div className="flex items-center gap-1.5">
+      <Icon className={cn('size-3.5 shrink-0', accentClass.replace('bg-', 'text-'))} />
+      <p className="truncate text-[11px] text-muted-foreground">{label}</p>
     </div>
-    <p className="font-mono text-[18px] font-bold tabular-nums text-foreground leading-tight">{value}</p>
-    {hint && <p className="text-[11px] text-muted-foreground/60 leading-snug">{hint}</p>}
+    <p className="mt-1 truncate font-mono text-[17px] font-semibold leading-tight tabular-nums text-foreground">{value}</p>
+    {hint && <p className="mt-0.5 truncate text-[11px] leading-snug text-muted-foreground/70">{hint}</p>}
   </div>
 )
 
@@ -64,7 +64,7 @@ const CategoryRow = ({ label, bytes, total, accentClass, icon: Icon }: CategoryR
   const isZero = bytes === 0
   return (
     <div className={cn(
-      'group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors',
+      'group -mx-2 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors',
       isZero ? 'opacity-40' : 'hover:bg-accent/30',
     )}>
       <div className={cn(
@@ -73,8 +73,8 @@ const CategoryRow = ({ label, bytes, total, accentClass, icon: Icon }: CategoryR
       )}>
         <Icon className={cn('size-3.5', isZero ? 'text-muted-foreground/40' : accentClass.replace('bg-', 'text-'))} />
       </div>
-      <span className="w-24 shrink-0 text-[12px] font-medium text-foreground">{label}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted/40">
+      <span className="w-24 shrink-0 truncate text-[13px] font-medium text-foreground">{label}</span>
+      <div className="h-2 min-w-8 flex-1 overflow-hidden rounded-full bg-muted/40">
         <div
           className={cn('h-full rounded-full transition-all duration-500 ease-out', accentClass)}
           style={{ width: `${Math.max(pct, bytes > 0 ? 1 : 0)}%` }}
@@ -141,29 +141,29 @@ const ThreadRow = ({ thread, total }: { thread: ThreadMemoryBreakdown; total: nu
         onClick={handleOpen}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpen() } }}
         className={cn(
-          'group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-all',
-          'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          'hover:border-border/40 hover:bg-accent/30',
+          'group -mx-2 flex cursor-pointer items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 text-left transition-colors',
+          'outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+          'hover:bg-accent/40',
           isHot && 'border-amber-500/20 bg-amber-500/5',
         )}
         aria-label={t('Open thread: {name}', { name: threadName })}
       >
         <StatusBadge status={thread.status} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12px] font-medium text-foreground">
+          <p className="truncate text-[13px] font-medium text-foreground">
             {threadName}
             {thread.isArchived && (
               <span className="ml-1.5 text-[11px] text-muted-foreground/50">({t('archived')})</span>
             )}
           </p>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">
+          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
             {thread.messageCount} msg
             {thread.toolCalls > 0 && ` · ${formatBytes(thread.toolCalls)} tools`}
             {thread.liveTurn > 0 && ` · ${formatBytes(thread.liveTurn)} live`}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted/40">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-muted/40 sm:block">
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-300',
@@ -279,56 +279,56 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
       <SectionHeader section="memory" />
 
       {/* ── Overview ──────────────────────────────────────────────── */}
-      <SettingsGrid label={t('Overview')} description={t('Live snapshot of renderer-side memory')}>
-        <div className="space-y-3">
+      <SettingsSection title={t('Overview')} description={t('Live snapshot of renderer-side memory')}>
+        <SettingBlock className="space-y-3">
           {/* Hero total + controls */}
-          <SettingsCard className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 py-1">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               <div className={cn(
-                'flex size-11 items-center justify-center rounded-xl',
+                'flex size-11 shrink-0 items-center justify-center rounded-xl',
                 isHot ? 'bg-amber-500/15' : 'bg-primary/10',
               )}>
                 <IconCpu className={cn('size-5', isHot ? 'text-amber-600 dark:text-amber-400' : 'text-primary')} />
               </div>
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('Tracked total')}</p>
+                <p className="text-[12px] text-muted-foreground">{t('Tracked total')}</p>
                 <p className={cn(
-                  'font-mono text-[24px] font-bold tabular-nums leading-tight',
+                  'font-mono text-[24px] font-semibold leading-tight tabular-nums',
                   isHot ? 'text-amber-600 dark:text-amber-400' : 'text-foreground',
                 )}>
                   {report ? formatBytes(report.grandTotal) : '—'}
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground select-none">
+            <div className="flex shrink-0 items-center gap-3">
+              <label className="flex cursor-pointer select-none items-center gap-1.5 text-[12px] text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={autoRefresh}
                   onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="size-3 cursor-pointer accent-primary"
+                  className="size-3.5 cursor-pointer accent-primary"
                 />
                 {t('Auto-refresh')}
               </label>
               <button
                 type="button"
                 onClick={handleManualRefresh}
-                className="flex items-center gap-1.5 rounded-lg border border-border/50 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className={SETTINGS_BUTTON_CLASS}
                 aria-label={t('Refresh memory report')}
               >
-                <IconRefresh className="size-3" />
+                <IconRefresh className="size-3.5" />
                 {t('Refresh')}
               </button>
             </div>
-          </SettingsCard>
+          </div>
 
           {/* Hot warning */}
           {isHot && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3">
-              <IconFlame className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-600 dark:text-amber-400" />
-              <div>
-                <p className="text-[12px] font-medium text-amber-700 dark:text-amber-300">{t('High memory usage')}</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700/80 dark:text-amber-200/70">
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/8 px-3.5 py-3">
+              <IconFlame className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-amber-700 dark:text-amber-300">{t('High memory usage')}</p>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-amber-700/80 dark:text-amber-200/70">
                   {t('Renderer is holding {size} across threads, drafts, and debug buffers. Purge soft-deleted threads or clear debug buffers below.', { size: report ? formatBytes(report.grandTotal) : '' })}
                 </p>
               </div>
@@ -336,7 +336,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           )}
 
           {/* Stat cards grid */}
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <StatCard
               label={t('Live threads')}
               value={report ? `${report.threads.length}` : '—'}
@@ -381,14 +381,14 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
               />
             )}
           </div>
-        </div>
-      </SettingsGrid>
+        </SettingBlock>
+      </SettingsSection>
 
       {/* ── Breakdown ─────────────────────────────────────────────── */}
       {report && report.grandTotal > 0 && (
-        <SettingsGrid label={t('Breakdown')} description={t('Where memory goes')}>
-          <SettingsCard>
-            <div className="space-y-0.5 py-1">
+        <SettingsSection title={t('Breakdown')} description={t('Where memory goes')}>
+          <SettingBlock>
+            <div className="space-y-0.5">
               <CategoryRow
                 label={t('Messages')}
                 bytes={report.threads.reduce((s, t) => s + t.messages, 0)}
@@ -439,144 +439,135 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 icon={IconBug}
               />
             </div>
-          </SettingsCard>
-        </SettingsGrid>
+          </SettingBlock>
+        </SettingsSection>
       )}
 
       {/* ── Per-thread ────────────────────────────────────────────── */}
-      <SettingsGrid label={t('Per-thread')} description={t('Click a row to open')}>
-        <SettingsCard>
+      <SettingsSection title={t('Per-thread')} description={t('Click a row to open')}>
+        <SettingBlock>
           {!report || report.threads.length === 0 ? (
             <div className="flex flex-col items-center gap-1.5 py-6 text-center">
-              <IconMessage className="size-5 text-muted-foreground/30" />
-              <p className="text-[11.5px] text-muted-foreground/60">{t('No live threads')}</p>
+              <IconMessage className="size-5 text-muted-foreground/40" />
+              <p className="text-[13px] text-muted-foreground">{t('No live threads')}</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-0.5 py-1">
+            <div className="flex flex-col gap-0.5">
               {top.map((t) => (
                 <ThreadRow key={t.taskId} thread={t} total={report.threadsTotal || 1} />
               ))}
               {remaining > 0 && (
-                <p className="px-3 pt-2 text-[11px] text-muted-foreground/50">
+                <p className="pt-2 text-[12px] text-muted-foreground">
                   + {remaining} more thread{remaining === 1 ? '' : 's'} below 1% each
                 </p>
               )}
             </div>
           )}
-        </SettingsCard>
-      </SettingsGrid>
+        </SettingBlock>
+      </SettingsSection>
 
       {/* ── Terminal ──────────────────────────────────────────────── */}
-      <SettingsGrid label={t('Terminal')} description={t('Tune memory held by terminal tabs')}>
-        <SettingsCard>
-          <SettingRow
-            label={t('Scrollback lines')}
-            description={
-              ptyCount !== null && ptyCount > 0
-                ? `${ptyCount} terminal${ptyCount === 1 ? '' : 's'} open · roughly ${formatBytes(ptyScrollbackEstimate)} held in scrollback at this setting.`
-                : 'Lines retained per terminal. Lower values save memory; higher values keep more history.'
+      <SettingsSection title={t('Terminal')} description={t('Tune memory held by terminal tabs')}>
+        <SettingRow
+          label={t('Scrollback lines')}
+          description={
+            ptyCount !== null && ptyCount > 0
+              ? `${ptyCount} terminal${ptyCount === 1 ? '' : 's'} open · roughly ${formatBytes(ptyScrollbackEstimate)} held in scrollback at this setting.`
+              : 'Lines retained per terminal. Lower values save memory; higher values keep more history.'
+          }
+        >
+          <input
+            type="number"
+            min={MIN_SCROLLBACK}
+            max={MAX_SCROLLBACK}
+            step={500}
+            value={scrollback}
+            onChange={(e) => updateDraft({ terminalScrollback: clampScrollback(Number(e.target.value) || DEFAULT_SCROLLBACK) })}
+            className={cn(SETTINGS_INPUT_CLASS, 'w-24 tabular-nums')}
+            aria-label={t('Terminal scrollback lines')}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t('Auto-close idle background tabs')}
+          description={
+            idleEnabled
+              ? `Closes background terminal tabs after ${idleMins} minute${idleMins === 1 ? '' : 's'} of no PTY activity. The active tab is never closed.`
+              : 'When enabled, frees memory from terminal tabs you have stopped using. Running processes in those tabs are terminated.'
+          }
+        >
+          <Switch
+            checked={idleEnabled}
+            onCheckedChange={(checked) =>
+              updateDraft({ terminalAutoCloseIdleMins: checked ? DEFAULT_IDLE_MINS : null })
             }
+            aria-label={t('Toggle idle terminal auto-close')}
+          />
+        </SettingRow>
+        {idleEnabled && (
+          <SettingRow
+            label={t('Idle threshold')}
+            description={t('Minutes of no terminal output before a background tab is auto-closed.')}
           >
             <input
               type="number"
-              min={MIN_SCROLLBACK}
-              max={MAX_SCROLLBACK}
-              step={500}
-              value={scrollback}
-              onChange={(e) => updateDraft({ terminalScrollback: clampScrollback(Number(e.target.value) || DEFAULT_SCROLLBACK) })}
-              className="w-24 rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs tabular-nums text-foreground outline-none focus:ring-1 focus:ring-ring"
-              aria-label={t('Terminal scrollback lines')}
+              min={1}
+              max={1440}
+              step={5}
+              value={idleMins ?? DEFAULT_IDLE_MINS}
+              onChange={(e) => {
+                const n = Math.max(1, Math.min(1440, Number(e.target.value) || DEFAULT_IDLE_MINS))
+                updateDraft({ terminalAutoCloseIdleMins: n })
+              }}
+              className={cn(SETTINGS_INPUT_CLASS, 'w-20 tabular-nums')}
+              aria-label={t('Idle threshold in minutes')}
             />
           </SettingRow>
-          <Divider />
-          <SettingRow
-            label={t('Auto-close idle background tabs')}
-            description={
-              idleEnabled
-                ? `Closes background terminal tabs after ${idleMins} minute${idleMins === 1 ? '' : 's'} of no PTY activity. The active tab is never closed.`
-                : 'When enabled, frees memory from terminal tabs you have stopped using. Running processes in those tabs are terminated.'
-            }
-          >
-            <Switch
-              checked={idleEnabled}
-              onCheckedChange={(checked) =>
-                updateDraft({ terminalAutoCloseIdleMins: checked ? DEFAULT_IDLE_MINS : null })
-              }
-              aria-label={t('Toggle idle terminal auto-close')}
-            />
-          </SettingRow>
-          {idleEnabled && (
-            <>
-              <Divider />
-              <SettingRow
-                label={t('Idle threshold')}
-                description={t('Minutes of no terminal output before a background tab is auto-closed.')}
-              >
-                <input
-                  type="number"
-                  min={1}
-                  max={1440}
-                  step={5}
-                  value={idleMins ?? DEFAULT_IDLE_MINS}
-                  onChange={(e) => {
-                    const n = Math.max(1, Math.min(1440, Number(e.target.value) || DEFAULT_IDLE_MINS))
-                    updateDraft({ terminalAutoCloseIdleMins: n })
-                  }}
-                  className="w-20 rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs tabular-nums text-foreground outline-none focus:ring-1 focus:ring-ring"
-                  aria-label={t('Idle threshold in minutes')}
-                />
-              </SettingRow>
-            </>
-          )}
-        </SettingsCard>
-      </SettingsGrid>
+        )}
+      </SettingsSection>
 
       {/* ── Reclaim ───────────────────────────────────────────────── */}
-      <SettingsGrid label={t('Reclaim')} description={t('Free held memory')}>
-        <SettingsCard>
-          <SettingRow
-            label={t('Purge soft-deleted threads')}
-            description={
-              report && report.softDeletedCount > 0
-                ? `${report.softDeletedCount} thread${report.softDeletedCount === 1 ? '' : 's'} (${formatBytes(report.softDeleted)}) waiting up to 48 hours.`
-                : 'Soft-deleted threads stay in RAM for 48 hours before automatic removal.'
-            }
+      <SettingsSection title={t('Reclaim')} description={t('Free held memory')}>
+        <SettingRow
+          label={t('Purge soft-deleted threads')}
+          description={
+            report && report.softDeletedCount > 0
+              ? `${report.softDeletedCount} thread${report.softDeletedCount === 1 ? '' : 's'} (${formatBytes(report.softDeleted)}) waiting up to 48 hours.`
+              : 'Soft-deleted threads stay in RAM for 48 hours before automatic removal.'
+          }
+        >
+          <button
+            type="button"
+            disabled={!report || report.softDeletedCount === 0}
+            onClick={() => setIsPurgeOpen(true)}
+            className={cn(SETTINGS_BUTTON_CLASS, 'border-destructive/30 text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-40')}
+            aria-label={t('Purge all soft-deleted threads now')}
           >
-            <button
-              type="button"
-              disabled={!report || report.softDeletedCount === 0}
-              onClick={() => setIsPurgeOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label={t('Purge all soft-deleted threads now')}
-            >
-              <IconTrash className="size-3" />
-              {t('Purge now')}
-            </button>
-          </SettingRow>
-          <Divider />
-          <SettingRow
-            label={t('Clear debug log buffers')}
-            description={
-              report
-                ? `${report.debugLogCount + report.jsDebugLogCount} captured entries (${formatBytes(debugLogTotal)}).`
-                : 'Drops the in-memory agent and JS console capture buffers.'
-            }
+            <IconTrash className="size-3.5" />
+            {t('Purge now')}
+          </button>
+        </SettingRow>
+        <SettingRow
+          label={t('Clear debug log buffers')}
+          description={
+            report
+              ? `${report.debugLogCount + report.jsDebugLogCount} captured entries (${formatBytes(debugLogTotal)}).`
+              : 'Drops the in-memory agent and JS console capture buffers.'
+          }
+        >
+          <button
+            type="button"
+            disabled={!report || (report.debugLogCount === 0 && report.jsDebugLogCount === 0)}
+            onClick={handleClearDebug}
+            className={cn(SETTINGS_BUTTON_CLASS, 'disabled:cursor-not-allowed disabled:opacity-40')}
+            aria-label={t('Clear debug log buffers')}
           >
-            <button
-              type="button"
-              disabled={!report || (report.debugLogCount === 0 && report.jsDebugLogCount === 0)}
-              onClick={handleClearDebug}
-              className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label={t('Clear debug log buffers')}
-            >
-              <IconBug className="size-3" />
-              {t('Clear')}
-            </button>
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
+            <IconBug className="size-3.5" />
+            {t('Clear')}
+          </button>
+        </SettingRow>
+      </SettingsSection>
 
-      <p className="flex items-start gap-1.5 px-1 pt-1 text-[11px] leading-relaxed text-muted-foreground/50">
+      <p className="flex items-start gap-1.5 pt-1 text-[11px] leading-relaxed text-muted-foreground/70">
         <IconTerminal2 className="mt-0.5 size-3 shrink-0" aria-hidden />
         Scrollback estimates assume ~80 cols × 16 B per cell × the line cap. Real WASM heap usage varies.
       </p>

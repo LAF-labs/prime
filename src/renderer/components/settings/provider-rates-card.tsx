@@ -1,11 +1,12 @@
 import { memo, useCallback, useEffect, useState } from 'react'
-import { IconCoin, IconInfoCircle } from '@tabler/icons-react'
+import { IconInfoCircle } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
 import { useT } from '@/lib/i18n'
 import { findProvider } from '@/lib/provider-catalog'
 import type { AppSettings, ProviderRate } from '@/types'
 import type { ConfiguredProvider } from '@/components/ProviderKeyManager'
-import { SettingsCard, SettingsGrid } from './settings-shared'
+import { SettingBlock, SettingRow, SettingsSection, SETTINGS_INPUT_CLASS } from './settings-shared'
+import { cn } from '@/lib/utils'
 
 type RateField = keyof ProviderRate
 
@@ -95,78 +96,72 @@ export const ProviderRatesCard = memo(function ProviderRatesCard({ draft, update
   const editable = providers.filter((p) => p.isCustom)
 
   return (
-    <SettingsGrid label={t('Token pricing')} description={t('USD per 1M tokens')}>
-      <SettingsCard>
-        <div className="flex flex-col gap-3 py-2">
-          <div className="flex items-start gap-2.5">
-            <IconCoin size={15} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div>
-              <p className="text-[12px] font-medium text-foreground">{t('Cost for custom providers')}</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                {t('Built-in providers come with per-model prices, so their cost is calculated for you. A provider you added yourself has no price data, so its cost always shows as $0 — enter its rates here to see real numbers.')}
-              </p>
+    <SettingsSection title={t('Token pricing')} description={t('USD per 1M tokens')}>
+      <SettingRow
+        stacked
+        label={t('Cost for custom providers')}
+        description={t('Built-in providers come with per-model prices, so their cost is calculated for you. A provider you added yourself has no price data, so its cost always shows as $0 — enter its rates here to see real numbers.')}
+      >
+        {isLoading ? (
+          <p className="text-[12px] text-muted-foreground">{t('Loading providers…')}</p>
+        ) : providers.length === 0 ? (
+          <p className="text-[12px] text-muted-foreground">{t('No providers configured yet.')}</p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_repeat(4,64px)] items-end gap-2 px-3">
+              <span className="sr-only">{t('Provider')}</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t('Input')}</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t('Output')}</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t('Cache read')}</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t('Cache write')}</span>
             </div>
-          </div>
 
-          {isLoading ? (
-            <p className="text-[11px] text-muted-foreground">{t('Loading providers…')}</p>
-          ) : providers.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground">{t('No providers configured yet.')}</p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              <div className="grid grid-cols-[minmax(0,1fr)_repeat(4,68px)] items-end gap-2 px-1">
-                <span className="sr-only">{t('Provider')}</span>
-                <span className="text-[11px] font-medium text-muted-foreground">{t('Input')}</span>
-                <span className="text-[11px] font-medium text-muted-foreground">{t('Output')}</span>
-                <span className="text-[11px] font-medium text-muted-foreground">{t('Cache read')}</span>
-                <span className="text-[11px] font-medium text-muted-foreground">{t('Cache write')}</span>
-              </div>
-
-              {providers.map((p) => {
-                const label = findProvider(p.name)?.label ?? p.name
-                const values = drafts[p.name] ?? emptyDraft()
-                return (
-                  <div
-                    key={p.name}
-                    className="grid grid-cols-[minmax(0,1fr)_repeat(4,68px)] items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[12px] font-medium text-foreground">{label}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {p.isCustom ? t('Custom endpoint — enter rates manually') : t('Priced automatically')}
-                      </p>
-                    </div>
-                    {FIELDS.map((field) => (
-                      <input
-                        key={field}
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        inputMode="decimal"
-                        disabled={!p.isCustom}
-                        value={p.isCustom ? values[field] : ''}
-                        onChange={(e) => handleChange(p.name, field, e.target.value)}
-                        placeholder={p.isCustom ? '0' : '—'}
-                        aria-label={`${label} · ${t('USD per 1M tokens')}`}
-                        className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
-                      />
-                    ))}
+            {providers.map((p) => {
+              const label = findProvider(p.name)?.label ?? p.name
+              const values = drafts[p.name] ?? emptyDraft()
+              return (
+                <div
+                  key={p.name}
+                  className="grid grid-cols-[minmax(0,1fr)_repeat(4,64px)] items-center gap-2 rounded-xl border border-border px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-foreground">{label}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {p.isCustom ? t('Custom endpoint — enter rates manually') : t('Priced automatically')}
+                    </p>
                   </div>
-                )
-              })}
-            </div>
-          )}
-
-          <div className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2">
-            <IconInfoCircle size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              {editable.length === 0
-                ? t('Rates apply to every model on a provider. Add an OpenAI-compatible endpoint above to set its pricing.')
-                : t('Rates apply to every model on a provider. Leave a field blank to leave it unset — check the provider’s pricing page for the current numbers.')}
-            </p>
+                  {FIELDS.map((field) => (
+                    <input
+                      key={field}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      disabled={!p.isCustom}
+                      value={p.isCustom ? values[field] : ''}
+                      onChange={(e) => handleChange(p.name, field, e.target.value)}
+                      placeholder={p.isCustom ? '0' : '—'}
+                      aria-label={`${label} · ${t('USD per 1M tokens')}`}
+                      className={cn(SETTINGS_INPUT_CLASS, 'w-full px-2 disabled:cursor-not-allowed disabled:opacity-40')}
+                    />
+                  ))}
+                </div>
+              )
+            })}
           </div>
+        )}
+      </SettingRow>
+
+      <SettingBlock>
+        <div className="flex items-start gap-2.5 rounded-lg bg-muted/40 px-3 py-2.5">
+          <IconInfoCircle size={14} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            {editable.length === 0
+              ? t('Rates apply to every model on a provider. Add an OpenAI-compatible endpoint above to set its pricing.')
+              : t('Rates apply to every model on a provider. Leave a field blank to leave it unset — check the provider’s pricing page for the current numbers.')}
+          </p>
         </div>
-      </SettingsCard>
-    </SettingsGrid>
+      </SettingBlock>
+    </SettingsSection>
   )
 })

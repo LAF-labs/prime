@@ -161,13 +161,13 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
               </button>
             )}
             {isError && (
-              <span className="text-[12px] text-red-600 dark:text-red-400">{error ?? t('Update check failed')}</span>
+              <span className="text-[12px] text-destructive">{error ?? t('Update check failed')}</span>
             )}
             {status === 'idle' && (
               <button
                 type="button"
                 onClick={handleCheck}
-                className="flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <IconCheck className="size-3.5" />
                 {t('Check for updates')}

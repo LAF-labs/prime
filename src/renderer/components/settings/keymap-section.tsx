@@ -1,7 +1,8 @@
 import { t } from '@/lib/i18n'
 import { memo, useState, useCallback } from 'react'
 import { IconSearch } from '@tabler/icons-react'
-import { SectionHeader, SettingsCard, SettingsGrid } from './settings-shared'
+import { cn } from '@/lib/utils'
+import { SectionHeader, SettingsSection, SettingRow, SETTINGS_INPUT_CLASS } from './settings-shared'
 
 import { IS_MAC, MOD_KEY } from '@/lib/platform'
 
@@ -47,35 +48,32 @@ export const KeymapSection = memo(function KeymapSection() {
     <>
       <SectionHeader section="keymap" />
 
-      <div className="relative mb-3">
-        <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-3 -translate-y-1/2 text-muted-foreground/60" />
+      <div className="relative mb-7">
+        <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
         <input
           value={keymapFilter}
           onChange={handleFilterChange}
           placeholder={t('Search shortcuts…')}
           aria-label={t('Search keyboard shortcuts')}
-          className="flex h-7 w-full rounded-md border border-input bg-background/50 pl-8 pr-3 text-[11px] placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={cn(SETTINGS_INPUT_CLASS, 'w-full pl-8')}
         />
       </div>
 
       {groups.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <IconSearch className="size-4 text-muted-foreground/40" />
-          <p className="text-[12px] text-muted-foreground">{t('No matching shortcuts')}</p>
+        <div className="flex flex-col items-center gap-2 py-10">
+          <IconSearch className="size-5 text-muted-foreground/40" />
+          <p className="text-[13px] text-muted-foreground">{t('No matching shortcuts')}</p>
         </div>
       )}
 
       {groups.map((group) => (
-        <SettingsGrid key={group} label={t(group)}>
-          <SettingsCard className="divide-y divide-border/30 !py-0 overflow-hidden">
-            {filtered.filter((e) => e.group === group).map((entry) => (
-              <div key={entry.command} className="flex items-center justify-between px-4 py-2 transition-colors hover:bg-muted/10">
-                <span className="text-[12px] text-foreground/90">{t(entry.command)}</span>
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground/70">{t(entry.keys)}</span>
-              </div>
-            ))}
-          </SettingsCard>
-        </SettingsGrid>
+        <SettingsSection key={group} title={t(group)}>
+          {filtered.filter((e) => e.group === group).map((entry) => (
+            <SettingRow key={entry.command} label={t(entry.command)} className="py-2.5">
+              <kbd className="font-mono text-[12px] font-normal text-muted-foreground">{t(entry.keys)}</kbd>
+            </SettingRow>
+          ))}
+        </SettingsSection>
       ))}
     </>
   )

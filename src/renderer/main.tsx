@@ -63,8 +63,8 @@ class ErrorBoundary extends React.Component<
     // token hex pairs instead of a hardcoded dark palette.
     const isDark = getResolvedTheme(readPersistedTheme()) === 'dark'
     const c = isDark
-      ? { bg: '#262624', fg: '#ecebe6', muted: '#a6a39a', faint: '#73726c', border: '#3a3a3a', danger: '#f87171' }
-      : { bg: '#faf9f5', fg: '#2b2a27', muted: '#73726c', faint: '#9b9a94', border: '#e8e6dc', danger: '#dc2626' }
+      ? { bg: '#262626', fg: '#ececec', muted: '#a1a1a1', faint: '#7a7a7a', border: '#3a3a3a', danger: '#f87171' }
+      : { bg: '#fafafa', fg: '#1f1f1f', muted: '#6e6e6e', faint: '#9a9a9a', border: '#e6e6e6', danger: '#dc2626' }
 
     return (
       <div style={{

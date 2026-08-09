@@ -7,7 +7,14 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useAnalyticsStore } from '@/stores/analyticsStore'
 import { Switch } from '@/components/ui/switch'
 import type { AppSettings } from '@/types'
-import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider, ConfirmDialog } from './settings-shared'
+import { cn } from '@/lib/utils'
+import {
+  SectionHeader, SettingRow, SettingsSection, ConfirmDialog,
+  SETTINGS_INPUT_CLASS, SETTINGS_BUTTON_CLASS,
+} from './settings-shared'
+
+/** Destructive variant of the shared secondary button. */
+const DANGER_BUTTON_CLASS = cn(SETTINGS_BUTTON_CLASS, 'border-destructive/30 text-destructive hover:bg-destructive/10')
 
 const BTW_MIN_CHARS = 100
 const BTW_MAX_CHARS = 10000
@@ -95,124 +102,107 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     <>
       <SectionHeader section="advanced" />
 
-      <SettingsGrid label={t('Concurrency')} description={t('How many agents may run at once')}>
-        <SettingsCard>
-          <SettingRow
-            label={t('Max concurrent agents')}
-            description={
-              isConcurrencyUnlimited
-                ? t('No limit. Every chat you open runs its own agent process — lift the cap only if your machine can take it.')
-                : t('Up to {count} chats run at once. Each one runs its own agent process, so this caps machine load. Set 0 for no limit.', { count: concurrentAgents })
-            }
-          >
-            <input
-              type="number"
-              min={CONCURRENT_AGENTS_MIN}
-              max={CONCURRENT_AGENTS_MAX}
-              step={1}
-              value={concurrentAgents}
-              onChange={handleMaxConcurrentAgentsChange}
-              className="w-20 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
-              aria-label={t('Maximum agents running at once')}
-            />
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
+      <SettingsSection title={t('Behavior')} description={t('How the agent runs and reports back')}>
+        <SettingRow
+          label={t('Max concurrent agents')}
+          description={
+            isConcurrencyUnlimited
+              ? t('No limit. Every chat you open runs its own agent process — lift the cap only if your machine can take it.')
+              : t('Up to {count} chats run at once. Each one runs its own agent process, so this caps machine load. Set 0 for no limit.', { count: concurrentAgents })
+          }
+        >
+          <input
+            type="number"
+            min={CONCURRENT_AGENTS_MIN}
+            max={CONCURRENT_AGENTS_MAX}
+            step={1}
+            value={concurrentAgents}
+            onChange={handleMaxConcurrentAgentsChange}
+            className={cn(SETTINGS_INPUT_CLASS, 'w-20 tabular-nums')}
+            aria-label={t('Maximum agents running at once')}
+          />
+        </SettingRow>
+        <SettingRow label={t('Task completion report')} description={t('Summary card when a task finishes')}>
+          <Switch
+            checked={draft.coAuthorJsonReport ?? true}
+            onCheckedChange={handleReportToggle}
+            aria-label={t('Toggle task completion report')}
+          />
+        </SettingRow>
+        <SettingRow label={t('Side question length limit')} description={t('Side questions (/btw) longer than this are trimmed')}>
+          <input
+            type="number"
+            min={BTW_MIN_CHARS}
+            max={BTW_MAX_CHARS}
+            step={100}
+            value={draft.btwMaxChars ?? BTW_DEFAULT_CHARS}
+            onChange={handleBtwCharsChange}
+            className={cn(SETTINGS_INPUT_CLASS, 'w-20 tabular-nums')}
+            aria-label={t('Max btw question characters')}
+          />
+        </SettingRow>
+      </SettingsSection>
 
-      <SettingsGrid label={t('Reports')} description={t('Task summary cards')}>
-        <SettingsCard>
-          <SettingRow label={t('Task completion report')} description={t('Summary card when a task finishes')}>
-            <Switch
-              checked={draft.coAuthorJsonReport ?? true}
-              onCheckedChange={handleReportToggle}
-              aria-label={t('Toggle task completion report')}
-            />
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
-
-      <SettingsGrid label={t('Side questions')} description={t('Length limit for side questions')}>
-        <SettingsCard>
-          <SettingRow label={t('Side question length limit')} description={t('Side questions (/btw) longer than this are trimmed')}>
-            <input
-              type="number"
-              min={BTW_MIN_CHARS}
-              max={BTW_MAX_CHARS}
-              step={100}
-              value={draft.btwMaxChars ?? BTW_DEFAULT_CHARS}
-              onChange={handleBtwCharsChange}
-              className="w-20 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
-              aria-label={t('Max btw question characters')}
-            />
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
-
-      <SettingsGrid label={t('Data')} description={t('Clear history and analytics')}>
-        <SettingsCard>
-          <SettingRow
-            label={t('Usage statistics')}
-            description={t('Local stats for the dashboard. Nothing ever leaves this machine either way; off records nothing at all.')}
-          >
-            <Switch
-              checked={draft.analyticsEnabled !== false}
-              onCheckedChange={handleAnalyticsToggle}
-              aria-label={t('Toggle usage statistics')}
-            />
-          </SettingRow>
-          <Divider />
-          <SettingRow label={t('Conversation history')} description={t('Clear all threads without resetting settings')}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setIsConfirmHistoryOpen(true)}
-                  aria-label={t('Clear chat history')}
-                  className="flex items-center gap-1.5 rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
-                >
-                  <IconTrash className="size-3" />
-                  {t('Clear')}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t('Permanently delete all threads')}</TooltipContent>
-            </Tooltip>
-          </SettingRow>
-          <Divider />
-          <SettingRow label={t('Analytics data')} description={t('Local stats on disk ({size})', { size: formatBytes(analyticsSize) })}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setIsConfirmAnalyticsOpen(true)}
-                  aria-label={t('Clear analytics data')}
-                  className="flex items-center gap-1.5 rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
-                >
-                  <IconChartBar className="size-3" />
-                  {t('Clear')}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t('Delete local usage statistics')}</TooltipContent>
-            </Tooltip>
-          </SettingRow>
-          <Divider />
-          <SettingRow label={t('Replay onboarding')} description={t('Run the setup wizard again')}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleReplayOnboarding}
-                  aria-label={t('Replay onboarding wizard')}
-                  className="flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <IconRefresh className="size-3" />
-                  {t('Replay')}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t('Run setup wizard again')}</TooltipContent>
-            </Tooltip>
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
+      <SettingsSection title={t('Privacy and data')} description={t('Clear history and analytics')}>
+        <SettingRow
+          label={t('Usage statistics')}
+          description={t('Local stats for the dashboard. Nothing ever leaves this machine either way; off records nothing at all.')}
+        >
+          <Switch
+            checked={draft.analyticsEnabled !== false}
+            onCheckedChange={handleAnalyticsToggle}
+            aria-label={t('Toggle usage statistics')}
+          />
+        </SettingRow>
+        <SettingRow label={t('Conversation history')} description={t('Clear all threads without resetting settings')}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setIsConfirmHistoryOpen(true)}
+                aria-label={t('Clear chat history')}
+                className={DANGER_BUTTON_CLASS}
+              >
+                <IconTrash className="size-3.5" />
+                {t('Clear')}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t('Permanently delete all threads')}</TooltipContent>
+          </Tooltip>
+        </SettingRow>
+        <SettingRow label={t('Analytics data')} description={t('Local stats on disk ({size})', { size: formatBytes(analyticsSize) })}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setIsConfirmAnalyticsOpen(true)}
+                aria-label={t('Clear analytics data')}
+                className={DANGER_BUTTON_CLASS}
+              >
+                <IconChartBar className="size-3.5" />
+                {t('Clear')}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t('Delete local usage statistics')}</TooltipContent>
+          </Tooltip>
+        </SettingRow>
+        <SettingRow label={t('Replay onboarding')} description={t('Run the setup wizard again')}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleReplayOnboarding}
+                aria-label={t('Replay onboarding wizard')}
+                className={SETTINGS_BUTTON_CLASS}
+              >
+                <IconRefresh className="size-3.5" />
+                {t('Replay')}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t('Run setup wizard again')}</TooltipContent>
+          </Tooltip>
+        </SettingRow>
+      </SettingsSection>
 
       <ConfirmDialog
         open={isConfirmHistoryOpen}

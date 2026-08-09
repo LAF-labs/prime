@@ -697,6 +697,8 @@ export const ko: Record<string, string> = {
   'Summary card when a task finishes': '작업 완료 시 요약 카드를 표시합니다',
   'Task completion report': '작업 완료 보고',
   'Theme, icon, and color scheme': '테마, 아이콘, 색상',
+  'Dark, light, or match the system': '다크, 라이트 또는 시스템 설정 따르기',
+  'Select {theme} theme': '{theme} 테마 선택',
   'This permanently deletes all conversation threads. Your settings, onboarding state, and preferences are preserved. This action cannot be undone.':
     '모든 대화 스레드를 영구 삭제합니다. 설정, 온보딩 상태, 환경설정은 유지됩니다. 되돌릴 수 없습니다.',
   'This permanently deletes all local usage statistics. This action cannot be undone.':
@@ -1170,5 +1172,13 @@ export const ko: Record<string, string> = {
   // Crash screen
   'This usually happens when app data gets corrupted. You can reset it to start fresh, or try reloading.':
     '앱 데이터가 손상되었을 때 주로 발생합니다. 초기화해서 새로 시작하거나, 다시 로드해 볼 수 있습니다.',
+
+  // Advanced settings — section headings
+  'Behavior': '동작',
+  'How the agent runs and reports back': '에이전트가 실행되고 결과를 알리는 방식',
+  'Privacy and data': '개인정보 및 데이터',
+  'Close settings': '설정 닫기',
+  'Restore defaults': '기본값으로 되돌리기',
+  'Argument pattern (optional)': '인자 패턴 (선택)',
 }
 

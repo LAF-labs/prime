@@ -4,7 +4,12 @@ import { IconDownload, IconRefresh, IconLoader2 } from '@tabler/icons-react'
 import { useUpdateStore } from '@/stores/updateStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useShallow } from 'zustand/react/shallow'
-import { SettingRow } from './settings-shared'
+import { cn } from '@/lib/utils'
+import { SettingRow, SETTINGS_BUTTON_CLASS } from './settings-shared'
+
+/** Filled variant of the shared control shape, for the one primary action. */
+const PRIMARY_BUTTON_CLASS =
+  'inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50'
 
 export const UpdatesCard = () => {
   const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore(
@@ -80,9 +85,9 @@ export const UpdatesCard = () => {
             type="button"
             onClick={handleDownload}
             disabled={!triggerDownload}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            className={PRIMARY_BUTTON_CLASS}
           >
-            <IconDownload className="size-3" />
+            <IconDownload className="size-3.5" />
             {t('Update now')}
           </button>
         )}
@@ -91,9 +96,9 @@ export const UpdatesCard = () => {
             type="button"
             onClick={handleRestart}
             disabled={!triggerRestart}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            className={PRIMARY_BUTTON_CLASS}
           >
-            <IconRefresh className="size-3" />
+            <IconRefresh className="size-3.5" />
             {t('Restart')}
           </button>
         )}
@@ -102,9 +107,9 @@ export const UpdatesCard = () => {
             type="button"
             onClick={handleCheck}
             disabled={isCheckingState}
-            className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+            className={cn(SETTINGS_BUTTON_CLASS, 'disabled:pointer-events-none disabled:opacity-50')}
           >
-            {isCheckingState ? <IconLoader2 className="size-3 animate-spin" /> : <IconRefresh className="size-3" />}
+            {isCheckingState ? <IconLoader2 className="size-3.5 animate-spin" /> : <IconRefresh className="size-3.5" />}
             {t('Check')}
           </button>
         )}

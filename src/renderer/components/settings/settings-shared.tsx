@@ -73,67 +73,123 @@ export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'Deleted threads', description: 'Restore or permanently remove deleted threads', section: 'archives', keywords: 'deleted threads restore archive trash' },
 ] as const
 
-// ── Reusable components ──────────────────────────────────────────
+// ── Layout primitives ────────────────────────────────────────────
+//
+// One grammar for every settings surface, modelled on the Claude Code
+// settings dialog: a single column of full-width rows, grouped under plain
+// headings and separated by hairlines. No cards, no label gutter — the label
+// sits on the left of its own row and the control on the right.
+
+/** A titled group of rows. Rows separate themselves with hairlines. */
+export const SettingsSection = memo(function SettingsSection({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title?: string
+  description?: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <section className={cn('mb-9 last:mb-0', className)}>
+      {title && (
+        <div className="mb-1">
+          <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
+          {description && <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{description}</p>}
+        </div>
+      )}
+      <div className="divide-y divide-border/60">{children}</div>
+    </section>
+  )
+})
 
 interface SettingRowProps {
   label: string
-  description: string
-  children: React.ReactNode
+  description?: string
+  children?: React.ReactNode
+  /** Stack the control under the label instead of beside it — for controls
+   *  that need the full width (long inputs, grids, lists). */
+  stacked?: boolean
   className?: string
 }
 
-export const SettingRow = memo(function SettingRow({ label, description, children, className }: SettingRowProps) {
-  return (
-    <div className={cn('flex items-center justify-between gap-4 py-2.5', className)}>
-      <div className="min-w-0 flex-1">
-        <p className="text-[12.5px] font-medium text-foreground">{label}</p>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">{description}</p>
+export const SettingRow = memo(function SettingRow({ label, description, children, stacked, className }: SettingRowProps) {
+  if (stacked) {
+    return (
+      <div className={cn('py-4', className)}>
+        <p className="text-[13px] font-medium text-foreground">{label}</p>
+        {description && <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{description}</p>}
+        {children && <div className="mt-3">{children}</div>}
       </div>
-      <div className="shrink-0">{children}</div>
+    )
+  }
+  return (
+    <div className={cn('flex items-center justify-between gap-6 py-4', className)}>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-foreground">{label}</p>
+        {description && <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{description}</p>}
+      </div>
+      {children && <div className="shrink-0">{children}</div>}
     </div>
   )
 })
 
-export const SectionLabel = ({ title }: { title: string }) => (
-  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
-)
+/** Full-bleed block inside a section for content that isn't a labelled row. */
+export const SettingBlock = memo(function SettingBlock({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn('py-4', className)}>{children}</div>
+})
 
 export const SectionHeader = ({ section }: { section: Section }) => {
   const nav = NAV.find((n) => n.id === section)
   if (!nav) return null
   return (
-    <div className="mb-4">
-      <div className="flex items-center gap-2.5">
-        <nav.icon className="size-5 text-primary" />
-        <h3 className="text-[16px] font-semibold text-foreground">{t(nav.label)}</h3>
-      </div>
-      <p className="mt-0.5 text-[12px] text-muted-foreground">{t(nav.sectionDescription)}</p>
+    <div className="mb-7">
+      <h2 className="text-[19px] font-semibold text-foreground">{t(nav.label)}</h2>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{t(nav.sectionDescription)}</p>
     </div>
   )
 }
 
-export const SettingsCard = memo(function SettingsCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn(
-      'rounded-xl border border-border/50 bg-card/70 px-4 py-2 shadow-sm',
-      className,
-    )}>
-      {children}
-    </div>
-  )
-})
+export const Divider = () => <div className="border-t border-border/60" />
 
-export const Divider = () => <div className="border-t border-border/40" />
+/** Shared control shapes so every section's inputs and buttons match. */
+export const SETTINGS_INPUT_CLASS =
+  'h-8 rounded-lg border border-input bg-background px-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
 
-/** Two-column grid: label/description on the left, controls on the right. */
-export const SettingsGrid = ({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) => (
-  <div className="grid grid-cols-[200px_1fr] gap-6">
-    <div className="pt-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      {description && <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/60">{description}</p>}
-    </div>
-    <div>{children}</div>
-  </div>
+export const SETTINGS_BUTTON_CLASS =
+  'inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-[12.5px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
+
+/** Segmented choice: exactly one option active. */
+export const SegmentedOption = ({
+  active,
+  onClick,
+  children,
+  ariaLabel,
+  disabled,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+  ariaLabel?: string
+  disabled?: boolean
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    aria-pressed={active}
+    aria-label={ariaLabel}
+    className={cn(
+      'h-8 rounded-lg border px-3 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40',
+      active
+        ? 'border-ring bg-accent text-foreground'
+        : 'border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+    )}
+  >
+    {children}
+  </button>
 )
 
 // ── Confirm dialog for destructive actions ───────────────────────

@@ -6,7 +6,9 @@ import { cn } from '@/lib/utils'
 import type { AppSettings, ThemeMode } from '@/types'
 import { ipc } from '@/lib/ipc'
 import { Switch } from '@/components/ui/switch'
-import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider } from './settings-shared'
+import {
+  SectionHeader, SettingBlock, SettingRow, SettingsSection, SegmentedOption, SETTINGS_BUTTON_CLASS,
+} from './settings-shared'
 import ThemeSelector from './ThemeSelector'
 import defaultAppIcon from '../../../../src-tauri/icons/prod/icon.png'
 
@@ -60,136 +62,113 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
       <SectionHeader section="appearance" />
 
       {/* ── Look & feel ─────────────────────────────────────── */}
-      <SettingsGrid label={t('Look & feel')} description={t('Theme, icon, and color scheme')}>
-        <SettingsCard>
-          {/* App icon row */}
-          <div className="flex items-center justify-between gap-4 py-2.5">
-            <div className="flex items-center gap-3.5">
-              <img
-                src={displayIcon}
-                alt={t('App icon')}
-                className="size-12 rounded-xl border border-border/60 bg-background/50 object-cover shadow-sm"
-                draggable={false}
-              />
-              <div>
-                <p className="text-[12.5px] font-medium text-foreground">{t('App icon')}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {hasCustomIcon ? t('Custom icon') : t('Default LAF Agent icon')} · {t('About dialog & dock')}
-                </p>
-              </div>
+      <SettingsSection title={t('Look & feel')} description={t('Theme, icon, and color scheme')}>
+        {/* App icon */}
+        <SettingBlock className="flex items-center justify-between gap-6">
+          <div className="flex min-w-0 items-center gap-3.5">
+            <img
+              src={displayIcon}
+              alt={t('App icon')}
+              className="size-11 shrink-0 rounded-xl border border-border object-cover"
+              draggable={false}
+            />
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-foreground">{t('App icon')}</p>
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                {hasCustomIcon ? t('Custom icon') : t('Default LAF Agent icon')} · {t('About dialog & dock')}
+              </p>
             </div>
-            <div className="flex items-center gap-1.5">
-              {hasCustomIcon && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={handleResetIcon}
-                      aria-label={t('Reset to default app icon')}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
-                    >
-                      <IconRotate className="size-3" />
-                      {t('Reset')}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">{t('Reset to default icon')}</TooltipContent>
-                </Tooltip>
-              )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {hasCustomIcon && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={handleUploadIcon}
-                    aria-label={t('Upload custom app icon')}
-                    className="flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    onClick={handleResetIcon}
+                    aria-label={t('Reset to default app icon')}
+                    className={cn(SETTINGS_BUTTON_CLASS, 'border-transparent text-muted-foreground hover:text-foreground')}
                   >
-                    <IconUpload className="size-3" />
-                    {t('Change')}
+                    <IconRotate className="size-3.5" aria-hidden />
+                    {t('Reset')}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">{t('Upload custom icon (max 2 MB)')}</TooltipContent>
+                <TooltipContent side="top">{t('Reset to default icon')}</TooltipContent>
               </Tooltip>
-            </div>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleUploadIcon}
+                  aria-label={t('Upload custom app icon')}
+                  className={SETTINGS_BUTTON_CLASS}
+                >
+                  <IconUpload className="size-3.5" aria-hidden />
+                  {t('Change')}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('Upload custom icon (max 2 MB)')}</TooltipContent>
+            </Tooltip>
           </div>
+        </SettingBlock>
 
-          <Divider />
-
-          {/* Theme row */}
-          <div className="py-3">
-            <p className="mb-2 text-[12.5px] font-medium text-foreground">{t('Theme')}</p>
-            <ThemeSelector
-              value={draft.theme ?? 'dark'}
-              onChange={handleThemeChange}
-            />
-          </div>
-        </SettingsCard>
-      </SettingsGrid>
+        {/* Theme */}
+        <SettingRow stacked label={t('Theme')} description={t('Dark, light, or match the system')}>
+          <ThemeSelector
+            value={draft.theme ?? 'dark'}
+            onChange={handleThemeChange}
+          />
+        </SettingRow>
+      </SettingsSection>
 
       {/* ── Display ─────────────────────────────────────────── */}
-      <SettingsGrid label={t('Display')} description={t('Language and layout')}>
-        <SettingsCard>
-          {/* Language */}
-          <SettingRow label={t('Language')} description={t("App display language — 'System' follows the OS")}>
-            <div className="flex gap-1.5">
-              {([['system', t('System')], ['en', t('English')], ['ko', t('한국어')]] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => handleLanguageChange(value)}
-                  aria-pressed={(draft.language ?? 'system') === value}
-                  className={cn(
-                    'rounded-md border px-2.5 py-1 text-[11.5px] transition-colors',
-                    (draft.language ?? 'system') === value
-                      ? 'border-ring bg-accent text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </SettingRow>
+      <SettingsSection title={t('Display')} description={t('Language and layout')}>
+        {/* Language */}
+        <SettingRow label={t('Language')} description={t("App display language — 'System' follows the OS")}>
+          <div className="flex gap-1.5">
+            {([['system', t('System')], ['en', t('English')], ['ko', t('한국어')]] as const).map(([value, label]) => (
+              <SegmentedOption
+                key={value}
+                active={(draft.language ?? 'system') === value}
+                onClick={() => handleLanguageChange(value)}
+              >
+                {label}
+              </SegmentedOption>
+            ))}
+          </div>
+        </SettingRow>
 
-          {/* Sidebar position */}
-          <SettingRow label={t('Sidebar position')} description={t('Place the sidebar on the left or right')}>
-            <div className="flex gap-1.5">
-              {(['left', 'right'] as const).map((pos) => (
-                <button
-                  key={pos}
-                  type="button"
-                  onClick={() => handleSidebarPositionChange(pos)}
-                  aria-label={pos === 'left' ? t('Sidebar on left') : t('Sidebar on right')}
-                  aria-pressed={(draft.sidebarPosition ?? 'left') === pos}
-                  className={cn(
-                    'rounded-md border px-2.5 py-1 text-[11.5px] transition-colors',
-                    (draft.sidebarPosition ?? 'left') === pos
-                      ? 'border-ring bg-accent text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
-                  )}
-                >
-                  {pos === 'left' ? t('Left') : t('Right')}
-                </button>
-              ))}
-            </div>
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
+        {/* Sidebar position */}
+        <SettingRow label={t('Sidebar position')} description={t('Place the sidebar on the left or right')}>
+          <div className="flex gap-1.5">
+            {(['left', 'right'] as const).map((pos) => (
+              <SegmentedOption
+                key={pos}
+                active={(draft.sidebarPosition ?? 'left') === pos}
+                onClick={() => handleSidebarPositionChange(pos)}
+                ariaLabel={pos === 'left' ? t('Sidebar on left') : t('Sidebar on right')}
+              >
+                {pos === 'left' ? t('Left') : t('Right')}
+              </SegmentedOption>
+            ))}
+          </div>
+        </SettingRow>
+      </SettingsSection>
 
       {/* ── Chat layout ─────────────────────────────────────── */}
-      <SettingsGrid label={t('Chat layout')} description={t('How tool activity appears in threads')}>
-        <SettingsCard>
-          <SettingRow
-            label={t('Inline tool calls')}
-            description={t("Show each tool entry between paragraphs at the moment the agent ran it. When off, tool activity collapses into a single card after the assistant's reply.")}
-          >
-            <Switch
-              checked={draft.inlineToolCalls !== false}
-              onCheckedChange={handleInlineToolCallsChange}
-              aria-label={t('Toggle inline tool calls')}
-            />
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
+      <SettingsSection title={t('Chat layout')} description={t('How tool activity appears in threads')}>
+        <SettingRow
+          label={t('Inline tool calls')}
+          description={t("Show each tool entry between paragraphs at the moment the agent ran it. When off, tool activity collapses into a single card after the assistant's reply.")}
+        >
+          <Switch
+            checked={draft.inlineToolCalls !== false}
+            onCheckedChange={handleInlineToolCallsChange}
+            aria-label={t('Toggle inline tool calls')}
+          />
+        </SettingRow>
+      </SettingsSection>
     </>
   )
 })

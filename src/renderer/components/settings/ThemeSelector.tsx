@@ -19,22 +19,22 @@ const THEME_COLORS: Record<'dark' | 'light', {
   primary: string
 }> = {
   dark: {
-    bg: '#262624',
-    sidebar: '#1f1e1d',
-    card: '#30302e',
-    fg: '#ecebe6',
-    fgMuted: '#57544e',
-    border: 'rgba(236,235,230,0.10)',
-    primary: '#d97757',
+    bg: '#262626',
+    sidebar: '#1e1e1e',
+    card: '#303030',
+    fg: '#ececec',
+    fgMuted: '#555555',
+    border: 'rgba(255,255,255,0.10)',
+    primary: '#1e90ff',
   },
   light: {
-    bg: '#faf9f5',
-    sidebar: '#f5f4ee',
+    bg: '#fafafa',
+    sidebar: '#f4f4f5',
     card: '#ffffff',
-    fg: '#2b2a27',
-    fgMuted: '#d9d5c9',
-    border: '#e8e6dc',
-    primary: '#c96442',
+    fg: '#1f1f1f',
+    fgMuted: '#d4d4d4',
+    border: '#e6e6e6',
+    primary: '#1e90ff',
   },
 }
 
@@ -131,22 +131,22 @@ interface ThemeSelectorProps {
 
 /** Visual theme selector with preview cards for Light, Dark, and System. */
 const ThemeSelector = ({ value, onChange }: ThemeSelectorProps) => (
-  <div className="grid grid-cols-3 gap-3">
+  <div className="grid grid-cols-3 gap-2.5">
     {THEMES.map(({ mode, label }) => {
       const isActive = value === mode
       return (
         <button
           key={mode}
           type="button"
-          aria-label={`Select ${label} theme`}
+          aria-label={t('Select {theme} theme', { theme: t(label) })}
           aria-pressed={isActive}
           onClick={() => onChange(mode)}
           className={cn(
-            'group relative flex flex-col items-center gap-2 rounded-xl border-2 p-2.5 transition-all',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'group flex flex-col items-center gap-2 rounded-xl border p-2 transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
             isActive
-              ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-              : 'border-border/40 hover:border-border hover:bg-accent/30',
+              ? 'border-ring bg-accent'
+              : 'border-border hover:bg-accent/60',
           )}
         >
           {/* Preview */}
@@ -157,14 +157,14 @@ const ThemeSelector = ({ value, onChange }: ThemeSelectorProps) => (
           {/* Label + check */}
           <div className="flex items-center gap-1.5">
             {isActive && (
-              <span className="flex size-4 items-center justify-center rounded-full bg-primary">
-                <IconCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
+              <span className="flex size-3.5 items-center justify-center rounded-full bg-primary">
+                <IconCheck className="size-2.5 text-primary-foreground" strokeWidth={3} aria-hidden />
               </span>
             )}
             <span
               className={cn(
-                'text-xs font-medium',
-                isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground',
+                'text-[12px] font-medium',
+                isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground',
               )}
             >
               {t(label)}

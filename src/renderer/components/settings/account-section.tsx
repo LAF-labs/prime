@@ -3,7 +3,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useT } from '@/lib/i18n'
 import { ProviderKeyManager } from '@/components/ProviderKeyManager'
 import type { AppSettings } from '@/types'
-import { SectionHeader, SettingsCard, SettingsGrid } from './settings-shared'
+import { SectionHeader, SettingBlock, SettingsSection } from './settings-shared'
 import { WebSearchCard } from './websearch-card'
 import { ProviderRatesCard } from './provider-rates-card'
 
@@ -23,13 +23,11 @@ export const AccountSection = memo(function AccountSection({ draft, updateDraft 
   return (
     <>
       <SectionHeader section="account" />
-      <SettingsGrid label={t('AI providers')} description={t('API keys for the models you use. Add as many as you like.')}>
-        <SettingsCard>
-          <div className="py-2">
-            <ProviderKeyManager onChange={handleChange} />
-          </div>
-        </SettingsCard>
-      </SettingsGrid>
+      <SettingsSection title={t('AI providers')} description={t('API keys for the models you use. Add as many as you like.')}>
+        <SettingBlock>
+          <ProviderKeyManager onChange={handleChange} />
+        </SettingBlock>
+      </SettingsSection>
 
       <ProviderRatesCard draft={draft} updateDraft={updateDraft} />
 

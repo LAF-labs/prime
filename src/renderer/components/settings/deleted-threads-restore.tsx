@@ -5,7 +5,6 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useProjectIcon } from '@/hooks/useProjectIcon'
 import { ProjectIcon } from '@/components/sidebar/ProjectIcon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { ConfirmDialog } from './settings-shared'
 import type { SoftDeletedThread } from '@/types'
 
@@ -50,11 +49,11 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
   }
 
   return (
-    <div className="px-5 py-3">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="py-3 first:pt-0 last:pb-0">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <p className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-foreground">
           {icon ? <ProjectIcon icon={icon} /> : <span className="size-3.5 shrink-0 rounded-full bg-muted-foreground/30" />}
-          {displayName}
+          <span className="truncate">{displayName}</span>
         </p>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -62,7 +61,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
               type="button"
               aria-label={t('Delete all threads from {project}', { project: displayName })}
               onClick={() => setIsConfirmDeleteAllOpen(true)}
-              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
+              className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
             >
               <IconTrash className="size-3" />
               <span>{t('Delete all')}</span>
@@ -71,21 +70,21 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
           <TooltipContent side="top">{t('Delete all threads in this project')}</TooltipContent>
         </Tooltip>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col">
         {items.map(([id, { task, deletedAt }]) => (
-          <div key={id} className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted/20">
+          <div key={id} className="group -mx-2 flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent/40">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12.5px] text-foreground/90">{task.name}</p>
-              <p className="text-[11px] text-muted-foreground">{formatTimeRemaining(deletedAt)}</p>
+              <p className="truncate text-[13px] text-foreground">{task.name}</p>
+              <p className="text-[12px] text-muted-foreground">{formatTimeRemaining(deletedAt)}</p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     aria-label={`Restore ${task.name}`}
                     onClick={() => restoreTask(id)}
-                    className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/15 hover:text-primary transition-colors"
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
                   >
                     <IconRestore className="size-3.5" />
                   </button>
@@ -98,7 +97,7 @@ const ProjectGroup = memo(function ProjectGroup({ workspace, items }: ProjectGro
                     type="button"
                     aria-label={`Permanently delete ${task.name}`}
                     onClick={() => setPendingDelete({ id, name: task.name })}
-                    className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
                   >
                     <IconTrash className="size-3.5" />
                   </button>
@@ -136,14 +135,12 @@ export const DeletedThreadsRestore = () => {
 
   if (entries.length === 0) {
     return (
-      <div className={cn('rounded-xl border border-border/50 bg-card/70 px-5 py-6 shadow-sm')}>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-muted/30">
-            <IconTrash className="size-4 text-muted-foreground/70" />
-          </div>
-          <p className="text-[13px] font-medium text-muted-foreground">{t('No deleted threads')}</p>
-          <p className="text-[11px] text-muted-foreground">{t('Deleted threads appear here for 2 days before permanent removal')}</p>
+      <div className="flex flex-col items-center gap-2 py-8 text-center">
+        <div className="flex size-9 items-center justify-center rounded-xl bg-muted/40">
+          <IconTrash className="size-4 text-muted-foreground/70" />
         </div>
+        <p className="text-[13px] font-medium text-foreground">{t('No deleted threads')}</p>
+        <p className="text-[12px] text-muted-foreground">{t('Deleted threads appear here for 2 days before permanent removal')}</p>
       </div>
     )
   }
@@ -156,12 +153,12 @@ export const DeletedThreadsRestore = () => {
   }
 
   return (
-    <div className={cn('rounded-xl border border-border/50 bg-card/70 shadow-sm overflow-hidden')}>
-      <div className="border-b border-border/60 px-5 py-3">
-        <p className="text-[12px] font-medium text-foreground/80">{entries.length === 1 ? t('1 deleted thread') : t('{count} deleted threads', { count: entries.length })}</p>
-        <p className="text-[11px] text-muted-foreground">{t('Permanently removed after 2 days')}</p>
+    <div>
+      <div className="pb-3">
+        <p className="text-[13px] font-medium text-foreground">{entries.length === 1 ? t('1 deleted thread') : t('{count} deleted threads', { count: entries.length })}</p>
+        <p className="mt-1 text-[12px] text-muted-foreground">{t('Permanently removed after 2 days')}</p>
       </div>
-      <div className="divide-y divide-border/20">
+      <div className="divide-y divide-border/60">
         {[...grouped.entries()].map(([ws, items]) => (
           <ProjectGroup key={ws} workspace={ws} items={items} />
         ))}

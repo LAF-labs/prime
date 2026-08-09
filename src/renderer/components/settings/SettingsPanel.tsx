@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
-import { IconX, IconArrowLeft, IconBrandGithub, IconSearch, IconRotate, IconCircleFilled, IconAlertTriangle } from '@tabler/icons-react'
+import { IconX, IconBrandGithub, IconSearch, IconRotate } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore, buildRestoredDefaults } from '@/stores/settingsStore'
 import { useShallow } from 'zustand/react/shallow'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-external'
 import { ipc } from '@/lib/ipc'
@@ -24,10 +22,17 @@ import { AdvancedSection } from './advanced-section'
 import { MemorySection } from './memory-section'
 import { ArchivesSection } from './archives-section'
 
-/** Shallow compare two AppSettings objects to detect unsaved changes */
-const isDirty = (draft: AppSettings, saved: AppSettings): boolean =>
-  JSON.stringify(draft) !== JSON.stringify(saved)
+/** How long after the last edit the draft is written to disk. */
+const AUTOSAVE_DEBOUNCE_MS = 400
 
+/**
+ * Settings, as a dialog over the app rather than a screen that replaces it.
+ *
+ * Changes save themselves: an everyday user should never have to notice a
+ * save button, and the old draft/save/discard triangle meant a mistyped value
+ * could be committed by muscle memory or lost by closing the window. Writes
+ * are debounced and flushed on close.
+ */
 export const SettingsPanel = () => {
   const t = useT()
   const open = useTaskStore((s) => s.isSettingsOpen)
@@ -42,86 +47,101 @@ export const SettingsPanel = () => {
   const [appVersion, setAppVersion] = useState('')
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false)
 
-  const hasDirtyState = useMemo(() => isDirty(draft, settings), [draft, settings])
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingRef = useRef<AppSettings | null>(null)
+  const appliedIconRef = useRef<string | undefined>(settings.customAppIcon)
 
   useEffect(() => { getVersion().then(setAppVersion).catch(() => {}) }, [])
   useEffect(() => { if (open && !authChecked) checkAuth() }, [open, authChecked, checkAuth])
-  useEffect(() => { setDraft(settings) }, [settings])
+
+  // Adopt external changes (another window, a reset) only while there is no
+  // edit of our own in flight, or we would clobber what the user just typed.
+  useEffect(() => {
+    if (!pendingRef.current) setDraft(settings)
+  }, [settings])
 
   useEffect(() => {
     if (open && settingsInitialSection) setSection(settingsInitialSection as Section)
   }, [open, settingsInitialSection])
 
-  const handleAttemptClose = useCallback(() => {
-    if (isDirty(draft, settings)) {
-      setIsUnsavedDialogOpen(true)
-    } else {
-      applyTheme(settings.theme ?? 'dark')
-      setOpen(false)
+  const commit = useCallback(async (next: AppSettings) => {
+    const mode = next.theme ?? 'dark'
+    persistTheme(mode)
+    applyTheme(mode)
+    try {
+      await saveSettings(next)
+    } catch (err) {
+      reportFailure(t('Could not save settings'), err)
+      return
     }
-  }, [draft, settings, setOpen])
+    // Only touch the dock when the icon itself changed — this runs on every
+    // edit now, and re-applying the icon on each keystroke would be silly.
+    if (next.customAppIcon !== appliedIconRef.current) {
+      appliedIconRef.current = next.customAppIcon
+      if (next.customAppIcon) {
+        const base64 = next.customAppIcon.replace(/^data:[^;]+;base64,/, '')
+        attempt(t('Could not change the app icon'), ipc.setDockIcon(base64))
+      } else {
+        attempt(t('Could not change the app icon'), ipc.resetDockIcon())
+      }
+    }
+  }, [saveSettings, t])
+
+  const flush = useCallback(() => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+    const pending = pendingRef.current
+    pendingRef.current = null
+    if (pending) void commit(pending)
+  }, [commit])
+
+  const updateDraft = useCallback((patch: Partial<AppSettings>) => {
+    setDraft((d) => {
+      const next = { ...d, ...patch }
+      pendingRef.current = next
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => {
+        saveTimer.current = null
+        const queued = pendingRef.current
+        pendingRef.current = null
+        if (queued) void commit(queued)
+      }, AUTOSAVE_DEBOUNCE_MS)
+      // Theme is the one setting whose effect must be instant, not debounced.
+      if (patch.theme) applyTheme(patch.theme)
+      return next
+    })
+  }, [commit])
+
+  const handleClose = useCallback(() => {
+    flush()
+    setOpen(false)
+  }, [flush, setOpen])
 
   useEffect(() => {
     if (!open) return
     setSearchQuery('')
-    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') handleAttemptClose() }
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, handleAttemptClose])
+  }, [open, handleClose])
 
-  useEffect(() => {
-    if (!open) return
-    applyTheme(draft.theme ?? 'dark')
-  }, [open, draft.theme])
-
-  const handleSave = useCallback(async () => {
-    const mode = draft.theme ?? 'dark'
-    persistTheme(mode)
-    applyTheme(mode)
-    // Awaited: closing the panel on a failed save shows the settings applied
-    // when they were not, and the user discovers the revert on next launch.
-    try {
-      await saveSettings(draft)
-    } catch (err) {
-      reportFailure(t('Could not save settings'), err)
-      return // stay open — the draft is still theirs to retry or discard
-    }
-    // Apply or reset dock icon
-    if (draft.customAppIcon) {
-      const base64 = draft.customAppIcon.replace(/^data:[^;]+;base64,/, '')
-      attempt(t('Could not change the app icon'), ipc.setDockIcon(base64))
-    } else {
-      attempt(t('Could not change the app icon'), ipc.resetDockIcon())
-    }
-    setIsUnsavedDialogOpen(false)
-    setOpen(false)
-  }, [draft, saveSettings, setOpen, t])
-
-  const handleClose = useCallback(() => {
-    applyTheme(settings.theme ?? 'dark')
-    setOpen(false)
-  }, [settings.theme, setOpen])
-
-
-  const handleDiscardAndClose = useCallback(() => {
-    setIsUnsavedDialogOpen(false)
-    applyTheme(settings.theme ?? 'dark')
-    setDraft(settings)
-    setOpen(false)
-  }, [settings, setOpen])
+  // A pending write must not die with the component (window close, reload).
+  useEffect(() => () => flush(), [flush])
 
   // Resets only the user-tunable fields; onboarding state, theme, language,
   // project prefs, and the custom icon survive. A wholesale default object
   // here once wiped `hasOnboardedV2` and dropped users back into the wizard.
   const handleRestoreDefaults = useCallback(() => {
-    setDraft((d) => buildRestoredDefaults(d))
-  }, [])
-
-  const updateDraft = useCallback((patch: Partial<AppSettings>) => {
-    setDraft((d) => ({ ...d, ...patch }))
-  }, [])
+    setDraft((d) => {
+      const next = buildRestoredDefaults(d)
+      pendingRef.current = next
+      return next
+    })
+    flush()
+  }, [flush])
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -140,55 +160,58 @@ export const SettingsPanel = () => {
 
   if (!open) return null
 
-  // Group nav items for rendering with labels
   const navGroups = NAV.reduce<Array<{ group: NavGroup; items: typeof NAV }>>((acc, item) => {
     const last = acc[acc.length - 1]
-    if (last && last.group === item.group) {
-      last.items.push(item)
-    } else {
-      acc.push({ group: item.group, items: [item] })
-    }
+    if (last && last.group === item.group) last.items.push(item)
+    else acc.push({ group: item.group, items: [item] })
     return acc
   }, [])
 
   return (
-    <div data-testid="settings-panel" className="fixed inset-0 z-50 flex animate-in fade-in-0 duration-150">
-      <div className="absolute inset-0 bg-background/95 backdrop-blur-xl" />
+    <div
+      data-testid="settings-panel"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-in fade-in-0 duration-150"
+    >
+      {/* Backdrop — the app stays visible behind it, dimmed. */}
+      <button
+        type="button"
+        aria-label={t('Close settings')}
+        onClick={handleClose}
+        className="absolute inset-0 cursor-default bg-black/45 backdrop-blur-[2px]"
+      />
 
-      <div className="relative z-10 flex w-full">
-        {/* Sidebar */}
-        <nav data-testid="settings-nav" className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar px-2 pt-12 pb-3">
-          <div className="mb-4 px-2">
-            <h2 className="text-[15px] font-semibold text-foreground">{t('Settings')}</h2>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">{t('Configure LAF Agent')}</p>
-          </div>
-
-          {/* Search */}
-          <div className="relative mb-3 px-2">
-            <IconSearch className="pointer-events-none absolute left-4.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('Settings')}
+        className="relative z-10 flex h-[min(680px,88vh)] w-[min(960px,94vw)] overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl animate-in zoom-in-95 duration-150"
+      >
+        {/* Nav column */}
+        <nav data-testid="settings-nav" className="flex w-[212px] shrink-0 flex-col border-r border-border bg-muted/40 p-3">
+          <div className="relative mb-3">
+            <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('Search settings…')}
+              placeholder={t('Search')}
               aria-label={t('Search settings')}
-              className="flex h-7 w-full rounded-lg border border-input bg-background/50 pl-8 pr-3 text-[12px] placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-8 w-full rounded-lg border border-input bg-background pl-8 pr-3 text-[12.5px] placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             />
           </div>
 
-          {/* Search results dropdown */}
           {searchResults !== null && searchResults.length > 0 ? (
-            <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-1">
+            <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
               {searchResults.map((item) => {
                 const navItem = NAV.find((n) => n.id === item.section)
                 return (
                   <button
                     key={`${item.section}-${item.label}`}
                     onClick={() => handleSearchResultClick(item.section)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-foreground"
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
                   >
                     {navItem && <navItem.icon className="size-3.5 shrink-0 text-muted-foreground/60" />}
                     <div className="min-w-0">
-                      <p className="text-[12px] font-medium text-foreground">{t(item.label)}</p>
+                      <p className="truncate text-[12.5px] font-medium text-foreground">{t(item.label)}</p>
                       <p className="truncate text-[11px] text-muted-foreground">{t(item.description)}</p>
                     </div>
                   </button>
@@ -196,11 +219,10 @@ export const SettingsPanel = () => {
               })}
             </div>
           ) : (
-            /* Grouped nav */
-            <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto" role="tablist" aria-label={t('Settings sections')}>
+            <div className="flex flex-1 flex-col overflow-y-auto" role="tablist" aria-label={t('Settings sections')}>
               {navGroups.map(({ group, items }, groupIdx) => (
-                <div key={group} className={cn(groupIdx > 0 && 'mt-2.5')}>
-                  <p className="mb-1 px-2 text-[12px] font-medium uppercase tracking-wider text-muted-foreground">
+                <div key={group} className={cn(groupIdx > 0 && 'mt-4')}>
+                  <p className="mb-1 px-2 text-[11px] font-medium text-muted-foreground">
                     {t(NAV_GROUP_LABELS[group])}
                   </p>
                   {items.map((item) => (
@@ -210,14 +232,16 @@ export const SettingsPanel = () => {
                       aria-selected={section === item.id}
                       onClick={() => setSection(item.id)}
                       className={cn(
-                        'flex w-full h-8 items-center gap-2 rounded-lg px-2 text-left transition-colors',
+                        'flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors',
+                        // Selected has to out-read hover, or the two states are
+                        // indistinguishable while the pointer rests in the list.
                         section === item.id
-                          ? 'bg-accent/85 dark:bg-accent/55 text-foreground font-medium'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                          ? 'bg-primary/12 font-medium text-foreground ring-1 ring-inset ring-primary/35'
+                          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                       )}
                     >
-                      <item.icon className={cn('size-4 shrink-0', section === item.id ? 'text-foreground' : 'opacity-60')} />
-                      <span className="text-[14px] leading-tight">{t(item.label)}</span>
+                      <item.icon className={cn('size-4 shrink-0', section === item.id ? 'text-foreground' : 'opacity-70')} />
+                      <span className="truncate text-[13px]">{t(item.label)}</span>
                     </button>
                   ))}
                 </div>
@@ -225,115 +249,79 @@ export const SettingsPanel = () => {
             </div>
           )}
 
-          <div className="mt-auto px-2 pt-3 border-t border-border space-y-1">
+          <div className="mt-auto space-y-1 border-t border-border pt-2.5">
             <button
-              onClick={handleAttemptClose}
-              className="flex w-full h-8 items-center gap-2 rounded-lg px-2 text-[14px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              type="button"
+              onClick={handleRestoreDefaults}
+              className="flex h-7 w-full items-center gap-2 rounded-lg px-2 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <IconArrowLeft className="size-4" />
-              {t('Back')}
+              <IconRotate className="size-3.5" />
+              {t('Restore defaults')}
             </button>
-            <div className="flex items-center justify-between px-2 py-1">
-              <button type="button" onClick={() => setIsAboutOpen(true)} className="text-left transition-colors hover:text-foreground">
-                <p className="text-[11px] text-muted-foreground">LAF Agent {appVersion ? `v${appVersion}` : ''}</p>
+            <div className="flex items-center justify-between px-2">
+              <button type="button" onClick={() => setIsAboutOpen(true)} className="text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+                LAF Agent {appVersion ? `v${appVersion}` : ''}
               </button>
-              <a href="https://laf-co.com/" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown} aria-label={t('LAF Agent website')} tabIndex={0} className="text-muted-foreground transition-colors hover:text-foreground">
+              <a
+                href="https://laf-co.com/"
+                onClick={handleExternalLinkClick}
+                onKeyDown={handleExternalLinkKeyDown}
+                aria-label={t('LAF Agent website')}
+                tabIndex={0}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
                 <IconBrandGithub className="size-3.5" />
               </a>
             </div>
-            <a
-              href="https://github.com/PrimeIntellect-ai/prime-agent"
-              onClick={handleExternalLinkClick}
-              onKeyDown={handleExternalLinkKeyDown}
-              tabIndex={0}
-              className="block px-2 pb-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
-            >
-              {t('Powered by Prime Agent (PrimeIntellect-ai/prime-agent)')}
-            </a>
           </div>
         </nav>
 
-        {/* Main content */}
-        <div className="flex flex-1 flex-col min-h-0">
-          <div className="flex h-14 shrink-0 items-center justify-between border-b border-border/60 px-6">
-            <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-              <span>{t('Settings')}</span>
-              <span className="text-muted-foreground/40">/</span>
-              <span className="text-foreground/80 font-medium">{searchResults !== null ? t('Search') : t(NAV.find((n) => n.id === section)?.label ?? '')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={handleRestoreDefaults}
-                    className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    aria-label={t('Restore default settings')}
-                  >
-                    <IconRotate className="size-3.5" />
-                    {t('Defaults')}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t('Restore all settings to defaults')}</TooltipContent>
-              </Tooltip>
-              <button onClick={handleAttemptClose} className="rounded-lg border border-border/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{t('Cancel')}</button>
-              <button
-                onClick={handleSave}
-                data-testid="settings-save-button"
-                className={cn(
-                  'relative rounded-lg px-4 py-1.5 text-[12px] font-medium transition-colors',
-                  hasDirtyState
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-primary/60 text-primary-foreground/70 cursor-default',
-                )}
-              >
-                {hasDirtyState && (
-                  <IconCircleFilled className="absolute -right-1 -top-1 size-2.5 text-amber-600 dark:text-amber-400" />
-                )}
-                {t('Save changes')}
-              </button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={handleAttemptClose} data-testid="settings-close-button" className="ml-1 flex size-7 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground">
-                    <IconX className="size-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t('Close')} <kbd className="ml-1 rounded-sm bg-muted px-1 text-[11px]">{t('Esc')}</kbd></TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
+        {/* Content column */}
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <button
+            type="button"
+            onClick={handleClose}
+            data-testid="settings-close-button"
+            aria-label={t('Close')}
+            className="absolute right-4 top-4 z-10 flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <IconX className="size-4" />
+          </button>
 
-          <div className="flex-1 overflow-y-auto px-8 py-6">
-            <div className="mx-auto max-w-4xl space-y-5">
+          <div className="flex-1 overflow-y-auto px-9 py-8">
+            <div className="mx-auto max-w-[640px]">
               {searchResults !== null ? (
                 searchResults.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 py-20 text-center">
                     <IconSearch className="size-5 text-muted-foreground/40" />
                     <p className="text-[13px] text-muted-foreground">{t('No settings match "{query}"', { query: searchQuery })}</p>
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="mt-1 rounded-lg border border-border/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      className="mt-1 rounded-lg border border-border px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
                       {t('Clear search')}
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <p className="mb-3 text-[12px] text-muted-foreground">{searchResults.length === 1 ? t('1 result') : t('{count} results', { count: searchResults.length })}</p>
+                  <div className="divide-y divide-border/60">
+                    <p className="pb-3 text-[12px] text-muted-foreground">
+                      {searchResults.length === 1 ? t('1 result') : t('{count} results', { count: searchResults.length })}
+                    </p>
                     {searchResults.map((item) => {
                       const navItem = NAV.find((n) => n.id === item.section)
                       return (
                         <button
                           key={`${item.section}-${item.label}`}
                           onClick={() => handleSearchResultClick(item.section)}
-                          className="flex w-full items-center gap-3 rounded-xl border border-border/50 bg-card/70 px-5 py-3.5 text-left transition-colors hover:bg-accent/50"
+                          className="flex w-full items-center gap-3 py-3.5 text-left transition-colors hover:bg-accent/40"
                         >
                           {navItem && <navItem.icon className="size-4 shrink-0 text-muted-foreground/60" />}
                           <div className="min-w-0 flex-1">
                             <p className="text-[13px] font-medium text-foreground">{t(item.label)}</p>
-                            <p className="text-[11px] text-muted-foreground">{t(item.description)}</p>
+                            <p className="text-[12px] text-muted-foreground">{t(item.description)}</p>
                           </div>
-                          <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{t(navItem?.label ?? '')}</span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground">{t(navItem?.label ?? '')}</span>
                         </button>
                       )
                     })}
@@ -353,60 +341,8 @@ export const SettingsPanel = () => {
               )}
             </div>
           </div>
-
-          {/* Sticky save bar */}
-          {hasDirtyState && (
-            <div className="shrink-0 border-t border-border/60 bg-card/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
-              <p className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                <IconCircleFilled className="size-2 text-amber-600 dark:text-amber-400" />
-                {t('You have unsaved changes')}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setDraft(settings)}
-                  className="rounded-lg border border-border/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  {t('Discard')}
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="rounded-lg bg-primary px-4 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  {t('Save changes')}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
-
-      <Dialog open={isUnsavedDialogOpen} onOpenChange={setIsUnsavedDialogOpen}>
-        <DialogContent className="max-w-sm" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <IconAlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
-              {t('Unsaved changes')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('You have unsaved settings changes. Do you want to save them before leaving?')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <button
-              onClick={handleDiscardAndClose}
-              className="rounded-lg border border-border/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-            >
-              {t('Discard')}
-            </button>
-            <button
-              onClick={handleSave}
-              className="rounded-lg bg-primary px-4 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              {t('Save and close')}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <AboutDialog open={isAboutOpen} onOpenChange={setIsAboutOpen} />
     </div>

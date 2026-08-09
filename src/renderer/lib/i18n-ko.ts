@@ -213,6 +213,11 @@ export const ko: Record<string, string> = {
   'Scroll to bottom': '맨 아래로',
   'Select mode': '모드 선택',
   'Select permissions': '권한 선택',
+  // Tool call row results
+  '{n} result': '결과 {n}개',
+  '{n} results': '결과 {n}개',
+  '{n} line': '{n}줄',
+  '{n} lines': '{n}줄',
   // Reasoning effort (thinking level)
   'Reasoning effort': '추론 강도',
   'Select reasoning effort': '추론 강도 선택',

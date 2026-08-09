@@ -16,6 +16,7 @@ import { FileTypeIcon } from '@/components/file-tree/FileTypeIcon'
 import { ReadOutput, parseReadInput } from './ReadOutput'
 import { isFetchToolCall, getFetchMeta, shortenUrl, formatBytes, formatDuration } from './fetch-display'
 import { getToolDetail, formatToolDuration } from './tool-call-detail'
+import { getToolCallSummary, unwrapResultText, type ToolCallSummary } from './tool-call-summary'
 
 /** File badge pill with material icon */
 const FileBadge = memo(function FileBadge({ path, isDir = false }: { path: string; isDir?: boolean }) {
@@ -91,7 +92,11 @@ const StatusIcon = memo(function StatusIcon({ status }: { status?: string }) {
 
 export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCall: ToolCall }) {
   const isRunning = toolCall.status === 'in_progress'
-  const [expanded, setExpanded] = useState(isRunning)
+  // Always collapsed, running or not. Auto-expanding while a turn streamed put
+  // every command's full input and output on screen at once, which is exactly
+  // when the transcript needs to stay readable. Claude Code and Codex both keep
+  // the row at one line and let the user open it.
+  const [expanded, setExpanded] = useState(false)
   const [fileDiff, setFileDiff] = useState<string | null>(null)
   const [diffLoading, setDiffLoading] = useState(false)
   const Icon = getToolIcon(toolCall.kind, toolCall.title)
@@ -115,6 +120,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
   })()
 
   const toolDetail = !isFetchOp ? getToolDetail(toolCall) : null
+  const summary = getToolCallSummary(toolCall)
 
   const hasContent = !!(
     toolCall.content?.length ||
@@ -163,7 +169,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
   const hasDiff = fileDiff !== null && fileDiff.length > 0
 
   // Build right-side metadata
-  const rightMeta = buildRightMeta(fetchMeta, toolDetail, null)
+  const rightMeta = buildRightMeta(fetchMeta, toolDetail, summary)
 
   return (
     <div data-testid="tool-call-entry" className={cn(
@@ -192,20 +198,22 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
           <Icon className={cn('size-3', colors.icon)} />
         </span>
 
-        {/* Title + file badge + preview */}
-        <span className="min-w-0 flex-1 flex items-center gap-1.5 truncate">
+        {/*
+          Verb + one argument, on one line. `min-w-0` on both the flex parent
+          and the truncating child is what actually lets the argument shrink —
+          without it the row grows past the panel and pushes the status icon
+          out of view, which is what long shell commands used to do.
+        */}
+        <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
           <span className={cn(
             'shrink-0 font-medium',
             isRunning ? 'text-foreground' : 'text-foreground/80',
           )}>
-            {toolCall.title}
+            {summary.label}
           </span>
 
-          {/* File badge */}
-          {firstPath && <FileBadge path={firstPath} isDir={isDirectoryOp} />}
-
-          {/* Fetch URL */}
-          {fetchMeta?.url && (
+          {/* Fetch keeps its clickable URL; everything else is plain text. */}
+          {fetchMeta?.url ? (
             <span
               // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- rendered inside the row <button>; a nested <a> would be invalid interactive nesting
               role="link"
@@ -221,18 +229,20 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
                 void ipc.openUrl(fetchMeta.url!)
               }}
               title={fetchMeta.url}
-              className="truncate font-mono text-[11px] text-primary/80 underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
+              className="min-w-0 truncate font-mono text-[11px] text-primary/80 underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
             >
               {shortenUrl(fetchMeta.url)}
             </span>
-          )}
-
-          {/* Tool detail preview (search query, command, etc.) */}
-          {toolDetail?.preview && !firstPath && (
-            <span className="truncate text-[11px] text-muted-foreground/70 font-mono">
-              {toolDetail.preview}
+          ) : summary.arg ? (
+            <span
+              title={summary.arg}
+              className="min-w-0 truncate font-mono text-[11px] text-muted-foreground/80"
+            >
+              {/* Trailing slash is the only thing distinguishing a directory
+                  listing from a file read once the icon is shared. */}
+              {summary.argIsPath && isDirectoryOp ? `${summary.arg}/` : summary.arg}
             </span>
-          )}
+          ) : null}
         </span>
 
         {/* Right metadata */}
@@ -326,10 +336,16 @@ export const ToolCallEntry = memo(function ToolCallEntry({ toolCall }: { toolCal
 
 // ── Right-side metadata builder ──────────────────────────────────
 
+/**
+ * Right edge of the row: what the call produced, then how long it took.
+ *
+ * The argument itself never appears here — it lives in the row's single line —
+ * so this stays short enough to survive a narrow panel.
+ */
 function buildRightMeta(
   fetchMeta: ReturnType<typeof getFetchMeta> | null,
   toolDetail: ReturnType<typeof getToolDetail> | null,
-  shortPath: string | null,
+  summary: ToolCallSummary | null,
 ): string | null {
   if (fetchMeta) {
     const parts = [
@@ -339,17 +355,14 @@ function buildRightMeta(
     return parts.length > 0 ? parts.join(' · ') : null
   }
 
-  if (toolDetail) {
-    const parts = [
-      toolDetail.preview && shortPath ? toolDetail.preview : null,
-      toolDetail.durationMs != null && toolDetail.durationMs >= 200
-        ? formatToolDuration(toolDetail.durationMs)
-        : null,
-    ].filter(Boolean)
-    return parts.length > 0 ? parts.join(' · ') : null
-  }
-
-  return null
+  const parts = [
+    summary?.result ?? null,
+    // Sub-200ms calls are noise; the reader cannot act on them.
+    toolDetail?.durationMs != null && toolDetail.durationMs >= 200
+      ? formatToolDuration(toolDetail.durationMs)
+      : null,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 // ── Smarter rendering for rawInput / rawOutput ───────────────────
@@ -430,7 +443,11 @@ const RawInputOutput = memo(function RawInputOutput({
 })
 
 const FallbackRaw = memo(function FallbackRaw({ label, raw }: { label: string; raw: unknown }) {
-  const text = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2) ?? ''
+  // Prefer the text the tool actually produced. prime-agent wraps results as
+  // `{content:[{type:"text",text}]}`, and dumping that envelope as JSON filled
+  // the panel with `{"content":[{"text":` instead of the output being read.
+  const unwrapped = unwrapResultText(raw)
+  const text = unwrapped ?? (typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2) ?? '')
   return (
     <div>
       <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">{label}</p>

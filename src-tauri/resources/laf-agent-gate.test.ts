@@ -102,13 +102,40 @@ describe('gate web search', () => {
     process.env.LAF_WEB_SEARCH_URL = base
     const { payloadHook } = await loadGate()
     const patched = payloadHook?.({
-      payload: { model: 'claude-fable-5', messages: [], tools: [{ name: 'web_search' }, { name: 'read' }] },
+      payload: {
+        model: 'claude-fable-5',
+        system: 'You are a coding agent.',
+        messages: [],
+        tools: [{ name: 'web_search' }, { name: 'read', input_schema: { type: 'object' } }],
+      },
     }) as { payload: { tools: Record<string, unknown>[] } } | undefined
 
     const tools = patched?.payload.tools ?? []
     expect(tools.filter((t) => t.name === 'web_search')).toHaveLength(1)
     expect(tools.find((t) => t.name === 'web_search')?.type).toBe('web_search_20250305')
     expect(tools.some((t) => t.name === 'read')).toBe(true)
+  })
+
+  it('leaves a gateway reselling claude-* over chat-completions untouched', async () => {
+    // OpenCode Zen lists bare ids like `claude-sonnet-5` on an OpenAI-shaped
+    // endpoint. Injecting a Messages-API tool there rejects the whole turn.
+    process.env.LAF_WEB_SEARCH_URL = base
+    const { payloadHook } = await loadGate()
+    const patched = payloadHook?.({
+      payload: {
+        model: 'claude-sonnet-5',
+        messages: [{ role: 'system', content: 'You are a coding agent.' }],
+        tools: [{ type: 'function', function: { name: 'read', parameters: { type: 'object' } } }],
+      },
+    })
+    expect(patched).toBeUndefined()
+  })
+
+  it('does not inject when nothing identifies the dialect', async () => {
+    process.env.LAF_WEB_SEARCH_URL = base
+    const { payloadHook } = await loadGate()
+    const patched = payloadHook?.({ payload: { model: 'claude-sonnet-5', messages: [] } })
+    expect(patched).toBeUndefined()
   })
 
   it('replaces its own web_search with the server-side tool on the Responses API', async () => {

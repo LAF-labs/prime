@@ -526,7 +526,23 @@ function isAnthropicPayload(p: Record<string, unknown>): boolean {
 	// Messages API payloads carry `max_tokens` + `messages`, and models are
 	// named `claude-*`; the Responses API uses `input` instead of `messages`.
 	const model = typeof p.model === "string" ? p.model : "";
-	return model.startsWith("claude") && Array.isArray(p.messages);
+	if (!model.startsWith("claude") || !Array.isArray(p.messages)) return false;
+
+	// The model name is not enough on its own. Gateways — OpenCode Zen and
+	// OpenRouter among them — resell Anthropic models under bare `claude-*`
+	// ids over OpenAI chat-completions, which also carries `model` + `messages`.
+	// Verified against OpenCode Zen's /models: it lists `claude-sonnet-5`,
+	// `claude-opus-5`, and friends with no vendor prefix.
+	//
+	// Two fields separate the dialects. Chat-completions wraps every tool as
+	// `{type: "function", function: {…}}` and puts the system prompt inside
+	// `messages`; the Messages API declares tools with a top-level
+	// `input_schema` and takes `system` as its own parameter. Require a
+	// positive Anthropic signal rather than merely failing to spot an OpenAI
+	// one: a missed injection costs the model its search, while a wrong one
+	// sends a Messages-API tool to an endpoint that rejects the whole turn.
+	if (hasTool(p.tools, (t) => t.type === "function")) return false;
+	return p.system !== undefined || hasTool(p.tools, (t) => "input_schema" in t);
 }
 
 function isOpenAiResponsesPayload(p: Record<string, unknown>): boolean {

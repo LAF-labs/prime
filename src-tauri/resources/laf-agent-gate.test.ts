@@ -167,3 +167,80 @@ describe('gate web search', () => {
     expect(patched).toBeUndefined()
   })
 })
+
+/**
+ * Article extraction. This replaced a hand-written regex stripper: pulling an
+ * article out of a page is a solved problem, and Readability — the library
+ * behind Firefox Reader View — solves it for far more of the web than a
+ * regex ever could. What the tests pin is the contract around it: a title
+ * when there is an article, and a graceful fall back to the whole document
+ * when there is not.
+ */
+describe('gate article extraction', () => {
+  let server: Server
+  let base: string
+
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://localhost')
+      if (url.pathname === '/article') {
+        res.writeHead(200, { 'content-type': 'text/html' })
+        res.end(`<!doctype html><html><head><title>Quarterly report</title></head><body>
+          <nav>Home About Contact Login Sign up Products Pricing Blog Careers</nav>
+          <article><h1>Quarterly report</h1>
+          <p>${'Revenue reached four hundred and twenty million won this quarter, up twelve percent. '.repeat(8)}</p>
+          <p>${'Growth came from new customers and a higher repeat-purchase rate. '.repeat(8)}</p>
+          </article>
+          <footer>Copyright notice, terms of service, privacy policy</footer></body></html>`)
+        return
+      }
+      if (url.pathname === '/json') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ name: 'left-pad', version: '1.3.0' }))
+        return
+      }
+      // A fragment with no article structure at all.
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end('<html><body><div>짧은 안내문</div></body></html>')
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  })
+
+  it('returns the article body with its title, and drops the page furniture', async () => {
+    const { tools } = await loadGate()
+    const result = (await tools.get('web_fetch')?.execute('c', { url: `${base}/article` })) as {
+      content: { text: string }[]
+      details: { title: string }
+    }
+    const text = result.content[0]?.text ?? ''
+    expect(result.details.title).toBe('Quarterly report')
+    expect(text).toContain('four hundred and twenty million won')
+    expect(text).not.toContain('privacy policy')
+    expect(text).not.toContain('Sign up')
+  })
+
+  /** Readability finds no article in an API response; the body still has to arrive. */
+  it('falls back to the raw body for a non-article response', async () => {
+    const { tools } = await loadGate()
+    const result = (await tools.get('web_fetch')?.execute('c', { url: `${base}/json` })) as {
+      content: { text: string }[]
+      details: { title: string }
+    }
+    expect(result.details.title).toBe('')
+    expect(result.content[0]?.text).toContain('"left-pad"')
+  })
+
+  it('falls back for a page too short to be an article', async () => {
+    const { tools } = await loadGate()
+    const result = (await tools.get('web_fetch')?.execute('c', { url: `${base}/fragment` })) as {
+      content: { text: string }[]
+      details: { title: string }
+    }
+    expect(result.content[0]?.text).toContain('짧은 안내문')
+  })
+})

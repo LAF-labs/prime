@@ -71,6 +71,15 @@ const pkg = {
     // OS-level bash sandbox used by the LAF gate (sandbox-exec / bubblewrap).
     // Not a harness dependency — pinned here, resolved by the gate at runtime.
     '@anthropic-ai/sandbox-runtime': '0.0.70',
+    // Article extraction for the gate's web_fetch. Readability is the library
+    // behind Firefox Reader View; linkedom gives it a DOM without pulling in
+    // jsdom. Both resolved by the gate at runtime, like the sandbox above.
+    //
+    // This replaced a hand-written regex stripper. Measured on the same pages:
+    // Wikipedia 1,011 KB -> 79 KB of prose with a title, and a Korean wiki
+    // 462 KB -> 7 KB that the regex version could not extract at all.
+    '@mozilla/readability': '0.6.0',
+    'linkedom': '0.18.13',
   },
 };
 fs.writeFileSync(`${out}/package.json`, JSON.stringify(pkg, null, 1));

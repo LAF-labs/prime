@@ -33,6 +33,21 @@ Node.js distribution's `LICENSE` file.
 `zeromq` links libzmq, which is MPL-2.0. A copy of the MPL-2.0 text is
 included with that package; its source is at https://github.com/zeromq/libzmq.
 
+## Bundled for the permission gate
+
+Pinned by `scripts/build-sidecar.sh` and resolved at runtime by
+`resources/laf-agent-gate.ts`. They are not harness dependencies — the gate
+is LAF Agent's own extension.
+
+| Package | Version | License | Source |
+|---|---|---|---|
+| @anthropic-ai/sandbox-runtime | 0.0.70 | MIT | https://github.com/anthropics/sandbox-runtime |
+| @mozilla/readability | 0.6.0 | Apache-2.0 | https://github.com/mozilla/readability |
+| linkedom | 0.18.13 | ISC | https://github.com/WebReflection/linkedom |
+
+Readability is the article-extraction library behind Firefox Reader View;
+`linkedom` supplies it a DOM outside a browser.
+
 ## Downloaded at first run
 
 Setting up the agent's Python kernel downloads, into the user's home

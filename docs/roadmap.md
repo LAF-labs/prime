@@ -295,8 +295,8 @@ recording:
 3. **`web_fetch` returned navigation, not content.** A Wikipedia article came
    back as 40,000 characters of menus with the prose past the truncation
    limit; the model fetched twice, got the same wall of chrome, and gave up.
-   Fetches now extract the article region first — "Guido van Rossum" moved
-   from beyond 40,000 characters to character 981.
+   The first fix was a hand-written regex stripper, which was the wrong thing
+   to write — see *Adopt, don't reimplement* below.
 4. **The page limit belongs to the model class, not the tool.** 40,000
    characters is fine for a large model and far too much for the small ones
    this profile serves; a single article at that size pushed a child past its
@@ -310,23 +310,48 @@ that was mistaken for a dead tool — `tool_execution_start`, no
 `write_file` reproduces it identically. Before concluding a tool is dead,
 check that something is answering its dialogs.
 
+### Adopt, don't reimplement
+
+Article extraction was written from scratch as a regex stripper. It worked on
+the page it was tested against and would have kept failing quietly on the
+rest of the web. It is now `@mozilla/readability` — the library behind
+Firefox Reader View — over `linkedom` for a DOM. Measured on the same pages:
+
+| Page | Raw | Regex version | Readability |
+|---|---|---|---|
+| Wikipedia (Python) | 1,011 KB | 40 KB, no title | 79 KB of prose, title extracted |
+| 나무위키 (파이썬) | 462 KB | not extractable | 7 KB, correct Korean body and title |
+| npm registry JSON | 22 KB | passthrough | passthrough (no article found) |
+
+The regex path stays as the fallback: Readability is a *reader*, and finds no
+article in a JSON endpoint or a bare fragment, which still have to come back
+as something. Cost is 6.8 MB in a 201 MB sidecar, Apache-2.0 and ISC, both
+recorded in `THIRD-PARTY-NOTICES.md`.
+
+The rule this is an instance of: before writing something, check whether it
+is a solved problem with a decade of tuning behind it. Candidates still worth
+auditing under that rule — the tool-argument repair table, the research
+fan-out orchestration, and the permission-rule matcher — each of which was
+written here rather than adopted.
+
 ### Still open
 
 - **Scheduled tasks.** `cron-jobs` exists in the fork and is dormant.
   "Summarize my inbox every morning" is the consumer translation.
 - **Activity history.** A plain-language timeline of files touched and
   sites visited — a trust surface, distinct from the developer debug log.
-- **A model floor exists, and prompting does not raise it.** Measured
-  against `upstage/solar-mini`: asked to list a folder and report a file's
-  contents, it listed the folder and then invented the contents without ever
-  calling `read_file`. Three guardrails were tried — a system-prompt rule, an
-  explicit never-state-unread-contents line, and a notice appended to
-  `list_dir`'s own result — and none of them stopped it. Both guardrails were
-  kept (they are cheap and correct for a model that can follow them), but the
-  conclusion is about model selection, not prompting. The mechanical fix, if
-  it becomes necessary, is to detect the pattern — an answer describing a
-  file with no `read_file` for that path in the turn — and make the model try
-  again.
+- **A model floor exists, and it is below the tier we ship.** Asked to list
+  a folder and report a file's contents, `solar-mini` listed the folder and
+  then invented the contents without ever calling `read_file`. Three
+  guardrails failed to stop it: a system-prompt rule, an explicit
+  never-state-unread-contents line, and a notice appended to `list_dir`'s own
+  result. `solar-pro4`, one tier up, does it correctly and unprompted —
+  `list_dir`, then `read_file` with the exact Korean filename, then an
+  accurate answer. So the guardrails stay (cheap, and they work on a model
+  that can follow them) and the conclusion is about which model we resell,
+  not about prompting. A mechanical fallback exists if a cheap tier ever
+  proves necessary: detect an answer describing a file with no `read_file`
+  for that path in the turn, and make the model try again.
 - **The Python kernel is now dead weight.** Nothing spawns ipython, so the
   bundled `uv` (42 MB) and the kernel provisioning path exist for a feature
   no session reaches. Removing them is a real bundle-size win and its own

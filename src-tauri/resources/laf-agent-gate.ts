@@ -758,7 +758,18 @@ function registerWebFetch(pi: ExtensionAPI): void {
 			"articles, or any page the user links. Returns plain text, truncated for long pages.",
 		promptGuidelines: [
 			"Use web_fetch when the user gives a URL or when you need the contents of a specific page.",
-			"web_fetch cannot search — it only retrieves a URL you already know.",
+			"web_fetch retrieves one URL; it does not search. When no web_search tool is available, " +
+				"most current-information questions are still answerable, because the page you need " +
+				"usually lives at an address you can derive rather than one you have to find. " +
+				"Construct the likely URL and fetch it: a package's own registry record for versions " +
+				"and metadata (registry.npmjs.org/<name>, pypi.org/pypi/<name>/json, " +
+				"crates.io/api/v1/crates/<name>), a project's releases or tags page on its forge for " +
+				"what changed, the documented docs site for API reference, the raw file on the default " +
+				"branch for current source. Try the address you would type yourself before concluding " +
+				"you cannot answer.",
+			"If a fetch fails or the page doesn't say what you expected, say so and give the answer " +
+				"you do have. Never present a guessed version number, release date, or API signature " +
+				"as if you had read it.",
 		],
 		parameters: {
 			type: "object",

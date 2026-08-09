@@ -4,6 +4,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import type { ThemeMode } from '@/types'
+import type { UiMode } from '@/lib/ui-mode'
 import { applyTheme, persistTheme } from '@/lib/theme'
 import type { Step } from '@/components/onboarding-shared'
 import { OnboardingWelcomeStep } from '@/components/OnboardingWelcomeStep'
@@ -18,6 +19,8 @@ export function Onboarding() {
   const [themeChoice, setThemeChoice] = useState<ThemeMode>(
     useSettingsStore.getState().settings.theme ?? 'dark',
   )
+  // The daily-agent surface is the product default; developer is the opt-in.
+  const [modeChoice, setModeChoice] = useState<UiMode>('simple')
 
   const handleThemeChange = useCallback((mode: ThemeMode) => {
     setThemeChoice(mode)
@@ -79,8 +82,8 @@ export function Onboarding() {
         className="onboarding-step flex min-h-[560px] w-full max-w-xl flex-col items-center justify-center gap-8 px-8 py-24 text-center"
       >
         {step === 'welcome' && <OnboardingWelcomeStep onNext={setStep} />}
-        {step === 'theme' && <OnboardingThemeStep themeChoice={themeChoice} onThemeChange={handleThemeChange} onNext={setStep} />}
-        {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} />}
+        {step === 'theme' && <OnboardingThemeStep themeChoice={themeChoice} onThemeChange={handleThemeChange} modeChoice={modeChoice} onModeChange={setModeChoice} onNext={setStep} />}
+        {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} modeChoice={modeChoice} />}
       </div>
     </div>
   )

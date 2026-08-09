@@ -7,8 +7,11 @@ import {
   IconLayoutColumns,
   IconFolderOpen,
   IconAlertTriangle,
+  IconCode,
+  IconSparkles,
 } from "@tabler/icons-react"
-import { useIsSimpleMode } from '@/lib/ui-mode'
+import { useIsSimpleMode, useUiMode } from '@/lib/ui-mode'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from "@/stores/taskStore"
 import {
   Tooltip,
@@ -24,6 +27,50 @@ import { reportFailure } from "@/lib/ipc-report"
 import { cn } from "@/lib/utils"
 import { useFileTreeStore } from "@/stores/fileTreeStore"
 import type { TaskStatus } from "@/types"
+
+/**
+ * Everyday ⇄ Developer surface switch, always visible in the top-right.
+ *
+ * This is the one control that must never be gated by the mode itself —
+ * hiding it in either mode would strand the user there. Saves immediately
+ * rather than through the settings draft, since a surface flip the user has
+ * to go confirm elsewhere isn't a toggle.
+ */
+const ModeToggleButton = memo(function ModeToggleButton() {
+  const uiMode = useUiMode()
+  const isSimple = uiMode === 'simple'
+
+  const handleFlip = useCallback(() => {
+    const { settings, saveSettings } = useSettingsStore.getState()
+    saveSettings({ ...settings, uiMode: isSimple ? 'developer' : 'simple' }).catch(() => {})
+  }, [isSimple])
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          data-testid="mode-toggle-button"
+          aria-label={isSimple ? t('Switch to Developer mode') : t('Switch to Everyday mode')}
+          onClick={handleFlip}
+          className={cn(
+            "inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs transition-colors",
+            isSimple
+              ? "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+              : "bg-primary/10 text-primary hover:bg-primary/15",
+          )}
+        >
+          {isSimple
+            ? <IconSparkles className="size-3.5" aria-hidden />
+            : <IconCode className="size-3.5" aria-hidden />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {isSimple ? t('Switch to Developer mode') : t('Switch to Everyday mode')}
+      </TooltipContent>
+    </Tooltip>
+  )
+})
 
 /** Toggle button for split-screen mode. Opens a thread picker or closes split. */
 const SplitToggleButton = memo(function SplitToggleButton() {
@@ -229,6 +276,9 @@ export const HeaderToolbar = memo(function HeaderToolbar({
 
         <div className="h-5 w-px self-center bg-border" />
         <SplitToggleButton />
+
+        <div className="h-5 w-px self-center bg-border" />
+        <ModeToggleButton />
       </div>
 
       {/* Git section — far right with accent */}

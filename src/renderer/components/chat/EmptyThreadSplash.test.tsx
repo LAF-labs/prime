@@ -1,6 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { EmptyThreadSplash } from './EmptyThreadSplash'
+import { useSettingsStore } from '@/stores/settingsStore'
+import type { AppSettings } from '@/types'
+
+const setMode = (uiMode: 'simple' | 'developer') => {
+  const { settings } = useSettingsStore.getState()
+  useSettingsStore.setState({ settings: { ...settings, uiMode } as AppSettings })
+}
 
 describe('EmptyThreadSplash', () => {
   afterEach(() => {
@@ -8,11 +15,27 @@ describe('EmptyThreadSplash', () => {
   })
 
   it('renders three starter prompts', () => {
+    setMode('simple')
     render(<EmptyThreadSplash />)
     expect(screen.getAllByTestId('starter-prompt')).toHaveLength(3)
   })
 
+  it('the everyday surface offers everyday prompts, not coding tasks', () => {
+    setMode('simple')
+    render(<EmptyThreadSplash />)
+    expect(screen.getByText('Summarize a document for me')).toBeInTheDocument()
+    expect(screen.queryByText('Find and fix a bug')).toBeNull()
+  })
+
+  it('developer mode keeps the coding prompts', () => {
+    setMode('developer')
+    render(<EmptyThreadSplash />)
+    expect(screen.getByText('Explain this codebase')).toBeInTheDocument()
+    expect(screen.queryByText('Summarize a document for me')).toBeNull()
+  })
+
   it('clicking a starter prompt dispatches splash-insert with the prompt text', () => {
+    setMode('developer')
     const listener = vi.fn()
     document.addEventListener('splash-insert', listener)
     try {

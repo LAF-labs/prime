@@ -3,6 +3,7 @@ import { IconArrowRight, IconCircleCheck } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
 import type { ThemeMode } from '@/types'
+import type { UiMode } from '@/lib/ui-mode'
 import { OnboardingCliSection } from '@/components/OnboardingCliSection'
 import { OnboardingAuthSection } from '@/components/OnboardingAuthSection'
 import { OnboardingKernelSection } from '@/components/OnboardingKernelSection'
@@ -15,9 +16,10 @@ const DETECT_TIMEOUT_MS = 8000
 
 interface OnboardingSetupStepProps {
   themeChoice: ThemeMode
+  modeChoice: UiMode
 }
 
-export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) => {
+export const OnboardingSetupStep = ({ themeChoice, modeChoice }: OnboardingSetupStepProps) => {
   const t = useT()
   const [bin, setBin] = useState('prime-agent')
   const [isCliReady, setIsCliReady] = useState(false)
@@ -64,7 +66,7 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
       // again depends on inference: absent uiMode + completed onboarding is
       // how resolveUiMode recognizes a pre-split install (→ developer), and
       // this write is what keeps fresh installs out of that bucket.
-      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice, uiMode: settings.uiMode ?? 'simple' })
+      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice, uiMode: modeChoice })
     } catch (err) {
       // A silently rejected write here left a dead "Launch" button on first
       // run — the wizard never advanced and never said why. Surface it and
@@ -74,7 +76,7 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
     }
     useSettingsStore.getState().checkAuth()
     ipc.probeCapabilities().catch(() => {})
-  }, [bin, themeChoice, t])
+  }, [bin, themeChoice, modeChoice, t])
 
   return (
     <div className="flex w-full flex-col gap-6">

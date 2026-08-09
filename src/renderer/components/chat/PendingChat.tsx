@@ -11,6 +11,7 @@ import { stripImageDataForTitleGen } from '@/lib/message-utils'
 import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { PastedChunk } from '@/hooks/useChatInput'
 import { Checkbox } from '@/components/ui/checkbox'
+import { useIsSimpleMode } from '@/lib/ui-mode'
 import { ChatInput } from './ChatInput'
 import { claimTurn } from '@/lib/turn-ownership'
 import { captureDraft, restoreDraft } from './draft-recovery'
@@ -39,6 +40,8 @@ export function PendingChat({ workspace }: PendingChatProps) {
   const setDraftMentionedFiles = useTaskStore((s) => s.setDraftMentionedFiles)
   const removeDraftMentionedFiles = useTaskStore((s) => s.removeDraftMentionedFiles)
 
+  // Worktrees are a git concept; the daily surface never offers them.
+  const isSimpleMode = useIsSimpleMode()
   const [useWorktree, setUseWorktree] = useState(false)
   const [worktreeSlug, setWorktreeSlug] = useState('')
   const [isSlugEdited, setIsSlugEdited] = useState(false)
@@ -229,7 +232,7 @@ export function PendingChat({ workspace }: PendingChatProps) {
         )}
       </div>
       {/* Worktree toggle */}
-      {!isLoggedOut && (
+      {!isLoggedOut && !isSimpleMode && (
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center px-4 pb-2">
           <div className="flex w-full max-w-md flex-col rounded-xl border border-border/40 bg-card/30 px-3 py-2.5">
             {/* Toggle row */}

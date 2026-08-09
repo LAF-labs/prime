@@ -379,6 +379,12 @@ export const ChatPanel = memo(function ChatPanel({ taskId: taskIdProp }: ChatPan
     const state = useTaskStore.getState()
     const task = resolvedTaskId ? state.tasks[resolvedTaskId] : null
     if (task?.pendingPermission) {
+      // "Always allow" persists a tool-wide allow-rule (applies to newly
+      // started threads) and still allows the current call below.
+      const opt = task.pendingPermission.options?.find((o) => o.optionId === optionId)
+      if (opt?.kind === 'allow_always') {
+        useSettingsStore.getState().addPermissionRule({ tool: task.pendingPermission.toolName })
+      }
       ipc.selectPermissionOption(task.id, task.pendingPermission.requestId, optionId).catch(() => {})
     }
   }, [resolvedTaskId])

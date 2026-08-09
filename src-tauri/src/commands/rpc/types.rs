@@ -143,6 +143,22 @@ impl LaunchOptions {
     }
 }
 
+/// Permission model handed to the bundled gate at spawn time via environment
+/// variables. Built from `AppSettings` (global + per-project) in
+/// `commands::rpc::commands`, then serialized onto the child process env by
+/// `run_rpc_connection`.
+///
+/// Spawn-time by design: the gate parses these once at extension init, so a
+/// mode or rule change applies to newly-started threads, not to live ones.
+#[derive(Clone, Debug, Default)]
+pub struct PermissionConfig {
+    /// "ask" | "acceptEdits" | "auto". Empty is treated as "ask".
+    pub mode: String,
+    /// JSON array of allow-rules (`[{"tool":"bash","argPattern":"git *"}]`), or
+    /// an empty string when there are none.
+    pub rules_json: String,
+}
+
 /// How to boot the prime-agent subprocess relative to prior history.
 #[derive(Clone, Debug)]
 pub enum SessionMode {

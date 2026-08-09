@@ -177,9 +177,27 @@ export interface TextGenerationPolicy {
   prInstructions?: string
 }
 
+/** Three-tier permission model. See `lib/permission-rules.ts`. */
+export type PermissionMode = 'ask' | 'acceptEdits' | 'auto'
+
+/**
+ * A persistent allow-rule. `tool` matches the tool name exactly; `argPattern`,
+ * when set, is a simple glob (`*` wildcard) matched against the tool's primary
+ * argument (command for bash, first code line for ipython, path for edits).
+ * A rule with no `argPattern` is tool-wide.
+ */
+export interface PermissionRule {
+  tool: string
+  argPattern?: string
+}
+
 export interface ProjectPrefs {
   modelId?: string | null
   autoApprove?: boolean
+  /** Per-project permission mode override. */
+  permissionMode?: PermissionMode
+  /** Per-project allow-rules, merged on top of the global list at spawn. */
+  permissionRules?: PermissionRule[]
   worktreeEnabled?: boolean
   symlinkDirectories?: string[]
   tightSandbox?: boolean
@@ -202,6 +220,15 @@ export interface AppSettings {
   chatFontSize?: number
   defaultModel?: string | null
   autoApprove?: boolean
+  /**
+   * Permission mode: 'ask' (prompt on every mutating tool), 'acceptEdits'
+   * (auto-allow file edits, still prompt for exec/others), or 'auto' (allow
+   * everything). When absent, derived from {@link autoApprove} for backward
+   * compatibility. Kept in sync with autoApprove ('auto' ⟺ true).
+   */
+  permissionMode?: PermissionMode
+  /** Persistent allow-rules the gate evaluates before prompting. */
+  permissionRules?: PermissionRule[]
   respectGitignore?: boolean
   coAuthor?: boolean
   coAuthorJsonReport?: boolean

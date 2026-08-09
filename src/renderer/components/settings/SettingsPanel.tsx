@@ -16,6 +16,7 @@ import { AboutDialog } from './AboutDialog'
 import { NAV, NAV_GROUP_LABELS, SEARCHABLE_SETTINGS, type Section, type NavGroup } from './settings-shared'
 import { AccountSection } from './account-section'
 import { GeneralSection } from './general-section'
+import { PermissionsSection } from './permissions-section'
 import { AppearanceSection } from './appearance-section'
 import { KeymapSection } from './keymap-section'
 import { AdvancedSection } from './advanced-section'
@@ -339,6 +340,7 @@ export const SettingsPanel = () => {
                 <>
                   {section === 'account' && <AccountSection draft={draft} updateDraft={updateDraft} />}
                   {section === 'general' && <GeneralSection draft={draft} updateDraft={updateDraft} />}
+                  {section === 'permissions' && <PermissionsSection draft={draft} updateDraft={updateDraft} />}
                   {section === 'appearance' && <AppearanceSection draft={draft} updateDraft={updateDraft} />}
                   {section === 'keymap' && <KeymapSection />}
                   {section === 'advanced' && <AdvancedSection draft={draft} updateDraft={updateDraft} onClose={handleClose} />}

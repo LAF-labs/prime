@@ -1,13 +1,19 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
-import { IconChevronDown, IconHandStop, IconMessageQuestion } from '@tabler/icons-react'
+import { IconChevronDown, IconMessageQuestion, IconPencil, IconBolt } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { usePanelResolvedTaskId } from './PanelContext'
 import { useT } from '@/lib/i18n'
+import type { AppSettings, PermissionMode } from '@/types'
+import { permissionModeToAutoApprove } from '@/lib/permission-rules'
 
-/** Resolve auto-approve for a specific workspace (or fall back to global). */
+/**
+ * Resolve auto-approve for a specific workspace (or fall back to global). Kept
+ * for the spawn/createTask paths; stays correct because `autoApprove` is held
+ * in sync with the permission mode ('auto' ⟺ true).
+ */
 export const getAutoApproveForWorkspace = (workspace: string | null): boolean => {
   const { settings } = useSettingsStore.getState()
   const projectPref = workspace ? settings.projectPrefs?.[workspace]?.autoApprove : undefined
@@ -20,36 +26,44 @@ export const selectAutoApprove = (s: ReturnType<typeof useSettingsStore.getState
   return projectPref !== undefined ? projectPref : (s.settings.autoApprove ?? false)
 }
 
-interface PermissionEntry {
-  readonly id: 'auto-approve' | 'ask-first'
-  readonly labelKey: string
-  readonly descKey: string
-  readonly icon: typeof IconHandStop
+/** Resolve the effective permission mode: project override → global → legacy bool. */
+export const resolvePermissionMode = (settings: AppSettings, workspace: string | null): PermissionMode => {
+  const projectMode = workspace ? settings.projectPrefs?.[workspace]?.permissionMode : undefined
+  if (projectMode) return projectMode
+  if (settings.permissionMode) return settings.permissionMode
+  return settings.autoApprove ? 'auto' : 'ask'
 }
 
-const PERMISSIONS: readonly PermissionEntry[] = [
-  { id: 'ask-first', labelKey: 'Ask first', descKey: 'Confirm before running tools', icon: IconMessageQuestion },
-  { id: 'auto-approve', labelKey: 'Auto-run', descKey: 'Run tools without confirmation', icon: IconHandStop },
+interface ModeEntry {
+  readonly id: PermissionMode
+  readonly labelKey: string
+  readonly descKey: string
+  readonly icon: typeof IconMessageQuestion
+}
+
+const MODES: readonly ModeEntry[] = [
+  { id: 'ask', labelKey: 'Ask first', descKey: 'Confirm before running tools', icon: IconMessageQuestion },
+  { id: 'acceptEdits', labelKey: 'Accept edits', descKey: 'Auto-allow edits, ask for the rest', icon: IconPencil },
+  { id: 'auto', labelKey: 'Auto-run', descKey: 'Run tools without confirmation', icon: IconBolt },
 ] as const
 
 export const AutoApproveToggle = memo(function AutoApproveToggle() {
   const t = useT()
   const resolvedTaskId = usePanelResolvedTaskId()
-  // Derive workspace from the panel's task, not the global activeWorkspace
+  // Derive workspace from the panel's task, not the global activeWorkspace.
   const panelWorkspace = useTaskStore((s) => {
     if (!resolvedTaskId) return null
     const task = s.tasks[resolvedTaskId]
     return task ? (task.originalWorkspace ?? task.workspace) : null
   })
-  // Read auto-approve from the panel's workspace.
-  // Both stores are subscribed separately — panelWorkspace is a primitive (string|null)
-  // so Object.is bail-out works. The settings selector re-runs when settings change.
+  // Select the narrow fields that feed the mode, keeping Object.is bail-out.
+  const globalMode = useSettingsStore((s) => s.settings.permissionMode)
   const globalAutoApprove = useSettingsStore((s) => s.settings.autoApprove ?? false)
-  const projectAutoApprove = useSettingsStore((s) => {
+  const projectMode = useSettingsStore((s) => {
     if (!panelWorkspace) return undefined
-    return s.settings.projectPrefs?.[panelWorkspace]?.autoApprove
+    return s.settings.projectPrefs?.[panelWorkspace]?.permissionMode
   })
-  const isAutoApprove = projectAutoApprove !== undefined ? projectAutoApprove : globalAutoApprove
+  const mode: PermissionMode = projectMode ?? globalMode ?? (globalAutoApprove ? 'auto' : 'ask')
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -62,36 +76,38 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  const handleSelect = useCallback((permissionId: string) => {
-    const next = permissionId === 'auto-approve'
+  const handleSelect = useCallback((modeId: PermissionMode) => {
     const { settings, setProjectPref, saveSettings } = useSettingsStore.getState()
     const workspace = panelWorkspace
-    const current = workspace
-      ? (settings.projectPrefs?.[workspace]?.autoApprove ?? settings.autoApprove ?? false)
-      : (settings.autoApprove ?? false)
-    if (next === current) {
+    const current = resolvePermissionMode(settings, workspace)
+    if (modeId === current) {
       setIsOpen(false)
       return
     }
+    // Persist the mode and keep the legacy autoApprove bool in sync.
+    const autoApprove = permissionModeToAutoApprove(modeId)
     if (workspace) {
-      setProjectPref(workspace, { autoApprove: next })
+      setProjectPref(workspace, { permissionMode: modeId, autoApprove })
     } else {
-      saveSettings({ ...settings, autoApprove: next })
+      saveSettings({ ...settings, permissionMode: modeId, autoApprove })
     }
+    // Live effect: only "auto" has an in-session path (the Rust auto-approve
+    // atomic). acceptEdits and rules are enforced in the gate from spawn-time
+    // env, so they take full effect on newly started threads.
     const taskId = resolvedTaskId
     if (taskId) {
       const task = useTaskStore.getState().tasks[taskId]
       const isLive = task && (task.status === 'running' || task.status === 'pending_permission' || task.status === 'paused')
       if (isLive) {
-        ipc.setAutoApprove(taskId, next).catch(() => {})
+        ipc.setAutoApprove(taskId, autoApprove).catch(() => {})
       }
     }
     setIsOpen(false)
   }, [panelWorkspace, resolvedTaskId])
 
-  const currentId = isAutoApprove ? 'auto-approve' : 'ask-first'
-  const current = PERMISSIONS.find((p) => p.id === currentId) ?? PERMISSIONS[0]
+  const current = MODES.find((m) => m.id === mode) ?? MODES[0]
   const CurrentIcon = current.icon
+  const isElevated = mode !== 'ask'
 
   return (
     <div ref={ref} data-testid="auto-approve-toggle" className="relative">
@@ -103,7 +119,7 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
         aria-haspopup="listbox"
         className={cn(
           'flex items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] font-medium transition-colors',
-          isAutoApprove
+          isElevated
             ? 'text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300'
             : 'text-muted-foreground hover:text-foreground',
         )}
@@ -117,29 +133,32 @@ export const AutoApproveToggle = memo(function AutoApproveToggle() {
         <div
           role="listbox"
           aria-label={t('Select permissions')}
-          className="absolute bottom-full left-0 z-[200] mb-2 rounded-lg border border-border bg-popover py-1 shadow-xl"
+          className="absolute bottom-full left-0 z-[200] mb-2 w-56 rounded-lg border border-border bg-popover py-1 shadow-xl"
         >
-          {PERMISSIONS.map((p) => {
-            const isActive = p.id === currentId
-            const Icon = p.icon
+          {MODES.map((m) => {
+            const isActive = m.id === mode
+            const Icon = m.icon
             return (
               <button
-                key={p.id}
+                key={m.id}
                 type="button"
                 role="option"
                 aria-selected={isActive}
                 onMouseDown={(e) => {
                   e.stopPropagation()
-                  handleSelect(p.id)
+                  handleSelect(m.id)
                 }}
                 className={cn(
-                  'flex w-full items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors hover:bg-accent',
+                  'flex w-full items-start gap-2 whitespace-nowrap px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent',
                   isActive ? 'font-medium text-foreground' : 'text-muted-foreground',
-                  p.id === 'auto-approve' && isActive && 'text-amber-600 dark:text-amber-400',
+                  m.id !== 'ask' && isActive && 'text-amber-600 dark:text-amber-400',
                 )}
               >
-                <Icon className="size-3.5 shrink-0" aria-hidden />
-                <span>{t(p.labelKey)}</span>
+                <Icon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block">{t(m.labelKey)}</span>
+                  <span className="block text-[10.5px] font-normal text-muted-foreground">{t(m.descKey)}</span>
+                </span>
               </button>
             )
           })}

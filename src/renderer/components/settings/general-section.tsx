@@ -54,10 +54,6 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
     fetchModels(draft.agentBin)
   }, [fetchModels, draft.agentBin])
 
-  const handleAutoApproveChange = useCallback((checked: boolean) => {
-    updateDraft({ autoApprove: checked })
-  }, [updateDraft])
-
   const handleAutoCompactionChange = useCallback((checked: boolean) => {
     updateDraft({ agentAutoCompaction: checked })
   }, [updateDraft])
@@ -230,12 +226,8 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label={t('Workspace')} description={t('Permissions, worktrees, and sandbox')}>
+      <SettingsGrid label={t('Workspace')} description={t('Worktrees and sandbox')}>
         <SettingsCard>
-          <SettingRow label={t('Auto-approve')} description={t('Skip permission prompts for tool calls')}>
-            <Switch checked={draft.autoApprove ?? false} onCheckedChange={handleAutoApproveChange} aria-label={t('Toggle auto-approve permissions')} />
-          </SettingRow>
-          <Divider />
           <SettingRow label={t('Respect .gitignore')} description={t('Hide gitignored files from @ mentions')}>
             <Switch checked={draft.respectGitignore ?? true} onCheckedChange={handleRespectGitignoreChange} aria-label={t('Toggle respect gitignore')} />
           </SettingRow>

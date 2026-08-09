@@ -56,6 +56,29 @@ pub struct ProviderRate {
     pub cache_write: Option<f64>,
 }
 
+/// A persistent allow-rule the gate evaluates before prompting.
+///
+/// `tool` matches the tool name exactly. `arg_pattern`, when present, is a
+/// simple glob (`*` wildcard) matched against the tool's primary argument
+/// (command for bash, first code line for ipython, path for edits). A rule
+/// with no `arg_pattern` is tool-wide: it allows every call to that tool.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionRule {
+    pub tool: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arg_pattern: Option<String>,
+}
+
+/// The three permission modes. `ask` is the default; `accept_edits` auto-allows
+/// file-edit tools but still prompts for exec tools; `auto` allows everything.
+pub const PERMISSION_MODES: [&str; 3] = ["ask", "acceptEdits", "auto"];
+
+/// True when `mode` is one of the recognized [`PERMISSION_MODES`].
+pub fn is_valid_permission_mode(mode: &str) -> bool {
+    PERMISSION_MODES.contains(&mode)
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectPrefs {
@@ -63,6 +86,12 @@ pub struct ProjectPrefs {
     pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_approve: Option<bool>,
+    /// Per-project permission mode override ("ask" | "acceptEdits" | "auto").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permission_mode: Option<String>,
+    /// Per-project allow-rules, merged on top of the global list at spawn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permission_rules: Option<Vec<PermissionRule>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worktree_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -95,6 +124,17 @@ pub struct AppSettings {
     pub default_model: Option<String>,
     #[serde(default)]
     pub auto_approve: bool,
+    /// Permission mode: "ask" (prompt on every mutating tool), "acceptEdits"
+    /// (auto-allow file edits, still prompt for exec/others), or "auto" (allow
+    /// everything). When absent, derived from the legacy `auto_approve` bool at
+    /// read time — see [`AppSettings::effective_permission_mode`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permission_mode: Option<String>,
+    /// Persistent allow-rules the gate evaluates before prompting. Reach the
+    /// gate as `LAF_PERMISSION_RULES` JSON at spawn, so edits apply to
+    /// newly-started threads.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permission_rules: Option<Vec<PermissionRule>>,
     #[serde(default = "default_true")]
     pub respect_gitignore: bool,
     #[serde(default = "default_true")]
@@ -206,6 +246,8 @@ impl Default for AppSettings {
             chat_font_size: None,
             default_model: None,
             auto_approve: false,
+            permission_mode: None,
+            permission_rules: None,
             respect_gitignore: true,
             co_author: true,
             co_author_json_report: true,
@@ -232,6 +274,46 @@ impl Default for AppSettings {
             provider_rates: None,
             max_concurrent_agents: None,
         }
+    }
+}
+
+impl AppSettings {
+    /// Resolve the effective permission mode for a workspace.
+    ///
+    /// Order: per-project override → global `permission_mode` → legacy
+    /// migration from the `auto_approve` bool (`true` → "auto", else "ask").
+    /// The migration path is what lets existing installs keep working before
+    /// the user ever opens the new Permissions settings.
+    pub fn effective_permission_mode(&self, workspace: Option<&str>) -> String {
+        if let Some(ws) = workspace {
+            if let Some(pp) = self.project_prefs.as_ref().and_then(|p| p.get(ws)) {
+                if let Some(m) = pp.permission_mode.as_deref().filter(|m| is_valid_permission_mode(m)) {
+                    return m.to_string();
+                }
+            }
+        }
+        if let Some(m) = self.permission_mode.as_deref().filter(|m| is_valid_permission_mode(m)) {
+            return m.to_string();
+        }
+        if self.auto_approve { "auto".to_string() } else { "ask".to_string() }
+    }
+
+    /// Merge the global allow-rules with any per-project rules for `workspace`.
+    /// Global rules come first, then project rules — order is irrelevant to
+    /// matching (any match allows), but stable output keeps tests simple.
+    pub fn effective_permission_rules(&self, workspace: Option<&str>) -> Vec<PermissionRule> {
+        let mut rules = self.permission_rules.clone().unwrap_or_default();
+        if let Some(ws) = workspace {
+            if let Some(pr) = self
+                .project_prefs
+                .as_ref()
+                .and_then(|p| p.get(ws))
+                .and_then(|pp| pp.permission_rules.as_ref())
+            {
+                rules.extend(pr.iter().cloned());
+            }
+        }
+        rules
     }
 }
 
@@ -531,6 +613,112 @@ mod tests {
         assert!(settings.respect_gitignore);
         assert!(settings.co_author);
         assert!(!settings.has_onboarded_v2);
+    }
+
+    #[test]
+    fn permission_mode_migrates_from_legacy_auto_approve() {
+        // No explicit mode set: derive from the old boolean.
+        let asking = AppSettings { auto_approve: false, permission_mode: None, ..Default::default() };
+        assert_eq!(asking.effective_permission_mode(None), "ask");
+        let auto = AppSettings { auto_approve: true, permission_mode: None, ..Default::default() };
+        assert_eq!(auto.effective_permission_mode(None), "auto");
+    }
+
+    #[test]
+    fn explicit_permission_mode_wins_over_legacy_bool() {
+        let s = AppSettings {
+            auto_approve: true, // legacy would say "auto"
+            permission_mode: Some("acceptEdits".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(s.effective_permission_mode(None), "acceptEdits");
+    }
+
+    #[test]
+    fn invalid_permission_mode_falls_back_to_migration() {
+        let s = AppSettings {
+            auto_approve: false,
+            permission_mode: Some("garbage".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(s.effective_permission_mode(None), "ask");
+    }
+
+    #[test]
+    fn project_permission_mode_overrides_global() {
+        let mut prefs = std::collections::HashMap::new();
+        prefs.insert(
+            "/ws".to_string(),
+            ProjectPrefs { permission_mode: Some("auto".to_string()), ..Default::default() },
+        );
+        let s = AppSettings {
+            permission_mode: Some("ask".to_string()),
+            project_prefs: Some(prefs),
+            ..Default::default()
+        };
+        assert_eq!(s.effective_permission_mode(Some("/ws")), "auto");
+        assert_eq!(s.effective_permission_mode(Some("/other")), "ask");
+        assert_eq!(s.effective_permission_mode(None), "ask");
+    }
+
+    #[test]
+    fn permission_rules_merge_global_and_project() {
+        let mut prefs = std::collections::HashMap::new();
+        prefs.insert(
+            "/ws".to_string(),
+            ProjectPrefs {
+                permission_rules: Some(vec![PermissionRule {
+                    tool: "read".to_string(),
+                    arg_pattern: None,
+                }]),
+                ..Default::default()
+            },
+        );
+        let s = AppSettings {
+            permission_rules: Some(vec![PermissionRule {
+                tool: "bash".to_string(),
+                arg_pattern: Some("git *".to_string()),
+            }]),
+            project_prefs: Some(prefs),
+            ..Default::default()
+        };
+        let merged = s.effective_permission_rules(Some("/ws"));
+        assert_eq!(merged.len(), 2);
+        assert_eq!(merged[0].tool, "bash");
+        assert_eq!(merged[0].arg_pattern.as_deref(), Some("git *"));
+        assert_eq!(merged[1].tool, "read");
+        // Without the workspace, only the global rule is returned.
+        assert_eq!(s.effective_permission_rules(None).len(), 1);
+    }
+
+    #[test]
+    fn permission_fields_roundtrip_in_camel_case() {
+        let s = AppSettings {
+            permission_mode: Some("acceptEdits".to_string()),
+            permission_rules: Some(vec![PermissionRule {
+                tool: "bash".to_string(),
+                arg_pattern: Some("npm *".to_string()),
+            }]),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("permissionMode"));
+        assert!(json.contains("permissionRules"));
+        assert!(json.contains("argPattern"));
+        let restored: AppSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.permission_mode.as_deref(), Some("acceptEdits"));
+        let rules = restored.permission_rules.unwrap();
+        assert_eq!(rules[0].tool, "bash");
+        assert_eq!(rules[0].arg_pattern.as_deref(), Some("npm *"));
+    }
+
+    #[test]
+    fn permission_fields_default_to_none_when_missing() {
+        let s: AppSettings = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(s.permission_mode.is_none());
+        assert!(s.permission_rules.is_none());
+        // A bare, never-configured install migrates to "ask".
+        assert_eq!(s.effective_permission_mode(None), "ask");
     }
 
     #[test]

@@ -22,8 +22,21 @@ use tokio::sync::{mpsc, oneshot};
 use crate::commands::agent_launch::{agent_path_env, AgentLaunch};
 use super::types::{
     AgentCommand, AgentState, AttachmentData, ConnectionHandle, LaunchOptions, PendingPermission,
-    PendingRequests, PermissionOption, PermissionReply, SessionMode,
+    PendingRequests, PermissionConfig, PermissionOption, PermissionReply, SessionMode,
 };
+
+/// Build the environment variables that carry the permission model to the
+/// bundled gate. `LAF_PERMISSION_MODE` is always set (defaulting to "ask");
+/// `LAF_PERMISSION_RULES` only when there are rules to pass. Pure so the spawn
+/// wiring can be unit-tested without launching a subprocess.
+pub(crate) fn permission_env_vars(config: &PermissionConfig) -> Vec<(&'static str, String)> {
+    let mode = if config.mode.is_empty() { "ask" } else { config.mode.as_str() };
+    let mut vars = vec![("LAF_PERMISSION_MODE", mode.to_string())];
+    if !config.rules_json.is_empty() {
+        vars.push(("LAF_PERMISSION_RULES", config.rules_json.clone()));
+    }
+    vars
+}
 
 /// Strip embedded `<image src="data:..." />` tags and their `[Attached image: ...]` prefixes
 /// from the text so the model doesn't receive raw base64 in the text content block.
@@ -229,9 +242,11 @@ pub(crate) struct ConnectionConfig {
     pub initial_mode_id: Option<String>,
     pub initial_model_id: Option<String>,
     pub tight_sandbox: bool,
+    pub permission_config: PermissionConfig,
     pub pending_preamble: Option<String>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_connection(
     task_id: String,
     workspace: String,
@@ -243,10 +258,12 @@ pub(crate) fn spawn_connection(
     tight_sandbox: bool,
     session_mode: SessionMode,
     options: LaunchOptions,
+    permission_config: PermissionConfig,
 ) -> Result<ConnectionHandle, String> {
     spawn_connection_with_preamble(
         task_id, workspace, launch, auto_approve, app,
-        initial_mode_id, initial_model_id, tight_sandbox, session_mode, options, None,
+        initial_mode_id, initial_model_id, tight_sandbox, session_mode, options,
+        permission_config, None,
     )
 }
 
@@ -254,6 +271,7 @@ pub(crate) fn spawn_connection(
 /// the very first `Prompt` command this connection receives. Used by
 /// `task_fork` and thread resumption so the freshly spawned prime-agent
 /// subprocess inherits the prior transcript on the user's next message.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_connection_with_preamble(
     task_id: String,
     workspace: String,
@@ -265,6 +283,7 @@ pub(crate) fn spawn_connection_with_preamble(
     tight_sandbox: bool,
     session_mode: SessionMode,
     options: LaunchOptions,
+    permission_config: PermissionConfig,
     pending_preamble: Option<String>,
 ) -> Result<ConnectionHandle, String> {
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel::<AgentCommand>();
@@ -293,6 +312,7 @@ pub(crate) fn spawn_connection_with_preamble(
             tight_sandbox,
             session_mode,
             options,
+            permission_config,
             pending_preamble,
             pending_task,
             pid_task.clone(),
@@ -397,6 +417,7 @@ pub(crate) async fn run_rpc_connection(
     tight_sandbox: bool,
     session_mode: SessionMode,
     options: LaunchOptions,
+    permission_config: PermissionConfig,
     mut pending_preamble: Option<String>,
     pending: PendingRequests,
     pid_slot: Arc<std::sync::atomic::AtomicU32>,
@@ -444,6 +465,12 @@ pub(crate) async fn run_rpc_connection(
     // file-mutating tools targeting paths outside the workspace are blocked
     // outright instead of prompting.
     cmd.env("LAF_WORKSPACE", &workspace);
+    // Hand the permission model to the gate: mode (ask/acceptEdits/auto) plus
+    // the JSON allow-rules. Parsed once at gate init, so this is spawn-time by
+    // design — a mode or rule change applies to newly-started threads.
+    for (key, value) in permission_env_vars(&permission_config) {
+        cmd.env(key, value);
+    }
     if tight_sandbox {
         cmd.env("LAF_TIGHT_SANDBOX", "1");
         // The gate can only reach `bash`. `ipython` runs in a kernel process
@@ -1121,9 +1148,18 @@ fn handle_extension_ui_request(ctx: &Arc<ReaderCtx>, event: &Value) {
                             .filter_map(|o| o.as_str())
                             .map(|name| {
                                 let lower = name.to_lowercase();
-                                let kind = if lower.contains("allow") || lower.contains("yes") || lower.contains("approve") {
+                                // "Always allow" must sort/route as allow_always,
+                                // not allow_once — check the "always" prefix first.
+                                let is_always = lower.contains("always");
+                                let is_allow = lower.contains("allow") || lower.contains("yes") || lower.contains("approve");
+                                let is_reject = lower.contains("deny") || lower.contains("no") || lower.contains("block") || lower.contains("reject");
+                                let kind = if is_always && is_allow {
+                                    "allow_always"
+                                } else if is_always && is_reject {
+                                    "reject_always"
+                                } else if is_allow {
                                     "allow_once"
-                                } else if lower.contains("deny") || lower.contains("no") || lower.contains("block") || lower.contains("reject") {
+                                } else if is_reject {
                                     "reject_once"
                                 } else {
                                     "other"

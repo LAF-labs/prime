@@ -206,6 +206,47 @@ describe('settingsStore', () => {
     })
   })
 
+  describe('permission model', () => {
+    it('migrates a legacy autoApprove=true install to permissionMode auto on load', async () => {
+      vi.mocked(ipc.getSettings).mockResolvedValue({ autoApprove: true, hasOnboardedV2: true } as never)
+      await useSettingsStore.getState().loadSettings()
+      const s = useSettingsStore.getState().settings
+      expect(s.permissionMode).toBe('auto')
+      expect(s.autoApprove).toBe(true)
+    })
+
+    it('migrates a legacy autoApprove=false install to permissionMode ask on load', async () => {
+      vi.mocked(ipc.getSettings).mockResolvedValue({ autoApprove: false, hasOnboardedV2: true } as never)
+      await useSettingsStore.getState().loadSettings()
+      const s = useSettingsStore.getState().settings
+      expect(s.permissionMode).toBe('ask')
+      expect(s.autoApprove).toBe(false)
+    })
+
+    it('keeps an explicit mode and re-syncs the bool on load', async () => {
+      vi.mocked(ipc.getSettings).mockResolvedValue({ permissionMode: 'acceptEdits', autoApprove: true, hasOnboardedV2: true } as never)
+      await useSettingsStore.getState().loadSettings()
+      const s = useSettingsStore.getState().settings
+      expect(s.permissionMode).toBe('acceptEdits')
+      // autoApprove is derived from the mode, so acceptEdits pins it false.
+      expect(s.autoApprove).toBe(false)
+    })
+
+    it('addPermissionRule persists a global rule and de-duplicates', () => {
+      useSettingsStore.getState().addPermissionRule({ tool: 'bash', argPattern: 'git *' })
+      useSettingsStore.getState().addPermissionRule({ tool: 'bash', argPattern: 'git *' })
+      const rules = useSettingsStore.getState().settings.permissionRules
+      expect(rules).toEqual([{ tool: 'bash', argPattern: 'git *' }])
+      expect(ipc.saveSettings).toHaveBeenCalled()
+    })
+
+    it('addPermissionRule with a workspace stores a per-project rule', () => {
+      useSettingsStore.getState().addPermissionRule({ tool: 'read' }, '/ws')
+      const prefs = useSettingsStore.getState().settings.projectPrefs?.['/ws']
+      expect(prefs?.permissionRules).toEqual([{ tool: 'read' }])
+    })
+  })
+
   describe('checkAuth', () => {
     it('sets auth state on success', async () => {
       await useSettingsStore.getState().checkAuth()

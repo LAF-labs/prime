@@ -2,6 +2,7 @@ import { t } from '@/lib/i18n'
 import { memo, useState } from 'react'
 import {
   IconUser, IconSettings2, IconPaint, IconKeyboard, IconTool, IconArchive, IconActivity, IconLoader2,
+  IconShieldLock,
 } from '@tabler/icons-react'
 import { reportFailure } from '@/lib/ipc-report'
 import {
@@ -11,7 +12,7 @@ import { cn } from '@/lib/utils'
 
 // ── Navigation ───────────────────────────────────────────────────
 
-export type Section = 'account' | 'general' | 'appearance' | 'keymap' | 'advanced' | 'memory' | 'archives'
+export type Section = 'account' | 'general' | 'permissions' | 'appearance' | 'keymap' | 'advanced' | 'memory' | 'archives'
 
 export type NavGroup = 'account' | 'settings' | 'data'
 
@@ -23,7 +24,8 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 
 export const NAV: { id: Section; label: string; icon: typeof IconSettings2; description: string; sectionDescription: string; group: NavGroup }[] = [
   { id: 'account', label: 'Providers', icon: IconUser, description: 'API keys, endpoints', sectionDescription: 'Add API keys for the AI providers you use. Custom OpenAI-compatible endpoints are supported.', group: 'account' },
-  { id: 'general', label: 'General', icon: IconSettings2, description: 'CLI path, model, permissions', sectionDescription: 'Configure the CLI, default model, and permission behavior.', group: 'settings' },
+  { id: 'general', label: 'General', icon: IconSettings2, description: 'CLI path, model, workspace', sectionDescription: 'Configure the CLI, default model, and workspace behavior.', group: 'settings' },
+  { id: 'permissions', label: 'Permissions', icon: IconShieldLock, description: 'Modes and allow-rules', sectionDescription: 'Choose how tool calls are approved, and manage always-allow rules.', group: 'settings' },
   { id: 'appearance', label: 'Appearance', icon: IconPaint, description: 'Theme, font size', sectionDescription: 'Customize the look and feel of LAF Agent.', group: 'settings' },
   { id: 'keymap', label: 'Keyboard', icon: IconKeyboard, description: 'Shortcuts reference', sectionDescription: 'View all available keyboard shortcuts.', group: 'settings' },
   { id: 'advanced', label: 'Advanced', icon: IconTool, description: 'Privacy, git, data', sectionDescription: 'Privacy, git integration, and data management.', group: 'settings' },
@@ -43,7 +45,8 @@ export interface SearchableItem {
 export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'prime-agent path', description: 'Path to the prime-agent binary', section: 'general', keywords: 'cli binary connection detect' },
   { label: 'Default model', description: 'Choose the default AI model', section: 'general', keywords: 'model ai llm' },
-  { label: 'Auto-approve', description: 'Skip permission prompts for tool calls', section: 'general', keywords: 'permissions approve tools' },
+  { label: 'Permission mode', description: 'Ask, accept edits, or auto-run tool calls', section: 'permissions', keywords: 'permissions approve tools ask accept edits auto mode auto-approve' },
+  { label: 'Allow rules', description: 'Always-allow rules for tools and commands', section: 'permissions', keywords: 'permissions allow rules always tool command glob whitelist' },
   { label: 'Respect .gitignore', description: 'Hide gitignored files from @ mentions', section: 'general', keywords: 'gitignore files mentions' },
   { label: 'Worktrees', description: 'Isolate each thread in its own git worktree', section: 'general', keywords: 'worktree git isolate thread' },
   { label: 'Tight sandbox', description: 'Restrict the agent to the project directory', section: 'general', keywords: 'sandbox restrict agent directory' },

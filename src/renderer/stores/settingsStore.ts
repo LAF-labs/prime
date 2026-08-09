@@ -1,8 +1,22 @@
 import { create } from 'zustand'
-import type { AppSettings, ProjectPrefs } from '@/types'
+import type { AppSettings, PermissionRule, ProjectPrefs } from '@/types'
 import { ipc } from '@/lib/ipc'
 import { t } from '@/lib/i18n'
 import { attempt } from '@/lib/ipc-report'
+import { addRule, derivePermissionMode, isValidPermissionMode, permissionModeToAutoApprove } from '@/lib/permission-rules'
+
+/**
+ * Migrate + reconcile the permission model on load: derive `permissionMode`
+ * from the legacy `autoApprove` bool when unset, and keep `autoApprove` in
+ * sync with the mode ('auto' ⟺ true) so the many call sites still reading the
+ * boolean keep working.
+ */
+const withPermissionDefaults = (settings: AppSettings): AppSettings => {
+  const mode = isValidPermissionMode(settings.permissionMode)
+    ? settings.permissionMode
+    : derivePermissionMode(settings.autoApprove)
+  return { ...settings, permissionMode: mode, autoApprove: permissionModeToAutoApprove(mode) }
+}
 
 
 
@@ -51,6 +65,12 @@ interface SettingsStore {
   fetchModels: (agentBin?: string) => Promise<void>
   setActiveWorkspace: (workspace: string | null, operationalWs?: string | null) => void
   setProjectPref: (workspace: string, patch: Partial<ProjectPrefs>) => void
+  /**
+   * Persist a permission allow-rule (deduped). With no workspace it becomes a
+   * global rule; with one it is stored on that project's prefs. Rules apply to
+   * newly-started threads (the gate reads them at spawn).
+   */
+  addPermissionRule: (rule: PermissionRule, workspace?: string | null) => void
   checkAuth: () => Promise<void>
   logout: () => Promise<void>
   openLogin: () => void
@@ -113,7 +133,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           const { loadBackup } = await import('@/lib/history-store')
           const backup = await loadBackup()
           if (backup.settings?.hasOnboardedV2) {
-            const restored = { ...merged, ...backup.settings }
+            const restored = withPermissionDefaults({ ...merged, ...backup.settings })
             // Seed transient currentModelId from the persisted default so the
             // picker shows the right value before any session_init lands.
             const seedModel = restored.defaultModel ?? null
@@ -123,8 +143,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           }
         } catch { /* backup load is best-effort */ }
       }
-      const seedModel = merged.defaultModel ?? null
-      set({ settings: merged, isLoaded: true, currentModelId: seedModel })
+      const normalized = withPermissionDefaults(merged)
+      const seedModel = normalized.defaultModel ?? null
+      set({ settings: normalized, isLoaded: true, currentModelId: seedModel })
     } catch {
       set({ isLoaded: true })
     }
@@ -186,6 +207,23 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     // The optimistic set() above already shows the change applied; if the
     // write fails silently, the setting reverts on next launch with no
     // explanation. Tell the user now instead.
+    attempt(t('Could not save settings'), ipc.saveSettings(updated))
+  },
+
+  addPermissionRule: (rule, workspace) => {
+    const { settings } = get()
+    let updated: AppSettings
+    if (workspace) {
+      const existing = settings.projectPrefs?.[workspace] ?? {}
+      const rules = addRule(existing.permissionRules ?? [], rule)
+      updated = {
+        ...settings,
+        projectPrefs: { ...settings.projectPrefs, [workspace]: { ...existing, permissionRules: rules } },
+      }
+    } else {
+      updated = { ...settings, permissionRules: addRule(settings.permissionRules ?? [], rule) }
+    }
+    set({ settings: updated })
     attempt(t('Could not save settings'), ipc.saveSettings(updated))
   },
 

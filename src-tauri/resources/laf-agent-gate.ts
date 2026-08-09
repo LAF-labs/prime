@@ -277,6 +277,96 @@ function registerSandboxedBash(pi: ExtensionAPI): void {
 	});
 }
 
+// ── Permission model: modes + persistent allow-rules ────────────────
+//
+// The app hands the gate its permission model at spawn (connection.rs):
+//   LAF_PERMISSION_MODE  = "ask" | "acceptEdits" | "auto"
+//   LAF_PERMISSION_RULES = JSON array of { tool, argPattern? }
+//
+// Parsed once here, so a mode/rule change applies to newly-started threads,
+// not to a live one (documented spawn-time behavior). "auto" is NOT enforced
+// in this gate: the Rust side answers the dialog immediately when auto-approve
+// is on, which is what keeps the app's live auto-approve toggle working. This
+// gate enforces only `acceptEdits` (auto-allow file edits) and the allow-rules.
+//
+// IMPORTANT: the rule-matching + glob logic below is mirrored, deliberately, by
+// src/renderer/lib/permission-rules.ts (which the app UI and the unit tests
+// use). The gate cannot import that module — it runs inside the harness, which
+// only resolves node built-ins and the harness package alias — so the two
+// copies must be kept in sync by hand. Change both together.
+
+type PermissionMode = "ask" | "acceptEdits" | "auto";
+
+interface PermissionRule {
+	tool: string;
+	argPattern?: string;
+}
+
+const PERMISSION_MODE: PermissionMode = (() => {
+	const raw = (process.env.LAF_PERMISSION_MODE ?? "").trim();
+	return raw === "acceptEdits" || raw === "auto" ? raw : "ask";
+})();
+
+/** File-editing tools auto-allowed under `acceptEdits`. */
+const EDIT_TOOLS = new Set(["edit", "write", "str_replace", "multi_edit"]);
+
+const PERMISSION_RULES: PermissionRule[] = (() => {
+	const raw = process.env.LAF_PERMISSION_RULES;
+	if (!raw) return [];
+	try {
+		const parsed: unknown = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed
+			.filter((r): r is { tool: string; argPattern?: unknown } => {
+				return !!r && typeof (r as { tool?: unknown }).tool === "string" && (r as { tool: string }).tool.length > 0;
+			})
+			.map((r) => ({
+				tool: String(r.tool),
+				argPattern: typeof r.argPattern === "string" && r.argPattern.length > 0 ? r.argPattern : undefined,
+			}));
+	} catch {
+		return [];
+	}
+})();
+
+/** Translate a glob (only `*` is special) into an anchored RegExp. */
+function globToRegExp(pattern: string): RegExp {
+	const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+	return new RegExp(`^${escaped}$`);
+}
+
+/** The primary argument a rule's pattern is matched against, per tool. */
+function primaryArg(toolName: string, input: Record<string, unknown>): string {
+	if (toolName === "ipython" || toolName === "python") {
+		const code = typeof input.code === "string" ? input.code : "";
+		return code.split("\n", 1)[0] ?? "";
+	}
+	if (typeof input.command === "string") return input.command;
+	if (typeof input.code === "string") return input.code.split("\n", 1)[0] ?? "";
+	for (const key of PATH_KEYS) {
+		const value = input[key];
+		if (typeof value === "string" && value.length > 0) return value;
+	}
+	return "";
+}
+
+function ruleMatches(rule: PermissionRule, toolName: string, arg: string): boolean {
+	if (rule.tool !== toolName) return false;
+	if (!rule.argPattern) return true; // tool-wide rule
+	try {
+		return globToRegExp(rule.argPattern).test(arg);
+	} catch {
+		return false;
+	}
+}
+
+/** True when any persistent allow-rule permits this tool call. */
+function isAllowedByRule(toolName: string, input: Record<string, unknown>): boolean {
+	if (PERMISSION_RULES.length === 0) return false;
+	const arg = primaryArg(toolName, input);
+	return PERMISSION_RULES.some((rule) => ruleMatches(rule, toolName, arg));
+}
+
 export default function (pi: ExtensionAPI) {
 	registerParityCommands(pi);
 	registerPlanGuard(pi);
@@ -310,6 +400,18 @@ export default function (pi: ExtensionAPI) {
 			};
 		}
 
+		// Persistent allow-rules: a match allows the call with no dialog. Applies
+		// in every mode (in "auto" the Rust side would auto-answer anyway).
+		if (isAllowedByRule(event.toolName, event.input as Record<string, unknown>)) {
+			return undefined;
+		}
+
+		// acceptEdits: auto-allow the file-editing tools, but still prompt for
+		// exec tools (bash/ipython) and anything else.
+		if (PERMISSION_MODE === "acceptEdits" && EDIT_TOOLS.has(event.toolName)) {
+			return undefined;
+		}
+
 		if (!ctx.hasUI) return undefined;
 
 		const title = JSON.stringify({
@@ -318,8 +420,11 @@ export default function (pi: ExtensionAPI) {
 			summary: summarize(event.toolName, event.input as Record<string, unknown>),
 		});
 
-		const choice = await ctx.ui.select(title, ["Allow", "Deny"]);
-		if (choice !== "Allow") {
+		// "Always allow" is surfaced by the app as an allow_always option; the
+		// app persists a tool-wide rule for future threads and answers here to
+		// allow the current call. Both allow answers permit the call.
+		const choice = await ctx.ui.select(title, ["Allow", "Always allow", "Deny"]);
+		if (choice !== "Allow" && choice !== "Always allow") {
 			return { block: true, reason: "Blocked by user in LAF Agent" };
 		}
 		return undefined;

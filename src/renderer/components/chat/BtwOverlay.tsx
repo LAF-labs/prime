@@ -2,6 +2,7 @@ import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { IconMessageCircleQuestion, IconX, IconCheck } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
 import ChatMarkdown from './ChatMarkdown'
 import { PermissionBanner } from './PermissionBanner'
@@ -53,6 +54,10 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
 
   const handlePermissionSelect = useCallback((optionId: string) => {
     if (!resolvedTaskId || !pendingPermission) return
+    const opt = pendingPermission.options?.find((o) => o.optionId === optionId)
+    if (opt?.kind === 'allow_always') {
+      useSettingsStore.getState().addPermissionRule({ tool: pendingPermission.toolName })
+    }
     ipc.selectPermissionOption(resolvedTaskId, pendingPermission.requestId, optionId).catch(() => {})
   }, [resolvedTaskId, pendingPermission])
 

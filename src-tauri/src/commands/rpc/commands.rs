@@ -27,6 +27,24 @@ pub(crate) fn resolve_initial_model(
     settings.default_model.clone().filter(|s| !s.trim().is_empty())
 }
 
+/// Build the [`PermissionConfig`] the gate receives at spawn: the effective
+/// mode (project override → global → legacy `auto_approve` migration) plus the
+/// merged allow-rules serialized to JSON. Empty rules produce an empty string
+/// so `permission_env_vars` skips the `LAF_PERMISSION_RULES` variable.
+pub(crate) fn build_permission_config(
+    settings: &crate::commands::settings::AppSettings,
+    workspace: &str,
+) -> PermissionConfig {
+    let mode = settings.effective_permission_mode(Some(workspace));
+    let rules = settings.effective_permission_rules(Some(workspace));
+    let rules_json = if rules.is_empty() {
+        String::new()
+    } else {
+        serde_json::to_string(&rules).unwrap_or_default()
+    };
+    PermissionConfig { mode, rules_json }
+}
+
 /// Refuse to start another agent when the machine already has enough.
 ///
 /// Every live thread is a Node process that in turn runs a Python kernel, and
@@ -116,12 +134,11 @@ pub async fn task_create(
     // — a parking_lot guard reachable at the `.await` makes the whole future
     // !Send. `_slot` (the reserved agent slot) escapes the block and is held
     // until the connection handle is inserted — see `reserve_agent_slot`.
-    let (_slot, auto_approve, agent_bin, co_author, co_author_json_report, tight_sandbox, initial_model_id) = {
+    let (_slot, agent_bin, co_author, co_author_json_report, tight_sandbox, initial_model_id, permission_config) = {
         let settings = settings_state.0.lock();
         let slot = reserve_agent_slot(state.inner(), settings.settings.max_concurrent_agents, &id)?;
         (
             slot,
-            params.auto_approve.unwrap_or(settings.settings.auto_approve),
             settings.settings.agent_bin.clone(),
             settings.settings.co_author,
             settings.settings.co_author_json_report,
@@ -134,8 +151,13 @@ pub async fn task_create(
                 &params.workspace,
                 &settings.settings,
             ),
+            build_permission_config(&settings.settings, &params.workspace),
         )
     };
+    // `auto_approve` (the live-toggleable atomic and the Task field) is derived
+    // from the effective mode: "auto" means allow everything. `acceptEdits` and
+    // the allow-rules are enforced inside the gate from `permission_config`.
+    let auto_approve = permission_config.mode == "auto";
 
     // Seed the task with prior messages (if resuming).
     let mut messages: Vec<TaskMessage> = params.existing_messages.unwrap_or_default();
@@ -226,6 +248,7 @@ pub async fn task_create(
         tight_sandbox,
         session_mode,
         params.launch_options.clone().unwrap_or_default(),
+        permission_config,
     )?;
 
     // Project-independent chats (workspace under ~/.laf-agent/chats) skip the
@@ -376,14 +399,12 @@ pub fn task_send_message(
         // Held until the reconnected handle is inserted below.
         let _slot = reserve_agent_slot(state.inner(), settings.settings.max_concurrent_agents, &task_id)?;
         let agent_bin = settings.settings.agent_bin.clone();
-        let global_auto_approve = settings.settings.auto_approve;
 
-        let (workspace, task_auto_approve, task_session_file, stored_options) = {
+        let (workspace, task_session_file, stored_options) = {
             let tasks = state.tasks.lock();
             let t = tasks.get(&task_id).ok_or("Task not found")?;
             (
                 t.workspace.clone(),
-                t.auto_approve.unwrap_or(global_auto_approve),
                 t.session_file.clone(),
                 t.launch_options.clone().unwrap_or_default(),
             )
@@ -394,6 +415,11 @@ pub fn task_send_message(
             .and_then(|pp| pp.tight_sandbox)
             .unwrap_or(true);
         let initial_model_id = resolve_initial_model(None, &workspace, &settings.settings);
+        // Re-read the permission model from current settings on reconnect: a
+        // mode or rule change made since the thread started applies to the new
+        // subprocess. `auto_approve` (the atomic) follows the effective mode.
+        let permission_config = build_permission_config(&settings.settings, &workspace);
+        let task_auto_approve = permission_config.mode == "auto";
         drop(settings);
 
         // Destroy old connection
@@ -434,7 +460,7 @@ pub fn task_send_message(
         let handle = spawn_connection(
             task_id.clone(), workspace, launch, task_auto_approve,
             app.clone(), None, initial_model_id, tight_sandbox, session_mode,
-            stored_options,
+            stored_options, permission_config,
         )?;
         let _ = handle.cmd_tx.send(AgentCommand::Prompt(full_message, attachments.unwrap_or_default()));
         state.connections.lock().insert(task_id.clone(), handle);
@@ -585,7 +611,6 @@ pub async fn task_fork(
         .or(params.session_file)
         .filter(|f| std::path::Path::new(f).exists());
     let mut parent_messages = parent.as_ref().map(|p| p.messages.clone()).unwrap_or_default();
-    let parent_auto_approve = parent.as_ref().and_then(|p| p.auto_approve);
 
     // Normalize tool-call statuses on the cloned messages. The parent may be
     // mid-stream when forked; non-terminal statuses (`pending`, `in_progress`)
@@ -599,13 +624,16 @@ pub async fn task_fork(
 
     let now = now_rfc3339();
     let settings = settings_state.0.lock();
-    let auto_approve = parent_auto_approve.unwrap_or(settings.settings.auto_approve);
     let agent_bin = settings.settings.agent_bin.clone();
     let tight_sandbox = settings.settings.project_prefs.as_ref()
         .and_then(|p| p.get(&workspace))
         .and_then(|pp| pp.tight_sandbox)
         .unwrap_or(true);
     let initial_model_id = resolve_initial_model(None, &workspace, &settings.settings);
+    let permission_config = build_permission_config(&settings.settings, &workspace);
+    // The fork inherits the workspace's current permission mode; the atomic
+    // follows it, and the gate enforces acceptEdits/rules from the config.
+    let auto_approve = permission_config.mode == "auto";
     drop(settings);
 
     // Build the transcript-replay preamble from the parent's messages. The
@@ -671,6 +699,7 @@ pub async fn task_fork(
         tight_sandbox,
         session_mode,
         LaunchOptions::default(),
+        permission_config,
         preamble_opt,
     )?;
     state.connections.lock().insert(new_id, handle);

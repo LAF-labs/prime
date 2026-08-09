@@ -1,5 +1,5 @@
 use super::*;
-use super::connection::{build_prompt_payload, refine_status_payload, strip_image_tags};
+use super::connection::{build_prompt_payload, permission_env_vars, refine_status_payload, strip_image_tags};
 
 // ── is_within_workspace: allowed paths ──────────────────────────
 
@@ -25,6 +25,29 @@ use super::connection::{build_prompt_payload, refine_status_payload, strip_image
 // ── Performance benchmarks ──────────────────────────────────────
 
 // ── Memory consumption tests ────────────────────────────────────
+
+// ── permission env building ─────────────────────────────────────
+
+#[test]
+fn permission_env_sets_mode_and_rules() {
+    let cfg = PermissionConfig {
+        mode: "acceptEdits".to_string(),
+        rules_json: r#"[{"tool":"bash","argPattern":"git *"}]"#.to_string(),
+    };
+    let vars = permission_env_vars(&cfg);
+    assert!(vars.iter().any(|(k, v)| *k == "LAF_PERMISSION_MODE" && v == "acceptEdits"));
+    assert!(vars
+        .iter()
+        .any(|(k, v)| *k == "LAF_PERMISSION_RULES" && v == r#"[{"tool":"bash","argPattern":"git *"}]"#));
+}
+
+#[test]
+fn permission_env_defaults_mode_and_omits_empty_rules() {
+    let vars = permission_env_vars(&PermissionConfig::default());
+    // An empty mode defaults to "ask", and no rules means no rules env var.
+    assert!(vars.iter().any(|(k, v)| *k == "LAF_PERMISSION_MODE" && v == "ask"));
+    assert!(!vars.iter().any(|(k, _)| *k == "LAF_PERMISSION_RULES"));
+}
 
 // ── refine_status translation ───────────────────────────────────
 

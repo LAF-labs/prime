@@ -135,6 +135,11 @@ pub struct AppSettings {
     /// newly-started threads.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_rules: Option<Vec<PermissionRule>>,
+    /// Reasoning effort remembered per model id ("provider/id" → level). Effort
+    /// is a property of the model, not the project — a cheap model and a
+    /// frontier model want different budgets in the same repo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_efforts: Option<std::collections::HashMap<String, String>>,
     #[serde(default = "default_true")]
     pub respect_gitignore: bool,
     #[serde(default = "default_true")]
@@ -248,6 +253,7 @@ impl Default for AppSettings {
             auto_approve: false,
             permission_mode: None,
             permission_rules: None,
+            model_efforts: None,
             respect_gitignore: true,
             co_author: true,
             co_author_json_report: true,

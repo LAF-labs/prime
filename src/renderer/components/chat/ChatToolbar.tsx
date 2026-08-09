@@ -8,6 +8,7 @@ import { BranchSelector } from './BranchSelector'
 import { ModelPicker } from './ModelPicker'
 import { PlanToggle } from './PlanToggle'
 import { AutoApproveToggle } from './AutoApproveToggle'
+import { EffortPicker, useEffortOptions } from './EffortPicker'
 
 /** Pill-shaped group wrapper for toolbar items */
 const ToolbarGroup = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -51,22 +52,31 @@ export const ChatToolbar = memo(function ChatToolbar({
   onPause,
 }: ChatToolbarProps) {
   const buttonBg = isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-blue-500/90 hover:bg-blue-500'
+  // Non-reasoning models report a single level, and EffortPicker hides itself —
+  // the separator has to disappear with it or the group renders "· ·".
+  const { hasChoice: hasEffortChoice } = useEffortOptions()
 
   return (
     <div className="relative z-10 flex min-w-0 items-center justify-between gap-2 overflow-visible px-3 pb-3 sm:px-4 @container/toolbar">
       {/* Left: AI controls (mode + model) */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <ToolbarGroup className="min-w-0">
-          <PlanToggle />
-          <Dot />
           <ModelPicker />
+          {hasEffortChoice && (
+            <>
+              <Dot />
+              <EffortPicker />
+            </>
+          )}
           <Dot />
           <AutoApproveToggle />
         </ToolbarGroup>
       </div>
 
-      {/* Right: attach + git + send/pause */}
+      {/* Right: plan/code + attach + git + send/pause. Plan mode moved out of
+          the left group so that group reads model → effort → permissions. */}
       <div className="flex shrink-0 items-center gap-1.5">
+        <PlanToggle />
         <Tooltip>
           <TooltipTrigger asChild>
             <button

@@ -207,6 +207,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   connectionStatus: { phase: 'idle', attemptCount: 0, reconnectAttemptCount: 0, reconnectMaxAttempts: 5, hasConnected: false, connectedAt: null, disconnectedAt: null, lastError: null, lastErrorAt: null, nextRetryAt: null },
   dispatchSnapshots: {},
   thinkingLevels: {},
+  availableThinkingLevels: {},
   terminalOpenTasks: new Set<string>(),
   isWorkspaceTerminalOpen: false,
   pendingTerminalRequests: {},
@@ -875,6 +876,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   setThinkingLevel: (taskId, level) => {
     if (get().thinkingLevels[taskId] === level) return
     set((s) => ({ thinkingLevels: { ...s.thinkingLevels, [taskId]: level } }))
+  },
+
+  setAvailableThinkingLevels: (taskId, levels) => {
+    const current = get().availableThinkingLevels[taskId]
+    if (current && current.length === levels.length && current.every((l, i) => l === levels[i])) return
+    set((s) => ({ availableThinkingLevels: { ...s.availableThinkingLevels, [taskId]: levels } }))
   },
 
   updateCompactionStatus: (taskId, status, _summary) => {

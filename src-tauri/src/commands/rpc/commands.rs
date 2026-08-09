@@ -967,7 +967,9 @@ pub fn set_thinking_level(
     task_id: String,
     level: String,
 ) -> Result<(), String> {
-    const LEVELS: &[&str] = &["off", "minimal", "low", "medium", "high", "xhigh"];
+    // Mirrors the harness's THINKING_LEVELS. "max" was missing here, so the
+    // one level Codex-class models expose above xhigh was rejected client-side.
+    const LEVELS: &[&str] = &["off", "minimal", "low", "medium", "high", "xhigh", "max"];
     if !LEVELS.contains(&level.as_str()) {
         return Err(format!("Unknown thinking level '{level}'"));
     }

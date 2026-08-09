@@ -191,6 +191,17 @@ export interface PermissionRule {
   argPattern?: string
 }
 
+/**
+ * Reasoning effort levels, mirroring the harness's `THINKING_LEVELS`. Which of
+ * these a session actually accepts depends on the model, so the picker asks the
+ * agent (`availableThinkingLevels`) instead of offering all seven blindly.
+ */
+export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+export type ThinkingLevel = (typeof THINKING_LEVELS)[number]
+
+export const isThinkingLevel = (v: unknown): v is ThinkingLevel =>
+  typeof v === 'string' && (THINKING_LEVELS as readonly string[]).includes(v)
+
 export interface ProjectPrefs {
   modelId?: string | null
   autoApprove?: boolean
@@ -243,6 +254,12 @@ export interface AppSettings {
   /** Queued-message steering: 'one-at-a-time' (harness default) or 'all'. */
   steeringMode?: 'one-at-a-time' | 'all'
   projectPrefs?: Record<string, ProjectPrefs>
+  /**
+   * Reasoning effort remembered per model id (`provider/id` → level). Effort is
+   * a property of the model, not the project — a cheap model and a frontier
+   * model want different budgets in the same repo.
+   */
+  modelEfforts?: Record<string, ThinkingLevel>
   hasOnboardedV2?: boolean
   sidebarPosition?: SidebarPosition
   /** Theme mode: dark, light, or system (follows OS preference). Default: dark. */

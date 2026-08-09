@@ -115,6 +115,34 @@ const throttledMidTurnPersist = (): void => {
  * misses SQLite has no durable home, so the save must cover the exact delta
  * on every path that ends a turn. Dedupe keys make re-saves no-ops.
  */
+/**
+ * Seed the effort picker from session state, then re-assert the user's saved
+ * per-model preference.
+ *
+ * The agent owns the truth about which levels exist (it derives them from the
+ * model) and boots with its own default, so a fresh session would silently drop
+ * a preference the user set on a previous run. Anything the agent won't accept
+ * is skipped rather than sent and rejected.
+ */
+const applyThinkingLevel = (
+  taskId: string,
+  modelId: string | null,
+  level: string | null | undefined,
+  available: string[] | null | undefined,
+): void => {
+  if (!taskId || taskId === '__probe__') return
+  const store = useTaskStore.getState()
+  const options = Array.isArray(available) && available.length > 0 ? available : null
+  if (options) store.setAvailableThinkingLevels(taskId, options)
+  if (level) store.setThinkingLevel(taskId, level)
+
+  const saved = modelId ? useSettingsStore.getState().settings.modelEfforts?.[modelId] : undefined
+  if (!saved || saved === level) return
+  if (options && !options.includes(saved)) return
+  store.setThinkingLevel(taskId, saved)
+  ipc.setThinkingLevel(taskId, saved).catch(() => {})
+}
+
 const applyTurnEndPersisting = (taskId: string, stopReason?: string, refusalRetry?: boolean): void => {
   const before = useTaskStore.getState().tasks[taskId]?.messages.length ?? 0
   useTaskStore.setState((s) => applyTurnEnd(s, taskId, stopReason, refusalRetry))
@@ -627,7 +655,7 @@ export function initTaskListeners(): () => void {
     }
   })
 
-  const unsub10 = ipc.onSessionInit(({ taskId, sessionId, sessionFile, models, modes }) => {
+  const unsub10 = ipc.onSessionInit(({ taskId, sessionId, sessionFile, models, modes, thinkingLevel, availableThinkingLevels }) => {
     console.log('[session_init] received', { taskId, sessionId, models, modes })
     // Re-arm plan-mode enforcement: the /plan-guard flag lives in the gate
     // extension's process, so a restarted agent comes back with it off even
@@ -656,6 +684,7 @@ export function initTaskListeners(): () => void {
         state.persistHistory()
       }
     }
+    let applied = false
     if (models && typeof models === 'object') {
       const m = models as { availableModels?: Array<{ modelId: string; name: string; description?: string | null }>; currentModelId?: string }
       if (m.availableModels) {
@@ -681,8 +710,12 @@ export function initTaskListeners(): () => void {
         if (taskId !== '__probe__' && nextModelId && nextModelId !== m.currentModelId) {
           ipc.setModel(taskId, nextModelId).catch(() => {})
         }
+        applyThinkingLevel(taskId, nextModelId, thinkingLevel, availableThinkingLevels)
+        applied = true
       }
     }
+    // No model block (or no list in it) — still seed effort from session state.
+    if (!applied) applyThinkingLevel(taskId, null, thinkingLevel, availableThinkingLevels)
     if (modes && typeof modes === 'object') {
       const md = modes as { availableModes?: Array<{ id: string; name: string; description?: string | null }>; currentModeId?: string }
       if (md.availableModes) {
@@ -808,9 +841,18 @@ export function initTaskListeners(): () => void {
     if (level) useTaskStore.getState().setThinkingLevel(taskId, level)
   })
 
+  const unsub16 = ipc.onThinkingLevels(({ taskId, levels, current }) => {
+    // Emitted after a model switch. Which levels are legal is a property of the
+    // model, so the picker has to re-learn them or it offers rejected options.
+    if (Array.isArray(levels) && levels.length > 0) {
+      useTaskStore.getState().setAvailableThinkingLevels(taskId, levels)
+    }
+    if (current) useTaskStore.getState().setThinkingLevel(taskId, current)
+  })
+
   return () => {
     clearInterval(watchdogInterval)
     unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12()
-    unsub13(); unsub14(); unsub15()
+    unsub13(); unsub14(); unsub15(); unsub16()
   }
 }

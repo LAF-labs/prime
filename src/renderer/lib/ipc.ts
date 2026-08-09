@@ -355,7 +355,7 @@ export const ipc = {
     tauriListen('turn_end', cb),
   onDebugLog: (cb: (entry: DebugLogEntry) => void): UnsubscribeFn =>
     tauriListen('debug_log', cb),
-  onSessionInit: (cb: (data: { taskId: string; sessionId?: string; sessionFile?: string | null; models: unknown; modes: unknown; configOptions: unknown }) => void): UnsubscribeFn =>
+  onSessionInit: (cb: (data: { taskId: string; sessionId?: string; sessionFile?: string | null; models: unknown; modes: unknown; configOptions: unknown; thinkingLevel?: string | null; availableThinkingLevels?: string[] | null }) => void): UnsubscribeFn =>
     tauriListen('session_init', cb),
   onCommandsUpdate: (cb: (data: { taskId: string; commands: Array<{ name: string; description?: string; inputType?: string }>; mcpServers?: Array<{ name: string; status: string; toolCount: number }> | Record<string, Array<{ name: string; status: string; toolCount: number }>> }) => void): UnsubscribeFn =>
     tauriListen('commands_update', cb),
@@ -369,6 +369,9 @@ export const ipc = {
     tauriListen('refine_status', cb),
   onThinkingLevelChanged: (cb: (data: { taskId: string; level: string }) => void): UnsubscribeFn =>
     tauriListen('thinking_level_changed', cb),
+  /** Emitted after a model switch: the levels the new model supports. */
+  onThinkingLevels: (cb: (data: { taskId: string; levels: string[] | null; current: string | null }) => void): UnsubscribeFn =>
+    tauriListen('thinking_levels', cb),
   onEditorsUpdated: (cb: (bins: string[]) => void): UnsubscribeFn =>
     tauriListen('editors-updated', cb),
   onAgentResourcesChanged: (cb: (data: { projectPath: string | null }) => void): UnsubscribeFn =>

@@ -88,6 +88,9 @@ export interface TaskStore {
   /** Per-task reasoning-effort level, kept in sync via thinking_level_changed
    *  (the agent can change its own level, e.g. under goal autonomy). */
   thinkingLevels: Record<string, string>
+  /** Levels the task's current model accepts, as reported by the agent. Absent
+   *  until session_init lands; the picker falls back to the full list. */
+  availableThinkingLevels: Record<string, string[]>
   terminalOpenTasks: Set<string>
   /** Workspace-level terminal open state (for PendingChat when no task is selected) */
   isWorkspaceTerminalOpen: boolean
@@ -178,6 +181,7 @@ export interface TaskStore {
   updateUsage: (taskId: string, used: number, size: number) => void
   updateCompactionStatus: (taskId: string, status: CompactionStatus, summary?: string) => void
   setThinkingLevel: (taskId: string, level: string) => void
+  setAvailableThinkingLevels: (taskId: string, levels: string[]) => void
   clearTurn: (taskId: string) => void
   enqueueMessage: (taskId: string, message: string, attachments?: IpcAttachment[]) => void
   dequeueMessages: (taskId: string) => QueuedMessage[]

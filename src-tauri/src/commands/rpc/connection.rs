@@ -666,7 +666,11 @@ pub(crate) async fn run_rpc_connection(
                     }
                     Some(AgentCommand::SetModel(model_id)) => {
                         if let Some((provider, id)) = model_id.split_once('/') {
+                            // Tagged so the reader can chain a state refresh:
+                            // the set of supported reasoning levels is a
+                            // property of the model, so it changes here.
                             let _ = stdin_tx.send(json!({
+                                "id": "__set_model",
                                 "type": "set_model", "provider": provider, "modelId": id
                             }).to_string());
                         } else {
@@ -1030,6 +1034,23 @@ fn handle_rpc_response(ctx: &Arc<ReaderCtx>, event: &Value) {
                 "mcpServers": Value::Array(vec![]),
             }));
         }
+        "__set_model" => {
+            // `set_model` returns the model, not the session state, and the
+            // harness emits no model-changed notification. Chain an explicit
+            // get_state so the effort picker learns which levels this model
+            // supports. Sent only after the switch completed, so the state we
+            // read back is the post-switch one.
+            let _ = ctx.stdin_tx.send(
+                json!({ "id": "__levels_refresh", "type": "get_state" }).to_string(),
+            );
+        }
+        "__levels_refresh" => {
+            let _ = ctx.app.emit("thinking_levels", json!({
+                "taskId": ctx.task_id,
+                "levels": data.get("availableThinkingLevels").cloned().unwrap_or(Value::Null),
+                "current": data.get("thinkingLevel").cloned().unwrap_or(Value::Null),
+            }));
+        }
         "__stats" => {
             if let Some(cu) = data.get("contextUsage") {
                 let used = cu.get("tokens").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -1097,6 +1118,10 @@ fn try_emit_session_init(ctx: &Arc<ReaderCtx>) {
         },
         "modes": { "availableModes": [], "currentModeId": Value::Null },
         "thinkingLevel": state.get("thinkingLevel"),
+        // Which reasoning levels this model actually supports. The harness
+        // derives it per model, so a picker that hardcoded the full list would
+        // offer levels the provider rejects.
+        "availableThinkingLevels": state.get("availableThinkingLevels"),
         "configOptions": Value::Null,
     }));
 }

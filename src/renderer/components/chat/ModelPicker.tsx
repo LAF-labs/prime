@@ -7,6 +7,7 @@ import { usePanelResolvedTaskId } from './PanelContext'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { getModelIcon } from '@/lib/model-icons'
+import { getModelEffort } from './EffortPicker'
 
 const RETRY_DELAY_MS = 10_000
 
@@ -117,6 +118,12 @@ export const ModelPicker = memo(function ModelPicker() {
                   // Push the selection to the live agent session so prime-agent
                   // actually starts using the new model on the next prompt.
                   ipc.setModel(resolvedTaskId, m.modelId).catch(() => {})
+                  // Effort is remembered per model. The harness picks its own
+                  // default on a switch, so re-assert the user's choice for the
+                  // model they just moved to. Ordered after set_model on the
+                  // same pipe, so it lands on the new model.
+                  const effort = getModelEffort(m.modelId)
+                  if (effort) ipc.setThinkingLevel(resolvedTaskId, effort).catch(() => {})
                 }
                 setOpen(false)
               }}

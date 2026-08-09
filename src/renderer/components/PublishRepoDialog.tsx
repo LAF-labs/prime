@@ -82,7 +82,7 @@ export function PublishRepoDialog({ open, onOpenChange, workspace }: PublishRepo
       const webUrl = `https://${currentProvider.host}/${repo}`
       setResult({ url: webUrl, name: repo })
       setStep(2)
-      toast.success('Repository published', {
+      toast.success(t('Repository published'), {
         description: `Pushed to ${currentProvider.label}`,
       })
     } catch (e) {

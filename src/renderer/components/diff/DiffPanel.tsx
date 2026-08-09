@@ -340,7 +340,7 @@ export const DiffPanel = memo(function DiffPanel() {
             </div>
           ) : parsedFiles.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-              {diff.trim() ? 'Could not parse diff' : 'No changes yet'}
+              {diff.trim() ? t('Could not parse diff') : t('No changes yet')}
             </div>
           ) : (
             <Virtualizer config={{ overscrollSize: 400, intersectionObserverMargin: 800 }}>

@@ -88,7 +88,7 @@ export const DiffFileActionBar = ({
                 {viewed ? <IconSquareCheck className="size-3" /> : <IconSquare className="size-3" />}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">{viewed ? 'Viewed (click to unmark)' : 'Mark viewed'}</TooltipContent>
+            <TooltipContent side="top">{viewed ? t('Viewed (click to unmark)') : t('Mark viewed')}</TooltipContent>
           </Tooltip>
         </div>
       </div>

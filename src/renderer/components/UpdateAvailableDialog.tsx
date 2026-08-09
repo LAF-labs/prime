@@ -71,7 +71,7 @@ export const UpdateAvailableDialog = () => {
             {isReady
               ? <IconRefresh className="size-5 text-primary" aria-hidden />
               : <IconSparkles className="size-5 text-primary" aria-hidden />}
-            {isReady ? 'Update ready' : `LAF Agent v${updateInfo?.version ?? ''} available`}
+            {isReady ? t('Update ready') : t('LAF Agent v{version} available', { version: updateInfo?.version ?? '' })}
           </DialogTitle>
           <DialogDescription>
             {isReady

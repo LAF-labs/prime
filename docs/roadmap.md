@@ -105,11 +105,12 @@ event kinds. The gaps below are ranked impact-per-effort.
   reflects levels changed agent-side.
 - Settings toggles for `set_auto_compaction`, `set_auto_retry`,
   `set_steering_mode` (applied at session start and on change).
-- Scheduled prompts UI over `list_schedules` / `add_schedule` /
-  `cancel_schedule` — the harness already runs them.
+- ~~Scheduled prompts UI~~ — dropped: the harness rejects schedules outside
+  daemon mode ("Cron jobs require daemon mode"), verified live. Folded into
+  the Wave 9 daemon-mode item.
 
 **Gate:** every harness notification kind is either handled or explicitly
-listed as ignored with a reason; new toggles round-trip.
+listed as ignored with a reason; new toggles round-trip. **Shipped 016627e.**
 
 ## Wave 7 — Rust hygiene batch (P2 backlog, M)
 

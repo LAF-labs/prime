@@ -16,7 +16,7 @@ export const MessagesChart = ({ sent, received }: { sent: AnalyticsEvent[]; rece
   return (
     <ChartCard title={t('Messages & words')}>
       <div className="mb-2 grid grid-cols-3 gap-2">
-        <StatRow label="Messages" value={totalMessages} />
+        <StatRow label={t('Messages')} value={totalMessages} />
         <StatRow label="Input words" value={fmtNum(inputWords)} />
         <StatRow label="Output words" value={fmtNum(outputWords)} />
       </div>

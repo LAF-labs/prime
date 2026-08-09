@@ -33,7 +33,7 @@ function getActionLabel(action: DefaultBranchAction): string {
   switch (action) {
     case 'commit': return 'Commit'
     case 'push': return 'Push'
-    case 'commit_push': return 'Commit & Push'
+    case 'commit_push': return t('Commit & Push')
   }
 }
 
@@ -76,7 +76,7 @@ export function DefaultBranchConfirmDialog({
     setIsCreating(true)
     try {
       await ipc.gitCreateAndCheckoutBranch(workspace, name)
-      toast.success('Branch created', { description: `Switched to ${name}` })
+      toast.success(t('Branch created'), { description: t('Switched to {name}', { name }) })
       onOpenChange(false)
       onCreateBranch?.(name)
     } catch (e) {

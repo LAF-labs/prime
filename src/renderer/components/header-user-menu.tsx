@@ -90,7 +90,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                   <IconRefresh
                     className={cn("size-3.5", refreshing && "animate-spin")}
                   />{" "}
-                  {refreshing ? "Checking…" : "Refresh"}
+                  {refreshing ? t('Checking…') : t('Refresh')}
                 </button>
                 <button
                   type="button"
@@ -129,7 +129,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
                 <IconRefresh
                   className={cn("size-3.5", refreshing && "animate-spin")}
                 />{" "}
-                {refreshing ? "Checking…" : "Check again"}
+                {refreshing ? t('Checking…') : t('Check again')}
               </button>
             </div>
           )}

@@ -105,7 +105,7 @@ export const BtwOverlay = memo(function BtwOverlay({ taskId: taskIdProp }: { tas
         <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-4 py-2.5">
           <IconMessageCircleQuestion className="size-4 text-yellow-500" />
           <span className="text-[13px] font-medium text-yellow-500">btw</span>
-          <span className="flex-1 truncate text-[12px] text-muted-foreground">Side question — not saved to conversation</span>
+          <span className="flex-1 truncate text-[12px] text-muted-foreground">{t('Side question — not saved to conversation')}</span>
           <button
             onClick={handleDismiss}
             className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

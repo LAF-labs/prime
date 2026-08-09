@@ -25,7 +25,7 @@ export const ProjectStatsChart = ({ threadEvents, messageEvents }: { threadEvent
           <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
           <Legend wrapperStyle={{ fontSize: 10 }} />
           <Bar dataKey="threads" name="Threads" fill="#6366f1" radius={[0, 3, 3, 0]} />
-          <Bar dataKey="messages" name="Messages" fill="#22c55e" radius={[0, 3, 3, 0]} />
+          <Bar dataKey="messages" name={t('Messages')} fill="#22c55e" radius={[0, 3, 3, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

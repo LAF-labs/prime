@@ -132,7 +132,7 @@ export const SplitThreadPicker = memo(function SplitThreadPicker({
       <div className="max-h-[300px] overflow-y-auto p-1.5">
         {filtered.length === 0 ? (
           <p className="px-3 py-4 text-center text-[13px] text-muted-foreground">
-            {candidates.length === 0 ? 'No other threads available' : 'No matches'}
+            {candidates.length === 0 ? t('No other threads available') : t('No matches')}
           </p>
         ) : (
           filtered.map((t) => (

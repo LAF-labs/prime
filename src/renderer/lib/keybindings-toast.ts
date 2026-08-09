@@ -23,8 +23,8 @@ export function notifyKeybindingsUpdated(): void {
     pendingTimer = setTimeout(() => {
       pendingTimer = null
       lastToastTime = Date.now()
-      toast.success('Keybindings updated', {
-        description: 'Your keyboard shortcuts have been reloaded.',
+      toast.success(t('Keybindings updated'), {
+        description: t('Your keyboard shortcuts have been reloaded.'),
         duration: 2000,
       })
     }, COALESCE_MS)

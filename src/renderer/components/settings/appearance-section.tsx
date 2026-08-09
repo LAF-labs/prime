@@ -166,7 +166,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
             <div className="flex items-center gap-3.5">
               <img
                 src={displayIcon}
-                alt="App icon"
+                alt={t('App icon')}
                 className="size-12 rounded-xl border border-border/60 bg-background/50 object-cover shadow-sm"
                 draggable={false}
               />

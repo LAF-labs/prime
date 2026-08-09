@@ -53,9 +53,9 @@ export const RestartPromptDialog = () => {
           </Button>
           <Button size="sm" onClick={handleRestart} disabled={isRestarting}>
             {isRestarting ? (
-              <><IconLoader2 className="size-4 animate-spin" aria-hidden /> Restarting…</>
+              <><IconLoader2 className="size-4 animate-spin" aria-hidden /> {t('Restarting…')}</>
             ) : (
-              'Restart now'
+              t('Restart now')
             )}
           </Button>
         </DialogFooter>

@@ -256,7 +256,7 @@ export const ResourcePanel = memo(function ResourcePanel({
             >
               <IconPlus className="size-3.5 shrink-0" aria-hidden />
               <IconPlug className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
-              <span className="flex-1 truncate">Add MCP server…</span>
+              <span className="flex-1 truncate">{t('Add MCP server…')}</span>
             </button>
           )}
         </div>
@@ -442,7 +442,7 @@ export const ResourcePanel = memo(function ResourcePanel({
               >
                 <IconPlus className="size-3.5 shrink-0" aria-hidden />
                 <IconPlug className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
-                <span className="flex-1 truncate">Add MCP server…</span>
+                <span className="flex-1 truncate">{t('Add MCP server…')}</span>
               </button>
             )}
             {mcpOpen && filteredMcp.length > 0 && (

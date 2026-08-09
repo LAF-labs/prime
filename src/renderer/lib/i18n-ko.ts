@@ -814,6 +814,20 @@ export const ko: Record<string, string> = {
   'Could not save the conversation': '대화를 저장하지 못했습니다',
   'Could not clear the conversation': '대화를 비우지 못했습니다',
 
+  // ── Raw-literal sweep (t() wiring fixes) ──────────────────────────
+  Create: '만들기',
+  'Check again': '다시 확인',
+  'Restarting…': '재시작 중…',
+  'No other threads available': '다른 스레드가 없습니다',
+  'Viewed (click to unmark)': '확인함 (클릭하여 해제)',
+  'Could not parse diff': 'diff를 해석하지 못했습니다',
+  'Copied!': '복사됨!',
+  'No JS debug entries yet': '아직 JS 디버그 항목이 없습니다',
+  'No debug entries yet': '아직 디버그 항목이 없습니다',
+  'Add MCP server…': 'MCP 서버 추가…',
+  'Switched to {name}': '{name}(으)로 전환했습니다',
+  'LAF Agent v{version} available': 'LAF Agent v{version} 사용 가능',
+
   // ── Agent behavior (RPC alignment) ────────────────────────────────
   'Agent behavior': '에이전트 동작',
   'Session-level agent defaults, applied on connect': '연결 시 적용되는 세션 수준 에이전트 기본값',

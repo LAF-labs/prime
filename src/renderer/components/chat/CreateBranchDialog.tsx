@@ -64,7 +64,7 @@ export const CreateBranchDialog = memo(function CreateBranchDialog({
           <IconArrowLeft className="size-3.5" />
         </button>
         <span className="text-xs font-medium text-foreground">
-          {inlineMode === 'branch' ? 'Create branch' : 'Create worktree'}
+          {inlineMode === 'branch' ? t('Create branch') : t('Create worktree')}
         </span>
       </div>
       <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground">
@@ -94,7 +94,7 @@ export const CreateBranchDialog = memo(function CreateBranchDialog({
         />
         <button
           type="button"
-          aria-label={inlineMode === 'branch' ? 'Create branch' : 'Create worktree'}
+          aria-label={inlineMode === 'branch' ? t('Create branch') : t('Create worktree')}
           onClick={onSubmit}
           disabled={!inlineValue.trim() || checkingOut}
           className="flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"

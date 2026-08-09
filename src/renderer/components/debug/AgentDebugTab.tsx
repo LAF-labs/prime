@@ -124,7 +124,7 @@ const DebugRow = memo(function DebugRow({
               {copied ? <IconCheck className="size-2.5" /> : <IconCopy className="size-2.5" />}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="left">{copied ? 'Copied!' : 'Copy entry'}</TooltipContent>
+          <TooltipContent side="left">{copied ? t('Copied!') : t('Copy entry')}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -285,7 +285,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
           className="h-5 rounded border border-border/50 bg-background px-1 text-[10px] text-foreground outline-none"
         >
           {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c === 'all' ? 'All types' : c}</option>
+            <option key={c} value={c}>{c === 'all' ? t('All types') : c}</option>
           ))}
         </select>
 
@@ -362,7 +362,7 @@ export const AgentDebugTab = memo(function AgentDebugTab() {
       <div ref={parentRef} className="min-h-0 flex-1 overflow-auto">
         {filtered.length === 0 ? (
           <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
-            {entries.length === 0 ? 'No debug entries yet' : 'No matches'}
+            {entries.length === 0 ? t('No debug entries yet') : t('No matches')}
           </div>
         ) : (
           <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>

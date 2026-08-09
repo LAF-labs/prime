@@ -19,7 +19,7 @@ const ToolCallChart = lazy(() => import('./ToolCallChart').then((m) => ({ defaul
 const ProjectStatsChart = lazy(() => import('./ProjectStatsChart').then((m) => ({ default: m.ProjectStatsChart })))
 
 const RANGES: { label: string; value: TimeRange }[] = [
-  { label: 'All Time', value: 'all' },
+  { label: 'All Time', value: 'all' }, // label t()'d at render
   { label: '30 Days', value: '30d' },
   { label: '7 Days', value: '7d' },
 ]

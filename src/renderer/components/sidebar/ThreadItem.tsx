@@ -208,7 +208,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                   <StatusIndicator shape={dot.shape} color={dot.color} />
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="right">{dot.label}</TooltipContent>
+              <TooltipContent side="right">{t(dot.label)}</TooltipContent>
             </Tooltip>
           )}
         </span>
@@ -219,7 +219,7 @@ export const ThreadItem = memo(function ThreadItem({ task, isActive, jumpLabel, 
                 <IconHistory className="size-3 text-muted-foreground/70" aria-label={t('Resumed from history')} />
               </span>
             </TooltipTrigger>
-            <TooltipContent side="right">From history — agent reconnects on next send</TooltipContent>
+            <TooltipContent side="right">{t('From history — agent reconnects on next send')}</TooltipContent>
           </Tooltip>
         )}
         {task.worktreePath && !task.isArchived && (

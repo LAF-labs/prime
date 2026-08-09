@@ -2,7 +2,7 @@
 
 ## System overview
 
-LAF Agent is a native desktop client for the prime-agent coding agent. The app is built with Tauri v2: a Rust backend manages the agent subprocess, git operations, file system access, terminal emulation, local analytics, and config persistence, while a React 19 frontend provides the UI. All communication between the two layers happens through Tauri's IPC (`invoke()` for commands, `listen()` for events). There are no Node.js APIs in the frontend.
+LAF Agent is a native desktop client for the prime-agent runtime, packaged as an everyday AI agent (chat, web research, file tools, terminal). The app is built with Tauri v2: a Rust backend manages the agent subprocess, file system access, terminal emulation, local analytics, and config persistence, while a React 19 frontend provides the UI. All communication between the two layers happens through Tauri's IPC (`invoke()` for commands, `listen()` for events). There are no Node.js APIs in the frontend.
 
 The agent itself runs as a child process speaking prime-agent's RPC protocol — newline-delimited JSON over stdin/stdout. It ships inside the app bundle; see [sidecar-architecture.md](sidecar-architecture.md).
 
@@ -19,7 +19,6 @@ graph TD
     Launch["agent_launch.rs<br/>(resolve binary + PATH)"]
     Kernel["kernel_setup.rs<br/>(Python kernel via uv)"]
     PTY["pty.rs<br/>(portable-pty)"]
-    Git["git*.rs<br/>(git2 / libgit2)"]
     Analytics["analytics.rs<br/>(redb)"]
     ThreadDB["thread_db.rs<br/>(redb)"]
     Settings["settings.rs<br/>(confy)"]
@@ -31,7 +30,6 @@ graph TD
   Zustand -- "invoke() / listen()" --> RPC
   Zustand -- "invoke() / listen()" --> PTY
   Zustand -- "invoke() / listen()" --> Kernel
-  Zustand -- "invoke()" --> Git
   Zustand -- "invoke()" --> Analytics
   Zustand -- "invoke()" --> Settings
   Zustand -- "invoke()" --> FsOps
@@ -44,7 +42,6 @@ graph TD
   Agent -- "extension UI protocol" --> Gate["laf-agent-gate.ts<br/>(permission gate, sandbox)"]
   Kernel -- "spawns" --> Uv["bundled uv → ~/.prime/agent/kernel-venv"]
   PTY -- "PTY I/O" --> Shell["User shell"]
-  Git -- "libgit2 FFI" --> Repo["Git repository"]
   Analytics -- "ACID storage" --> ReDB["redb database"]
   ThreadDB -- "ACID storage" --> ReDB
 ```
@@ -90,12 +87,6 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 
 | Module | Purpose |
 |--------|---------|
-| `git.rs` | Git operations via `git2` (libgit2 bindings). Branch, stage, commit, push, pull, fetch, worktree management. |
-| `git_ai.rs` | Commit message generation. Runs the agent one-shot (`--print --no-tools --no-session`) outside the user's thread. |
-| `git_history.rs` | Git log and history traversal. |
-| `git_pr.rs` | Pull request creation and management. |
-| `git_stack.rs` | Stacked branch workflows. |
-| `git_utils.rs` | Shared git utility functions. |
 | `pty.rs` | Terminal emulation via `portable-pty`. Manages PTY child process lifecycle. |
 | `settings.rs` | Config persistence via `confy`, plus the recent-projects list. |
 | `fs_ops.rs` | File operations, agent detection, and `~/.prime/agent/auth.json` management. |
@@ -106,7 +97,7 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 
 | Module | Purpose |
 |--------|---------|
-| `analytics.rs` | Local usage statistics in `redb`. Coding hours, messages, tokens, tool calls, diff stats, model usage. Nothing leaves the machine. |
+| `analytics.rs` | Local usage statistics in `redb`. Active hours, messages, tokens, tool calls, file-change stats, model usage. Nothing leaves the machine. |
 | `thread_db.rs` | Thread and conversation persistence via `redb`. |
 | `checkpoint.rs` | Per-turn working-tree snapshots behind hidden git refs, for turn rollback. Restoring rewrites files and the index; it never moves HEAD, so a commit the agent made during a turn survives the rollback. |
 
@@ -114,10 +105,7 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 
 | Module | Purpose |
 |--------|---------|
-| `branch_ai.rs` | Branch name generation from the first message. |
 | `thread_title.rs` | Thread title generation from the first message. |
-| `pr_ai.rs` | PR title and body generation from a branch diff. |
-| `diff_parse.rs` | Unified diff parsing and rendering. |
 | `diff_stats.rs` | Line-level statistics annotated onto tool-call diff payloads. |
 | `markdown.rs` | Server-side markdown parsing for assistant messages. |
 
@@ -127,7 +115,6 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 |--------|---------|
 | `project_watcher.rs` | Real-time filesystem watching for the file tree panel. |
 | `resource_watcher.rs` | Watches the `.agent/` directory for config changes. |
-| `vcs_status.rs` | Git status indicators per file (modified, added, deleted, renamed). |
 | `fuzzy.rs` | Fuzzy search for the command palette and pickers. |
 | `tracing.rs` | Application-level tracing and debug logging. |
 | `process_diagnostics.rs` | Process health monitoring and diagnostics. |
@@ -150,15 +137,12 @@ Zustand stores in `src/renderer/stores/` are the single source of truth. No Redu
 | `taskStore.ts` | Tasks, messages, streaming state, agent connection lifecycle, split view |
 | `settingsStore.ts` | Agent profiles, model selection, appearance preferences |
 | `resourceStore.ts` | `.agent/` config state (agents, skills, steering, MCP servers) |
-| `diffStore.ts` | Diff viewer file selection and content |
 | `debugStore.ts` | Debug panel log entries and filters |
 | `updateStore.ts` | App update checking and installation state |
 | `jsDebugStore.ts` | JS console capture for debug panel |
 | `fileTreeStore.ts` | File tree panel state, expansion, and filesystem data |
 | `filePreviewStore.ts` | File preview modal state |
 | `analyticsStore.ts` | Analytics dashboard data and chart state |
-| `goalStore.ts` | Goal mode state (objective, iterations, budget, corrections) |
-| `vcsStatusStore.ts` | Per-file git status indicators |
 
 ### Components
 
@@ -169,24 +153,18 @@ Components live in `src/renderer/components/`, organized by feature:
 | `ui/` | Radix UI primitives styled with `class-variance-authority`, composed via `cn()` helper |
 | `chat/` | ChatPanel, MessageList, ChatInput, SplitChatLayout, slash command panels |
 | `sidebar/` | TaskSidebar, ResourcePanel, ThreadItem, ProjectItem |
-| `code/` | CodePanel, DiffViewer (Shiki for syntax highlighting) |
 | `analytics/` | Analytics dashboard with nine chart types (Recharts) |
 | `file-tree/` | FileTreePanel, TreeContextMenu |
 | `settings/` | SettingsPanel with multiple tabs |
 | `diff/` | SelectionToolbar |
 | `debug/` | DebugPanel |
-| `dashboard/` | TaskCard |
-| `task/` | NewProjectSheet |
 | `unified-title-bar/` | Cross-platform title bar |
 | `icons/` | Custom icon components |
 
 ### Key standalone components
 
-- `CommitDialog.tsx` — Git commit with AI message generation
 - `Onboarding.tsx` — First-run setup wizard
 - `ErrorBoundary.tsx` — React error boundary with recovery
-- `PublishRepoDialog.tsx` — Repository publishing workflow
-- `CloneRepoDialog.tsx` — Repository cloning
 - `WhatsNewDialog.tsx` — Release notes display
 - `UpdateAvailableDialog.tsx` — App update prompt
 
@@ -283,14 +261,14 @@ State-changing actions that modify persisted data must call `persistHistory()` a
 | Layer | Technology |
 |-------|-----------|
 | Desktop framework | Tauri v2 |
-| Backend | Rust 2021, agent-client-protocol, git2, thiserror, confy, serde_yaml, which, portable-pty, redb |
+| Backend | Rust 2021, git2 (turn checkpoints), thiserror, confy, which, portable-pty, redb |
 | Frontend | React 19, TypeScript 5, Vite 6 |
 | Styling | Tailwind CSS 4 |
 | State | Zustand 5 |
 | UI primitives | Radix UI |
 | Icons | Tabler icons (`@tabler/icons-react`) |
 | Code highlighting | Shiki |
-| Terminal | xterm.js + portable-pty |
+| Terminal | ghostty-web + portable-pty |
 | Virtualization | @tanstack/react-virtual |
 | Diff | diff + @pierre/diffs |
 | Markdown | react-markdown + remark-gfm |

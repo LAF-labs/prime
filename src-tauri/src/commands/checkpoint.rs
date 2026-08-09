@@ -138,14 +138,20 @@ pub fn checkpoint_supported(cwd: String) -> bool {
 ///
 /// Non-destructive: it writes a commit reachable only from the checkpoint ref
 /// and never modifies the working tree, the index, HEAD, or any branch.
+///
+/// Async with the git2 work on the blocking pool: on Tauri v2 a sync command
+/// runs on the main thread, and a full-tree snapshot of a large workspace
+/// froze the UI for its duration.
 #[tauri::command]
-pub fn checkpoint_create(
+pub async fn checkpoint_create(
     state: tauri::State<'_, AgentState>,
     task_id: String,
     turn: u32,
 ) -> Result<Checkpoint, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    create_snapshot(&cwd, &task_id, turn)
+    tauri::async_runtime::spawn_blocking(move || create_snapshot(&cwd, &task_id, turn))
+        .await
+        .map_err(|e| AppError::Other(format!("checkpoint snapshot task failed: {e}")))?
 }
 
 /// Commit the current working tree and point `ref_name` at the result.
@@ -351,15 +357,22 @@ pub fn diff_snapshots(
 /// Refuses to run when the working tree is dirty unless `force` is true. On the
 /// forced path the current state is stashed first, so the restore is itself
 /// recoverable with `git stash pop`.
+///
+/// Async with the git2 work on the blocking pool — same reasoning as
+/// [`checkpoint_create`]: a checkout of a large tree must not run on the
+/// main thread.
 #[tauri::command]
-pub fn checkpoint_revert(
+pub async fn checkpoint_revert(
     state: tauri::State<'_, AgentState>,
     task_id: String,
     turn: u32,
     force: Option<bool>,
 ) -> Result<(), AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    restore_snapshot(&cwd, &task_id, turn, force.unwrap_or(false))
+    let force = force.unwrap_or(false);
+    tauri::async_runtime::spawn_blocking(move || restore_snapshot(&cwd, &task_id, turn, force))
+        .await
+        .map_err(|e| AppError::Other(format!("checkpoint restore task failed: {e}")))?
 }
 
 /// Does the working tree differ from HEAD (ignoring ignored files)?

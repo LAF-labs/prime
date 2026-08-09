@@ -22,14 +22,11 @@ const formatDate = (iso: string): string => {
 /**
  * What the everyday assistant remembers — and how to make it forget.
  *
- * In simple mode the agent's `remember` tool appends stable facts about the
- * user to `~/.laf-agent/memories.json`, and every turn's system prompt carries
- * them. A store that shapes every answer without ever being shown is not
- * something the user can consent to, so this card is the visible half: the
- * facts, when each was learned, and a delete for every one of them.
- *
- * Developer mode never starts an everyday session, so the card renders nothing
- * there rather than showing an inert list.
+ * The agent's `remember` tool appends stable facts about the user to
+ * `~/.laf-agent/memories.json`, and every turn's system prompt carries them.
+ * A store that shapes every answer without ever being shown is not something
+ * the user can consent to, so this card is the visible half: the facts, when
+ * each was learned, and a delete for every one of them.
  */
 export const EverydayMemoryCard = memo(function EverydayMemoryCard() {
   const t = useT()

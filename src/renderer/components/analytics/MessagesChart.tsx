@@ -17,11 +17,11 @@ export const MessagesChart = ({ sent, received }: { sent: AnalyticsEvent[]; rece
     <ChartCard title={t('Messages & words')}>
       <div className="mb-2 grid grid-cols-3 gap-2">
         <StatRow label={t('Messages')} value={totalMessages} />
-        <StatRow label="Input words" value={fmtNum(inputWords)} />
-        <StatRow label="Output words" value={fmtNum(outputWords)} />
+        <StatRow label={t('Input words')} value={fmtNum(inputWords)} />
+        <StatRow label={t('Output words')} value={fmtNum(outputWords)} />
       </div>
       {data.length === 0 ? (
-        <EmptyChart message="No messages yet" />
+        <EmptyChart message={t('No messages yet')} />
       ) : (
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={data} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
@@ -29,8 +29,8 @@ export const MessagesChart = ({ sent, received }: { sent: AnalyticsEvent[]; rece
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Bar dataKey="value" name="Sent" fill="#22c55e" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="value2" name="Received" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value" name={t('Sent')} fill="#22c55e" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value2" name={t('Received')} fill="#3b82f6" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

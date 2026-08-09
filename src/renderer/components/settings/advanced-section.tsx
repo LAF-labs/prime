@@ -56,10 +56,6 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     refreshDbSize()
   }, [clearAnalytics, refreshDbSize])
 
-  const handleAiCommitToggle = useCallback((checked: boolean) => {
-    updateDraft({ aiCommitMessages: checked })
-  }, [updateDraft])
-
   const handleCoAuthorToggle = useCallback((checked: boolean) => {
     updateDraft({ coAuthor: checked })
   }, [updateDraft])
@@ -129,14 +125,6 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
 
       <SettingsGrid label={t('Git')} description={t('Commit trailers and reports')}>
         <SettingsCard>
-          <SettingRow label={t('AI commit messages')} description={t('Show a sparkle button to draft a commit message from the diff')}>
-            <Switch
-              checked={draft.aiCommitMessages ?? true}
-              onCheckedChange={handleAiCommitToggle}
-              aria-label={t('Toggle AI commit messages')}
-            />
-          </SettingRow>
-          <Divider />
           <SettingRow label={t('Co-authored-by LAF Agent')} description={t('Append trailer to every commit')}>
             <Switch
               checked={draft.coAuthor ?? true}
@@ -202,7 +190,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
             </Tooltip>
           </SettingRow>
           <Divider />
-          <SettingRow label={t('Analytics data')} description={`Local stats on disk (${formatBytes(analyticsSize)})`}>
+          <SettingRow label={t('Analytics data')} description={t('Local stats on disk ({size})', { size: formatBytes(analyticsSize) })}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -243,7 +231,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         onOpenChange={setIsConfirmHistoryOpen}
         title={t('Clear conversation history?')}
         description={t('This permanently deletes all conversation threads. Your settings, onboarding state, and preferences are preserved. This action cannot be undone.')}
-        confirmLabel="Clear history"
+        confirmLabel={t('Clear history')}
         onConfirm={handleClearHistory}
       />
       <ConfirmDialog
@@ -251,7 +239,7 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         onOpenChange={setIsConfirmAnalyticsOpen}
         title={t('Clear analytics data?')}
         description={t('This permanently deletes all local usage statistics. This action cannot be undone.')}
-        confirmLabel="Clear analytics"
+        confirmLabel={t('Clear analytics')}
         onConfirm={handleClearAnalytics}
       />
     </>

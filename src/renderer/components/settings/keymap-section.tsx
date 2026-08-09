@@ -16,7 +16,6 @@ const KEYMAP: KeymapEntry[] = [
   { group: 'Navigation', command: 'Jump to thread 1–9', keys: `${MOD}+1 … 9` },
   { group: 'Panels', command: 'Toggle sidebar', keys: `${MOD}+B` },
   { group: 'Panels', command: 'Toggle terminal', keys: `${MOD}+J` },
-  { group: 'Panels', command: 'Toggle diff panel', keys: `${MOD}+D` },
   { group: 'Panels', command: 'Open settings', keys: `${MOD}+,` },
   { group: 'Actions', command: 'New project', keys: `${MOD}+O` },
   { group: 'Actions', command: 'New thread', keys: `${MOD}+N` },

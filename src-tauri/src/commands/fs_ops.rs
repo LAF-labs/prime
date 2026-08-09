@@ -44,6 +44,43 @@ pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> 
     result
 }
 
+/// Read a JSON object for a read-modify-write cycle (`auth.json`,
+/// `models.json`). A missing or empty file yields an empty map — creating the
+/// file is fine. A file that exists with content but does not parse (or is
+/// not a JSON object) is an error: the old behavior fell back to `{}` and
+/// wrote that back, silently destroying every other provider's stored
+/// credentials over one corrupt byte.
+pub(crate) fn read_json_object_for_update(
+    path: &Path,
+) -> Result<serde_json::Map<String, serde_json::Value>, AppError> {
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(serde_json::Map::new()),
+        Err(e) => {
+            return Err(AppError::Other(format!(
+                "Could not read {}: {e}",
+                path.display()
+            )))
+        }
+    };
+    if content.trim().is_empty() {
+        return Ok(serde_json::Map::new());
+    }
+    let value: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+        AppError::Other(format!(
+            "{} exists but is not valid JSON ({e}). Refusing to overwrite it — fix or remove the file, then try again.",
+            path.display()
+        ))
+    })?;
+    match value {
+        serde_json::Value::Object(map) => Ok(map),
+        _ => Err(AppError::Other(format!(
+            "{} is not a JSON object. Refusing to overwrite it — fix or remove the file, then try again.",
+            path.display()
+        ))),
+    }
+}
+
 /// Locate the prime-agent CLI binary. The command keeps its historical name
 /// (`detect_agent_cli`) because the frontend IPC wrapper calls it by name.
 ///
@@ -126,7 +163,7 @@ fn is_sensitive_path(path: &str) -> bool {
 
 #[tauri::command]
 pub fn read_text_file(path: String) -> Option<String> {
-    log::info!("[fs] read_text_file called with path: {}", path);
+    log::debug!("[fs] read_text_file called with path: {}", path);
     if is_sensitive_path(&path) {
         log::warn!("[fs] read_text_file blocked sensitive path: {}", path);
         return None;
@@ -142,7 +179,7 @@ pub fn read_text_file(path: String) -> Option<String> {
 
 #[tauri::command]
 pub fn read_file_base64(path: String) -> Option<String> {
-    log::info!("[fs] read_file_base64 called with path: {}", path);
+    log::debug!("[fs] read_file_base64 called with path: {}", path);
     if is_sensitive_path(&path) {
         log::warn!("[fs] read_file_base64 blocked sensitive path: {}", path);
         return None;
@@ -1075,13 +1112,7 @@ pub fn auth_set_api_key(provider: String, key: String) -> Result<(), AppError> {
     }
 
     let auth_path = dir.join("auth.json");
-    let mut root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&auth_path) {
-        Ok(content) if !content.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&content)
-            .ok()
-            .and_then(|v| v.as_object().cloned())
-            .unwrap_or_default(),
-        _ => serde_json::Map::new(),
-    };
+    let mut root = read_json_object_for_update(&auth_path)?;
     root.insert(
         provider,
         serde_json::json!({ "type": "api_key", "key": key }),
@@ -1276,15 +1307,14 @@ pub fn auth_set_custom_provider(
         .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
     std::fs::create_dir_all(&dir)?;
 
-    // models.json: read-modify-write, preserving other providers.
+    // Read both files up front: if either is corrupt, abort before writing
+    // anything so the two stay consistent.
     let models_path = dir.join("models.json");
-    let mut root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&models_path) {
-        Ok(content) if !content.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&content)
-            .ok()
-            .and_then(|v| v.as_object().cloned())
-            .unwrap_or_default(),
-        _ => serde_json::Map::new(),
-    };
+    let auth_path = dir.join("auth.json");
+    let mut auth_root = read_json_object_for_update(&auth_path)?;
+
+    // models.json: read-modify-write, preserving other providers.
+    let mut root = read_json_object_for_update(&models_path)?;
     let providers = root
         .entry("providers".to_string())
         .or_insert_with(|| serde_json::json!({}));
@@ -1311,14 +1341,6 @@ pub fn auth_set_custom_provider(
     }
 
     // Mirror into auth.json so the connected-status check picks it up.
-    let auth_path = dir.join("auth.json");
-    let mut auth_root: serde_json::Map<String, serde_json::Value> = match std::fs::read_to_string(&auth_path) {
-        Ok(content) if !content.trim().is_empty() => serde_json::from_str::<serde_json::Value>(&content)
-            .ok()
-            .and_then(|v| v.as_object().cloned())
-            .unwrap_or_default(),
-        _ => serde_json::Map::new(),
-    };
     auth_root.insert(name, serde_json::json!({ "type": "api_key", "key": api_key }));
     write_atomic(&auth_path, serde_json::to_string_pretty(&serde_json::Value::Object(auth_root))?.as_bytes())?;
     #[cfg(unix)]
@@ -1380,22 +1402,93 @@ pub fn auth_logout(agent_bin: Option<String>) -> Result<(), AppError> {
     Ok(())
 }
 
-#[tauri::command]
-pub fn open_terminal_with_command(command: String) -> Result<(), AppError> {
-    // Only allow the prime-agent binary (bare, or with a known-safe pseudo
-    // subcommand) to prevent arbitrary command injection. The binary may be a
-    // bare name ("prime-agent") or a full path ("/usr/local/bin/prime-agent").
-    const ALLOWED_SUBCOMMANDS: &[&str] = &["login", "logout", "whoami"];
-    let parts: Vec<&str> = command.splitn(2, ' ').collect();
-    let bin_name = std::path::Path::new(parts[0])
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
-    let is_allowed = bin_name == "prime-agent"
-        && (parts.len() == 1 || ALLOWED_SUBCOMMANDS.contains(&parts[1]));
-    if !is_allowed {
-        return Err(AppError::Other(format!("Command not in allowlist: {}", command)));
+/// Subcommands `open_terminal_with_command` accepts after the binary.
+const ALLOWED_SUBCOMMANDS: &[&str] = &["login", "logout", "whoami"];
+
+/// Characters that change meaning under `sh -c` / Terminal `do script`. The
+/// command string ends up in a shell either way, so any of these anywhere in
+/// it is an injection vector, not a valid agent invocation.
+const SHELL_METACHARACTERS: &[char] = &[
+    ';', '|', '&', '$', '`', '\\', '(', ')', '<', '>', '\n', '\r', '\t', '\'', '"', '*', '?',
+];
+
+/// Filesystem locations a full-path invocation may resolve to, beyond the
+/// user-configured binary: the same candidates `detect_agent_cli` probes,
+/// plus whatever PATH resolves. Canonicalized, so symlink games don't help.
+fn allowed_agent_binaries(configured_bin: &str) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    let mut push = |p: Option<PathBuf>| {
+        if let Some(canonical) = p.and_then(|p| std::fs::canonicalize(p).ok()) {
+            if !out.contains(&canonical) {
+                out.push(canonical);
+            }
+        }
+    };
+    let configured = configured_bin.trim();
+    if !configured.is_empty() {
+        push(Some(PathBuf::from(configured)));
     }
+    push(dirs::home_dir().map(|h| h.join(".local/bin/prime-agent")));
+    push(Some(PathBuf::from("/usr/local/bin/prime-agent")));
+    push(Some(PathBuf::from("/opt/homebrew/bin/prime-agent")));
+    push(dirs::home_dir().map(|h| h.join(".npm-global/bin/prime-agent")));
+    push(dirs::home_dir().map(|h| h.join(".prime/bin/prime-agent")));
+    push(which::which("prime-agent").ok());
+    out
+}
+
+/// Validate a terminal command against the allowlist.
+///
+/// The old check looked only at `Path::file_name()` of the first
+/// space-separated token, so `/tmp/x;y/prime-agent` passed and the `;` was
+/// then interpreted by the shell the command runs in. Now: no shell
+/// metacharacter may appear anywhere in the string, the optional second token
+/// must be an exact allowlisted subcommand, and a path-form first token must
+/// canonicalize to a known prime-agent location — not merely end in the right
+/// basename.
+fn validate_terminal_command(command: &str, allowed_binaries: &[PathBuf]) -> Result<(), AppError> {
+    let deny = |reason: &str| -> Result<(), AppError> {
+        Err(AppError::Other(format!("Command not in allowlist ({reason}): {command}")))
+    };
+    if command.chars().any(|c| SHELL_METACHARACTERS.contains(&c)) {
+        return deny("contains shell metacharacters");
+    }
+    let mut parts = command.splitn(2, ' ');
+    let first = parts.next().unwrap_or("");
+    if first.is_empty() {
+        return deny("empty command");
+    }
+    if let Some(sub) = parts.next() {
+        if !ALLOWED_SUBCOMMANDS.contains(&sub) {
+            return deny("unknown subcommand");
+        }
+    }
+    // Bare name: the shell resolves it via PATH, no path tricks possible
+    // once metacharacters are excluded.
+    if first == "prime-agent" {
+        return Ok(());
+    }
+    // Path form: the whole token must resolve to a known agent binary.
+    let Ok(canonical) = std::fs::canonicalize(first) else {
+        return deny("binary path does not resolve");
+    };
+    if canonical.file_name().and_then(|n| n.to_str()) != Some("prime-agent") {
+        return deny("not the prime-agent binary");
+    }
+    if !allowed_binaries.contains(&canonical) {
+        return deny("binary path not in a known location");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_terminal_with_command(
+    settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
+    command: String,
+) -> Result<(), AppError> {
+    let configured_bin = settings_state.0.lock().settings.agent_bin.clone();
+    validate_terminal_command(&command, &allowed_agent_binaries(&configured_bin))?;
+    let parts: Vec<&str> = command.splitn(2, ' ').collect();
     // prime-agent has no `login` subcommand — auth happens via /login inside
     // the interactive TUI, so launch the bare binary instead.
     let command = if parts.len() == 2 && parts[1] == "login" {
@@ -1801,6 +1894,106 @@ mod tests {
             .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
             .collect();
         assert!(leftovers.is_empty(), "failed writes must not leak temp files: {leftovers:?}");
+    }
+
+    #[test]
+    fn read_json_object_missing_file_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let map = read_json_object_for_update(&dir.path().join("auth.json")).unwrap();
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn read_json_object_empty_file_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("auth.json");
+        std::fs::write(&path, "  \n").unwrap();
+        assert!(read_json_object_for_update(&path).unwrap().is_empty());
+    }
+
+    #[test]
+    fn read_json_object_parses_valid_map() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("auth.json");
+        std::fs::write(&path, r#"{"openai":{"type":"api_key","key":"sk-x"}}"#).unwrap();
+        let map = read_json_object_for_update(&path).unwrap();
+        assert!(map.contains_key("openai"));
+    }
+
+    /// The defect this helper exists for: a corrupt auth.json must error out,
+    /// not silently become `{}` and wipe every stored credential on write-back.
+    #[test]
+    fn read_json_object_corrupt_file_errors_instead_of_defaulting() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("auth.json");
+        std::fs::write(&path, r#"{"anthropic":{"type":"oauth","refresh":"tok"#).unwrap();
+        let err = read_json_object_for_update(&path).unwrap_err();
+        assert!(err.to_string().contains("auth.json"), "error must name the file: {err}");
+        // And the file itself is untouched.
+        assert!(std::fs::read_to_string(&path).unwrap().starts_with(r#"{"anthropic""#));
+    }
+
+    #[test]
+    fn read_json_object_non_object_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("auth.json");
+        std::fs::write(&path, "[1,2,3]").unwrap();
+        assert!(read_json_object_for_update(&path).is_err());
+    }
+
+    #[test]
+    fn terminal_command_accepts_bare_binary_and_subcommands() {
+        assert!(validate_terminal_command("prime-agent", &[]).is_ok());
+        assert!(validate_terminal_command("prime-agent login", &[]).is_ok());
+        assert!(validate_terminal_command("prime-agent whoami", &[]).is_ok());
+    }
+
+    #[test]
+    fn terminal_command_rejects_shell_metacharacters() {
+        for cmd in [
+            "prime-agent;rm -rf ~",
+            "prime-agent login|cat /etc/passwd",
+            "prime-agent `id`",
+            "prime-agent $(id)",
+            "prime-agent login\nid",
+            "prime-agent \"login\"",
+            "prime-agent & id",
+        ] {
+            assert!(validate_terminal_command(cmd, &[]).is_err(), "should reject: {cmd}");
+        }
+    }
+
+    #[test]
+    fn terminal_command_rejects_unknown_subcommands() {
+        assert!(validate_terminal_command("prime-agent update", &[]).is_err());
+        assert!(validate_terminal_command("prime-agent login extra", &[]).is_err());
+    }
+
+    /// The old basename-only check waved through any path ending in
+    /// `prime-agent`; a full path must now resolve into the allowlist.
+    #[test]
+    fn terminal_command_rejects_lookalike_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let evil = dir.path().join("prime-agent");
+        std::fs::write(&evil, "#!/bin/sh\n").unwrap();
+        let cmd = evil.to_string_lossy().to_string();
+        assert!(validate_terminal_command(&cmd, &[]).is_err());
+    }
+
+    #[test]
+    fn terminal_command_accepts_allowlisted_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("prime-agent");
+        std::fs::write(&bin, "#!/bin/sh\n").unwrap();
+        let allowed = vec![std::fs::canonicalize(&bin).unwrap()];
+        let cmd = bin.to_string_lossy().to_string();
+        assert!(validate_terminal_command(&cmd, &allowed).is_ok());
+        assert!(validate_terminal_command(&format!("{cmd} logout"), &allowed).is_ok());
+    }
+
+    #[test]
+    fn terminal_command_rejects_nonexistent_path() {
+        assert!(validate_terminal_command("/nope/definitely-missing/prime-agent", &[]).is_err());
     }
 
     #[test]

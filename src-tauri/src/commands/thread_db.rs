@@ -290,8 +290,6 @@ pub struct ThreadDatabase {
     read_conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
     /// Channel to the background write task.
     write_tx: mpsc::Sender<WriteCommand>,
-    /// How the connection is shared (FileSeparate or SharedSingle).
-    mode: ConnectionMode,
 }
 
 impl ThreadDatabase {
@@ -311,13 +309,6 @@ impl ThreadDatabase {
                 Self::open_fallback()
             }
         }
-    }
-
-    /// Returns whether this instance is a SharedSingle connection (in-memory
-    /// fallback or test). When true, persistence is not durable across restarts.
-    #[allow(dead_code)]
-    pub fn is_fallback(&self) -> bool {
-        matches!(self.mode, ConnectionMode::SharedSingle)
     }
 
     /// Attempt to open the file-based database with full robustness checks.
@@ -438,7 +429,6 @@ impl ThreadDatabase {
             return Ok(Self {
                 read_conn: shared,
                 write_tx,
-                mode,
             });
         }
 
@@ -482,7 +472,6 @@ impl ThreadDatabase {
         Ok(Self {
             read_conn,
             write_tx,
-            mode,
         })
     }
 
@@ -1839,7 +1828,6 @@ mod tests {
     async fn test_fallback_database() {
         // The fallback should always succeed
         let db = ThreadDatabase::open_fallback();
-        assert!(db.is_fallback());
 
         // Should still be fully functional
         let thread = DbThread {

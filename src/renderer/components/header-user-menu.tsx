@@ -60,7 +60,7 @@ export const HeaderUserMenu = memo(function HeaderUserMenu() {
         <TooltipContent side="bottom">
           {agentAuth
             ? (agentAuth.email ?? agentAuth.accountType)
-            : "Not logged in"}
+            : t('Not logged in')}
         </TooltipContent>
       </Tooltip>
 

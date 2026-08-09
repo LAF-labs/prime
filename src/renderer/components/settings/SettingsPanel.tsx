@@ -245,7 +245,7 @@ export const SettingsPanel = () => {
               tabIndex={0}
               className="block px-2 pb-1 text-[9px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
             >
-              Powered by Prime Agent (PrimeIntellect-ai/prime-agent)
+              {t('Powered by Prime Agent (PrimeIntellect-ai/prime-agent)')}
             </a>
           </div>
         </nav>

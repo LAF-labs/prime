@@ -28,7 +28,7 @@ export const NAV: { id: Section; label: string; icon: typeof IconSettings2; desc
   { id: 'permissions', label: 'Permissions', icon: IconShieldLock, description: 'Modes and allow-rules', sectionDescription: 'Choose how tool calls are approved, and manage always-allow rules.', group: 'settings' },
   { id: 'appearance', label: 'Appearance', icon: IconPaint, description: 'Theme, font size', sectionDescription: 'Customize the look and feel of LAF Agent.', group: 'settings' },
   { id: 'keymap', label: 'Keyboard', icon: IconKeyboard, description: 'Shortcuts reference', sectionDescription: 'View all available keyboard shortcuts.', group: 'settings' },
-  { id: 'advanced', label: 'Advanced', icon: IconTool, description: 'Privacy, git, data', sectionDescription: 'Privacy, git integration, and data management.', group: 'settings' },
+  { id: 'advanced', label: 'Advanced', icon: IconTool, description: 'Privacy, data', sectionDescription: 'Privacy and data management.', group: 'settings' },
   { id: 'memory', label: 'Memory', icon: IconActivity, description: 'Per-thread memory usage', sectionDescription: 'Inspect and reclaim memory held by threads, drafts, and debug buffers.', group: 'data' },
   { id: 'archives', label: 'Archives', icon: IconArchive, description: 'Deleted threads', sectionDescription: 'Restore or permanently remove deleted threads.', group: 'data' },
 ]
@@ -61,7 +61,6 @@ export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'Max concurrent agents', description: 'How many agents may run at once', section: 'advanced', keywords: 'concurrent agents limit threads processes parallel load memory cap kernel' },
   { label: 'Usage statistics', description: 'Local stats for the dashboard — nothing leaves this machine', section: 'advanced', keywords: 'analytics privacy usage statistics local opt-out disable' },
   { label: 'Export as Markdown', description: 'Right-click a thread in the sidebar to export the conversation', section: 'advanced', keywords: 'export markdown save conversation thread backup' },
-  { label: 'AI commit messages', description: 'Draft a commit message from the diff using your agent', section: 'advanced', keywords: 'ai commit message generate sparkle diff' },
   { label: 'Co-authored-by', description: 'Append LAF Agent trailer to every commit', section: 'advanced', keywords: 'git commit co-author trailer' },
   { label: 'Task completion report', description: 'Summary card when a task finishes', section: 'advanced', keywords: 'report summary task completion' },
   { label: 'Max question length', description: 'Character limit for /btw and /tangent questions', section: 'advanced', keywords: 'btw tangent question limit characters' },

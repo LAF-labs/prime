@@ -67,7 +67,7 @@ export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
       </div>
 
       <p className="text-[10px] text-muted-foreground">
-        {t('Type')} <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">/</kbd> or <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">@</kbd> in the input to get started
+        {t('Type')} <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">/</kbd> {t('or')} <kbd className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px]">@</kbd> {t('in the input to get started')}
       </p>
     </div>
   )

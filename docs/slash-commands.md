@@ -51,8 +51,6 @@ had, so muscle memory carries over.
 | `/agent` | Switch between agents (inline picker) |
 | `/plan` | Toggle plan mode |
 | `/upload` | Attach images or files |
-| `/branch` | Create and check out a git branch |
-| `/worktree` | Create a worktree and a thread inside it |
 | `/settings` | Open settings |
 | `/login`, `/logout` | Open provider authentication settings |
 | `/mcp` | Expand MCP connections in the resource panel |

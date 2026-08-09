@@ -5,8 +5,8 @@
 # PINNED ref, never from a moving branch. This is what makes releases
 # reproducible and decouples us from upstream's cadence: upstream releases
 # land in the fork only when we merge them (see scripts/harness-upstream.sh).
-# To take a new harness version: merge/tag in the fork, bump HARNESS_REF here,
-# rebuild, commit both together.
+# To take a new harness version: merge/tag in the fork, bump HARNESS_REF and
+# HARNESS_SHA here, rebuild, commit both together.
 #
 # The sidecar is an npm-package-shaped folder:
 #   node                  — Node.js runtime (>= 22.8, arm64)
@@ -26,13 +26,42 @@ set -euo pipefail
 HARNESS_REPO="${HARNESS_REPO:-https://github.com/LAF-labs/prime-harness}"
 # The single source of truth for which harness this app ships.
 HARNESS_REF="${HARNESS_REF:-v0.7.0-laf.1}"
+# Commit the tag above is expected to resolve to. Tags are movable; this pin
+# is not. The build fails if the clone resolves elsewhere. When bumping
+# HARNESS_REF, update this in the same change (or set HARNESS_SHA="" for a
+# one-off unpinned build) — the new value ends up in HARNESS.json either way.
+HARNESS_SHA="${HARNESS_SHA-d5da20ca8fdde8afbd26aae43f57e8f75b15671d}"
+# Major version of the Node runtime the sidecar is allowed to ship. The
+# binary is copied from the build machine, so without this the shipped
+# runtime would silently float with whatever the runner has installed.
+NODE_VERSION_EXPECTED="${NODE_VERSION_EXPECTED:-22}"
+
 WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$REPO_ROOT/src-tauri/resources/prime-agent"
 
+# Guard the Node runtime before spending minutes on the build: the same
+# binary that runs npm below is the one that ships in the sidecar.
+NODE_BIN="$(readlink -f "$(which node)")"
+NODE_VERSION="$("$NODE_BIN" --version)"
+NODE_MAJOR="${NODE_VERSION#v}"
+NODE_MAJOR="${NODE_MAJOR%%.*}"
+if [[ "$NODE_MAJOR" != "$NODE_VERSION_EXPECTED" ]]; then
+  echo "error: build machine has Node ${NODE_VERSION}, expected major ${NODE_VERSION_EXPECTED}" >&2
+  echo "       (override with NODE_VERSION_EXPECTED=${NODE_MAJOR} if the bump is intentional)" >&2
+  exit 1
+fi
+
 echo "==> Cloning harness at ${HARNESS_REF}"
 git clone --quiet --branch "$HARNESS_REF" --depth 1 "$HARNESS_REPO" "$WORK/prime-agent"
-HARNESS_SHA="$(git -C "$WORK/prime-agent" rev-parse HEAD)"
+HARNESS_SHA_ACTUAL="$(git -C "$WORK/prime-agent" rev-parse HEAD)"
+if [[ -n "$HARNESS_SHA" && "$HARNESS_SHA_ACTUAL" != "$HARNESS_SHA" ]]; then
+  echo "error: ${HARNESS_REF} resolved to ${HARNESS_SHA_ACTUAL}, expected ${HARNESS_SHA}" >&2
+  echo "       The tag has moved (or the pin is stale). Verify the fork's history," >&2
+  echo "       then update HARNESS_SHA in this script." >&2
+  exit 1
+fi
 
 echo "==> Installing monorepo deps"
 cd "$WORK/prime-agent"
@@ -107,8 +136,8 @@ find node_modules/koffi/build/koffi -maxdepth 1 -type d ! -name koffi ! -name da
 find node_modules/zeromq/build -maxdepth 1 -type d ! -name build ! -name darwin -exec rm -rf {} +
 rm -rf node_modules/zeromq/build/darwin/x64
 
-echo "==> Bundling Node runtime"
-cp "$(readlink -f "$(which node)")" node
+echo "==> Bundling Node runtime (${NODE_VERSION})"
+cp "$NODE_BIN" node
 
 # uv is prime-agent's only Python installer: it fetches a standalone CPython
 # and builds ~/.prime/agent/kernel-venv on first run. Bundling the single
@@ -122,7 +151,14 @@ case "$(uname -m)" in
   *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
 esac
 UV_URL="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${UV_TARGET}.tar.gz"
-curl -fsSL "$UV_URL" | tar -xz -C "$WORK"
+# uv publishes a .sha256 next to every release asset. Verify before
+# extracting — a curl|tar of an unauthenticated tarball is exactly the shape
+# of a supply-chain hole, and this binary ships inside the app.
+curl -fsSL -o "$WORK/uv-${UV_TARGET}.tar.gz" "$UV_URL"
+curl -fsSL -o "$WORK/uv-${UV_TARGET}.tar.gz.sha256" "${UV_URL}.sha256"
+(cd "$WORK" && shasum -a 256 -c "uv-${UV_TARGET}.tar.gz.sha256") \
+  || { echo "error: uv ${UV_VERSION} tarball failed checksum verification" >&2; exit 1; }
+tar -xzf "$WORK/uv-${UV_TARGET}.tar.gz" -C "$WORK"
 cp "$WORK/uv-${UV_TARGET}/uv" uv
 chmod +x uv
 
@@ -137,10 +173,12 @@ cp "$REPO_ROOT/src-tauri/resources/laf-agent-gate.ts" "$OUT/laf-gate.ts"
 cat > "$OUT/HARNESS.json" <<EOF
 {
   "ref": "${HARNESS_REF}",
-  "commit": "${HARNESS_SHA}",
+  "commit": "${HARNESS_SHA_ACTUAL}",
   "repo": "${HARNESS_REPO}",
+  "node": "${NODE_VERSION}",
+  "uv": "${UV_VERSION}",
   "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
 
-echo "==> Done: $(du -sh "$OUT" | cut -f1) at $OUT (harness ${HARNESS_REF} @ ${HARNESS_SHA:0:8})"
+echo "==> Done: $(du -sh "$OUT" | cut -f1) at $OUT (harness ${HARNESS_REF} @ ${HARNESS_SHA_ACTUAL:0:8})"

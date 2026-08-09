@@ -275,7 +275,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
             {statusTooltip && <p className="mt-0.5 text-[10px] text-muted-foreground">{statusTooltip}</p>}
             {allToolsDisabled && <p className="text-[10px] text-amber-600 dark:text-amber-400">{t('All tools disabled')}</p>}
             {server.error && <p className="mt-0.5 text-[9px] text-red-600 dark:text-red-400 font-mono break-all">{server.error}</p>}
-            <p className="mt-1 text-[9px] text-muted-foreground">Right-click for actions · changes apply to new threads</p>
+            <p className="mt-1 text-[9px] text-muted-foreground">{t('Right-click for actions · changes apply to new threads')}</p>
           </TooltipContent>
         </Tooltip>
 

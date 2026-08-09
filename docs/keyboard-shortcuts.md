@@ -11,7 +11,6 @@ On Windows/Linux, replace Cmd with Ctrl.
 | `Escape` | Stop running agent (pause current task). Skipped when terminal has focus. |
 | `Cmd+,` | Open settings |
 | `Cmd+B` | Toggle btw (tangent) mode — opens `/btw` in chat input, or exits btw mode if active |
-| `Cmd+D` | Toggle diff panel |
 | `Cmd+Shift+D` | Toggle debug panel |
 | `Cmd+J` | Toggle terminal for the active thread |
 | `Cmd+K` | Open command palette |

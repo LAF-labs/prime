@@ -244,7 +244,6 @@ export interface AppSettings {
   coAuthor?: boolean
   coAuthorJsonReport?: boolean
   /** When true, render an AI sparkle button next to the commit input. Default: true. */
-  aiCommitMessages?: boolean
   notifications?: boolean
   soundNotifications?: boolean
   /** Agent auto-compaction (harness default: on). Applied per session over RPC. */

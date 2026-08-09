@@ -233,21 +233,6 @@ fn gate_extension_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
 
 // ── Spawn a prime-agent RPC connection ─────────────────────────────────
 
-/// Configuration for spawning a new RPC connection.
-#[allow(dead_code)]
-pub(crate) struct ConnectionConfig {
-    pub task_id: String,
-    pub workspace: String,
-    pub launch: AgentLaunch,
-    pub auto_approve: bool,
-    pub app: tauri::AppHandle,
-    pub initial_mode_id: Option<String>,
-    pub initial_model_id: Option<String>,
-    pub tight_sandbox: bool,
-    pub permission_config: PermissionConfig,
-    pub pending_preamble: Option<String>,
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_connection(
     task_id: String,
@@ -656,7 +641,13 @@ pub(crate) async fn run_rpc_connection(
             }
             match serde_json::from_str::<Value>(line) {
                 Ok(event) => handle_rpc_line(&reader_ctx, event),
-                Err(e) => log::debug!("[RPC] non-JSON stdout line ({e}): {line}"),
+                // The agent can print arbitrarily long banners or dumps on
+                // stdout; logging them whole bloats the log file for no
+                // diagnostic gain. 300 chars is enough to identify the line.
+                Err(e) => log::debug!(
+                    "[RPC] non-JSON stdout line ({e}): {}",
+                    truncate_chars(line, 300)
+                ),
             }
         }
     });
@@ -732,11 +723,49 @@ pub(crate) async fn run_rpc_connection(
     }
 
     if killed {
-        let _ = child.kill().await;
+        terminate_child_group(&mut child).await;
     }
     reader.abort();
     stderr_task.abort();
     Ok(())
+}
+
+/// Kill a per-task agent subprocess and everything it spawned.
+///
+/// The child was made a process-group leader at spawn (`lead_new_group`), so
+/// signalling only its pid — what `child.kill()` does — orphaned the Python
+/// kernel, MCP servers, and any bash children when a single task was cancelled
+/// or deleted. Mirror the app-exit path: SIGTERM the whole group, give it a
+/// grace period to flush session state, then SIGKILL the group. We own the
+/// child handle here, so we reap it ourselves (`child.wait()`) instead of
+/// using `terminate_group`'s liveness probe, which never sees an unreaped
+/// zombie die. This runs on the connection's own spawned task, so the
+/// cancelling command has already returned — nothing user-facing blocks on
+/// the grace period.
+async fn terminate_child_group(child: &mut tokio::process::Child) {
+    #[cfg(unix)]
+    {
+        use crate::commands::process_group::{signal_group_kill, signal_group_term};
+        match child.id() {
+            Some(pid) => {
+                signal_group_term(pid);
+                let grace = std::time::Duration::from_millis(1500);
+                if tokio::time::timeout(grace, child.wait()).await.is_err() {
+                    signal_group_kill(pid);
+                    let _ = child.wait().await;
+                }
+            }
+            // Already exited — nothing to signal, just reap.
+            None => {
+                let _ = child.wait().await;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = child.kill().await;
+        let _ = child.wait().await;
+    }
 }
 
 /// Turn a non-zero exit into something a user can act on.

@@ -19,6 +19,12 @@ type InAppDragData = { type: 'file'; data: ProjectFile } | { type: 'folder'; pat
  * at the OS level, preventing HTML5 dragenter/dragover/drop from reaching the DOM.
  * Only Tauri's onDragDropEvent fires. We store drag data here during dragstart
  * and consume it when Tauri fires the drop event with empty paths.
+ *
+ * Exception safety: every drop handler resets this shared state in a
+ * `finally` block (via consumeInAppDragData), so a throw while processing a
+ * drop can never leave a stale payload armed for the next drag. The dragend
+ * timeout below is the last-resort sweep for drops that land outside any
+ * valid target.
  */
 let inAppDragActive = false
 let inAppDragData: InAppDragData | null = null
@@ -121,8 +127,8 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
         // On macOS, dragend fires BEFORE this handler, so inAppDragActive may
         // already be false — but inAppDragData persists until consumed.
         if (paths.length === 0 && inAppDragData) {
-          const data = consumeInAppDragData()
-          if (data) {
+          const data = inAppDragData
+          try {
             if (data.type === 'folder') {
               setFolderPaths((prev) => {
                 const existing = new Set(prev)
@@ -135,6 +141,9 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
                 return [...prev, file]
               })
             }
+          } finally {
+            // Always consume — a throw above must not leave stale drag data.
+            consumeInAppDragData()
           }
           return
         }
@@ -201,35 +210,40 @@ export function useAttachments(initialAttachments?: Attachment[], initialFolderP
       de.preventDefault()
       setIsDragOver(false)
 
-      // Try HTML5 dataTransfer first (works on Linux/Windows)
-      const dt = de.dataTransfer
-      let folderData = dt?.getData('application/x-laf-agent-folder') ?? ''
-      let fileData = dt?.getData('application/x-laf-agent-file') ?? ''
+      try {
+        // Try HTML5 dataTransfer first (works on Linux/Windows)
+        const dt = de.dataTransfer
+        let folderData = dt?.getData('application/x-laf-agent-folder') ?? ''
+        let fileData = dt?.getData('application/x-laf-agent-file') ?? ''
 
-      // Fallback to module-level drag data
-      if (!folderData && !fileData && inAppDragData) {
-        const data = consumeInAppDragData()
-        if (data) {
+        // Fallback to module-level drag data
+        if (!folderData && !fileData && inAppDragData) {
+          const data = inAppDragData
           if (data.type === 'folder') folderData = data.path
           else fileData = JSON.stringify(data.data)
         }
-      }
 
-      if (!folderData && !fileData) return
-      if (folderData) {
-        setFolderPaths((prev) => {
-          const existing = new Set(prev)
-          return existing.has(folderData) ? prev : [...prev, folderData]
-        })
-      }
-      if (fileData) {
-        try {
-          const file = JSON.parse(fileData) as ProjectFile
-          setDroppedFiles((prev) => {
-            if (prev.some((f) => f.path === file.path)) return prev
-            return [...prev, file]
+        if (!folderData && !fileData) return
+        if (folderData) {
+          setFolderPaths((prev) => {
+            const existing = new Set(prev)
+            return existing.has(folderData) ? prev : [...prev, folderData]
           })
-        } catch { /* invalid data */ }
+        }
+        if (fileData) {
+          try {
+            const file = JSON.parse(fileData) as ProjectFile
+            setDroppedFiles((prev) => {
+              if (prev.some((f) => f.path === file.path)) return prev
+              return [...prev, file]
+            })
+          } catch { /* invalid data */ }
+        }
+      } finally {
+        // The drop ends the drag operation regardless of what happened above;
+        // a throw while reading or processing the payload must not leave the
+        // shared module-level state armed for the next drag.
+        consumeInAppDragData()
       }
     }
 

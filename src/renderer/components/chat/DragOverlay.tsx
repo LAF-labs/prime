@@ -73,12 +73,10 @@ export const DragOverlay = memo(function DragOverlay({ visible }: DragOverlayPro
           stroke="currentColor"
           strokeWidth="2"
           strokeDasharray="8 6"
-          className="text-primary"
-          style={{
-            width: 'calc(100% - 4px)',
-            height: 'calc(100% - 4px)',
-            animation: visible ? 'dash-march 0.6s linear infinite' : 'none',
-          }}
+          className={cn(
+            'h-[calc(100%-4px)] w-[calc(100%-4px)] text-primary',
+            visible && 'dash-march',
+          )}
         />
       </svg>
       <CuteCat />
@@ -88,11 +86,6 @@ export const DragOverlay = memo(function DragOverlay({ visible }: DragOverlayPro
       <span className="text-sm text-muted-foreground">
         {t('Images, code, documents')}
       </span>
-      <style>{`
-        @keyframes dash-march {
-          to { stroke-dashoffset: -28; }
-        }
-      `}</style>
     </div>
   )
 })

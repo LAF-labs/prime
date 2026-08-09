@@ -212,9 +212,6 @@ pub struct AppSettings {
     /// collapse into a single grouped card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inline_tool_calls: Option<bool>,
-    /// When true, render an AI sparkle button next to the commit input.
-    #[serde(default = "default_true")]
-    pub ai_commit_messages: bool,
     /// Auto-archive threads older than this many days of inactivity.
     /// `None` or 0 disables auto-archiving.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -287,7 +284,6 @@ impl Default for AppSettings {
             menu_bar_icon: None,
             summon_shortcut: None,
             inline_tool_calls: None,
-            ai_commit_messages: true,
             auto_archive_days: None,
             provider_rates: None,
             max_concurrent_agents: None,

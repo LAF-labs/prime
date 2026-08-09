@@ -7,14 +7,17 @@ A record of why the agent runs the way it does, and when that should change.
 The sidecar is built from **LAF's own fork** —
 [LAF-labs/prime-harness](https://github.com/LAF-labs/prime-harness) — at the
 pinned `HARNESS_REF` in `scripts/build-sidecar.sh`, never from upstream
-directly and never from a moving branch. `HARNESS.json` inside the sidecar
-records the exact ref, commit, and build time; the app shows it in Settings.
+directly and never from a moving branch. Because a tag is movable and a
+commit is not, the script also pins `HARNESS_SHA` and fails the build if the
+cloned tag resolves to a different commit. `HARNESS.json` inside the sidecar
+records the exact ref, commit, `node` and `uv` versions, and build time; the
+app shows it in Settings.
 
 Upstream (`PrimeIntellect-ai/prime-agent`) ships fast — 40+ releases. We
 follow it deliberately, not automatically: `scripts/harness-upstream.sh`
 shows what upstream has shipped since our pinned ref, and taking an update
 means merging the upstream tag into the fork, re-tagging, bumping
-`HARNESS_REF`, rebuilding, and committing both together. Harness-level
+`HARNESS_REF` and `HARNESS_SHA`, rebuilding, and committing both together. Harness-level
 features we own (the permission gate, sandboxing, provider compatibility)
 land in the fork as first-class code rather than riding along as external
 patches.
@@ -35,6 +38,30 @@ standalone CPython 3.11 and the kernel venv. That part is not redistributed.
 
 `agent_launch.rs` resolves, in order: a user-configured binary, this sidecar,
 then `prime-agent` on PATH.
+
+## How the build is pinned
+
+Everything the sidecar ships is either pinned or asserted at build time
+(`scripts/build-sidecar.sh`); nothing floats with the build machine or a
+remote host:
+
+- **Harness: tag + commit.** The clone uses `HARNESS_REF` (a fork tag), and
+  the build fails unless the resolved `HEAD` equals `HARNESS_SHA`. A moved or
+  force-pushed tag cannot silently change what ships. Bumps update both
+  values together; `HARNESS_SHA=""` allows a one-off unpinned build.
+- **uv: SHA256-verified download.** The release tarball is verified against
+  the `.sha256` file uv publishes next to every GitHub release asset
+  (`shasum -a 256 -c`) before extraction. A tampered or truncated download
+  fails hard instead of shipping. `UV_VERSION` selects the release.
+- **Node: major-version guard.** The runtime is copied from the build
+  machine, so the script refuses to build unless `node --version` matches
+  `NODE_VERSION_EXPECTED` (major, currently 22), and records the exact
+  version in `HARNESS.json` under `node`.
+- The work directory is a `mktemp -d` cleaned by an `EXIT` trap, so a failed
+  build leaves nothing behind.
+
+`HARNESS.json` is the provenance record for all of it: `ref`, `commit`,
+`repo`, `node`, `uv`, `builtAt`.
 
 ## Why not the alternatives
 

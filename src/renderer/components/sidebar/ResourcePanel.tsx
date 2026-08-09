@@ -316,7 +316,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[220px]">
                     <p className="text-[11px] font-medium">{t('Drag into chat')}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground leading-relaxed">Drop any agent, skill, or steering rule into the message box to attach it as context.</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground leading-relaxed">{t('Drop any agent, skill, or steering rule into the message box to attach it as context.')}</p>
                   </TooltipContent>
                 </Tooltip>
                 {(skills.length + mcpServers.length) > 10 && (

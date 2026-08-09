@@ -48,10 +48,6 @@ const DEFAULT_SCAN_EXCLUSIONS: &[&str] = &[
 /// Max entries per directory scan to prevent runaway reads.
 const MAX_ENTRIES_PER_DIR: usize = 10_000;
 
-/// Debounce interval for filesystem events.
-#[allow(dead_code)]
-const DEBOUNCE_MS: u64 = 150;
-
 // ── Path Containment ─────────────────────────────────────────────────────────
 
 /// Validate that a relative path, when joined to the workspace root, stays
@@ -142,16 +138,6 @@ pub struct TreeChangeEvent {
     /// For renames: the old path
     #[serde(skip_serializing_if = "Option::is_none")]
     pub old_path: Option<String>,
-}
-
-/// Payload for scan_directory results.
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
-pub struct ScanResult {
-    pub workspace: String,
-    pub parent_path: String,
-    pub entries: Vec<TreeEntry>,
 }
 
 // ── Ignore Stack ─────────────────────────────────────────────────────────────

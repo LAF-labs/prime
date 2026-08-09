@@ -328,7 +328,7 @@ const PendingReplaceHint = memo(function PendingReplaceHint() {
   if (!pending) return null
   return (
     <div className="mx-2 mb-1 flex items-center justify-between rounded-md bg-primary/10 px-2 py-1.5 text-[11px] text-primary">
-      <span>Click a thread to replace {pending.side} panel</span>
+      <span>{pending.side === 'left' ? t('Click a thread to replace left panel') : t('Click a thread to replace right panel')}</span>
       <button
         type="button"
         aria-label={t('Cancel replace')}
@@ -566,7 +566,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
           <div ref={sidebarCtxRef} className="fixed z-[200] min-w-[160px] rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: ctxMenu.y, left: ctxMenu.x }}>
             <button type="button" onClick={handleSwitchSide} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground hover:bg-accent transition-colors">
               {isRight ? <IconLayoutSidebarLeftCollapse className="size-3.5" /> : <IconLayoutSidebarRightCollapse className="size-3.5" />}
-              Move sidebar to {isRight ? 'left' : 'right'}
+              {isRight ? t('Move sidebar to left') : t('Move sidebar to right')}
             </button>
           </div>
         </>

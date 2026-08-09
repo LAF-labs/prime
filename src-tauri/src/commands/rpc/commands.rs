@@ -828,11 +828,27 @@ pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>,
         .spawn()
         .map_err(|e| format!("Failed to spawn prime-agent: {e}"))?;
 
-    let mut stdin = child.stdin.take().ok_or("No stdin")?;
-    let stdout = child.stdout.take().ok_or("No stdout")?;
+    // Every exit path must kill AND wait: a dropped `Child` is never reaped,
+    // so an early return here left a zombie behind even after the watchdog
+    // SIGKILLed the process.
+    fn reap(child: &mut std::process::Child) {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    let Some(mut stdin) = child.stdin.take() else {
+        reap(&mut child);
+        return Err("No stdin".to_string());
+    };
+    let Some(stdout) = child.stdout.take() else {
+        reap(&mut child);
+        return Err("No stdout".to_string());
+    };
 
     // Watchdog: kill the subprocess if it hasn't answered within 30s so the
-    // blocking reader below can't hang forever.
+    // blocking reader below can't hang forever. It only signals — the main
+    // path below always reaps, so the SIGKILLed child does not linger as a
+    // zombie.
     let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let done_wd = done.clone();
     let pid = child.id();
@@ -847,12 +863,18 @@ pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>,
         unsafe {
             libc::kill(pid as i32, libc::SIGKILL);
         }
+        #[cfg(not(unix))]
+        let _ = pid;
     });
 
-    stdin
+    if let Err(e) = stdin
         .write_all(b"{\"id\":\"m\",\"type\":\"get_available_models\"}\n{\"id\":\"s\",\"type\":\"get_state\"}\n")
         .and_then(|_| stdin.flush())
-        .map_err(|e| format!("Failed to write to prime-agent: {e}"))?;
+    {
+        done.store(true, std::sync::atomic::Ordering::SeqCst);
+        reap(&mut child);
+        return Err(format!("Failed to write to prime-agent: {e}"));
+    }
 
     let mut models: Option<Value> = None;
     let mut state: Option<Value> = None;
@@ -872,8 +894,7 @@ pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>,
         }
     }
     done.store(true, std::sync::atomic::Ordering::SeqCst);
-    let _ = child.kill();
-    let _ = child.wait();
+    reap(&mut child);
 
     let models = models.ok_or("prime-agent did not answer get_available_models")?;
     let available: Vec<Value> = models

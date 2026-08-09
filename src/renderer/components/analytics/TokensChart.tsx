@@ -33,26 +33,26 @@ export const TokensChart = ({ events, modelEvents = [] }: TokensChartProps) => {
   return (
     <ChartCard title={t('Token usage')}>
       <div className="flex flex-col gap-1 mb-2">
-        <StatRow label="Total tokens" value={fmtTokens(total)} />
+        <StatRow label={t('Total tokens')} value={fmtTokens(total)} />
         {estimatedCost > 0 && (
-          <StatRow label="Est. cost" value={`~${fmtCost(estimatedCost)}`} color="text-amber-400" />
+          <StatRow label={t('Est. cost')} value={`~${fmtCost(estimatedCost)}`} color="text-amber-400" />
         )}
       </div>
       {data.length === 0 ? (
-        <EmptyChart message="No token data yet" />
+        <EmptyChart message={t('No token data yet')} />
       ) : (
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={data} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
             <XAxis dataKey="day" tick={{ fontSize: 10 }} tickFormatter={(d: string) => d.slice(5)} />
             <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtTokens} />
             <Tooltip contentStyle={{ fontSize: 11, background: 'var(--color-card)', border: '1px solid var(--color-border)' }} formatter={(v: number) => fmtTokens(v)} />
-            <Bar dataKey="value" name="Tokens" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="value" name={t('Tokens')} fill="#f59e0b" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}
       {estimatedCost > 0 && (
         <p className="mt-2 text-[10px] text-muted-foreground/50">
-          Cost estimate based on most-used model pricing. Assumes ~75% input, ~25% output tokens.
+          {t('Cost estimate based on most-used model pricing. Assumes ~75% input, ~25% output tokens.')}
         </p>
       )}
     </ChartCard>

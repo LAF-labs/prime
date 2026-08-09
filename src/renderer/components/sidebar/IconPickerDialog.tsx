@@ -663,7 +663,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[12px] font-medium text-foreground">{FRAMEWORK_LABELS[selectedFramework]}</span>
-                    <span className="text-[10px] text-muted-foreground">Framework icon</span>
+                    <span className="text-[10px] text-muted-foreground">{t('Framework icon')}</span>
                   </div>
                 </div>
               )}
@@ -738,8 +738,8 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                     <span className="text-xl" aria-hidden>{selectedEmoji}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[12px] font-medium text-foreground">Emoji icon</span>
-                    <span className="text-[10px] text-muted-foreground">Custom emoji</span>
+                    <span className="text-[12px] font-medium text-foreground">{t('Emoji icon')}</span>
+                    <span className="text-[10px] text-muted-foreground">{t('Custom emoji')}</span>
                   </div>
                 </div>
               )}
@@ -766,7 +766,7 @@ export const IconPickerDialog = memo(function IconPickerDialog({
                 <div className="flex-1 min-w-0 max-h-[200px] overflow-y-auto rounded-md border border-border">
                   {filteredFiles.length === 0 ? (
                     <div className="flex items-center justify-center h-full py-4 text-[11px] text-muted-foreground/60">
-                      No image files found
+                      {t('No image files found')}
                     </div>
                   ) : (
                     <ul role="listbox" aria-label={t('Project image files')}>

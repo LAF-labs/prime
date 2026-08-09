@@ -60,12 +60,6 @@ export interface AgentCommandSpec {
   /** Shown in autocomplete after the name, e.g. "<objective>". */
   argumentHint?: string
   kind: CommandKind
-  /**
-   * Hidden from the palette in simple mode (the daily-agent surface). The
-   * command still *executes* if typed — muscle memory from developer mode
-   * keeps working — it just isn't advertised to someone who has never used
-   * git or a debug log.
-   */
 }
 
 /**

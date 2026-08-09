@@ -9,6 +9,9 @@ later; Apple signing/notarization happens at the end, done by the maintainer;
 nothing subscription/billing-shaped is implemented (open-source distribution —
 extensibility is considered, features are not built).
 
+> **Shipped since this was written:** the git/worktree feature removal landed
+> (commit `aa3876e`) — the app is now a non-developer everyday agent.
+
 ## Phase 1 — Finish the durability and lifecycle leftovers
 
 Audit findings that are still open, all of the "user data quietly rots" class:

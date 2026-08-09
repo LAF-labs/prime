@@ -18,8 +18,6 @@ export function Onboarding() {
   const [themeChoice, setThemeChoice] = useState<ThemeMode>(
     useSettingsStore.getState().settings.theme ?? 'dark',
   )
-  // The daily-agent surface is the product default; developer is the opt-in.
-
   const handleThemeChange = useCallback((mode: ThemeMode) => {
     setThemeChoice(mode)
     applyTheme(mode)

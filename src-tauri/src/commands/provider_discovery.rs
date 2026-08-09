@@ -6,7 +6,7 @@
 //!   OpenAI, OpenRouter, Mistral, DeepSeek, Moonshot (Kimi), Qwen/DashScope,
 //!   Upstage, Groq, xAI, Together, Fireworks, Ollama, vLLM, …
 //! - **Anthropic** `GET /v1/models` with `x-api-key` + `anthropic-version`.
-//! - **Google Gemini** `GET /v1beta/models?key=…`.
+//! - **Google Gemini** `GET /v1beta/models` with `x-goog-api-key`.
 //!
 //! No provider is special-cased beyond its wire format: built-in tiles pass a
 //! `provider` name that maps to a known base URL + format, custom endpoints
@@ -137,10 +137,9 @@ pub async fn provider_discover_models(
             .get(&url)
             .header("x-api-key", &api_key)
             .header("anthropic-version", "2023-06-01"),
-        WireFormat::Google => {
-            let sep = if url.contains('?') { '&' } else { '?' };
-            client.get(format!("{url}{sep}key={api_key}"))
-        }
+        // The key goes in a header, never a `?key=` query param — URLs land in
+        // server logs, proxies, and error messages; headers do not.
+        WireFormat::Google => client.get(&url).header("x-goog-api-key", &api_key),
         WireFormat::OpenAi => client.get(&url).bearer_auth(&api_key),
     };
 

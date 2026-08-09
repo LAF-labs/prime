@@ -10,8 +10,8 @@ export const ToolCallChart = ({ events }: { events: AnalyticsEvent[] }) => {
   const total = useMemo(() => computeTotalToolCalls(events), [events])
   return (
     <ChartCard title={t('Tool calls')}>
-      <StatRow label="Total tool calls" value={total} />
-      <HorizontalBarSection data={data} fill="#ec4899" emptyMessage="No tool call data yet" />
+      <StatRow label={t('Total tool calls')} value={total} />
+      <HorizontalBarSection data={data} fill="#ec4899" emptyMessage={t('No tool call data yet')} />
     </ChartCard>
   )
 }

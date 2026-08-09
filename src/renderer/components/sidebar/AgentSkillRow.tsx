@@ -1,5 +1,6 @@
 import { memo, useCallback } from 'react'
 import { IconBolt } from '@tabler/icons-react'
+import { t } from '@/lib/i18n'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { AgentSkill, ProjectFile } from '@/types'
@@ -50,7 +51,7 @@ export const SkillRow = memo(function SkillRow({ skill, onOpen }: { skill: Agent
       </TooltipTrigger>
       <TooltipContent side="right" className="max-w-[220px]">
         <p className="text-[11px] font-medium">{formatName(skill.name)}</p>
-        <p className="mt-0.5 text-[10px] text-muted-foreground">Click to view · drag into chat to attach as <code className="rounded bg-muted/60 px-1 font-mono text-[9px]">@skill:{skill.name}</code></p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">{t('Click to view · drag into chat to attach as')} <code className="rounded bg-muted/60 px-1 font-mono text-[9px]">@skill:{skill.name}</code></p>
       </TooltipContent>
     </Tooltip>
   )

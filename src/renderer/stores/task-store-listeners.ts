@@ -660,9 +660,8 @@ export function initTaskListeners(): () => void {
     }
     // Store the agent CLI session ID for this task
     if (sessionId && taskId && taskId !== '__probe__') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const s = useTaskStore.getState() as any
-      useTaskStore.setState({ sessionIds: { ...s.sessionIds, [taskId]: sessionId } } as any)
+      const s = useTaskStore.getState()
+      useTaskStore.setState({ sessionIds: { ...s.sessionIds, [taskId]: sessionId } })
     }
     // Remember the agent's session file so the thread can be resumed/forked
     // natively (full model context) after a reconnect or app restart.

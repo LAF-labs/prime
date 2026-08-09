@@ -23,7 +23,7 @@ export const SlashCommandChart = ({ events }: { events: AnalyticsEvent[] }) => {
   if (sorted.length === 0) {
     return (
       <ChartCard title={t('Slash commands by mode')}>
-        <EmptyChart message="No slash command data yet" />
+        <EmptyChart message={t('No slash command data yet')} />
       </ChartCard>
     )
   }
@@ -45,8 +45,8 @@ export const SlashCommandChart = ({ events }: { events: AnalyticsEvent[] }) => {
             wrapperStyle={{ fontSize: 10 }}
             iconSize={8}
           />
-          <Bar dataKey="command" name="Command" stackId="mode" fill="#f97316" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="plan" name="Plan" stackId="mode" fill="#8b5cf6" radius={[0, 3, 3, 0]} />
+          <Bar dataKey="command" name={t('Command')} stackId="mode" fill="#f97316" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="plan" name={t('Plan')} stackId="mode" fill="#8b5cf6" radius={[0, 3, 3, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

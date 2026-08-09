@@ -42,9 +42,9 @@ const rank = (level: ThinkingLevel): number => THINKING_LEVELS.indexOf(level)
 /**
  * Show a stored level as its nearest visible neighbour.
  *
- * A level chosen in developer mode — `xhigh`, or `off` — has no button of its
- * own in simple mode, and a picker whose current value matches nothing reads
- * as broken. This only affects what is displayed; the stored value is
+ * A stored level with no button of its own (`xhigh`, `off` — e.g. carried
+ * over from an older version) would leave the picker matching nothing, which
+ * reads as broken. This only affects what is displayed; the stored value is
  * replaced solely when the user picks something.
  */
 export const clampToVisible = (

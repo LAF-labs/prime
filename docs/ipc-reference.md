@@ -5,7 +5,7 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 - **Commands** use `invoke()` to call Rust `#[tauri::command]` functions from the renderer. Each command has a TypeScript wrapper in `src/renderer/lib/ipc.ts`.
 - **Events** use `listen()` to subscribe to backend-emitted events. The `tauriListen` wrapper defers the `unlisten` call to avoid crashes during HMR and React StrictMode double-mount cycles.
 
-> **Note:** This reference covers the core IPC commands. Additional commands exist for analytics, project file tree watching, thread database, goal mode, git history, checkpoints, syntax highlighting, pattern extraction, and tracing. See `src-tauri/src/lib.rs` for the full registered command list.
+> **Note:** This reference covers the core IPC commands. Additional commands exist for analytics, project file tree watching, thread database, goal mode, checkpoints, syntax highlighting, pattern extraction, and tracing. See `src-tauri/src/lib.rs` for the full registered command list.
 
 ---
 
@@ -24,33 +24,9 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 | `task_allow_permission` | `ipc.allowPermission` | `taskId: string, requestId: string, optionId?: string` | `void` | Approve a pending permission request. |
 | `task_deny_permission` | `ipc.denyPermission` | `taskId: string, requestId: string, optionId?: string` | `void` | Deny a pending permission request. |
 | `task_set_auto_approve` | `ipc.setAutoApprove` | `taskId: string, autoApprove: boolean` | `void` | Toggle auto-approve for tool calls on a task. |
-| `task_diff` | `ipc.getTaskDiff` | `taskId: string` | `string` | Get the unified diff of all changes made by a task. |
 | `set_mode` | `ipc.setMode` | `taskId: string, modeId: string` | `void` | Switch the agent mode for a task. |
 
-## 2. Git commands
-
-| Rust command | TypeScript wrapper | Parameters | Return type | Description |
-|---|---|---|---|---|
-| `git_detect` | `ipc.gitDetect` | `path: string` | `boolean` | Check whether a directory is inside a Git repository. |
-| `git_list_branches` | `ipc.gitListBranches` | `cwd: string` | `{ local: Branch[], remotes: Record<string, Branch[]>, currentBranch: string }` | List local and remote branches for a repo. |
-| `git_checkout` | `ipc.gitCheckout` | `cwd: string, branch: string, force?: boolean` | `{ branch: string }` | Check out an existing branch. |
-| `git_create_branch` | `ipc.gitCreateBranch` | `cwd: string, branch: string` | `{ branch: string }` | Create and check out a new branch. |
-| `git_diff_file` | `ipc.gitDiffFile` | `taskId: string, filePath: string` | `string` | Get the diff for a single file within a task's workspace. |
-| `git_diff_stats` | `ipc.gitDiffStats` | `cwd: string` | `{ additions: number, deletions: number, fileCount: number }` | Get unstaged diff statistics. |
-| `git_staged_stats` | `ipc.gitStagedStats` | `cwd: string` | `{ additions: number, deletions: number, fileCount: number }` | Get staged diff statistics. |
-| `git_remote_url` | `ipc.gitRemoteUrl` | `cwd: string` | `string` | Get the remote origin URL. |
-| `git_worktree_create` | `ipc.gitWorktreeCreate` | `cwd: string, slug: string` | `{ worktreePath: string, branch: string }` | Create a new Git worktree for isolated work. |
-| `git_worktree_remove` | `ipc.gitWorktreeRemove` | `cwd: string, worktreePath: string` | `void` | Remove a Git worktree. |
-| `git_worktree_setup` | `ipc.gitWorktreeSetup` | `cwd: string, worktreePath: string, symlinkDirs: string[]` | `{ symlinkCount: number, copiedFiles: string[] }` | Set up symlinks and copy config files into a worktree. |
-| `git_worktree_has_changes` | `ipc.gitWorktreeHasChanges` | `worktreePath: string` | `boolean` | Check whether a worktree has uncommitted changes. |
-| `git_commit` | `ipc.gitCommit` | `cwd: string, message: string` | `void` | Commit staged changes with the given message. |
-| `git_push` | `ipc.gitPush` | `cwd: string` | `string` | Push the current branch to the remote. |
-| `git_pull` | `ipc.gitPull` | `cwd: string` | `string` | Pull latest changes from the remote. |
-| `git_fetch` | `ipc.gitFetch` | `cwd: string` | `string` | Fetch remote refs without merging. |
-| `git_stage` | `ipc.gitStage` | `taskId: string, filePath: string` | `void` | Stage a file for commit within a task's workspace. |
-| `git_revert` | `ipc.gitRevert` | `taskId: string, filePath: string` | `void` | Revert a file to its last committed state within a task's workspace. |
-
-## 3. Terminal (PTY) commands
+## 2. Terminal (PTY) commands
 
 | Rust command | TypeScript wrapper | Parameters | Return type | Description |
 |---|---|---|---|---|
@@ -60,7 +36,7 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 | `pty_kill` | `ipc.ptyKill` | `id: string` | `void` | Kill a PTY session. |
 | `open_terminal_with_command` | `ipc.openTerminalWithCommand` | `command: string` | `void` | Open the system terminal and run a command. |
 
-## 4. Settings and config commands
+## 3. Settings and config commands
 
 | Rust command | TypeScript wrapper | Parameters | Return type | Description |
 |---|---|---|---|---|
@@ -71,7 +47,7 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 | `probe_capabilities` | `ipc.probeCapabilities` | none | `{ ok: boolean }` | Check whether the backend capabilities are available. |
 | `detect_agent_cli` | `ipc.detectAgentCli` | none | `string \| null` | Locate the prime-agent CLI binary on the system. |
 
-## 5. File system commands
+## 4. File system commands
 
 | Rust command | TypeScript wrapper | Parameters | Return type | Description |
 |---|---|---|---|---|
@@ -81,7 +57,7 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 | `list_project_files` | `ipc.listProjectFiles` | `root: string, respectGitignore: boolean` | `ProjectFile[]` | List files in a project directory, optionally respecting `.gitignore`. |
 | `open_url` | `ipc.openUrl` | `url: string` | `void` | Open a URL in the system default browser. |
 
-## 6. Editor integration commands
+## 5. Editor integration commands
 
 | Rust command | TypeScript wrapper | Parameters | Return type | Description |
 |---|---|---|---|---|
@@ -89,14 +65,14 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 | `detect_editors` | `ipc.detectEditors` | none | `string[]` | Detect installed code editors on the system. |
 | `detect_editors_background` | `ipc.detectEditorsBackground` | `known: string[]` | `void` | Re-scan for editors in the background, given the already-known list. |
 
-## 7. Auth commands
+## 6. Auth commands
 
 | Rust command | TypeScript wrapper | Parameters | Return type | Description |
 |---|---|---|---|---|
 | `auth_status` | `ipc.authStatus` | `agentBin?: string` | `{ email?: string, accountType?: string, region?: string, startUrl?: string }` | Get the currently authenticated Agent user's identity. |
 | `auth_logout` | `ipc.authLogout` | `agentBin?: string` | `void` | Log out the current Agent user. |
 
-## 8. Events reference
+## 7. Events reference
 
 All events are subscribed to via the `tauriListen(eventName, callback)` helper, which returns an unlisten function for cleanup.
 

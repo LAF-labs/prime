@@ -82,6 +82,8 @@ Each thread is an independent agent conversation with its own context, tool call
 
 A project is a folder on your filesystem. When you create a thread, you pick a project folder. The agent operates within that directory; it can read files, run commands, and make changes scoped to that project.
 
+You can also start a chat without picking a project — these project-independent chats run in a neutral workspace stored at `Documents/LAF Agent Chats`, so anything the agent writes for you lands somewhere visible.
+
 ### Threads
 
 Threads are conversations with the agent. Each thread:
@@ -114,8 +116,6 @@ Type `/` in the chat input to see available commands:
 | `/goal <objective>` | Start an autonomous goal loop |
 | `/btw <question>` | Ask a side question without polluting history |
 | `/fork` | Fork thread into a new conversation |
-| `/branch` | Create and checkout a new git branch |
-| `/worktree` | Create a git worktree for isolated work |
 | `/close` | Archive the thread |
 | `/data` | Open analytics dashboard |
 
@@ -124,7 +124,7 @@ See [slash-commands.md](slash-commands.md) for the full reference.
 ### @mentions
 
 Type `@` in the chat input to attach context:
-- **Files** — attach project files with git status indicators
+- **Files** — attach project files
 - **Agents** — mention a specific agent
 - **Skills** — reference a skill
 - **Prompts** — include a steering prompt
@@ -144,7 +144,6 @@ Select text in any message to copy it, add it to the chat input, or start a new 
 | `Cmd+K` | Command palette |
 | `Cmd+L` | Focus chat input |
 | `Cmd+B` | Toggle sidebar / btw mode |
-| `Cmd+D` | Toggle diff panel |
 | `Cmd+J` | Toggle terminal |
 | `Cmd+,` | Open settings |
 | `Cmd+W` | Close thread |
@@ -166,20 +165,9 @@ View two threads side by side:
 
 Toggle the file tree panel to browse your project:
 - Real-time filesystem watching updates the tree as files change
-- Git status indicators show modified, added, and deleted files
 - Drag files from the tree into chat to attach as context
 - Right-click for rename, create, and delete actions
-
-## Git integration
-
-LAF Agent has built-in git support:
-- **Branch management** — create, switch, and delete branches from the branch selector
-- **Staging and committing** — stage files and commit with AI-generated messages
-- **Push, pull, fetch** — sync with remotes
-- **Diff viewer** — see changes inline or side-by-side with syntax highlighting
-- **Worktrees** — isolate thread work in separate git worktrees
-
-The diff stats badge in the header shows unstaged changes at a glance.
+- Open any file in your preferred external editor
 
 ## Goal mode
 
@@ -194,10 +182,10 @@ Goal mode turns a thread into an autonomous agent loop. Give it an objective and
 ## Analytics
 
 Type `/data` or `/usage` to open the analytics dashboard. It tracks:
-- Coding hours and session activity
+- Active hours and session activity
 - Messages sent and tokens consumed
 - Tool calls and their types
-- Diff statistics (lines added/removed)
+- File change statistics (lines added/removed)
 - Model and mode usage
 - Slash command frequency
 
@@ -212,8 +200,7 @@ Press `Cmd+J` to open the integrated terminal. Each thread gets its own PTY sess
 Open settings with `Cmd+,` or the gear icon. Configure:
 - **General** — CLI path, default model, auto-approve, notifications
 - **Appearance** — Theme (light/dark), font size
-- **Git** — Default branch, commit signing
-- **Advanced** — Analytics, goal mode, experimental features
+- **Advanced** — Privacy, analytics, and data management
 
 ## Notifications
 

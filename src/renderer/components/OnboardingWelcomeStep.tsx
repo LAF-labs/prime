@@ -23,7 +23,7 @@ export const OnboardingWelcomeStep = ({ onNext }: OnboardingWelcomeStepProps) =>
         {FEATURES.map(({ Icon, text }) => (
           <div key={text} className="flex items-center gap-3">
             <Icon size={20} stroke={1.5} className="text-muted-foreground" />
-            <span>{text}</span>
+            <span>{t(text)}</span>
           </div>
         ))}
       </div>

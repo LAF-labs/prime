@@ -1,14 +1,15 @@
-import { IconMessageChatbot, IconListCheck, IconTool, IconLock } from '@tabler/icons-react'
+import { IconMessageChatbot, IconWorldSearch, IconFiles, IconBrain } from '@tabler/icons-react'
 
 export type Step = 'welcome' | 'theme' | 'setup'
 export type DetectState = 'detecting' | 'found' | 'not-found'
 export type AuthState = 'checking' | 'authenticated' | 'not-authenticated'
 
+/** Rendered through t() at the call site — Korean entries live in i18n-ko.ts. */
 export const FEATURES = [
-  { Icon: IconMessageChatbot, text: 'Chat with AI about your code' },
-  { Icon: IconListCheck, text: 'Plan mode for structured feature development' },
-  { Icon: IconTool, text: 'Agent executes file edits, terminal commands, and more' },
-  { Icon: IconLock, text: 'Runs locally — your code stays on your machine' },
+  { Icon: IconMessageChatbot, text: 'Answers, writing, and documents on demand' },
+  { Icon: IconWorldSearch, text: 'Researches the web and summarizes what matters' },
+  { Icon: IconFiles, text: 'Works with your files — reads, organizes, edits' },
+  { Icon: IconBrain, text: 'Remembers you — your context carries across chats' },
 ] as const
 
 export const LoginMethod = ({ Icon, label }: { Icon: React.ElementType; label: string }) => (

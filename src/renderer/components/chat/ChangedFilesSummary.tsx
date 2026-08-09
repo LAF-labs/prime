@@ -203,7 +203,7 @@ export const ChangedFilesSummary = memo(function ChangedFilesSummary({ row }: { 
               onClick={toggleAll}
               className="rounded-md border border-input bg-popover px-2 py-0.5 text-[12px] font-medium text-foreground shadow-xs/5 transition-colors hover:bg-accent/50"
             >
-              {allCollapsed ? 'Expand all' : 'Collapse all'}
+              {allCollapsed ? t('Expand all') : t('Collapse all')}
             </button>
           )}
         </div>

@@ -91,7 +91,7 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <IconChartBar size={40} stroke={1} className="mb-3 text-muted-foreground/40" />
               <p className="text-sm font-medium text-muted-foreground">{t('No analytics data yet')}</p>
-              <p className="mt-1 max-w-sm text-xs text-muted-foreground/70">{t('Working with the agent generates the data — messages, tokens, tool calls, and coding time are measured locally and shown here.')}</p>
+              <p className="mt-1 max-w-sm text-xs text-muted-foreground/70">{t('Working with the agent generates the data — messages, tokens, tool calls, and active time are measured locally and shown here.')}</p>
               <Button size="sm" className="mt-4 gap-1.5" onClick={startNewThread}>
                 <IconPlus size={14} stroke={2} />
                 {t('Start a new thread')}

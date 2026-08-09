@@ -135,3 +135,43 @@ menu-bar presence + global summon hotkey, MCP one-click gallery,
 hunk-level diff ops / comment-to-prompt, daemon-mode session manager
 (attach/detach, sessions that survive app restarts) as the long-term
 architecture step.
+
+## Cross-session messaging (deferred — hand to a subagent)
+
+Claude Code shipped [cross-session messaging](https://code.claude.com/docs/en/cross-session-messaging):
+one session can send another a plain-text message, discovered with
+`ListAgents` and delivered with `SendMessage`. Verdict from reading the
+docs and our own gate extension:
+
+**Interop with Claude Code itself: no.** Sessions find each other through
+a per-session Unix socket plus on-disk registration files, and neither the
+wire format nor the registration layout is published — only the settings
+names (`crossSessionInbound`, `isolatePeerMachines`, `dialogExpiry`).
+Reverse-engineering a private protocol would break on their next release.
+
+**The same capability between our own threads: feasible, and simpler for
+us than for them.** They need sockets because each session is its own
+process. Every LAF Agent thread already lives in one Tauri backend, inside
+`AgentState.connections` — no socket, no disk registration, no
+cross-machine path.
+
+What it takes:
+
+- Rust: `list_threads` (the tasks map already holds them) and
+  `send_thread_message(from, to, text)`, which injects a prompt into the
+  target thread's connection.
+- The model can only use it if the tools are declared to it. The gate
+  extension already registers tools (`pi.registerTool(sandboxedBash)` in
+  `resources/laf-agent-gate.ts`); `list_agents` / `send_message` go in the
+  same place.
+- Inbound control reuses the existing permission modes
+  (ask / acceptEdits / auto) rather than inventing a second policy axis.
+- Loop protection is not optional: Claude Code rate-limits per sender,
+  drops identical repeats inside a short window, and caps unread messages
+  at 50 per session. A naive implementation ping-pongs forever.
+- A "Message from <thread>" row in the transcript, collapsed like a tool
+  call.
+
+Size M–L. The hard part is product design (inbound surface, loop policy),
+not the plumbing. This is a power-user feature — sequence it behind the
+empty-state cleanup and the next DMG.

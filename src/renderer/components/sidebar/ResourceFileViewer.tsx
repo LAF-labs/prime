@@ -1,11 +1,19 @@
 import { t } from '@/lib/i18n'
-import { useEffect, useState, memo } from 'react'
+import { useEffect, useState, memo, lazy, Suspense } from 'react'
 import { IconX, IconExternalLink } from '@tabler/icons-react'
 import { ipc } from '@/lib/ipc'
 import { getPreferredEditor } from '@/components/OpenInEditorGroup'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import MarkdownViewer from '@/components/MarkdownViewer'
+/**
+ * Loaded when a resource file is actually opened.
+ *
+ * This component hangs off the always-mounted sidebar
+ * (TaskSidebar → SidebarFooter → ResourcePanel), so a static import put
+ * react-markdown and its unified/remark tree (~219 kB) in the startup chunk
+ * for a panel most sessions never open.
+ */
+const MarkdownViewer = lazy(() => import('@/components/MarkdownViewer'))
 
 interface ResourceFileViewerProps {
   filePath: string
@@ -86,7 +94,9 @@ export const ResourceFileViewer = memo(function ResourceFileViewer({ filePath, t
             </pre>
           )}
           {!loading && content !== null && !isJson && (
-            <MarkdownViewer content={content} fontSize={13} />
+            <Suspense fallback={null}>
+              <MarkdownViewer content={content} fontSize={13} />
+            </Suspense>
           )}
         </div>
       </div>

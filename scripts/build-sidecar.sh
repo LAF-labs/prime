@@ -81,6 +81,12 @@ npm install --omit=dev --no-audit --no-fund
 # zeromq loads its addon through cmake-ts/build/loader at runtime.
 cp -r "$WORK/prime-agent/node_modules/cmake-ts" node_modules/cmake-ts
 
+# Source maps are debugger-only: Node reads them for a stack trace exclusively
+# under --enable-source-maps, which the sidecar never runs with. dist/ has been
+# stripped since the beginning; node_modules had not been, and shipped ~10 MB of
+# them (cmake-ts alone carries 4.7 MB).
+find node_modules -name '*.map' -type f -delete
+
 cp -r "$WORK/prime-agent/packages/coding-agent/dist" dist
 rm -f dist/package.json      # inner package.json would break asset-root resolution
 rm -rf dist/pi dist/bun dist/docs dist/examples

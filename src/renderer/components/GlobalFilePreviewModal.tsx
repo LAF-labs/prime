@@ -1,6 +1,17 @@
-import { memo } from 'react'
+import { memo, lazy, Suspense } from 'react'
 import { useFilePreviewStore } from '@/stores/filePreviewStore'
-import { FilePreviewModal } from '@/components/file-tree/FilePreviewModal'
+
+/**
+ * Loaded on first preview, not at startup.
+ *
+ * `FilePreviewModal` pulls in the markdown renderer, and this component is
+ * mounted from `App` — which put react-markdown and its whole unified/remark
+ * dependency tree (~219 kB) in the eager chunk for a modal that is closed on
+ * every cold start.
+ */
+const FilePreviewModal = lazy(() =>
+  import('@/components/file-tree/FilePreviewModal').then((m) => ({ default: m.FilePreviewModal })),
+)
 
 /**
  * App-level file preview modal that can be triggered from anywhere
@@ -12,5 +23,11 @@ export const GlobalFilePreviewModal = memo(function GlobalFilePreviewModal() {
 
   if (!previewFilePath) return null
 
-  return <FilePreviewModal filePath={previewFilePath} onClose={closePreview} />
+  return (
+    // No fallback: the chunk resolves from disk in a few ms, and a spinner
+    // flashing behind a modal that is about to paint reads as a glitch.
+    <Suspense fallback={null}>
+      <FilePreviewModal filePath={previewFilePath} onClose={closePreview} />
+    </Suspense>
+  )
 })

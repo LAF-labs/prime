@@ -18,7 +18,6 @@
         "ghostty-web": "^0.4.0",
         "recharts": "2.15.3",
         "remark-gfm": "^4.0.1",
-        "seti-file-icons": "^0.0.8",
         "slugify": "1.6.9",
         "sonner": "^2.0.7",
       },
@@ -943,8 +942,6 @@
     "scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
 
     "semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
-
-    "seti-file-icons": ["seti-file-icons@0.0.8", "", {}, "sha512-HIK9HMkfhmwCZYeyQFuCAGYdwaK5/tmZBVnQmbGXx9orT2bD0xbKqvJR7q6NmsTbgtLNwBwa+PYnTzUvdExuDQ=="],
 
     "shiki": ["shiki@3.23.0", "", { "dependencies": { "@shikijs/core": "3.23.0", "@shikijs/engine-javascript": "3.23.0", "@shikijs/engine-oniguruma": "3.23.0", "@shikijs/langs": "3.23.0", "@shikijs/themes": "3.23.0", "@shikijs/types": "3.23.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-55Dj73uq9ZXL5zyeRPzHQsK7Nbyt6Y10k5s7OjuFZGMhpp4r/rsLBH0o/0fstIzX1Lep9VxefWljK/SKCzygIA=="],
 

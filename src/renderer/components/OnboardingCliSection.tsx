@@ -98,7 +98,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           </div>
           <a href="https://github.com/PrimeIntellect-ai/prime-agent#readme" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
             className="flex items-center justify-center gap-1.5 text-[12px] text-primary transition-colors hover:text-primary">
-            {t('About Prime Agent')} <IconExternalLink size={12} />
+            {t('About the agent runtime')} <IconExternalLink size={12} />
           </a>
         </div>
       )}

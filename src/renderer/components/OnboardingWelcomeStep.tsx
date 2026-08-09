@@ -16,7 +16,7 @@ export const OnboardingWelcomeStep = ({ onNext }: OnboardingWelcomeStepProps) =>
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t('Welcome to LAF Agent')}</h1>
         <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-          {t('A native desktop client for Prime Agent; the AI-powered coding assistant.')}
+          {t('Your personal AI agent — right on your desktop.')}
         </p>
       </div>
       <div className="flex flex-col gap-3 text-left text-[14px] text-muted-foreground">

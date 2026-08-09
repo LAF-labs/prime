@@ -295,7 +295,7 @@ export interface AppSettings {
   summonShortcut?: string | null
   /**
    * When true, tool calls render inline within the assistant's prose at the
-   * exact point where the agent invoked them — similar to Cursor / Prime Agent IDE.
+   * exact point where the agent invoked them — similar to Cursor.
    * When false (default), tool calls are grouped into a single card after
    * the assistant text. Only affects rendering; persisted data is the same.
    */
@@ -353,7 +353,7 @@ export interface ProjectFile {
   modifiedAt: number
 }
 
-// ── Prime Agent Configuration Types ──────────────────────────────────────
+// ── Agent Configuration Types ──────────────────────────────────────
 
 export interface AgentAgentHook {
   command: string

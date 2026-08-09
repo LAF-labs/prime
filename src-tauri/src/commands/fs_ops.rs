@@ -431,7 +431,7 @@ pub fn detect_editors() -> Vec<String> {
     };
 
     // ── GUI editors: CLI in PATH ──────────────────────────────────
-    for bin in ["cursor", "agent", "trae", "code", "zed", "idea"] {
+    for bin in ["cursor", "trae", "code", "zed", "idea"] {
         if which::which(bin).is_ok() {
             push_unique(bin, &mut found);
         }

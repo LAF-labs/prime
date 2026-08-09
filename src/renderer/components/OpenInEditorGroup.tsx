@@ -47,7 +47,6 @@ const SI_VSCODE = "M1.292 6.293l-.009.009L.065 5.09A.5.5 0 010 4.8V1.2a.5.5 0 01
 
 const EDITOR_MAP: Record<string, Omit<EditorInfo, 'bin'>> = {
   cursor: { label: 'Cursor', icon: <CursorIcon /> },
-  agent: { label: 'Prime Agent', icon: <IconCode className="size-3.5" /> },
   trae: { label: 'Trae', icon: <IconCode className="size-3.5" /> },
   code: { label: 'VS Code', icon: <BrandIcon d={SI_VSCODE} /> },
   zed: { label: 'Zed', icon: <ZedIcon /> },

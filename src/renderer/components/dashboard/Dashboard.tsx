@@ -86,7 +86,7 @@ export const Dashboard = memo(function Dashboard() {
                 <IconRobot className="mb-4 h-10 w-10 text-muted-foreground/70" />
                 <EmptyTitle>{t('No threads yet')}</EmptyTitle>
                 <EmptyDescription>
-                  {t('Import a project folder to start a new thread with Prime Agent.')}
+                  {t('Import a project folder to start a new thread.')}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>

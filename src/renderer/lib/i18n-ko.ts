@@ -171,8 +171,8 @@ export const ko: Record<string, string> = {
   'Open in Finder': 'Finder에서 열기',
   'Open File Tree': '파일 트리 열기',
   'Copy Path': '경로 복사',
-  'Import a project folder to start a new thread with Prime Agent.':
-    '프로젝트 폴더를 가져와 Prime Agent와 새 스레드를 시작하세요.',
+  'Import a project folder to start a new thread.':
+    '프로젝트 폴더를 가져와 새 스레드를 시작하세요.',
 
   // ── Empty states & onboarding ─────────────────────────────────────
   'Open a project to get started': '프로젝트를 열어 시작하세요',
@@ -539,12 +539,11 @@ export const ko: Record<string, string> = {
 
   // ── Auth ──────────────────────────────────────────────────────────
   'Sign in': '로그인',
-  'Sign in to Prime Agent': 'Prime Agent에 로그인',
   'Sign in to start a conversation': '로그인하고 대화를 시작하세요',
   'Sign in to LAF Agent to start using AI agents': 'AI 에이전트를 사용하려면 LAF Agent에 로그인하세요',
   'Authentication is required to create threads and interact with agents':
     '스레드 생성과 에이전트 사용에는 인증이 필요합니다',
-  'Prime Agent authentication is required to use AI agents': 'AI 에이전트 사용에는 Prime Agent 인증이 필요합니다',
+  'Connect an AI provider to start using the agent': 'AI 프로바이더를 연결하면 에이전트를 사용할 수 있습니다',
   'Login to LAF Agent': 'LAF Agent 로그인',
   Logout: '로그아웃',
   Authenticate: '인증',
@@ -633,7 +632,7 @@ export const ko: Record<string, string> = {
   'Missing from this build.': '이 빌드에 포함되어 있지 않습니다.',
   'The agent runtime should ship inside this app. Reinstalling from the DMG usually fixes this. You can also point at your own prime-agent build below.':
     '에이전트 런타임은 앱에 내장되어 배포됩니다. 보통 DMG로 재설치하면 해결되며, 아래에서 직접 빌드한 prime-agent 경로를 지정할 수도 있습니다.',
-  'About Prime Agent': 'Prime Agent 소개',
+  'About the agent runtime': '에이전트 런타임 소개',
   'Agent tools': '에이전트 도구',
   'Checking…': '확인 중…',
   'Ready — the agent can edit files and run commands.': '준비 완료 — 에이전트가 파일을 편집하고 명령을 실행할 수 있습니다.',
@@ -687,8 +686,8 @@ export const ko: Record<string, string> = {
   'Open the analytics dashboard (alias for /usage)': '분석 대시보드를 엽니다 (/usage 별칭)',
 
   // ── What's New highlights (mirror lib/changelog.ts) ───────────────
-  'First release of LAF Agent, powered by Prime Agent':
-    'Prime Agent 기반 LAF Agent 첫 릴리스',
+  'First release of LAF Agent':
+    'LAF Agent 첫 릴리스',
   'The agent runtime ships inside the app — install the DMG and start working':
     '에이전트 런타임이 앱에 내장 — DMG만 설치하면 바로 시작',
   'Per-tool permission approval before anything touches your files':
@@ -1089,7 +1088,7 @@ export const ko: Record<string, string> = {
   'Pick a project and start chatting with LAF Agent': '프로젝트를 선택하고 LAF Agent와 대화를 시작하세요',
   'Point LAF Agent at any folder on your machine. The AI agent works directly with your files, runs commands, and helps you build.': 'LAF Agent에 원하는 폴더를 연결하세요. AI 에이전트가 파일을 직접 다루고 명령을 실행하며 개발을 돕습니다.',
   'Welcome to LAF Agent': 'LAF Agent에 오신 것을 환영합니다',
-  'A native desktop client for Prime Agent; the AI-powered coding assistant.': 'AI 코딩 어시스턴트 Prime Agent의 네이티브 데스크톱 클라이언트입니다.',
+  'Your personal AI agent — right on your desktop.': '데스크톱에서 바로 쓰는 나만의 AI 에이전트입니다.',
   'AI provider': 'AI 프로바이더',
   'AI providers': 'AI 프로바이더',
   'Checking...': '확인 중...',

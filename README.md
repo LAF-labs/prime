@@ -4,7 +4,7 @@
 
 LAF Agent is a macOS-first GUI for driving prime-agent coding sessions: threads per project, streaming responses with thinking traces, tool-call cards with inline diffs, per-tool permission approval, git worktree isolation, a built-in terminal, and local analytics — all in a lightweight Tauri v2 shell (no Electron).
 
-Based on a desktop codebase by Sabeur Thabti, fully acquired with permission and re-platformed onto prime-agent's RPC protocol. Powered by [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent).
+Based on a desktop codebase by Sabeur Thabti, fully acquired with permission and re-platformed onto prime-agent's RPC protocol. Built on the open-source [prime-agent](https://github.com/PrimeIntellect-ai/prime-agent) runtime.
 
 ## How it works
 

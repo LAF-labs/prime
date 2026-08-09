@@ -217,14 +217,14 @@ export function PendingChat({ workspace }: PendingChatProps) {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground/80">{t('Sign in to start a conversation')}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t('Prime Agent authentication is required to use AI agents')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('Connect an AI provider to start using the agent')}</p>
             </div>
             <button
               type="button"
               onClick={openLogin}
               className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
             >
-              {t('Sign in to Prime Agent')}
+              {t('Sign in')}
             </button>
           </div>
         ) : (

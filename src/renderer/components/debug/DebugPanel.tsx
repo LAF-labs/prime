@@ -10,7 +10,7 @@ import { JsDebugTab } from './JsDebugTab'
 type DebugTab = 'agent' | 'js'
 
 const TAB_LABELS: Record<DebugTab, string> = {
-  agent: 'Prime Agent Debug',
+  agent: 'Agent Debug',
   js: 'JS Debug',
 } as const
 

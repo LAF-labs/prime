@@ -14,7 +14,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.1.0',
     highlights: [
-      'First release of LAF Agent, powered by Prime Agent',
+      'First release of LAF Agent',
       'The agent runtime ships inside the app — install the DMG and start working',
       'Per-tool permission approval before anything touches your files',
       'Korean and English, following your system language',

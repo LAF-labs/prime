@@ -4,7 +4,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ipc, type EverydayMemory } from '@/lib/ipc'
 import { useT } from '@/lib/i18n'
 import { reportFailure } from '@/lib/ipc-report'
-import { useIsSimpleMode } from '@/lib/ui-mode'
 import { ConfirmDialog, SettingsCard, SettingsGrid } from './settings-shared'
 
 /** Newest first: the last thing the assistant learned is the most interesting. */
@@ -34,7 +33,6 @@ const formatDate = (iso: string): string => {
  */
 export const EverydayMemoryCard = memo(function EverydayMemoryCard() {
   const t = useT()
-  const isSimpleMode = useIsSimpleMode()
   const [memories, setMemories] = useState<EverydayMemory[]>([])
   const [pendingDelete, setPendingDelete] = useState<EverydayMemory | null>(null)
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false)
@@ -48,9 +46,8 @@ export const EverydayMemoryCard = memo(function EverydayMemoryCard() {
   }, [t])
 
   useEffect(() => {
-    if (!isSimpleMode) return
     void refresh()
-  }, [isSimpleMode, refresh])
+  }, [refresh])
 
   // The dialog awaits these and stays open on failure, so a rejection must
   // propagate rather than be swallowed here.
@@ -67,7 +64,6 @@ export const EverydayMemoryCard = memo(function EverydayMemoryCard() {
 
   const sorted = useMemo(() => [...memories].sort(byNewest), [memories])
 
-  if (!isSimpleMode) return null
 
   return (
     <SettingsGrid

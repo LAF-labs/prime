@@ -287,15 +287,11 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tau
         .accelerator("CmdOrCtrl+Shift+O")
         .build(app)?;
 
-    // Build "Recent Projects" submenu from persisted data. The same lock also
-    // answers which surface we're on — the File menu carries developer items.
-    let (recent_projects, is_simple): (Vec<String>, bool) = app
+    // Build "Recent Projects" submenu from persisted data.
+    let recent_projects: Vec<String> = app
         .try_state::<settings::SettingsState>()
-        .map(|s| {
-            let store = s.0.lock();
-            (store.recent_projects.clone(), store.settings.effective_ui_mode() == "simple")
-        })
-        .unwrap_or((Vec::new(), false));
+        .map(|s| s.0.lock().recent_projects.clone())
+        .unwrap_or_default();
 
     let mut recent_submenu = SubmenuBuilder::new(app, "Recent Projects");
     if recent_projects.is_empty() {
@@ -357,11 +353,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tau
         .item(&new_window)
         .item(&new_thread)
         .item(&new_project);
-    // Cloning a git repository is developer chrome; the everyday surface
-    // keeps projects (folders are not a developer concept) but not git.
-    if !is_simple {
-        file_builder = file_builder.item(&clone_from_github);
-    }
+    file_builder = file_builder.item(&clone_from_github);
     let file_submenu = file_builder
         .separator()
         .item(&recent_submenu)

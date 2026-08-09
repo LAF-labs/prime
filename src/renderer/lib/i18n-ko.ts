@@ -184,7 +184,6 @@ export const ko: Record<string, string> = {
   'Pick a thread from the sidebar, or start a new one and type your first message below.':
     '사이드바에서 스레드를 선택하거나, 새 스레드를 시작해 아래에 첫 메시지를 입력하세요.',
   'Send a message to start the conversation.': '메시지를 보내 대화를 시작하세요.',
-  'What can I help you build?': '무엇을 만들어 드릴까요?',
   'Getting started': '시작하기',
   'Choose your theme': '테마를 선택하세요',
   'Pick a look that suits you. You can change this later in Settings.':
@@ -216,15 +215,6 @@ export const ko: Record<string, string> = {
   // Interface mode (simple vs developer surface)
   'Interface': '인터페이스',
   'How much of the app is on screen': '화면에 보여줄 범위',
-  'Interface mode': '인터페이스 모드',
-  'Everyday hides git, terminal, and diff chrome; Developer shows everything': '일상형은 git·터미널·diff를 숨기고, 개발자는 전부 표시합니다',
-  'Everyday': '일상형',
-  'Developer': '개발자',
-  'Switch to Developer mode': '개발자 모드로 전환',
-  'Switch to Everyday mode': '일상형 모드로 전환',
-  'How will you use it?': '어떻게 쓰실 건가요?',
-  'A clean chat that gets things done. No developer chrome.': '일을 대신 해주는 깔끔한 채팅. 개발 도구는 보이지 않습니다.',
-  'The full harness: git, worktrees, diffs, terminal.': '전체 하네스: git, 워크트리, diff, 터미널.',
   'Organize the files in a folder': '폴더 안 파일 정리하기',
   'Summarize a document for me': '문서 요약하기',
   'Research a topic on the web': '웹에서 주제 조사하기',
@@ -666,8 +656,6 @@ export const ko: Record<string, string> = {
   'Keep working through quality gates without asking':
     '품질 게이트를 통과할 때까지 묻지 않고 계속 작업합니다',
   'Compact the conversation context now': '지금 대화 컨텍스트를 압축합니다',
-  'Apply an evidence-backed refinement to the agent harness':
-    '근거 기반으로 에이전트 하네스를 개선합니다',
   'Duplicate this conversation into a new thread': '이 대화를 새 스레드로 복제합니다',
   'Copy the last assistant reply to the clipboard': '마지막 응답을 클립보드로 복사합니다',
   'Export this session to an HTML file': '이 세션을 HTML 파일로 내보냅니다',
@@ -980,9 +968,6 @@ export const ko: Record<string, string> = {
   'Edit and resend': '수정 후 다시 보내기',
 
   // ── Empty-thread splash ───────────────────────────────────────────
-  'Explain this codebase': '이 코드베이스를 설명해줘',
-  'Find and fix a bug': '버그를 찾아서 고쳐줘',
-  'Add tests for recent changes': '최근 변경 사항에 테스트를 추가해줘',
   'Quick side question': '빠른 곁가지 질문',
 
   // ── Pull request creation ─────────────────────────────────────────

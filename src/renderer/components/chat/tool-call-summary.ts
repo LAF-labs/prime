@@ -63,6 +63,15 @@ const LABELS: Record<string, string> = {
   web_search: 'Search',
   web_fetch: 'Fetch',
   fetch: 'Fetch',
+  // The everyday toolset. These are the names most sessions actually show,
+  // and the fallback would render them as "List Dir" and "Write File" —
+  // developer nouns in front of someone who asked to tidy up a folder.
+  read_file: 'Read',
+  list_dir: 'Browse',
+  write_file: 'Write',
+  organize: 'Organize',
+  remember: 'Remember',
+  research: 'Research',
   todo_write: 'Todo',
   task: 'Task',
 }

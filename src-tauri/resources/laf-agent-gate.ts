@@ -791,9 +791,12 @@ export default function (pi: ExtensionAPI) {
 	registerEverydayProfile(pi);
 	registerResearch(pi);
 
-	// Everyday sessions must never gain a shell, even if a stale env leaks
-	// LAF_TIGHT_SANDBOX from a developer-mode configuration.
-	if (TIGHT_SANDBOX && WORKSPACE && !EVERYDAY) registerSandboxedBash(pi);
+	// A shell is genuinely useful — zipping, converting, batch work the
+	// everyday tools do not cover — but only offered when it can be confined:
+	// the OS sandbox keeps writes inside the workspace and credentials
+	// unreadable, and every command still goes through the approval dialog.
+	// A research child never gets one; it has nobody to ask.
+	if (TIGHT_SANDBOX && WORKSPACE && !READONLY) registerSandboxedBash(pi);
 
 	pi.on("tool_call", async (event, ctx) => {
 		// A read-only research child is refused the mutating tools outright.
@@ -1384,7 +1387,9 @@ function buildEverydayPrompt(cwd: string): string {
 		"- Always answer in the language the user writes in.",
 		"- Lead with the result. Keep explanations short and warm; do not narrate your process.",
 		"- Use tools instead of guessing: read a file before summarizing it, search the web for anything current, list a folder before organizing it.",
+		"- Never state what is inside a file you have not opened with read_file. Seeing a file's name in a folder listing tells you nothing about its contents; if you have not read it, say so and read it.",
 		"- File and folder names are exact. Never translate one into another language and never re-spell it — copy it character for character from what a tool showed you.",
+		"- If a bash tool is available, use it for work the other tools do not cover — archives, image conversion, counting things. Prefer the plain tools when they suffice, and keep commands short enough that the user can read what they do.",
 		"- Before creating, changing, or moving any file, say in one short sentence what you are about to do. Touch only the files the task requires.",
 		"- You cannot delete files. When something should be removed, name the files and let the user do it.",
 		"- If a step fails, say what happened in plain words and offer the closest thing you can do.",
@@ -1615,8 +1620,19 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 			if (visible.length > shown.length) {
 				lines.push(`…and ${visible.length - shown.length} more entries`);
 			}
+			// The reminder rides on the result, not the system prompt.
+			// Measured against a small model: told only in the prompt not to
+			// describe an unread file, it listed a folder and then invented
+			// the contents of a file in it anyway. A tool result is the
+			// closest context to the generation that follows it, which is
+			// where a correction actually lands.
+			const body = lines.length > 0 ? lines.join("\n") : "(empty folder)";
+			const notice =
+				visible.some((e) => !e.isDirectory())
+					? "\n\n(Names and sizes only. To say anything about what is inside one of these files, open it with read_file first.)"
+					: "";
 			return {
-				content: [{ type: "text", text: lines.length > 0 ? lines.join("\n") : "(empty folder)" }],
+				content: [{ type: "text", text: `${body}${notice}` }],
 				details: { path: resolved.path, entries: visible.length },
 			};
 		},

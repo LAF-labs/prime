@@ -1,13 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { EmptyThreadSplash } from './EmptyThreadSplash'
-import { useSettingsStore } from '@/stores/settingsStore'
-import type { AppSettings } from '@/types'
-
-const setMode = (uiMode: 'simple' | 'developer') => {
-  const { settings } = useSettingsStore.getState()
-  useSettingsStore.setState({ settings: { ...settings, uiMode } as AppSettings })
-}
 
 describe('EmptyThreadSplash', () => {
   afterEach(() => {
@@ -15,35 +8,31 @@ describe('EmptyThreadSplash', () => {
   })
 
   it('renders three starter prompts', () => {
-    setMode('simple')
     render(<EmptyThreadSplash />)
     expect(screen.getAllByTestId('starter-prompt')).toHaveLength(3)
   })
 
-  it('the everyday surface offers everyday prompts, not coding tasks', () => {
-    setMode('simple')
+  /**
+   * The first thing a new thread shows sets the expectation for everything
+   * after it, so the prompts are about files, documents and questions rather
+   * than about code.
+   */
+  it('offers everyday prompts, not coding tasks', () => {
     render(<EmptyThreadSplash />)
     expect(screen.getByText('Summarize a document for me')).toBeInTheDocument()
     expect(screen.queryByText('Find and fix a bug')).toBeNull()
-  })
-
-  it('developer mode keeps the coding prompts', () => {
-    setMode('developer')
-    render(<EmptyThreadSplash />)
-    expect(screen.getByText('Explain this codebase')).toBeInTheDocument()
-    expect(screen.queryByText('Summarize a document for me')).toBeNull()
+    expect(screen.queryByText('Explain this codebase')).toBeNull()
   })
 
   it('clicking a starter prompt dispatches splash-insert with the prompt text', () => {
-    setMode('developer')
     const listener = vi.fn()
     document.addEventListener('splash-insert', listener)
     try {
       render(<EmptyThreadSplash />)
-      fireEvent.click(screen.getByText('Explain this codebase'))
+      fireEvent.click(screen.getByText('Summarize a document for me'))
       expect(listener).toHaveBeenCalledTimes(1)
       const event = listener.mock.calls[0][0] as CustomEvent<string>
-      expect(event.detail).toBe('Explain this codebase')
+      expect(event.detail).toBe('Summarize a document for me')
     } finally {
       document.removeEventListener('splash-insert', listener)
     }

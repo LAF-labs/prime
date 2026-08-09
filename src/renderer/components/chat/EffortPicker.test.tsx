@@ -32,8 +32,7 @@ const renderPicker = () =>
     </TooltipProvider>,
   )
 
-/** Both surfaces share this state; only `uiMode` decides which one renders. */
-const resetStores = (uiMode: 'simple' | 'developer') => {
+const resetStores = () => {
   vi.mocked(ipc.setThinkingLevel).mockClear()
   vi.mocked(ipc.saveSettings).mockClear()
   useTaskStore.setState({
@@ -44,13 +43,13 @@ const resetStores = (uiMode: 'simple' | 'developer') => {
   const { settings } = useSettingsStore.getState()
   useSettingsStore.setState({
     currentModelId: MODEL,
-    settings: { ...settings, modelEfforts: undefined, uiMode },
+    settings: { ...settings, modelEfforts: undefined },
   })
 }
 
 describe('EffortPicker', () => {
   beforeEach(() => {
-    resetStores('developer')
+    resetStores()
   })
 
   it('hides itself when the model reports a single level', () => {
@@ -68,10 +67,11 @@ describe('EffortPicker', () => {
     expect(options.map((o) => o.textContent)).not.toContain(expect.stringContaining('Max'))
   })
 
-  it('falls back to the full list before a session reports one', () => {
+  /** Before a session reports its levels the picker assumes all three. */
+  it('offers all three before a session reports its levels', () => {
     renderPicker()
     fireEvent.click(screen.getByTestId('effort-picker').querySelector('button')!)
-    expect(screen.getAllByRole('option')).toHaveLength(7)
+    expect(screen.getAllByRole('option')).toHaveLength(3)
   })
 
   it('pushes the choice to the agent and remembers it per model', async () => {
@@ -92,10 +92,10 @@ describe('EffortPicker', () => {
 
   it('shows the saved per-model level when the session has not reported one', () => {
     const { settings } = useSettingsStore.getState()
-    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'xhigh' } } })
-    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high', 'xhigh'] } })
+    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'low' } } })
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
     renderPicker()
-    expect(screen.getByTestId('effort-picker').textContent).toContain('Extra high')
+    expect(screen.getByTestId('effort-picker').textContent).toContain('Low')
   })
 
   it('ignores a saved level the current model does not accept', () => {
@@ -126,16 +126,16 @@ describe('EffortPicker', () => {
   })
 })
 
-describe('EffortPicker in simple mode', () => {
+describe('EffortPicker level narrowing', () => {
   beforeEach(() => {
-    resetStores('simple')
+    resetStores()
   })
 
   /**
-   * Simple mode shows the same control as developer mode, narrowed to three
-   * steps. An on/off switch was the earlier design and the wrong
-   * simplification: reasoning effort genuinely has a middle, and a binary both
-   * removes it and hides which side you are on behind a single word.
+   * The harness accepts seven levels; three is what anyone actually decides
+   * between. An on/off switch was an earlier design and the wrong
+   * simplification — effort genuinely has a middle, and a binary both removes
+   * it and hides which side you are on behind a single word.
    */
   it('offers exactly low, medium and high', () => {
     useTaskStore.setState({ availableThinkingLevels: { [TASK]: [...THINKING_LEVELS] } })

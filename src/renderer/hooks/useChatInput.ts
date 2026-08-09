@@ -11,7 +11,6 @@ import { ipc } from '@/lib/ipc'
 import type { Attachment, IpcAttachment, ProjectFile } from '@/types'
 import type { InlineCommandKind } from '@/components/chat/InlineCommandPicker'
 import { visibleClientCommands } from '@/lib/agent-commands'
-import { useUiMode } from '@/lib/ui-mode'
 import { t } from '@/lib/i18n'
 
 export interface PastedChunk {
@@ -227,17 +226,16 @@ export function useChatInput({ disabled, isRunning, isActive, taskId: taskIdProp
   // Descriptions are translated here rather than in the registry: `t()` reads
   // the active locale at call time, and LocaleBoundary remounts this tree when
   // the locale changes, so the memo recomputes with the new language.
-  const uiMode = useUiMode()
   const commands = useMemo(() => {
     const HIDDEN_COMMANDS = new Set(['reply'])
     const bare = (name: string) => name.replace(/^\/+/, '')
     const filtered = backendCommands.filter((c) => !HIDDEN_COMMANDS.has(bare(c.name)))
     const advertised = new Set(filtered.map((c) => bare(c.name)))
-    const ours = visibleClientCommands(uiMode)
+    const ours = visibleClientCommands()
       .filter((c) => !advertised.has(c.name) && !HIDDEN_COMMANDS.has(c.name))
       .map((c) => ({ name: c.name, description: t(c.description) }))
     return [...filtered, ...ours]
-  }, [backendCommands, uiMode])
+  }, [backendCommands])
 
   // ── Cursor-based slash trigger (mirrors mention detection) ───
   const [slashTrigger, setSlashTrigger] = useState<{ start: number; query: string } | null>(null)

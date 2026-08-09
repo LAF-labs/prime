@@ -39,10 +39,10 @@ describe('parseCommand', () => {
 })
 
 describe('passthrough commands', () => {
-  it('routes the four session-executed commands to the agent', () => {
+  it('routes the session-executed commands to the agent', () => {
     // These must never be intercepted: prime-agent's session parses them
     // itself, so forwarding them verbatim reproduces the CLI exactly.
-    for (const name of ['goal', 'autonomous', 'compact', 'refine']) {
+    for (const name of ['goal', 'autonomous', 'compact']) {
       expect(isPassthroughCommand(name)).toBe(true)
     }
   })

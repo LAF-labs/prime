@@ -3,10 +3,8 @@ import { IconArrowRight, IconCircleCheck } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
 import type { ThemeMode } from '@/types'
-import type { UiMode } from '@/lib/ui-mode'
 import { OnboardingCliSection } from '@/components/OnboardingCliSection'
 import { OnboardingAuthSection } from '@/components/OnboardingAuthSection'
-import { OnboardingKernelSection } from '@/components/OnboardingKernelSection'
 import { useT } from '@/lib/i18n'
 import { reportFailure } from '@/lib/ipc-report'
 import { withTimeout } from '@/lib/with-timeout'
@@ -16,16 +14,14 @@ const DETECT_TIMEOUT_MS = 8000
 
 interface OnboardingSetupStepProps {
   themeChoice: ThemeMode
-  modeChoice: UiMode
 }
 
-export const OnboardingSetupStep = ({ themeChoice, modeChoice }: OnboardingSetupStepProps) => {
+export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) => {
   const t = useT()
   const [bin, setBin] = useState('prime-agent')
   const [isCliReady, setIsCliReady] = useState(false)
   const [isBundled, setIsBundled] = useState<boolean | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [, setIsKernelReady] = useState(false)
 
   const handleCliReady = useCallback((resolvedBin: string) => {
     setBin(resolvedBin)
@@ -62,11 +58,7 @@ export const OnboardingSetupStep = ({ themeChoice, modeChoice }: OnboardingSetup
   const finish = useCallback(async () => {
     const settings = useSettingsStore.getState().settings
     try {
-      // uiMode is written explicitly at onboarding so the effective mode never
-      // again depends on inference: absent uiMode + completed onboarding is
-      // how resolveUiMode recognizes a pre-split install (→ developer), and
-      // this write is what keeps fresh installs out of that bucket.
-      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice, uiMode: modeChoice })
+      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice })
     } catch (err) {
       // A silently rejected write here left a dead "Launch" button on first
       // run — the wizard never advanced and never said why. Surface it and
@@ -76,7 +68,7 @@ export const OnboardingSetupStep = ({ themeChoice, modeChoice }: OnboardingSetup
     }
     useSettingsStore.getState().checkAuth()
     ipc.probeCapabilities().catch(() => {})
-  }, [bin, themeChoice, modeChoice, t])
+  }, [bin, themeChoice, t])
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -106,10 +98,8 @@ export const OnboardingSetupStep = ({ themeChoice, modeChoice }: OnboardingSetup
 
       <OnboardingAuthSection bin={bin} isCliReady={isCliReady} onAuthChange={setIsAuthenticated} />
 
-      {/* The Python kernel only exists for developer-mode sessions; everyday
-          sessions run without ipython, so surfacing kernel provisioning to a
-          non-developer would be setup for a feature they can never reach. */}
-      {modeChoice === 'developer' && <OnboardingKernelSection onReady={setIsKernelReady} />}
+      {/* The agent runs without ipython, so there is no Python kernel to
+          provision — the card would be setup for a feature nothing reaches. */}
 
       {/* Actions */}
       <div className="flex flex-col items-center gap-2 pt-2">

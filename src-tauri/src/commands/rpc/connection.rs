@@ -119,9 +119,9 @@ pub(crate) fn build_prompt_payload(
 pub(crate) fn tool_kind(tool_name: &str) -> &'static str {
     match tool_name {
         "bash" | "ipython" => "execute",
-        "edit" | "write" | "multi_edit" | "str_replace" => "edit",
-        "read" | "read_file" | "ls" | "grep" | "glob" | "find" => "read",
-        "fetch" | "web_search" | "websearch" => "fetch",
+        "edit" | "write" | "write_file" | "multi_edit" | "str_replace" | "organize" => "edit",
+        "read" | "read_file" | "ls" | "list_dir" | "grep" | "glob" | "find" => "read",
+        "fetch" | "web_fetch" | "web_search" | "websearch" | "research" => "fetch",
         _ => "other",
     }
 }
@@ -132,9 +132,11 @@ pub(crate) fn tool_title(tool_name: &str, args: &Value) -> String {
     let title = match tool_name {
         "bash" => arg_str("command"),
         "ipython" => arg_str("code").map(|c| c.lines().next().unwrap_or("").to_string()),
-        "edit" | "write" | "read" | "str_replace" => {
+        "edit" | "write" | "write_file" | "read" | "read_file" | "list_dir" | "str_replace" => {
             arg_str("path").or_else(|| arg_str("file_path")).or_else(|| arg_str("filePath"))
         }
+        "web_fetch" | "fetch" => arg_str("url"),
+        "remember" => arg_str("fact"),
         _ => None,
     };
     let mut t = match title {
@@ -469,21 +471,12 @@ pub(crate) async fn run_rpc_connection(
     } else {
         log::warn!("[RPC] permission-gate extension not found — tool calls will run ungated");
     }
-    // Everyday profile: in simple mode the session drops the coding toolchain.
-    // `--no-builtin-tools` removes ipython (and with it the kernel spawn), and
-    // LAF_PROFILE tells the gate to swap in the everyday system prompt and
-    // register the plain-language file tools. Read at spawn time on purpose:
-    // flipping the mode toggle affects newly started threads, never a live one.
-    let everyday = {
-        use tauri::Manager;
-        app.try_state::<crate::commands::settings::SettingsState>()
-            .map(|s| s.0.lock().settings.effective_ui_mode() == "simple")
-            .unwrap_or(false)
-    };
-    if everyday {
-        cmd.arg("--no-builtin-tools");
-        cmd.env("LAF_PROFILE", "everyday");
-    }
+    // The everyday profile is the only profile. `--no-builtin-tools` removes
+    // ipython — and with it the Python kernel spawn and the RLM system prompt
+    // that assumes it — and LAF_PROFILE tells the gate to install the
+    // conversational prompt and the plain-language tools in its place.
+    cmd.arg("--no-builtin-tools");
+    cmd.env("LAF_PROFILE", "everyday");
     // The bundled gate extension enforces the workspace sandbox when asked:
     // file-mutating tools targeting paths outside the workspace are blocked
     // outright instead of prompting.
@@ -494,7 +487,7 @@ pub(crate) async fn run_rpc_connection(
     for (key, value) in permission_env_vars(&permission_config) {
         cmd.env(key, value);
     }
-    if tight_sandbox && !everyday {
+    if tight_sandbox {
         cmd.env("LAF_TIGHT_SANDBOX", "1");
         // The gate can only reach `bash`. `ipython` runs in a kernel process
         // the harness spawns itself, so confine it at the interpreter: point

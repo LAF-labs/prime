@@ -197,10 +197,30 @@ What this reorders:
 - **Later, design only**: a per-user knowledge-graph view over sessions
   and documents (node graph). Not scheduled.
 
-## Everyday profile — what shipped, and what it cost to learn (2026-08-09)
+## One surface, one profile (2026-08-09)
 
-Simple mode now runs a distinct agent profile rather than the developer one
-with pieces hidden. Sessions spawn with `--no-builtin-tools`, so ipython —
+The simple/developer split is gone — no `uiMode` setting, no toggle, no
+onboarding choice, no `devOnly` command filter. Two modes meant two products
+to keep coherent, and the gating only ever grew: every new control needed a
+decision about which side it belonged on, and the answer was usually "both,
+described differently".
+
+What replaced it is context, not modes. Git buttons appear when the folder is
+a git repository. The worktree option appears on the new-thread screen and is
+meaningless outside a repo, which is a property of the folder rather than of
+the user. The terminal, the editor launcher and the file tree are always
+there; someone who does not need a terminal simply never opens it. The
+command palette lists every command that can actually run — the only one
+removed is `/refine`, which needed the Python kernel that no longer starts.
+
+The agent runs one profile: `--no-builtin-tools` plus the gate's everyday
+toolset, with the sandboxed shell available whenever OS confinement is on.
+Reasoning effort is one picker with three steps (low/medium/high); the
+harness's other four remain reachable through `/thinking`.
+
+### What the profile does
+
+Sessions spawn with `--no-builtin-tools`. Sessions spawn with `--no-builtin-tools`, so ipython —
 and the Python kernel behind it — never starts, and the bundled gate
 replaces the RLM system prompt (`"You are a general purpose agent that uses
 code to solve tasks"`) with a ~350-token conversational one. The gate
@@ -209,10 +229,10 @@ registers the everyday toolset in its place: `read_file`, `list_dir`,
 and `web_search`.
 
 Nothing was deleted from the fork. The RLM prompt, the kernel, the
-continual-harness CRUD, `refine`, and `rlm()` recursion are all still there
-and all still reachable in developer mode; the profile only decides what a
-session is given. That is deliberate — the fork stays mergeable with
-upstream, and reversing the decision is a flag, not a revert.
+continual-harness CRUD, `refine`, and `rlm()` recursion are all still there;
+the profile only decides what a session is given. That is deliberate — the
+fork stays mergeable with upstream, and reversing the decision is a flag,
+not a revert.
 
 ### The small-model failure modes are the design constraint
 
@@ -296,6 +316,21 @@ check that something is answering its dialogs.
   "Summarize my inbox every morning" is the consumer translation.
 - **Activity history.** A plain-language timeline of files touched and
   sites visited — a trust surface, distinct from the developer debug log.
+- **A model floor exists, and prompting does not raise it.** Measured
+  against `upstage/solar-mini`: asked to list a folder and report a file's
+  contents, it listed the folder and then invented the contents without ever
+  calling `read_file`. Three guardrails were tried — a system-prompt rule, an
+  explicit never-state-unread-contents line, and a notice appended to
+  `list_dir`'s own result — and none of them stopped it. Both guardrails were
+  kept (they are cheap and correct for a model that can follow them), but the
+  conclusion is about model selection, not prompting. The mechanical fix, if
+  it becomes necessary, is to detect the pattern — an answer describing a
+  file with no `read_file` for that path in the turn — and make the model try
+  again.
+- **The Python kernel is now dead weight.** Nothing spawns ipython, so the
+  bundled `uv` (42 MB) and the kernel provisioning path exist for a feature
+  no session reaches. Removing them is a real bundle-size win and its own
+  careful pass.
 - **Escalation.** Two failed tool repairs in a row could retry once on a
   larger model. Needs the usage metering to be wired to a budget first.
 - **Research progress.** A research turn is silent for half a minute or

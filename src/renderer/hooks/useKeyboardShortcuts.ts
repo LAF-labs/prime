@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { resolveUiMode } from '@/lib/ui-mode'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
@@ -76,11 +75,8 @@ export function useKeyboardShortcuts() {
       // ── Cmd+J → Toggle terminal ────────────────────────────
       if (key === 'j' && !e.shiftKey) {
         e.preventDefault()
-        // The header button is hidden on the everyday surface; a hotkey that
-        // still opened the drawer would contradict the mode.
-        if (resolveUiMode(useSettingsStore.getState().settings) === 'developer') {
-          const tid = useTaskStore.getState().selectedTaskId; if (tid) useTaskStore.getState().toggleTerminal(tid)
-        }
+        const tid = useTaskStore.getState().selectedTaskId
+        if (tid) useTaskStore.getState().toggleTerminal(tid)
         return
       }
 

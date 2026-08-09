@@ -197,12 +197,6 @@ pub struct AppSettings {
     /// `None` disables auto-close.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal_auto_close_idle_mins: Option<u32>,
-    /// Which surface the app presents: "simple" (chat-first, developer chrome
-    /// hidden) or "developer" (everything). Absent on installs that predate
-    /// the split — those were using the full surface, so absence reads as
-    /// "developer" once onboarding has run.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ui_mode: Option<String>,
     /// Keep a menu-bar icon so the app is reachable with every window closed.
     /// Default off: a status item the user did not ask for is clutter.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -290,7 +284,6 @@ impl Default for AppSettings {
             btw_max_chars: None,
             terminal_scrollback: None,
             terminal_auto_close_idle_mins: None,
-            ui_mode: None,
             menu_bar_icon: None,
             summon_shortcut: None,
             inline_tool_calls: None,
@@ -305,17 +298,6 @@ impl Default for AppSettings {
 impl AppSettings {
     /// Resolve the effective permission mode for a workspace.
     ///
-    /// Which surface the app presents. Mirrors the frontend's `resolveUiMode`:
-    /// an explicit value wins; absence on an onboarded install means the
-    /// developer surface it was already using; a fresh install is simple.
-    pub fn effective_ui_mode(&self) -> &str {
-        match self.ui_mode.as_deref() {
-            Some(m @ ("simple" | "developer")) => m,
-            _ if self.has_onboarded_v2 => "developer",
-            _ => "simple",
-        }
-    }
-
     /// Order: per-project override → global `permission_mode` → legacy
     /// migration from the `auto_approve` bool (`true` → "auto", else "ask").
     /// The migration path is what lets existing installs keep working before
@@ -435,22 +417,12 @@ pub fn get_settings(state: tauri::State<'_, SettingsState>) -> Result<AppSetting
 
 #[tauri::command]
 pub fn save_settings(
-    app: tauri::AppHandle,
     state: tauri::State<'_, SettingsState>,
     settings: AppSettings,
 ) -> Result<(), AppError> {
-    let mode_changed = {
-        let mut store = state.0.lock();
-        let changed = store.settings.effective_ui_mode() != settings.effective_ui_mode();
-        store.settings = settings;
-        persist_store(&store)?;
-        changed
-    };
-    // The native menu carries developer items (Clone from GitHub…); it has to
-    // follow the surface, and menus don't re-render — they get rebuilt.
-    if mode_changed {
-        crate::rebuild_menu(&app);
-    }
+    let mut store = state.0.lock();
+    store.settings = settings;
+    persist_store(&store)?;
     Ok(())
 }
 
@@ -662,21 +634,6 @@ mod tests {
         assert!(!settings.has_onboarded_v2);
     }
 
-    #[test]
-    fn ui_mode_resolution_mirrors_the_frontend() {
-        // Explicit wins.
-        let s = AppSettings { ui_mode: Some("simple".into()), has_onboarded_v2: true, ..Default::default() };
-        assert_eq!(s.effective_ui_mode(), "simple");
-        // Pre-split install: no mode, but onboarded → the surface it was using.
-        let s = AppSettings { ui_mode: None, has_onboarded_v2: true, ..Default::default() };
-        assert_eq!(s.effective_ui_mode(), "developer");
-        // Fresh install → the daily product.
-        let s = AppSettings { ui_mode: None, has_onboarded_v2: false, ..Default::default() };
-        assert_eq!(s.effective_ui_mode(), "simple");
-        // Garbage falls back to the same inference instead of panicking.
-        let s = AppSettings { ui_mode: Some("weird".into()), has_onboarded_v2: true, ..Default::default() };
-        assert_eq!(s.effective_ui_mode(), "developer");
-    }
 
     #[test]
     fn permission_mode_migrates_from_legacy_auto_approve() {

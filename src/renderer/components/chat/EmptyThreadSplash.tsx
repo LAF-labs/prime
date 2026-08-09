@@ -1,6 +1,5 @@
 import { t } from '@/lib/i18n'
 import { memo, useCallback } from 'react'
-import { useUiMode } from '@/lib/ui-mode'
 
 /** Dispatch a custom event to insert text into the chat input and focus it */
 const insertIntoInput = (text: string): void => {
@@ -8,23 +7,15 @@ const insertIntoInput = (text: string): void => {
 }
 
 /**
- * Starter prompts, per surface. The developer set assumes a codebase; the
- * everyday set assumes a person with files, documents, and questions. Showing
- * "Find and fix a bug" to someone who has never programmed is not a greeting,
- * it is a wrong door.
+ * Starter prompts. Deliberately about files, documents and questions rather
+ * than about code: they are the first thing a new thread shows, and the first
+ * thing shown sets the expectation for everything after it.
  */
-const STARTER_PROMPTS: Record<'simple' | 'developer', readonly string[]> = {
-  developer: [
-    'Explain this codebase',
-    'Find and fix a bug',
-    'Add tests for recent changes',
-  ],
-  simple: [
-    'Organize the files in a folder',
-    'Summarize a document for me',
-    'Research a topic on the web',
-  ],
-} as const
+const STARTER_PROMPTS: readonly string[] = [
+  'Organize the files in a folder',
+  'Summarize a document for me',
+  'Research a topic on the web',
+] as const
 
 const StarterPromptButton = ({ prompt }: { readonly prompt: string }) => {
   const text = t(prompt)
@@ -56,7 +47,6 @@ const StarterPromptButton = ({ prompt }: { readonly prompt: string }) => {
  * `@`. The hint below points at both pickers, which is the discoverable path.
  */
 export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
-  const uiMode = useUiMode()
   return (
     <div className="flex flex-col items-center gap-4 px-4 select-none" role="region" aria-label={t('Getting started')}>
       <div className="flex flex-col items-center gap-1">
@@ -66,12 +56,12 @@ export const EmptyThreadSplash = memo(function EmptyThreadSplash() {
           </svg>
         </div>
         <p className="text-[13px] font-medium text-foreground/70">
-          {uiMode === 'developer' ? t('What can I help you build?') : t('What can I help you with today?')}
+          {t('What can I help you with today?')}
         </p>
       </div>
 
       <div className="flex w-full max-w-xl flex-wrap items-center justify-center gap-2">
-        {STARTER_PROMPTS[uiMode].map((prompt) => (
+        {STARTER_PROMPTS.map((prompt) => (
           <StarterPromptButton key={prompt} prompt={prompt} />
         ))}
       </div>

@@ -47,12 +47,6 @@ describe('EverydayMemoryCard', () => {
     mockReportFailure.mockReset()
   })
 
-  it('renders nothing — and reads nothing — on the developer surface', () => {
-    isSimpleMode = false
-    const { container } = render(<EverydayMemoryCard />)
-    expect(container).toBeEmptyDOMElement()
-    expect(mockList).not.toHaveBeenCalled()
-  })
 
   it('shows the empty state when the assistant remembers nothing', async () => {
     render(<EverydayMemoryCard />)

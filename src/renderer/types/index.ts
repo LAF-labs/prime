@@ -277,6 +277,12 @@ export interface AppSettings {
   /** Auto-close background terminal tabs after this many minutes of no PTY activity. null = disabled. Default: null. */
   terminalAutoCloseIdleMins?: number | null
   /**
+   * Which surface the app presents. `simple` is chat-first with developer
+   * chrome (git, terminal, diff) hidden; `developer` shows everything.
+   * Absent on installs that predate the split — see `resolveUiMode`.
+   */
+  uiMode?: 'simple' | 'developer'
+  /**
    * Keep a menu-bar icon so the app stays reachable with every window closed.
    * Default off — a status item the user did not ask for is clutter.
    */

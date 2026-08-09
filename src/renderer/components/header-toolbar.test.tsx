@@ -27,6 +27,13 @@ vi.mock('@/lib/utils', () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
 }))
 
+// These tests exercise the developer surface (git init, diff toggle,
+// terminal); simple mode hides all of it, so pin the mode explicitly.
+vi.mock('@/lib/ui-mode', () => ({
+  useIsSimpleMode: () => false,
+  useUiMode: () => 'developer',
+}))
+
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode; asChild?: boolean }) => <>{children}</>,

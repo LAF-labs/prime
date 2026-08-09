@@ -8,6 +8,7 @@ import {
   IconFolderOpen,
   IconAlertTriangle,
 } from "@tabler/icons-react"
+import { useIsSimpleMode } from '@/lib/ui-mode'
 import { useTaskStore } from "@/stores/taskStore"
 import {
   Tooltip,
@@ -120,6 +121,10 @@ export const HeaderToolbar = memo(function HeaderToolbar({
   sidePanelOpen,
   onToggleSidePanel,
 }: HeaderToolbarProps) {
+  // The daily-agent surface: editor hand-off, terminal, and the git cluster
+  // are developer chrome and stay hidden in simple mode. File tree and split
+  // view remain — documents and side-by-side reading are not developer-only.
+  const isSimpleMode = useIsSimpleMode()
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId)
   const taskStatus = useTaskStore((s) =>
     selectedTaskId ? s.tasks[selectedTaskId]?.status : null,
@@ -187,11 +192,13 @@ export const HeaderToolbar = memo(function HeaderToolbar({
   return (
     <div className="flex shrink-0 items-center gap-2">
       <div className="flex items-center rounded-lg bg-muted/40" data-no-drag>
-        <ErrorBoundary fallback={null}>
-          <OpenInEditorGroup workspace={workspace} />
-        </ErrorBoundary>
+        {!isSimpleMode && (
+          <ErrorBoundary fallback={null}>
+            <OpenInEditorGroup workspace={workspace} />
+          </ErrorBoundary>
+        )}
 
-        {selectedTaskId && (
+        {!isSimpleMode && selectedTaskId && (
           <>
             <div className="h-5 w-px self-center bg-border" />
             <Tooltip>
@@ -225,7 +232,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
       </div>
 
       {/* Git section — far right with accent */}
-      {isGitRepo === false && (
+      {!isSimpleMode && isGitRepo === false && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -248,7 +255,7 @@ export const HeaderToolbar = memo(function HeaderToolbar({
         </Tooltip>
       )}
 
-      {isGitRepo && (
+      {!isSimpleMode && isGitRepo && (
         <div className="flex items-center rounded-lg bg-emerald-500/[0.06]">
           {hasStats && (
             <Tooltip>

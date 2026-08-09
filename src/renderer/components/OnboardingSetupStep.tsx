@@ -60,7 +60,11 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
   const finish = useCallback(async () => {
     const settings = useSettingsStore.getState().settings
     try {
-      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice })
+      // uiMode is written explicitly at onboarding so the effective mode never
+      // again depends on inference: absent uiMode + completed onboarding is
+      // how resolveUiMode recognizes a pre-split install (→ developer), and
+      // this write is what keeps fresh installs out of that bucket.
+      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice, uiMode: settings.uiMode ?? 'simple' })
     } catch (err) {
       // A silently rejected write here left a dead "Launch" button on first
       // run — the wizard never advanced and never said why. Surface it and

@@ -60,6 +60,13 @@ export interface AgentCommandSpec {
   /** Shown in autocomplete after the name, e.g. "<objective>". */
   argumentHint?: string
   kind: CommandKind
+  /**
+   * Hidden from the palette in simple mode (the daily-agent surface). The
+   * command still *executes* if typed — muscle memory from developer mode
+   * keeps working — it just isn't advertised to someone who has never used
+   * git or a debug log.
+   */
+  devOnly?: boolean
 }
 
 /**
@@ -70,7 +77,7 @@ export const PASSTHROUGH_COMMANDS: readonly AgentCommandSpec[] = [
   { name: 'goal', description: 'Set a persistent objective the agent pursues across turns', argumentHint: '[--budget <tokens>] <objective> | status | pause | resume | clear', kind: 'session' },
   { name: 'autonomous', description: 'Keep working through quality gates without asking', argumentHint: 'on | off | status', kind: 'session' },
   { name: 'compact', description: 'Compact the conversation context now', argumentHint: '[instructions]', kind: 'session' },
-  { name: 'refine', description: 'Apply an evidence-backed refinement to the agent harness', argumentHint: '[instructions]', kind: 'session' },
+  { name: 'refine', description: 'Apply an evidence-backed refinement to the agent harness', argumentHint: '[instructions]', kind: 'session', devOnly: true },
 ] as const
 
 /** Commands backed by a typed prime-agent RPC call. */
@@ -107,14 +114,14 @@ export const GUI_COMMANDS: readonly AgentCommandSpec[] = [
   { name: 'agent', description: 'Switch between agents or list available ones', kind: 'gui' },
   { name: 'plan', description: 'Toggle plan mode on or off', kind: 'gui' },
   { name: 'upload', description: 'Attach images or files', kind: 'gui' },
-  { name: 'branch', description: 'Create and check out a git branch', kind: 'gui' },
-  { name: 'worktree', description: 'Create a worktree and a thread inside it', kind: 'gui' },
+  { name: 'branch', description: 'Create and check out a git branch', kind: 'gui', devOnly: true },
+  { name: 'worktree', description: 'Create a worktree and a thread inside it', kind: 'gui', devOnly: true },
   { name: 'settings', description: 'Open settings', kind: 'gui' },
   { name: 'login', description: 'Configure provider authentication', kind: 'gui' },
   { name: 'logout', description: 'Remove provider authentication', kind: 'gui' },
   { name: 'mcp', description: 'Manage MCP connections', kind: 'gui' },
   { name: 'hotkeys', description: 'Show all keyboard shortcuts', kind: 'gui' },
-  { name: 'logs', description: 'Open the debug log panel', kind: 'gui' },
+  { name: 'logs', description: 'Open the debug log panel', kind: 'gui', devOnly: true },
   { name: 'changelog', description: 'Show what changed in this release', kind: 'gui' },
   { name: 'usage', description: 'Open the analytics dashboard', kind: 'gui' },
   { name: 'data', description: 'Open the analytics dashboard (alias for /usage)', kind: 'gui' },
@@ -126,6 +133,10 @@ export const CLIENT_COMMANDS: readonly AgentCommandSpec[] = [
   ...RPC_COMMANDS,
   ...GUI_COMMANDS,
 ] as const
+
+/** The palette for a given surface. Simple mode drops developer-only rows. */
+export const visibleClientCommands = (mode: 'simple' | 'developer'): readonly AgentCommandSpec[] =>
+  mode === 'developer' ? CLIENT_COMMANDS : CLIENT_COMMANDS.filter((c) => !c.devOnly)
 
 export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number]

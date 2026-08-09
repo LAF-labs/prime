@@ -197,6 +197,12 @@ pub struct AppSettings {
     /// `None` disables auto-close.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal_auto_close_idle_mins: Option<u32>,
+    /// Which surface the app presents: "simple" (chat-first, developer chrome
+    /// hidden) or "developer" (everything). Absent on installs that predate
+    /// the split — those were using the full surface, so absence reads as
+    /// "developer" once onboarding has run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_mode: Option<String>,
     /// Keep a menu-bar icon so the app is reachable with every window closed.
     /// Default off: a status item the user did not ask for is clutter.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -284,6 +290,7 @@ impl Default for AppSettings {
             btw_max_chars: None,
             terminal_scrollback: None,
             terminal_auto_close_idle_mins: None,
+            ui_mode: None,
             menu_bar_icon: None,
             summon_shortcut: None,
             inline_tool_calls: None,

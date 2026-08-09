@@ -213,6 +213,13 @@ export const ko: Record<string, string> = {
   'Scroll to bottom': '맨 아래로',
   'Select mode': '모드 선택',
   'Select permissions': '권한 선택',
+  // Interface mode (simple vs developer surface)
+  'Interface': '인터페이스',
+  'How much of the app is on screen': '화면에 보여줄 범위',
+  'Interface mode': '인터페이스 모드',
+  'Everyday hides git, terminal, and diff chrome; Developer shows everything': '일상형은 git·터미널·diff를 숨기고, 개발자는 전부 표시합니다',
+  'Everyday': '일상형',
+  'Developer': '개발자',
   // Menu bar + summon shortcut
   'Menu bar': '메뉴 막대',
   'Reach the app without a window open': '창을 다 닫아도 앱에 접근',

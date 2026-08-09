@@ -175,3 +175,24 @@ What it takes:
 Size M–L. The hard part is product design (inbound surface, loop policy),
 not the plumbing. This is a power-user feature — sequence it behind the
 empty-state cleanup and the next DMG.
+
+## Direction shift — the simple surface becomes the product (2026-08-09)
+
+The default surface is now **simple mode**: chat-first, with developer
+chrome — git branches, worktrees, the diff panel, terminal, debug log —
+hidden behind a `uiMode` setting. Developer mode keeps the full harness;
+nothing is removed from the codebase, the mode only decides what renders.
+Installs that predate the split resolve to developer; fresh installs get
+simple, and onboarding records the choice explicitly.
+
+What this reorders:
+
+- **Up**: MCP-first workspaces (sessions with no code tools, MCP data
+  sources as the primary path — `--tools` / `--no-builtin-tools` needs
+  re-verification on the current fork), onboarding that never says "API
+  key", daemon mode (a resident assistant outlives its window), lazy
+  kernel install (~350MB is a lot for a chat-first user).
+- **Down**: context inspector, hunk-level diff ops, git stack — developer
+  surface work.
+- **Later, design only**: a per-user knowledge-graph view over sessions
+  and documents (node graph). Not scheduled.

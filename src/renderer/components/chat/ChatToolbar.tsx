@@ -9,6 +9,7 @@ import { ModelPicker } from './ModelPicker'
 import { PlanToggle } from './PlanToggle'
 import { AutoApproveToggle } from './AutoApproveToggle'
 import { EffortPicker, useEffortOptions } from './EffortPicker'
+import { useIsSimpleMode } from '@/lib/ui-mode'
 
 /** Pill-shaped group wrapper for toolbar items */
 const ToolbarGroup = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -55,6 +56,9 @@ export const ChatToolbar = memo(function ChatToolbar({
   // Non-reasoning models report a single level, and EffortPicker hides itself —
   // the separator has to disappear with it or the group renders "· ·".
   const { hasChoice: hasEffortChoice } = useEffortOptions()
+  // Simple mode is the daily-agent surface: a git branch pill in a chat
+  // toolbar is developer chrome, so it renders only in developer mode.
+  const isSimpleMode = useIsSimpleMode()
 
   return (
     <div className="relative z-10 flex min-w-0 items-center justify-between gap-2 overflow-visible px-3 pb-3 sm:px-4 @container/toolbar">
@@ -91,7 +95,7 @@ export const ChatToolbar = memo(function ChatToolbar({
           </TooltipTrigger>
           <TooltipContent side="top" className="text-[11px]">{t('Attach files or images')}</TooltipContent>
         </Tooltip>
-        <BranchSelector workspace={workspace ?? null} isWorktree={isWorktree} />
+        {!isSimpleMode && <BranchSelector workspace={workspace ?? null} isWorktree={isWorktree} />}
         <input
           ref={fileInputRef}
           type="file"

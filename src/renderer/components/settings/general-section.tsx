@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { resolveUiMode } from '@/lib/ui-mode'
 import type { AppSettings } from '@/types'
 import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider } from './settings-shared'
 import { SummonCard } from './summon-card'
@@ -97,6 +98,34 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
   return (
     <>
       <SectionHeader section="general" />
+
+      <SettingsGrid label={t('Interface')} description={t('How much of the app is on screen')}>
+        <SettingsCard>
+          <SettingRow
+            label={t('Interface mode')}
+            description={t('Everyday hides git, terminal, and diff chrome; Developer shows everything')}
+          >
+            <div className="flex gap-1.5">
+              {([['simple', t('Everyday')], ['developer', t('Developer')]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => updateDraft({ uiMode: value })}
+                  aria-pressed={resolveUiMode(draft) === value}
+                  className={cn(
+                    'rounded-md border px-2.5 py-1 text-xs transition-colors',
+                    resolveUiMode(draft) === value
+                      ? 'border-primary bg-primary/10 font-medium text-primary'
+                      : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+        </SettingsCard>
+      </SettingsGrid>
 
       <SettingsGrid label={t('Language')} description={t('App display language')}>
         <SettingsCard>

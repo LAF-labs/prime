@@ -1,14 +1,38 @@
 //! Per-turn checkpointing via hidden git refs.
 //!
-//! Creates lightweight refs at `refs/laf-agent/cp/{task_id}/{turn}` before each
-//! agent turn starts. After the turn completes, the frontend can diff between
-//! any two checkpoints to see exactly what changed in that turn.
+//! Before each agent turn, the working tree is snapshotted into a commit that
+//! only `refs/laf-agent/cp/{task_id}/{turn}` points at. The frontend can diff
+//! between any two checkpoints to see what a turn changed, and restore the
+//! files from one.
+//!
+//! # Why a real snapshot
+//!
+//! An earlier version pointed the ref at HEAD instead of snapshotting. Since
+//! the agent edits without committing, HEAD does not move between turns — so
+//! every checkpoint in a thread pointed at the same commit, and "revert to
+//! turn 3" was indistinguishable from "revert to turn 7": both hard-reset to
+//! HEAD and discarded every uncommitted change in the thread. The refs cost
+//! nothing and bought nothing.
+//!
+//! # What the snapshot is, and is not
+//!
+//! The snapshot covers the working tree (tracked and untracked, honoring
+//! `.gitignore`). Restoring it rewrites files and the index; it never moves
+//! HEAD or rewrites history. If the agent committed during a turn, reverting
+//! restores the files but leaves the commit — losing the user's commits to
+//! undo an agent turn would be a worse trade than an extra `git reset` they
+//! choose themselves.
 
-use git2::{DiffOptions, Repository};
+use git2::{build::CheckoutBuilder, DiffOptions, Index, IndexAddOption, Oid, Repository, Tree};
+use parking_lot::Mutex;
 use serde::Serialize;
 
 use super::rpc::AgentState;
 use super::error::AppError;
+
+/// Serializes snapshot index writes. The scratch index below is per-repo, and
+/// two threads in the same workspace would otherwise race on its lock file.
+static SNAPSHOT_LOCK: Mutex<()> = Mutex::new(());
 
 /// A single checkpoint entry returned to the frontend.
 #[derive(Serialize, Clone, Debug)]
@@ -61,10 +85,51 @@ fn resolve_workspace(state: &AgentState, task_id: &str) -> Result<String, AppErr
 /// Ref prefix for all laf-agent checkpoints.
 const REF_PREFIX: &str = "refs/laf-agent/cp/";
 
-/// Create a checkpoint for the current HEAD at the given turn number.
-/// If the workspace has uncommitted changes, we snapshot the current index
-/// state as a temporary tree and create a lightweight ref pointing to HEAD.
-/// This is non-destructive — it never modifies the working tree or index.
+/// Where a pre-restore safety snapshot goes when git cannot stash (see
+/// [`protect_before_restore`]). Deliberately outside [`REF_PREFIX`] so it never
+/// shows up as a turn in [`checkpoint_list`].
+const UNDO_PREFIX: &str = "refs/laf-agent/undo/";
+
+/// Everything this module owns. Used by cleanup and pruning so no namespace we
+/// write to can outlive its retention window.
+const OWNED_PREFIX: &str = "refs/laf-agent/";
+
+/// Scratch index used to build snapshot trees.
+///
+/// It lives inside `.git/` (never the workspace) and is deliberately persisted:
+/// git's index caches per-file stat data, so reusing the same file means only
+/// genuinely changed files get re-hashed. A fresh index every turn would
+/// re-hash the entire tree each time.
+fn snapshot_index_path(repo: &Repository) -> std::path::PathBuf {
+    repo.path().join("laf-agent-snapshot-index")
+}
+
+/// Write the current working tree to a tree object without touching the user's
+/// index or working tree. Honors `.gitignore`, so build output stays out.
+fn write_workdir_tree(repo: &Repository) -> Result<Oid, AppError> {
+    let _guard = SNAPSHOT_LOCK.lock();
+    let mut index = Index::open(&snapshot_index_path(repo))?;
+    // Associates the scratch index with this repo handle so `add_all` can see
+    // the working directory. In-memory only — `.git/index` is never rewritten.
+    repo.set_index(&mut index)?;
+    // `add_all` stages additions and modifications; `update_all` is what drops
+    // entries for files that were deleted since the last snapshot. Without the
+    // second pass a deleted file would linger in every later snapshot.
+    index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+    index.update_all(["*"].iter(), None)?;
+    let tree_id = index.write_tree_to(repo)?;
+    // Persisting only refreshes the stat cache for the next turn. A failure
+    // costs speed, not correctness — the tree object is already written.
+    if let Err(e) = index.write() {
+        log::warn!("[checkpoint] snapshot index not persisted ({e}); next snapshot will be slower");
+    }
+    Ok(tree_id)
+}
+
+/// Snapshot the working tree at the given turn number.
+///
+/// Non-destructive: it writes a commit reachable only from the checkpoint ref
+/// and never modifies the working tree, the index, HEAD, or any branch.
 #[tauri::command]
 pub fn checkpoint_create(
     state: tauri::State<'_, AgentState>,
@@ -72,17 +137,39 @@ pub fn checkpoint_create(
     turn: u32,
 ) -> Result<Checkpoint, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    let repo = Repository::discover(&cwd)?;
-    let head = repo.head()?;
-    let commit = head.peel_to_commit()?;
-    let oid = commit.id();
+    create_snapshot(&cwd, &task_id, turn)
+}
+
+/// Commit the current working tree and point `ref_name` at the result.
+/// Reachable only from that ref — no branch moves, nothing is staged.
+fn snapshot_to_ref(repo: &Repository, ref_name: &str, message: &str) -> Result<Oid, AppError> {
+    let tree_id = write_workdir_tree(repo)?;
+    let tree = repo.find_tree(tree_id)?;
+
+    // Parent the snapshot on HEAD when there is one, so `git log` on the ref
+    // reads as history rather than an orphan. A repo with no commits yet still
+    // checkpoints — that is exactly when a rollback is most wanted.
+    let head_commit = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
+    let parents: Vec<&git2::Commit> = head_commit.iter().collect();
+
+    let sig = repo
+        .signature()
+        .or_else(|_| git2::Signature::now("LAF Agent", "agent@local"))?;
+    // `None` for the ref: committing to the ref directly would register it as a
+    // branch tip in reflog terms. Create the commit, then move the ref.
+    let oid = repo.commit(None, &sig, &sig, message, &tree, &parents)?;
+    repo.reference(ref_name, oid, true, message)?;
+    Ok(oid)
+}
+
+/// Workspace-addressed core of [`checkpoint_create`], split out so the snapshot
+/// semantics can be tested against a real repo without Tauri managed state.
+pub fn create_snapshot(cwd: &str, task_id: &str, turn: u32) -> Result<Checkpoint, AppError> {
+    let repo = Repository::discover(cwd)?;
     let ref_name = format!("{REF_PREFIX}{task_id}/{turn}");
-
-    // Create or update the ref to point at the current HEAD commit
-    repo.reference(&ref_name, oid, true, &format!("laf-agent checkpoint turn {turn}"))?;
-
-    let message = commit.message().unwrap_or("").lines().next().unwrap_or("").to_string();
-    let timestamp = commit.time().seconds();
+    let message = format!("LAF Agent checkpoint · turn {turn}");
+    let oid = snapshot_to_ref(&repo, &ref_name, &message)?;
+    let timestamp = repo.find_commit(oid)?.time().seconds();
 
     Ok(Checkpoint {
         turn,
@@ -142,7 +229,7 @@ pub fn checkpoint_list(
 }
 
 /// Compute the diff between two checkpoint turns for a task.
-/// If `to_turn` is 0, diffs against the current working tree state.
+/// If `to_turn` is 0, diffs against the live working tree.
 #[tauri::command]
 pub fn checkpoint_diff(
     state: tauri::State<'_, AgentState>,
@@ -151,24 +238,44 @@ pub fn checkpoint_diff(
     to_turn: u32,
 ) -> Result<CheckpointDiff, AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    let repo = Repository::discover(&cwd)?;
+    diff_snapshots(&cwd, &task_id, from_turn, to_turn)
+}
+
+/// Workspace-addressed core of [`checkpoint_diff`], split out for testing.
+pub fn diff_snapshots(
+    cwd: &str,
+    task_id: &str,
+    from_turn: u32,
+    to_turn: u32,
+) -> Result<CheckpointDiff, AppError> {
+    let repo = Repository::discover(cwd)?;
 
     let from_ref = format!("{REF_PREFIX}{task_id}/{from_turn}");
     let from_commit = repo.find_reference(&from_ref)?.peel_to_commit()?;
     let from_tree = from_commit.tree()?;
 
-    let to_tree = if to_turn == 0 {
-        // Diff against current HEAD
-        let head = repo.head()?.peel_to_commit()?;
-        head.tree()?
+    let to_tree: Option<Tree> = if to_turn == 0 {
+        // "Now" is the working tree, not HEAD: the changes a user wants to see
+        // after a turn are precisely the ones that were never committed.
+        None
     } else {
         let to_ref = format!("{REF_PREFIX}{task_id}/{to_turn}");
-        let to_commit = repo.find_reference(&to_ref)?.peel_to_commit()?;
-        to_commit.tree()?
+        Some(repo.find_reference(&to_ref)?.peel_to_commit()?.tree()?)
     };
 
     let mut diff_opts = DiffOptions::new();
-    let diff = repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), Some(&mut diff_opts))?;
+    // `show_untracked_content` matters: without it a file the agent created is
+    // reported as changed but contributes no line stats and no patch text.
+    diff_opts
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true);
+    let diff = match &to_tree {
+        Some(tree) => repo.diff_tree_to_tree(Some(&from_tree), Some(tree), Some(&mut diff_opts))?,
+        // Deliberately not the `_with_index` variant: snapshots are unrelated
+        // to the user's index, which would misreport every file as untracked.
+        None => repo.diff_tree_to_workdir(Some(&from_tree), Some(&mut diff_opts))?,
+    };
 
     // Collect stats
     let stats = diff.stats()?;
@@ -226,10 +333,16 @@ pub fn checkpoint_diff(
     })
 }
 
-/// Revert the workspace to a specific checkpoint turn.
-/// This does a hard reset of the working tree to the checkpoint's commit.
-/// Refuses to revert if the working tree has uncommitted changes unless
-/// `force` is true — prevents accidental data loss.
+/// Restore the working tree to a specific checkpoint turn.
+///
+/// Rewrites files and the index to match the snapshot; HEAD and every branch
+/// stay put. Files created after the snapshot are removed (that is what "roll
+/// back to this point" means), but ignored files are left alone, so build
+/// output and `node_modules` survive.
+///
+/// Refuses to run when the working tree is dirty unless `force` is true. On the
+/// forced path the current state is stashed first, so the restore is itself
+/// recoverable with `git stash pop`.
 #[tauri::command]
 pub fn checkpoint_revert(
     state: tauri::State<'_, AgentState>,
@@ -238,62 +351,122 @@ pub fn checkpoint_revert(
     force: Option<bool>,
 ) -> Result<(), AppError> {
     let cwd = resolve_workspace(&state, &task_id)?;
-    let repo = Repository::discover(&cwd)?;
+    restore_snapshot(&cwd, &task_id, turn, force.unwrap_or(false))
+}
 
-    // Guard: refuse to hard-reset if there are uncommitted changes
-    if !force.unwrap_or(false) {
-        let statuses = repo.statuses(None)?;
-        let is_dirty = statuses.iter().any(|s| {
-            !s.status().is_empty() && s.status() != git2::Status::IGNORED
-        });
-        if is_dirty {
-            return Err(AppError::Other(
-                "Working tree has uncommitted changes. Pass force=true to discard them.".to_string()
-            ));
-        }
+/// Does the working tree differ from HEAD (ignoring ignored files)?
+fn is_dirty(repo: &Repository) -> Result<bool, AppError> {
+    let statuses = repo.statuses(None)?;
+    Ok(statuses
+        .iter()
+        .any(|s| !s.status().is_empty() && s.status() != git2::Status::IGNORED))
+}
+
+/// Make the about-to-be-destroyed state recoverable before a forced restore.
+///
+/// A stash is the right answer when it works — `git stash list` is discoverable
+/// and `git stash pop` is muscle memory. It cannot work on an unborn branch
+/// ("you do not have the initial commit yet"), which is precisely the fresh
+/// repo where a rollback is most likely, so there we fall back to the same
+/// snapshot machinery under [`UNDO_PREFIX`].
+///
+/// Either way a failure aborts the restore: "the user clicked force" is not the
+/// same as "the user wanted their edits gone forever".
+fn protect_before_restore(cwd: &str, task_id: &str, turn: u32) -> Result<(), AppError> {
+    let repo = Repository::discover(cwd)?;
+    if !is_dirty(&repo)? {
+        return Ok(());
     }
 
-    let ref_name = format!("{REF_PREFIX}{task_id}/{turn}");
+    if repo.head().is_err() {
+        let ref_name = format!("{UNDO_PREFIX}{task_id}");
+        let message = format!("LAF Agent undo point · before restoring turn {turn}");
+        snapshot_to_ref(&repo, &ref_name, &message).map_err(|e| {
+            AppError::Other(format!(
+                "Restore aborted to protect your uncommitted changes: the undo snapshot failed ({e}). Commit your changes manually, then try again."
+            ))
+        })?;
+        log::info!("[checkpoint] saved undo point at {ref_name} (repo has no commits yet)");
+        return Ok(());
+    }
 
-    // Forced revert with a dirty tree: stash first. A hard reset destroys
-    // uncommitted work with no way back, and "the user clicked force" is not
-    // the same as "the user wanted their edits gone forever" — the stash
-    // makes the destructive path recoverable (`git stash pop`).
-    if force.unwrap_or(false) {
-        let dirty = {
-            let statuses = repo.statuses(None)?;
-            statuses.iter().any(|s| {
-                !s.status().is_empty() && s.status() != git2::Status::IGNORED
-            })
-        };
-        if dirty {
-            let sig = repo
-                .signature()
-                .or_else(|_| git2::Signature::now("LAF Agent", "agent@local"))?;
-            let mut repo = Repository::discover(&cwd)?; // stash_save needs &mut
-            match repo.stash_save(
-                &sig,
-                &format!("laf-agent: before revert to checkpoint turn {turn}"),
-                Some(git2::StashFlags::INCLUDE_UNTRACKED),
-            ) {
-                Ok(_) => log::info!("[checkpoint] stashed dirty tree before forced revert"),
-                // A failed stash means the hard reset would destroy the
-                // uncommitted work with no way back. Abort instead of
-                // proceeding — the whole point of the stash is that "force"
-                // never silently costs the user their edits.
-                Err(e) => {
-                    return Err(AppError::Other(format!(
-                        "Revert aborted to protect your uncommitted changes: the safety stash failed ({e}). Commit or stash your changes manually, then try again."
-                    )));
-                }
+    let sig = repo
+        .signature()
+        .or_else(|_| git2::Signature::now("LAF Agent", "agent@local"))?;
+    let mut repo = Repository::discover(cwd)?; // stash_save needs &mut
+    repo.stash_save(
+        &sig,
+        &format!("laf-agent: before restoring checkpoint turn {turn}"),
+        Some(git2::StashFlags::INCLUDE_UNTRACKED),
+    )
+    .map_err(|e| {
+        AppError::Other(format!(
+            "Restore aborted to protect your uncommitted changes: the safety stash failed ({e}). Commit or stash your changes manually, then try again."
+        ))
+    })?;
+    log::info!("[checkpoint] stashed dirty tree before forced restore");
+    Ok(())
+}
+
+/// Delete files that exist now but not in `tree`.
+///
+/// `checkout_tree` governs paths the tree knows about; this is what makes a
+/// rollback also undo file *creation*. Doing it from an explicit diff rather
+/// than libgit2's `remove_untracked` is deliberate: that flag swept ignored
+/// files too, so a rollback would have deleted the user's build output.
+fn remove_paths_absent_from(repo: &Repository, tree: &Tree) -> Result<(), AppError> {
+    let workdir = match repo.workdir() {
+        Some(w) => w.to_path_buf(),
+        None => return Ok(()), // bare repo: nothing to clean
+    };
+    let mut opts = DiffOptions::new();
+    // No `include_ignored` — ignored paths never enter this list, which is the
+    // whole guarantee.
+    opts.include_untracked(true).recurse_untracked_dirs(true);
+    let diff = repo.diff_tree_to_workdir(Some(tree), Some(&mut opts))?;
+
+    for delta in diff.deltas() {
+        if delta.status() != git2::Delta::Added {
+            continue; // present in the snapshot — checkout_tree restores it
+        }
+        let Some(rel) = delta.new_file().path() else { continue };
+        let path = workdir.join(rel);
+        if let Err(e) = std::fs::remove_file(&path) {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("[checkpoint] could not remove {}: {e}", path.display());
             }
         }
     }
+    Ok(())
+}
 
-    let commit = repo.find_reference(&ref_name)?.peel_to_commit()?;
+/// Workspace-addressed core of [`checkpoint_revert`], split out for testing.
+pub fn restore_snapshot(cwd: &str, task_id: &str, turn: u32, force: bool) -> Result<(), AppError> {
+    let repo = Repository::discover(cwd)?;
 
-    // Reset HEAD to the checkpoint commit (hard reset)
-    repo.reset(commit.as_object(), git2::ResetType::Hard, None)?;
+    if !force && is_dirty(&repo)? {
+        return Err(AppError::Other(
+            "Working tree has uncommitted changes. Pass force=true to discard them.".to_string(),
+        ));
+    }
+
+    let ref_name = format!("{REF_PREFIX}{task_id}/{turn}");
+    // Resolve before protecting: no point stashing for a checkpoint that is
+    // already gone (pruned, or a thread from another workspace).
+    let tree = repo.find_reference(&ref_name)?.peel_to_commit()?.tree()?;
+
+    if force {
+        protect_before_restore(cwd, task_id, turn)?;
+    }
+
+    remove_paths_absent_from(&repo, &tree)?;
+
+    // Restore files + index from the snapshot, leaving HEAD where it is. A hard
+    // reset would move the user's branch onto a LAF-Agent-authored commit that
+    // exists only to hold this snapshot.
+    let mut opts = CheckoutBuilder::new();
+    opts.force();
+    repo.checkout_tree(tree.as_object(), Some(&mut opts))?;
 
     Ok(())
 }
@@ -316,7 +489,7 @@ pub fn checkpoint_prune(cwd: String, keep_days: u32) -> Result<u32, AppError> {
 
     let mut deleted: u32 = 0;
     let names: Vec<String> = repo
-        .references_glob(&format!("{REF_PREFIX}*"))?
+        .references_glob(&format!("{OWNED_PREFIX}*"))?
         .filter_map(|r| r.ok())
         .filter_map(|r| r.name().map(String::from))
         .collect();
@@ -363,10 +536,13 @@ pub fn checkpoint_cleanup(
     let prefix = format!("{REF_PREFIX}{task_id}/");
 
     let mut deleted: u32 = 0;
-    let refs: Vec<String> = repo.references_glob(&format!("{prefix}*"))?
+    let mut refs: Vec<String> = repo.references_glob(&format!("{prefix}*"))?
         .filter_map(|r| r.ok())
         .filter_map(|r| r.name().map(String::from))
         .collect();
+    // The thread's undo point lives outside the checkpoint namespace; deleting
+    // the thread has to take it too or it outlives everything it refers to.
+    refs.push(format!("{UNDO_PREFIX}{task_id}"));
 
     for ref_name in refs {
         if let Ok(mut reference) = repo.find_reference(&ref_name) {
@@ -424,6 +600,275 @@ mod tests {
         };
         let json = serde_json::to_string(&stat).unwrap();
         assert!(json.contains("\"path\":\"src/main.rs\""));
+    }
+}
+
+/// Snapshot semantics, exercised against real repositories.
+///
+/// These exist because the previous implementation passed every serialization
+/// test while being unable to restore a single turn: it recorded HEAD, and the
+/// agent never commits, so consecutive checkpoints were byte-identical. Only a
+/// test that writes files, snapshots, edits, and restores can catch that.
+#[cfg(test)]
+mod snapshot_tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    const TASK: &str = "task-snap";
+
+    fn init_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+        let sig = git2::Signature::now("t", "t@t").unwrap();
+        let tree_id = { let mut idx = repo.index().unwrap(); idx.write_tree().unwrap() };
+        let tree = repo.find_tree(tree_id).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[]).unwrap();
+        dir
+    }
+
+    fn write(dir: &Path, name: &str, body: &str) {
+        let path = dir.join(name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(path, body).unwrap();
+    }
+
+    fn read(dir: &Path, name: &str) -> String {
+        fs::read_to_string(dir.join(name)).unwrap()
+    }
+
+    fn cwd(dir: &tempfile::TempDir) -> String {
+        dir.path().to_string_lossy().into_owned()
+    }
+
+    /// The defect that motivated the rewrite: with no commits in between, two
+    /// turns must still produce different snapshots.
+    #[test]
+    fn consecutive_turns_capture_different_states() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "turn one");
+        let cp1 = create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "turn two");
+        let cp2 = create_snapshot(&cwd(&dir), TASK, 2).unwrap();
+
+        assert_ne!(cp1.oid, cp2.oid, "checkpoints collapsed onto one commit");
+    }
+
+    /// Restoring a turn brings back that turn's file contents, not HEAD's.
+    #[test]
+    fn revert_restores_uncommitted_content() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "original");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "agent rewrote this");
+
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+        assert_eq!(read(dir.path(), "a.txt"), "original");
+    }
+
+    /// A file the agent created after the checkpoint is gone after a restore.
+    #[test]
+    fn revert_removes_files_added_after_the_checkpoint() {
+        let dir = init_repo();
+        write(dir.path(), "keep.txt", "keep");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "added.txt", "added later");
+
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+        assert!(!dir.path().join("added.txt").exists());
+        assert_eq!(read(dir.path(), "keep.txt"), "keep");
+    }
+
+    /// A file the agent deleted after the checkpoint comes back.
+    #[test]
+    fn revert_restores_files_deleted_after_the_checkpoint() {
+        let dir = init_repo();
+        write(dir.path(), "gone.txt", "still here");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        fs::remove_file(dir.path().join("gone.txt")).unwrap();
+
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+        assert_eq!(read(dir.path(), "gone.txt"), "still here");
+    }
+
+    /// Reverting turn 1 must not undo turn 2 only — each turn is its own point.
+    #[test]
+    fn each_turn_is_independently_addressable() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "v2");
+        create_snapshot(&cwd(&dir), TASK, 2).unwrap();
+        write(dir.path(), "a.txt", "v3");
+
+        restore_snapshot(&cwd(&dir), TASK, 2, true).unwrap();
+        assert_eq!(read(dir.path(), "a.txt"), "v2");
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+        assert_eq!(read(dir.path(), "a.txt"), "v1");
+    }
+
+    /// Build output must survive a rollback: it is ignored, so it is neither
+    /// snapshotted nor swept away.
+    #[test]
+    fn ignored_files_are_left_alone() {
+        let dir = init_repo();
+        write(dir.path(), ".gitignore", "build/\n");
+        write(dir.path(), "build/artifact.bin", "expensive");
+        write(dir.path(), "src.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "src.txt", "v2");
+
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+        assert_eq!(read(dir.path(), "src.txt"), "v1");
+        assert!(dir.path().join("build/artifact.bin").exists(), "ignored file was swept");
+    }
+
+    /// Restoring must never move the branch onto our synthetic commit.
+    #[test]
+    fn revert_leaves_head_and_branches_untouched() {
+        let dir = init_repo();
+        let repo = Repository::open(dir.path()).unwrap();
+        let head_before = repo.head().unwrap().peel_to_commit().unwrap().id();
+
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "v2");
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+
+        let head_after = repo.head().unwrap().peel_to_commit().unwrap().id();
+        assert_eq!(head_before, head_after);
+    }
+
+    /// The forced path stashes first, so a mistaken rollback is recoverable.
+    #[test]
+    fn forced_revert_stashes_the_discarded_work() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "work the user may want back");
+
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+
+        let mut repo = Repository::open(dir.path()).unwrap();
+        let mut found = 0;
+        repo.stash_foreach(|_, _, _| { found += 1; true }).unwrap();
+        assert_eq!(found, 1, "forced revert discarded work without a stash");
+    }
+
+    /// Without `force`, a dirty tree is refused rather than overwritten.
+    #[test]
+    fn unforced_revert_refuses_a_dirty_tree() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "uncommitted");
+
+        assert!(restore_snapshot(&cwd(&dir), TASK, 1, false).is_err());
+        assert_eq!(read(dir.path(), "a.txt"), "uncommitted");
+    }
+
+    /// A repo with no commits is exactly when a rollback matters most.
+    #[test]
+    fn snapshots_work_before_the_first_commit() {
+        let dir = tempfile::tempdir().unwrap();
+        Repository::init(dir.path()).unwrap();
+        write(dir.path(), "a.txt", "v1");
+
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "v2");
+        restore_snapshot(&cwd(&dir), TASK, 1, true).unwrap();
+        assert_eq!(read(dir.path(), "a.txt"), "v1");
+    }
+
+    /// `to_turn = 0` means "now", so a turn's changes are visible before any
+    /// commit exists to compare against.
+    #[test]
+    fn diff_against_zero_sees_the_working_tree() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "a.txt", "v1\nv2\n");
+
+        let diff = diff_snapshots(&cwd(&dir), TASK, 1, 0).unwrap();
+        assert_eq!(diff.file_count, 1);
+        assert!(diff.additions > 0);
+        assert_eq!(diff.files[0].path, "a.txt");
+    }
+
+    /// Diffing two snapshots reports exactly the turn's changes.
+    #[test]
+    fn diff_between_turns_reports_that_turn() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+        write(dir.path(), "b.txt", "new file");
+        create_snapshot(&cwd(&dir), TASK, 2).unwrap();
+
+        let diff = diff_snapshots(&cwd(&dir), TASK, 1, 2).unwrap();
+        assert_eq!(diff.file_count, 1);
+        assert_eq!(diff.files[0].path, "b.txt");
+        assert_eq!(diff.files[0].status, "A");
+    }
+
+    /// The scratch index must stay inside .git — never in the user's workspace.
+    #[test]
+    fn scratch_index_never_lands_in_the_workspace() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+
+        let entries: Vec<String> = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(!entries.iter().any(|n| n.contains("laf-agent")), "found {entries:?}");
+        assert!(dir.path().join(".git/laf-agent-snapshot-index").exists());
+    }
+
+    /// Snapshot cost against a real repository, since this is the one thing the
+    /// rewrite made more expensive than a 41-byte ref write. Ignored by default
+    /// (it needs a repo to point at and writes refs into it):
+    ///
+    /// ```text
+    /// LAF_BENCH_REPO=/path/to/repo cargo test --lib snapshot_cost -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "needs LAF_BENCH_REPO; writes refs into it"]
+    fn snapshot_cost_on_a_real_repo() {
+        let Ok(path) = std::env::var("LAF_BENCH_REPO") else { return };
+        const TASK: &str = "bench";
+        // First snapshot pays for a cold stat cache; later ones are the steady
+        // state, which is what a user actually experiences per turn.
+        for turn in 1..=3u32 {
+            let start = std::time::Instant::now();
+            create_snapshot(&path, TASK, turn).unwrap();
+            println!("turn {turn}: {:?}", start.elapsed());
+        }
+        let repo = Repository::discover(&path).unwrap();
+        for turn in 1..=3u32 {
+            if let Ok(mut r) = repo.find_reference(&format!("{REF_PREFIX}{TASK}/{turn}")) {
+                let _ = r.delete();
+            }
+        }
+    }
+
+    /// Snapshotting must not stage anything in the user's own index.
+    #[test]
+    fn snapshotting_leaves_the_user_index_alone() {
+        let dir = init_repo();
+        write(dir.path(), "a.txt", "v1");
+        create_snapshot(&cwd(&dir), TASK, 1).unwrap();
+
+        let repo = Repository::open(dir.path()).unwrap();
+        let staged = repo
+            .statuses(None)
+            .unwrap()
+            .iter()
+            .any(|s| s.status().intersects(git2::Status::INDEX_NEW | git2::Status::INDEX_MODIFIED));
+        assert!(!staged, "snapshot leaked into the user's index");
     }
 }
 

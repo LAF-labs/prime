@@ -108,7 +108,7 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 |--------|---------|
 | `analytics.rs` | Local usage statistics in `redb`. Coding hours, messages, tokens, tool calls, diff stats, model usage. Nothing leaves the machine. |
 | `thread_db.rs` | Thread and conversation persistence via `redb`. |
-| `checkpoint.rs` | Conversation checkpoint management for `/btw` and turn rollback. |
+| `checkpoint.rs` | Per-turn working-tree snapshots behind hidden git refs, for turn rollback. Restoring rewrites files and the index; it never moves HEAD, so a commit the agent made during a turn survives the rollback. |
 
 ### Text generation and processing
 

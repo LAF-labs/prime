@@ -106,6 +106,12 @@ export const ipc = {
     invoke('get_settings'),
   saveSettings: (settings: AppSettings): Promise<void> =>
     invoke('save_settings', { settings }),
+  /**
+   * Install/remove the menu-bar icon and (re)bind the summon shortcut.
+   * Rejects when the OS refuses the accelerator — usually another app owns it.
+   */
+  summonApply: (menuBarIcon: boolean, summonShortcut: string | null): Promise<void> =>
+    invoke('summon_apply', { menuBarIcon, summonShortcut }),
   setDockIcon: (iconBase64: string): Promise<void> =>
     invoke('set_dock_icon', { iconBase64 }),
   resetDockIcon: (): Promise<void> =>

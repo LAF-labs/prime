@@ -1,6 +1,6 @@
 pub mod commands;
 
-use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, thread_db, thread_title, tracing as app_tracing, vcs_status};
+use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing, vcs_status};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -237,7 +237,7 @@ fn round_content_corners(ns_window_ptr: *mut std::ffi::c_void) {
 }
 
 /// Create a new LAF Agent window with the same configuration as the main window.
-fn create_new_window(app: &tauri::AppHandle) {
+pub(crate) fn create_new_window(app: &tauri::AppHandle) {
     let label = format!("window-{}", uuid::Uuid::new_v4().simple());
     let url = tauri::WebviewUrl::App("index.html".into());
     let builder = tauri::WebviewWindowBuilder::new(app, &label, url)
@@ -435,6 +435,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(settings::SettingsState::default())
         .manage(analytics::AnalyticsState::default())
         .manage(rpc::AgentState::default())
@@ -489,6 +490,10 @@ pub fn run() {
 
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            // Menu-bar icon and summon hotkey. Both default to off and are
+            // re-applied by `summon_apply` whenever the user changes them.
+            commands::summon::apply_from_settings(app.handle());
 
             #[cfg(target_os = "macos")]
             {
@@ -690,6 +695,7 @@ pub fn run() {
             rpc::set_model,
             rpc::agent_rpc_request,
             rpc::set_thinking_level,
+            summon::summon_apply,
             rpc::compact_context,
             rpc::list_models,
             rpc::probe_capabilities,

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import type { AppSettings } from '@/types'
 import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider } from './settings-shared'
+import { SummonCard } from './summon-card'
 import { UpdatesCard } from './updates-card'
 
 interface GeneralSectionProps {
@@ -290,6 +291,12 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               aria-label={t('Toggle notification sound')}
             />
           </SettingRow>
+        </SettingsCard>
+      </SettingsGrid>
+
+      <SettingsGrid label={t('Menu bar')} description={t('Reach the app without a window open')}>
+        <SettingsCard>
+          <SummonCard draft={draft} updateDraft={updateDraft} />
         </SettingsCard>
       </SettingsGrid>
 

@@ -23,6 +23,7 @@ pub mod markdown;
 pub mod pr_ai;
 pub mod process_diagnostics;
 pub mod process_group;
+pub mod summon;
 pub mod project_watcher;
 pub mod provider_discovery;
 pub mod provider_errors;

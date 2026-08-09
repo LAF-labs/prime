@@ -197,6 +197,16 @@ pub struct AppSettings {
     /// `None` disables auto-close.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal_auto_close_idle_mins: Option<u32>,
+    /// Keep a menu-bar icon so the app is reachable with every window closed.
+    /// Default off: a status item the user did not ask for is clutter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_bar_icon: Option<bool>,
+    /// System-wide shortcut that summons a window, in Tauri's accelerator
+    /// syntax (`CmdOrCtrl+Shift+A`). `None` registers nothing — the shortcut is
+    /// global, so it is taken from every other app while registered and must
+    /// stay opt-in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summon_shortcut: Option<String>,
     /// When true, render tool calls inline within the assistant prose at the
     /// point where the agent invoked them. When false (default), tool calls
     /// collapse into a single grouped card.
@@ -274,6 +284,8 @@ impl Default for AppSettings {
             btw_max_chars: None,
             terminal_scrollback: None,
             terminal_auto_close_idle_mins: None,
+            menu_bar_icon: None,
+            summon_shortcut: None,
             inline_tool_calls: None,
             ai_commit_messages: true,
             auto_archive_days: None,

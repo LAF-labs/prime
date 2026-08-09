@@ -10,6 +10,8 @@ pub enum AppError {
     Json(#[from] serde_json::Error),
     #[error("Config error: {0}")]
     Confy(#[from] confy::ConfyError),
+    #[error("{0}")]
+    Tauri(#[from] tauri::Error),
     #[error("Task not found: {0}")]
     TaskNotFound(String),
     #[error("{0}")]

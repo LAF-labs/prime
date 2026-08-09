@@ -277,6 +277,17 @@ export interface AppSettings {
   /** Auto-close background terminal tabs after this many minutes of no PTY activity. null = disabled. Default: null. */
   terminalAutoCloseIdleMins?: number | null
   /**
+   * Keep a menu-bar icon so the app stays reachable with every window closed.
+   * Default off — a status item the user did not ask for is clutter.
+   */
+  menuBarIcon?: boolean
+  /**
+   * System-wide summon shortcut in Tauri accelerator syntax
+   * (`CmdOrCtrl+Shift+A`). Empty/absent registers nothing: while registered the
+   * combination is taken from every other app, so it stays opt-in.
+   */
+  summonShortcut?: string | null
+  /**
    * When true, tool calls render inline within the assistant's prose at the
    * exact point where the agent invoked them — similar to Cursor / Prime Agent IDE.
    * When false (default), tool calls are grouped into a single card after

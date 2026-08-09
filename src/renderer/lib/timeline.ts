@@ -24,7 +24,7 @@ export interface UserMessageRow {
   messageIndex?: number
 }
 
-export type SystemMessageVariant = 'error' | 'info' | 'worktree' | 'connection_lost'
+export type SystemMessageVariant = 'error' | 'info' | 'worktree'
 
 export interface SystemMessageRow {
   kind: 'system-message'
@@ -54,8 +54,6 @@ export interface AssistantTextRow {
    * because they belong on the trailing segment only.
    */
   isInlineSegment?: boolean
-  /** When true, render a CompletionDivider after this row */
-  showCompletionDivider?: boolean
   /** Turn duration in milliseconds (from first token to turn_end) */
   durationMs?: number
   /** Index of the source TaskMessage in `task.messages`. Absent on live/streaming rows. */
@@ -365,10 +363,13 @@ export function deriveTimeline(
     }
 
     if (msg.role === 'system') {
+      // Transcripts written before this note was retired still carry it.
+      // Skipping it here retires those too, rather than leaving a permanent
+      // scar in old conversations for an event that healed on the next send.
+      if (msg.content.includes('Connection to the agent was lost')) continue
       const isWorktree = msg.content.startsWith('Working in worktree')
-      const isConnectionLost = msg.content.includes('Connection to the agent was lost')
       const isError = msg.content.startsWith('⚠️') || msg.content.toLowerCase().includes('failed')
-      const variant: SystemMessageVariant = isWorktree ? 'worktree' : isConnectionLost ? 'connection_lost' : isError ? 'error' : 'info'
+      const variant: SystemMessageVariant = isWorktree ? 'worktree' : isError ? 'error' : 'info'
       rows.push({
         kind: 'system-message',
         id: `msg-${i}-system`,
@@ -414,8 +415,6 @@ export function deriveTimeline(
       for (let j = grouped.length - 1; j >= 0; j--) {
         if (grouped[j].kind === 'text') { lastTextIndex = j; break }
       }
-      const showDivider = lastUserTimestamp !== null
-      let dividerShown = false
       // If the message had thinking but no text segments survived, still show it once.
       if (lastTextIndex < 0 && msg.thinking) {
         rows.push({
@@ -427,12 +426,10 @@ export function deriveTimeline(
           squashed: true,
           hasChangedFiles: hasFileChanges,
           questionsAnswered,
-          showCompletionDivider: showDivider,
           messageIndex: i,
           isTurnBoundary: true,
           showModelLabel,
         })
-        dividerShown = true
       }
       for (let j = 0; j < grouped.length; j++) {
         const block = grouped[j]
@@ -450,13 +447,11 @@ export function deriveTimeline(
             hasChangedFiles: isLastText ? hasFileChanges : false,
             questionsAnswered: isLastText ? questionsAnswered : false,
             isInlineSegment: !isLastText,
-            showCompletionDivider: !dividerShown && showDivider,
             messageIndex: i,
             isTurnBoundary: isLastText,
             showModelLabel: isLastText ? showModelLabel : false,
           })
-          dividerShown = true
-        } else {
+          } else {
           rows.push({
             kind: 'work',
             id: `msg-${i}-work-${j}`,
@@ -493,7 +488,6 @@ export function deriveTimeline(
         const end = new Date(msg.timestamp).getTime()
         if (start > 0 && end > start) durationMs = end - start
       }
-      const showDivider = lastUserTimestamp !== null
       rows.push({
         kind: 'assistant-text',
         id: `msg-${i}-text`,
@@ -504,7 +498,6 @@ export function deriveTimeline(
         hasChangedFiles: hasFileChanges,
         questionsAnswered,
         durationMs,
-        showCompletionDivider: showDivider,
         messageIndex: i,
         isTurnBoundary: true,
         showModelLabel,

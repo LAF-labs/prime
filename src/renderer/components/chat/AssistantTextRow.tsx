@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import ChatMarkdown from './ChatMarkdown'
 import { ThinkingDisplay } from './ThinkingDisplay'
 import { TaskCompletionCard, parseReport, stripReport, shouldRenderReportCard } from './TaskCompletionCard'
-import { CompletionDivider } from './CompletionDivider'
 import { useTaskStore } from '@/stores/taskStore'
 import { ipc } from '@/lib/ipc'
 import { toast } from 'sonner'
@@ -195,9 +194,6 @@ export const AssistantTextRow = memo(function AssistantTextRow({ row }: { row: A
 
   return (
     <div data-testid="assistant-text-row" className={cn('group/assistant', row.squashed ? 'pb-2.5' : 'pb-4')} data-timeline-row-kind="assistant-text">
-      {row.showCompletionDivider && !row.isStreaming && (
-        <CompletionDivider durationMs={row.durationMs} />
-      )}
       {showTurnChip && (
         <TurnChip
           taskId={ctxTaskId}

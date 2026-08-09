@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo } from 'react'
-import { IconGitBranch, IconInfoCircle, IconAlertTriangle, IconPlugConnectedX } from '@tabler/icons-react'
+import { IconGitBranch, IconInfoCircle, IconAlertTriangle } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import type { SystemMessageRow as SystemMessageRowData } from '@/lib/timeline'
 import { HighlightText } from './HighlightText'
@@ -76,24 +76,6 @@ export const SystemMessageRow = memo(function SystemMessageRow({ row }: { row: S
         <div className="mx-auto flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground/60">
           <IconInfoCircle className="size-3.5 shrink-0" aria-hidden />
           <span className="break-words"><HighlightText text={row.content} /></span>
-        </div>
-      </div>
-    )
-  }
-
-  if (row.variant === 'connection_lost') {
-    return (
-      <div className="pb-4" data-timeline-row-kind="system-message">
-        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:max-w-4xl xl:max-w-5xl">
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-            <div className="flex items-start gap-2.5">
-              <IconPlugConnectedX className="mt-0.5 size-4 shrink-0 text-amber-500/70" aria-hidden />
-              <div className="min-w-0 space-y-1 text-[13px]">
-                <p className="break-words font-medium text-foreground/90">{t('Connection to the agent was lost')}</p>
-                <p className="break-words text-muted-foreground text-[12px]">{t('Send a new message to reconnect and continue.')}</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     )

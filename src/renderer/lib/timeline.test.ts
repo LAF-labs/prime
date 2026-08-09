@@ -106,6 +106,34 @@ describe('deriveTimeline', () => {
     expect(workingRow.hasStreamingContent).toBe(true)
   })
 
+  it('drops the retired connection-lost note, including from old transcripts', () => {
+    // The note used to be written into the transcript whenever the agent
+    // process went away — which includes quitting the app mid-turn. It is no
+    // longer produced, and threads that already contain it must stop showing
+    // it rather than keeping a permanent scar for a transient event.
+    const msgs = [
+      makeMsg('user', 'hello'),
+      makeMsg('assistant', 'hi'),
+      makeMsg('system', '\u26a0\ufe0f Connection to the agent was lost. You can send a new message to continue.'),
+      makeMsg('user', 'still there?'),
+    ]
+    const rows = deriveTimeline(msgs, undefined, undefined, undefined, false)
+    expect(rows.some((r) => r.kind === 'system-message')).toBe(false)
+    expect(rows.map((r) => r.kind)).toEqual(['user-message', 'assistant-text', 'user-message'])
+  })
+
+  it('keeps genuine provider errors, with their action', () => {
+    const msgs = [
+      makeMsg('user', 'hello'),
+      makeMsg('system', '\u26a0\ufe0f Could not reach the provider. Check your connection and try again.', { errorAction: 'retry' }),
+    ]
+    const rows = deriveTimeline(msgs, undefined, undefined, undefined, false)
+    const system = rows.find((r) => r.kind === 'system-message')
+    expect(system).toBeDefined()
+    expect((system as { variant: string }).variant).toBe('error')
+    expect((system as { errorAction?: string }).errorAction).toBe('retry')
+  })
+
   describe('inline tool calls', () => {
     it('falls back to grouped layout when splits are missing', () => {
       const msgs = [makeMsg('assistant', 'before after', {

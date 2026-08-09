@@ -209,13 +209,11 @@ export const applyTurnEnd = (
       timestamp: new Date().toISOString(),
     })
   }
-  if (stopReason === 'connection_lost') {
-    newMessages.push({
-      role: 'system' as const,
-      content: msg('\u26a0\ufe0f Connection to the agent was lost. You can send a new message to continue.'),
-      timestamp: new Date().toISOString(),
-    })
-  }
+  // `connection_lost` deliberately adds nothing to the transcript. It fires
+  // whenever the agent process goes away — including the ordinary case of
+  // quitting the app mid-turn — and a permanent "connection lost" line for a
+  // transient, self-healing event was pure noise. Live connection state has
+  // its own transient banner; a genuine failure arrives as `task_error`.
   const updatedTask: AgentTask = {
     ...task,
     // Both refusal and normal end leave the task `paused` so the user can
@@ -268,9 +266,30 @@ export function initTaskListeners(): () => void {
       const last = lastActivityMs[taskId] ?? now
       const idle = now - last
       if (idle >= WATCHDOG_KILL_MS) {
-        // Auto-clear: treat as a lost connection so the spinner disappears
-        // and the user can send a new message.
+        // Five minutes of a running turn with no token, no tool call, nothing:
+        // this is not a connection that will heal itself, it is a hang. Clear
+        // the spinner and say so in the error surface — the same card a
+        // provider failure gets, with the same retry affordance.
         applyTurnEndPersisting(taskId, 'connection_lost')
+        useTaskStore.setState((s) => {
+          const stalled = s.tasks[taskId]
+          if (!stalled) return s
+          return {
+            tasks: {
+              ...s.tasks,
+              [taskId]: {
+                ...stalled,
+                status: 'error',
+                messages: [...stalled.messages, {
+                  role: 'system' as const,
+                  content: `⚠️ ${msg('The agent stopped responding. Send your message again to retry.')}`,
+                  timestamp: new Date().toISOString(),
+                  errorAction: 'retry' as const,
+                }],
+              },
+            },
+          }
+        })
         useTaskStore.getState().persistHistory()
         delete lastActivityMs[taskId]
         useDebugStore.getState().addEntry({

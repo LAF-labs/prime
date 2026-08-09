@@ -284,8 +284,6 @@ export const ko: Record<string, string> = {
   Mentions: '언급',
   'Drag into chat': '채팅으로 끌어놓기',
   'Drag tip': '끌어놓기 안내',
-  'Connection to the agent was lost': '에이전트 연결이 끊어졌습니다',
-  'Send a new message to reconnect and continue.': '새 메시지를 보내면 다시 연결되어 이어집니다.',
   'No preview available': '미리보기를 사용할 수 없습니다',
   'Rolled back files + messages': '파일과 메시지를 되돌렸습니다',
   'Rolled back messages — no matching checkpoint to revert files':
@@ -304,8 +302,6 @@ export const ko: Record<string, string> = {
     '⚠️ 에이전트가 계속하기를 거부했습니다. 자동으로 재시도합니다…',
   '⚠️ The agent refused to continue. You can try rephrasing your request or sending a new message.':
     '⚠️ 에이전트가 계속하기를 거부했습니다. 요청을 바꿔 말하거나 새 메시지를 보내 보세요.',
-  '⚠️ Connection to the agent was lost. You can send a new message to continue.':
-    '⚠️ 에이전트 연결이 끊어졌습니다. 새 메시지를 보내면 계속할 수 있습니다.',
 
   // ── Git ───────────────────────────────────────────────────────────
   'Toggle side-by-side': '나란히 보기 전환',
@@ -1180,5 +1176,6 @@ export const ko: Record<string, string> = {
   'Close settings': '설정 닫기',
   'Restore defaults': '기본값으로 되돌리기',
   'Argument pattern (optional)': '인자 패턴 (선택)',
+  'The agent stopped responding. Send your message again to retry.': '에이전트가 응답하지 않습니다. 메시지를 다시 보내 재시도하세요.',
 }
 

@@ -10,9 +10,6 @@ import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider } from '
 import ThemeSelector from './ThemeSelector'
 import defaultAppIcon from '../../../../src-tauri/icons/prod/icon.png'
 
-const FONT_SIZE_UI_MIN = 10
-const FONT_SIZE_CHAT_MIN = 8
-const FONT_SIZE_MAX = 22
 const MAX_ICON_BYTES = 2 * 1024 * 1024
 
 interface AppearanceSectionProps {
@@ -20,104 +17,8 @@ interface AppearanceSectionProps {
   updateDraft: (patch: Partial<AppSettings>) => void
 }
 
-/** Font size stepper control with tooltip-wrapped +/- buttons */
-const FontSizeStepper = memo(function FontSizeStepper({
-  value,
-  min,
-  max,
-  onDecrement,
-  onIncrement,
-  onChange,
-  ariaLabelPrefix,
-}: {
-  value: number
-  min: number
-  max: number
-  onDecrement: () => void
-  onIncrement: () => void
-  onChange: (value: string) => void
-  ariaLabelPrefix: string
-}) {
-  return (
-    <div className="flex items-center gap-0.5">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={onDecrement}
-            disabled={value <= min}
-            aria-label={`Decrease ${ariaLabelPrefix} font size`}
-            className="flex size-7 items-center justify-center rounded-l-md border border-border/60 bg-background/50 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
-          >
-            −
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top">{t('Decrease')}</TooltipContent>
-      </Tooltip>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={`${ariaLabelPrefix} font size value`}
-        className="h-7 w-10 border-y border-border/60 bg-background/50 text-center text-xs font-semibold tabular-nums text-primary outline-none focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={onIncrement}
-            disabled={value >= max}
-            aria-label={`Increase ${ariaLabelPrefix} font size`}
-            className="flex size-7 items-center justify-center rounded-r-md border border-border/60 bg-background/50 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
-          >
-            +
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top">{t('Increase')}</TooltipContent>
-      </Tooltip>
-      <span className="ml-1.5 text-[10px] text-muted-foreground/60">px</span>
-    </div>
-  )
-})
-
 export const AppearanceSection = memo(function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps) {
-  const fontSize = draft.fontSize ?? 14
-  const chatFontSize = draft.chatFontSize ?? draft.fontSize ?? 14
   const hasCustomIcon = !!draft.customAppIcon
-
-  const handleFontSizeInput = useCallback((value: string) => {
-    const num = Number(value)
-    if (Number.isNaN(num)) return
-    updateDraft({ fontSize: Math.max(FONT_SIZE_UI_MIN, Math.min(FONT_SIZE_MAX, num)) })
-  }, [updateDraft])
-
-  const handleChatFontSizeInput = useCallback((value: string) => {
-    const num = Number(value)
-    if (Number.isNaN(num)) return
-    updateDraft({ chatFontSize: Math.max(FONT_SIZE_CHAT_MIN, Math.min(FONT_SIZE_MAX, num)) })
-  }, [updateDraft])
-
-  const handleResetChatFontSize = useCallback(() => {
-    updateDraft({ chatFontSize: undefined })
-  }, [updateDraft])
-
-  const handleDecrementUiFont = useCallback(() => {
-    updateDraft({ fontSize: Math.max(FONT_SIZE_UI_MIN, fontSize - 1) })
-  }, [updateDraft, fontSize])
-
-  const handleIncrementUiFont = useCallback(() => {
-    updateDraft({ fontSize: Math.min(FONT_SIZE_MAX, fontSize + 1) })
-  }, [updateDraft, fontSize])
-
-  const handleDecrementChatFont = useCallback(() => {
-    updateDraft({ chatFontSize: Math.max(FONT_SIZE_CHAT_MIN, chatFontSize - 1) })
-  }, [updateDraft, chatFontSize])
-
-  const handleIncrementChatFont = useCallback(() => {
-    updateDraft({ chatFontSize: Math.min(FONT_SIZE_MAX, chatFontSize + 1) })
-  }, [updateDraft, chatFontSize])
 
   const handleUploadIcon = useCallback(async () => {
     try {
@@ -173,7 +74,7 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
               <div>
                 <p className="text-[12.5px] font-medium text-foreground">{t('App icon')}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  {hasCustomIcon ? 'Custom icon' : 'Default LAF Agent icon'} · About dialog & dock
+                  {hasCustomIcon ? t('Custom icon') : t('Default LAF Agent icon')} · {t('About dialog & dock')}
                 </p>
               </div>
             </div>
@@ -225,12 +126,12 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
       </SettingsGrid>
 
       {/* ── Display ─────────────────────────────────────────── */}
-      <SettingsGrid label={t('Display')} description={t('Font size and layout')}>
+      <SettingsGrid label={t('Display')} description={t('Language and layout')}>
         <SettingsCard>
           {/* Language */}
           <SettingRow label={t('Language')} description={t("App display language — 'System' follows the OS")}>
             <div className="flex gap-1.5">
-              {([['system', 'System'], ['en', 'English'], ['ko', '한국어']] as const).map(([value, label]) => (
+              {([['system', t('System')], ['en', t('English')], ['ko', t('한국어')]] as const).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -249,79 +150,6 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
             </div>
           </SettingRow>
 
-          <Divider />
-
-          {/* UI font size */}
-          <div className="py-2.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[12.5px] font-medium text-foreground">{t('UI font size')}</p>
-                <p className="text-[11px] text-muted-foreground">{t('Sidebar, file tree, header, dialogs')}</p>
-              </div>
-              <FontSizeStepper
-                value={fontSize}
-                min={FONT_SIZE_UI_MIN}
-                max={FONT_SIZE_MAX}
-                onDecrement={handleDecrementUiFont}
-                onIncrement={handleIncrementUiFont}
-                onChange={handleFontSizeInput}
-                ariaLabelPrefix="UI"
-              />
-            </div>
-            <div className="mt-2.5 rounded-md border border-border/40 bg-background/30 px-3 py-2">
-              <p className="text-foreground/70 leading-relaxed" style={{ fontSize }}>{t('The quick brown fox jumps over the lazy dog')}</p>
-            </div>
-          </div>
-
-          <Divider />
-
-          {/* Chat font size */}
-          <div className="py-2.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[12.5px] font-medium text-foreground">{t('Chat font size')}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Chat messages, markdown rendering, and the message input
-                  {draft.chatFontSize == null && <span className="ml-1 text-muted-foreground/70">· following UI size</span>}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {draft.chatFontSize != null && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={handleResetChatFontSize}
-                        aria-label={t('Reset chat font size to follow UI font size')}
-                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        <IconRotate className="size-3" />
-                        {t('Reset')}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">{t('Reset to follow UI size')}</TooltipContent>
-                  </Tooltip>
-                )}
-                <FontSizeStepper
-                  value={chatFontSize}
-                  min={FONT_SIZE_CHAT_MIN}
-                  max={FONT_SIZE_MAX}
-                  onDecrement={handleDecrementChatFont}
-                  onIncrement={handleIncrementChatFont}
-                  onChange={handleChatFontSizeInput}
-                  ariaLabelPrefix="Chat"
-                />
-              </div>
-            </div>
-            <div className="mt-2.5 rounded-md border border-border/40 bg-background/30 px-3 py-2">
-              <p className="text-foreground/70 leading-[1.7]" style={{ fontSize: chatFontSize }}>
-                {t('Markdown preview rendered at the chat font size.')}
-              </p>
-            </div>
-          </div>
-
-          <Divider />
-
           {/* Sidebar position */}
           <SettingRow label={t('Sidebar position')} description={t('Place the sidebar on the left or right')}>
             <div className="flex gap-1.5">
@@ -330,15 +158,16 @@ export const AppearanceSection = memo(function AppearanceSection({ draft, update
                   key={pos}
                   type="button"
                   onClick={() => handleSidebarPositionChange(pos)}
-                  aria-label={`Sidebar on ${pos}`}
+                  aria-label={pos === 'left' ? t('Sidebar on left') : t('Sidebar on right')}
+                  aria-pressed={(draft.sidebarPosition ?? 'left') === pos}
                   className={cn(
-                    'rounded-md border px-4 py-1.5 text-[11px] font-medium capitalize transition-colors',
+                    'rounded-md border px-2.5 py-1 text-[11.5px] transition-colors',
                     (draft.sidebarPosition ?? 'left') === pos
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/60 text-muted-foreground hover:bg-accent hover:text-foreground',
+                      ? 'border-ring bg-accent text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
                   )}
                 >
-                  {pos}
+                  {pos === 'left' ? t('Left') : t('Right')}
                 </button>
               ))}
             </div>

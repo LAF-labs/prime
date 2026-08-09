@@ -141,12 +141,12 @@ export const WorkingRow = memo(function WorkingRow({ row }: { row: WorkingRowDat
     <div className="py-2 select-none" data-timeline-row-kind="working">
       <div className="flex items-center gap-2">
         <span className="inline-flex shrink-0 items-center gap-[3px]">
-          <span className={`h-1 w-1 rounded-full animate-pulse ${isPlan ? 'bg-teal-500/60' : 'bg-blue-500/60'}`} />
-          <span className={`h-1 w-1 rounded-full animate-pulse [animation-delay:200ms] ${isPlan ? 'bg-teal-500/60' : 'bg-blue-500/60'}`} />
-          <span className={`h-1 w-1 rounded-full animate-pulse [animation-delay:400ms] ${isPlan ? 'bg-teal-500/60' : 'bg-blue-500/60'}`} />
+          <span className={`h-1 w-1 rounded-full animate-pulse ${isPlan ? 'bg-teal-500/60' : 'bg-primary/60'}`} />
+          <span className={`h-1 w-1 rounded-full animate-pulse [animation-delay:200ms] ${isPlan ? 'bg-teal-500/60' : 'bg-primary/60'}`} />
+          <span className={`h-1 w-1 rounded-full animate-pulse [animation-delay:400ms] ${isPlan ? 'bg-teal-500/60' : 'bg-primary/60'}`} />
         </span>
         <span
-          className={`shrink-0 whitespace-nowrap text-[12px] font-medium transition-opacity duration-300 ${isPlan ? 'text-teal-600 dark:text-teal-400' : 'text-blue-600 dark:text-blue-400'}`}
+          className={`shrink-0 whitespace-nowrap text-[12px] font-medium transition-opacity duration-300 ${isPlan ? 'text-teal-600 dark:text-teal-400' : 'text-primary'}`}
           style={{ opacity: visible ? 1 : 0, minWidth: '5.5em' }}
         >
           {t(LOADING_WORDS[idx])}&hellip;

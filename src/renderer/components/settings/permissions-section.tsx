@@ -102,7 +102,7 @@ export const PermissionsSection = memo(function PermissionsSection({ draft, upda
         <SettingsCard className="py-2.5">
           <p className="mb-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
             <IconInfoCircle className="mt-0.5 size-3 shrink-0" aria-hidden />
-            {t('Matching calls run without a prompt. Use * as a wildcard in the pattern (e.g. git *). Rules apply to newly started threads.')}
+            {t('Matching calls run without a prompt. Use * as a wildcard in the pattern (e.g. Documents/*). Rules apply to newly started threads.')}
           </p>
 
           {rules.length === 0 ? (
@@ -134,7 +134,7 @@ export const PermissionsSection = memo(function PermissionsSection({ draft, upda
                 value={newTool}
                 onChange={(e) => setNewTool(e.target.value)}
                 onKeyDown={handleFormKeyDown}
-                placeholder={t('Tool (e.g. bash)')}
+                placeholder={t('Tool (e.g. write_file)')}
                 aria-label={t('Tool name')}
                 className="h-7 w-32 shrink-0 rounded-md border border-input bg-background/50 px-2.5 font-mono text-[11px] placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
@@ -142,7 +142,7 @@ export const PermissionsSection = memo(function PermissionsSection({ draft, upda
                 value={newPattern}
                 onChange={(e) => setNewPattern(e.target.value)}
                 onKeyDown={handleFormKeyDown}
-                placeholder={t('Argument pattern (optional, e.g. git *)')}
+                placeholder={t('Argument pattern (optional, e.g. Documents/*)')}
                 aria-label={t('Argument pattern')}
                 className="h-7 min-w-0 flex-1 rounded-md border border-input bg-background/50 px-2.5 font-mono text-[11px] placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />

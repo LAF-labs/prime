@@ -38,7 +38,7 @@ export const UsagePanel = memo(function UsagePanel({ onDismiss }: { onDismiss: (
         {totalSize > 0 && (
           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
             <div
-              className={cn('h-full rounded-full transition-all', totalUsed / totalSize > 0.85 ? 'bg-red-400' : totalUsed / totalSize > 0.6 ? 'bg-amber-400' : 'bg-blue-400')}
+              className={cn('h-full rounded-full transition-all', totalUsed / totalSize > 0.85 ? 'bg-red-400' : totalUsed / totalSize > 0.6 ? 'bg-amber-400' : 'bg-primary')}
               style={{ width: `${Math.min((totalUsed / totalSize) * 100, 100)}%` }}
             />
           </div>

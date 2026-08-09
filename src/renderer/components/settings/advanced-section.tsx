@@ -56,10 +56,6 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     refreshDbSize()
   }, [clearAnalytics, refreshDbSize])
 
-  const handleCoAuthorToggle = useCallback((checked: boolean) => {
-    updateDraft({ coAuthor: checked })
-  }, [updateDraft])
-
   const handleReportToggle = useCallback((checked: boolean) => {
     updateDraft({ coAuthorJsonReport: checked })
   }, [updateDraft])
@@ -123,16 +119,8 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label={t('Git')} description={t('Commit trailers and reports')}>
+      <SettingsGrid label={t('Reports')} description={t('Task summary cards')}>
         <SettingsCard>
-          <SettingRow label={t('Co-authored-by LAF Agent')} description={t('Append trailer to every commit')}>
-            <Switch
-              checked={draft.coAuthor ?? true}
-              onCheckedChange={handleCoAuthorToggle}
-              aria-label={t('Toggle co-author trailer')}
-            />
-          </SettingRow>
-          <Divider />
           <SettingRow label={t('Task completion report')} description={t('Summary card when a task finishes')}>
             <Switch
               checked={draft.coAuthorJsonReport ?? true}
@@ -143,9 +131,9 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
         </SettingsCard>
       </SettingsGrid>
 
-      <SettingsGrid label={t('Side questions')} description={t('/btw character limit')}>
+      <SettingsGrid label={t('Side questions')} description={t('Length limit for side questions')}>
         <SettingsCard>
-          <SettingRow label={t('Max question length')} description={t('Character limit for /btw questions')}>
+          <SettingRow label={t('Side question length limit')} description={t('Side questions (/btw) longer than this are trimmed')}>
             <input
               type="number"
               min={BTW_MIN_CHARS}

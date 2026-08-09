@@ -22,7 +22,6 @@ import { fnv1a32, resolveDiffThemeName, type DiffThemeName } from '@/lib/diffRen
 import { LRUCache } from '@/lib/lruCache'
 import { getHighlighterPromise } from '@/lib/chatHighlighter'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
-import { useSettingsStore, selectChatFontSize } from '@/stores/settingsStore'
 import { hasInteractiveQuestionBlocks, stripQuestionBlocks } from '@/lib/question-parser'
 import { handleExternalLinkClick, handleExternalLinkKeyDown } from '@/lib/open-external'
 import { HighlightText } from './HighlightText'
@@ -566,7 +565,6 @@ function ChatMarkdown({
     () => (isStreaming ? stabilizeStreamingMarkdown(text) : text),
     [text, isStreaming],
   )
-  const chatFontSize = useSettingsStore(selectChatFontSize)
   const showQuestions = useMemo(
     () => !isStreaming && !questionsAnswered && hasInteractiveQuestionBlocks(displayText),
     [isStreaming, questionsAnswered, displayText],
@@ -584,7 +582,7 @@ function ChatMarkdown({
   return (
     <div
       className={cn(PROSE_CLASSES, isStreaming && 'streaming-cursor')}
-      style={{ fontSize: chatFontSize }}
+      style={{ fontSize: 'var(--chat-font-size, 16px)' }}
     >
       <CodeFenceCtx.Provider value={codeFence}>
         <ReactMarkdown remarkPlugins={remarkPlugins} components={STATIC_COMPONENTS}>

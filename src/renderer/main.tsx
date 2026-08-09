@@ -1,4 +1,3 @@
-import '@fontsource-variable/dm-sans'
 import React from 'react'
 import { LocaleBoundary } from '@/components/LocaleBoundary'
 import ReactDOM from 'react-dom/client'
@@ -63,7 +62,7 @@ class ErrorBoundary extends React.Component<
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         height: '100vh', gap: '16px', padding: '24px', textAlign: 'center',
-        fontFamily: "'DM Sans Variable', system-ui, sans-serif",
+        fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
         color: '#e0e0e0', background: '#0D0D0D',
       }}>
         <div style={{ fontSize: '32px', marginBottom: '4px' }}>⚠️</div>
@@ -149,6 +148,17 @@ installJsInterceptors()
 // We eagerly import the store module so the reference is available synchronously
 // in the beforeunload handler (dynamic import() would be async and never complete).
 let _persistHistory: (() => void) | null = null
+// Dev-only: expose the stores so a plain-browser session (bun run dev:renderer,
+// no Tauri IPC) can be steered for visual work — e.g. skipping onboarding.
+if (import.meta.env.DEV) {
+  import('./stores/settingsStore').then((m) => {
+    (window as unknown as Record<string, unknown>).__settingsStore = m.useSettingsStore
+  }).catch(() => {})
+  import('./stores/taskStore').then((m) => {
+    (window as unknown as Record<string, unknown>).__taskStore = m.useTaskStore
+  }).catch(() => {})
+}
+
 import('./stores/taskStore').then((m) => {
   _persistHistory = () => m.useTaskStore.getState().persistHistory()
 })

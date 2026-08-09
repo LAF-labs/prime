@@ -17,7 +17,7 @@ import { useSlashAction } from './useSlashAction'
 beforeEach(() => {
   vi.clearAllMocks()
   useSettingsStore.setState({
-    settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13 },
+    settings: { agentBin: 'prime-agent', agentProfiles: [] },
     availableModes: [
       { id: 'code', name: 'Default' },
       { id: 'plan', name: 'Planner' },

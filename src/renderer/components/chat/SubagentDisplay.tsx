@@ -128,14 +128,14 @@ export const SubagentDisplay = memo(function SubagentDisplay({ allToolCalls }: S
         ) : (
           <IconChevronRight className="size-3.5 shrink-0 text-muted-foreground/70" />
         )}
-        <IconRobot className="size-3.5 shrink-0 text-violet-600 dark:text-violet-400" aria-hidden="true" />
+        <IconRobot className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
         <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">
           {summary}
         </span>
         <span className="flex items-center gap-1.5 text-[11px] tabular-nums text-muted-foreground">
           {isRunning && <IconLoader2 className="size-3 animate-spin text-primary" />}
           {isCompleted && !isRunning && <IconCircleCheck className="size-3 text-emerald-600 dark:text-emerald-400" />}
-          <span className="rounded-full bg-violet-600/15 px-1.5 py-0.5 font-semibold text-violet-600 dark:bg-violet-400/15 dark:text-violet-400">
+          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 font-semibold text-primary">
             {stages.length}
           </span>
           {stages.length === 1 ? 'agent' : 'agents'}
@@ -152,7 +152,7 @@ export const SubagentDisplay = memo(function SubagentDisplay({ allToolCalls }: S
             {stagesWithDescriptions.map((stage) => (
               <div key={stage.name} className="rounded-md bg-muted/30 px-2.5 py-2">
                 <div className="flex items-center gap-1.5">
-                  <IconRobot className="size-3.5 shrink-0 text-violet-600/70 dark:text-violet-400/70" aria-hidden="true" />
+                  <IconRobot className="size-3.5 shrink-0 text-primary/70" aria-hidden="true" />
                   <span className="text-[13px] font-medium leading-[1.6] text-foreground/85">
                     {stage.name}
                   </span>

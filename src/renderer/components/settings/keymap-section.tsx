@@ -37,7 +37,9 @@ export const KeymapSection = memo(function KeymapSection() {
 
   const q = keymapFilter.toLowerCase()
   const filtered = q
-    ? KEYMAP.filter((e) => e.command.toLowerCase().includes(q) || e.keys.toLowerCase().includes(q) || e.group.toLowerCase().includes(q))
+    ? KEYMAP.filter((e) =>
+      [e.command, t(e.command), e.keys, t(e.keys), e.group, t(e.group)]
+        .some((s) => s.toLowerCase().includes(q)))
     : KEYMAP
   const groups = [...new Set(filtered.map((e) => e.group))]
 
@@ -64,12 +66,12 @@ export const KeymapSection = memo(function KeymapSection() {
       )}
 
       {groups.map((group) => (
-        <SettingsGrid key={group} label={group}>
+        <SettingsGrid key={group} label={t(group)}>
           <SettingsCard className="divide-y divide-border/30 !py-0 overflow-hidden">
             {filtered.filter((e) => e.group === group).map((entry) => (
               <div key={entry.command} className="flex items-center justify-between px-4 py-2 transition-colors hover:bg-muted/10">
-                <span className="text-[12px] text-foreground/90">{entry.command}</span>
-                <span className="shrink-0 font-mono text-[10px] text-muted-foreground/70">{entry.keys}</span>
+                <span className="text-[12px] text-foreground/90">{t(entry.command)}</span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground/70">{t(entry.keys)}</span>
               </div>
             ))}
           </SettingsCard>

@@ -48,7 +48,6 @@ import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { initResourceListeners } from "@/stores/resourceStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
-import { useZoomLimit } from "@/hooks/useZoomLimit";
 import { resolveLocale, useI18nStore, useT } from "@/lib/i18n";
 import { MOD_PREFIX } from "@/lib/platform";
 import { UpdateAvailableDialog } from "@/components/UpdateAvailableDialog";
@@ -128,8 +127,8 @@ const SHOWCASE_FEATURES = [
     icon: IconWorld,
     label: "Research the web",
     desc: "Looks things up online and pulls several sources together into one answer",
-    color: "text-blue-400",
-    bgColor: "bg-blue-500/10",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
   },
   {
     icon: IconFiles,
@@ -271,8 +270,6 @@ export function App() {
   const debugOpen = useDebugStore((s) => s.isOpen);
   const settingsLoaded = useSettingsStore((s) => s.isLoaded);
   const hasOnboardedV2 = useSettingsStore((s) => s.settings.hasOnboardedV2);
-  const fontSize = useSettingsStore((s) => s.settings.fontSize);
-  const chatFontSize = useSettingsStore((s) => s.settings.chatFontSize);
   const theme = useSettingsStore((s) => s.settings.theme ?? 'dark');
   const sidebarPosition = useSettingsStore((s) => s.settings.sidebarPosition ?? 'left');
   const isRightSidebar = sidebarPosition === 'right';
@@ -282,23 +279,10 @@ export function App() {
   const isUpdateDialogActive = useUpdateStore((s) => s.status !== 'idle' && s.status !== 'error');
   useKeyboardShortcuts();
   useSessionTracker();
-  useZoomLimit();
-
-  // Apply font size from settings to the document root.
-  // This sets the html element's font-size which cascades through all rem-based
-  // sizing in the app. The CSS variable is kept for components that need it directly.
-  useEffect(() => {
-    const size = fontSize ?? 14;
-    document.documentElement.style.setProperty('--app-font-size', `${size}px`);
-    document.documentElement.style.fontSize = `${size}px`;
-  }, [fontSize]);
-
-  // Apply chat font size as a CSS var. Falls back to UI font size so users on
-  // existing settings (no chatFontSize key) keep current behavior.
-  useEffect(() => {
-    const resolved = chatFontSize ?? fontSize ?? 15;
-    document.documentElement.style.setProperty('--chat-font-size', `${resolved}px`);
-  }, [chatFontSize, fontSize]);
+  // Typography is fixed (14px UI / 16px chat, see tailwind.css). Earlier
+  // versions layered a webview zoom on top of user font-size settings; the
+  // trackpad's pinch gesture arrives as a ctrl+wheel event, so the whole UI
+  // grew and shrank on accidental pinches. Both systems are gone on purpose.
 
   // Keep the i18n locale in sync with the language setting (OS default).
   const language = useSettingsStore((s) => s.settings.language ?? 'system');

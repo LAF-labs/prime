@@ -73,28 +73,31 @@
     animation-duration: 0s !important;
 }
 
+/* Warm neutral palette in the spirit of the Claude desktop app: paper-white
+   light theme, warm charcoal dark theme, clay accent. Hex only — oklch()
+   renders magenta in older WebKit. */
 :root {
     color-scheme: light;
-    --radius: 0.625rem;
-    --background: #ffffff;
-    --foreground: #1a1a1a;
-    --card: #fafafa;
-    --card-foreground: #1a1a1a;
+    --radius: 0.75rem;
+    --background: #faf9f5;
+    --foreground: #2b2a27;
+    --card: #ffffff;
+    --card-foreground: #2b2a27;
     --popover: #ffffff;
-    --popover-foreground: #1a1a1a;
-    --primary: #3b82f6;
+    --popover-foreground: #2b2a27;
+    --primary: #c96442;
     --primary-foreground: #ffffff;
-    --secondary: color-mix(in srgb, black 5%, transparent);
-    --secondary-foreground: #1a1a1a;
-    --muted: color-mix(in srgb, black 4%, transparent);
-    --muted-foreground: #636363;
-    --accent: color-mix(in srgb, black 5%, transparent);
-    --sidebar: #f7f7f8;
-    --accent-foreground: #1a1a1a;
-    --destructive: #ef4444;
-    --border: #e5e5e5;
-    --input: color-mix(in srgb, black 10%, transparent);
-    --ring: #3b82f6;
+    --secondary: color-mix(in srgb, #706b57 8%, transparent);
+    --secondary-foreground: #2b2a27;
+    --muted: color-mix(in srgb, #706b57 7%, transparent);
+    --muted-foreground: #73726c;
+    --accent: color-mix(in srgb, #706b57 9%, transparent);
+    --sidebar: #f5f4ee;
+    --accent-foreground: #2b2a27;
+    --destructive: #dc2626;
+    --border: #e8e6dc;
+    --input: color-mix(in srgb, #706b57 22%, transparent);
+    --ring: #c96442;
     --destructive-foreground: #b91c1c;
     --info: #3b82f6;
     --info-foreground: #1d4ed8;
@@ -104,29 +107,32 @@
     --warning-foreground: #b45309;
     --pink: #ec4899;
     --pink-foreground: #ffffff;
+    /* Fixed typography — the app has no zoom and no font-size setting. */
+    --app-font-size: 14px;
+    --chat-font-size: 16px;
 }
 
 .dark {
     color-scheme: dark;
-    --background: #1C1C1E;
-    --foreground: #E4E4E6;
-    --card: #28282A;
-    --card-foreground: #E4E4E6;
-    --popover: #28282A;
-    --popover-foreground: #E4E4E6;
-    --primary: #60a5fa;
+    --background: #262624;
+    --foreground: #ecebe6;
+    --card: #30302e;
+    --card-foreground: #ecebe6;
+    --popover: #30302e;
+    --popover-foreground: #ecebe6;
+    --primary: #d97757;
     --primary-foreground: #ffffff;
-    --secondary: color-mix(in srgb, white 6%, transparent);
-    --secondary-foreground: #E4E4E6;
-    --muted: color-mix(in srgb, white 6%, transparent);
-    --muted-foreground: #8A8A8C;
-    --accent: color-mix(in srgb, white 8%, transparent);
-    --sidebar: #28282A;
-    --accent-foreground: #E4E4E6;
+    --secondary: color-mix(in srgb, #eaddd8 7%, transparent);
+    --secondary-foreground: #ecebe6;
+    --muted: color-mix(in srgb, #eaddd8 7%, transparent);
+    --muted-foreground: #a6a39a;
+    --accent: color-mix(in srgb, #eaddd8 9%, transparent);
+    --sidebar: #1f1e1d;
+    --accent-foreground: #ecebe6;
     --destructive: #f87171;
-    --border: color-mix(in srgb, white 3%, transparent);
-    --input: color-mix(in srgb, white 12%, transparent);
-    --ring: #3b82f6;
+    --border: color-mix(in srgb, #eaddd8 10%, transparent);
+    --input: color-mix(in srgb, #eaddd8 14%, transparent);
+    --ring: #d97757;
     --destructive-foreground: #fca5a5;
     --info: #60a5fa;
     --info-foreground: #93c5fd;
@@ -138,17 +144,14 @@
     --pink-foreground: #ffffff;
 }
 
-/* Base font-size is controlled by the user's font-size setting (applied via
-   inline style on <html> from App.tsx). The fallback below only applies before
-   JS hydrates. */
+/* Fixed root size — matches the Claude desktop app's UI density. There is no
+   zoom and no font-size setting; every rem in the app resolves against this. */
 html {
-    font-size: 13px;
+    font-size: 14px;
 }
 
 body {
     font-family:
-        "DM Sans Variable",
-        "DM Sans",
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",

@@ -98,31 +98,6 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
 
       <EverydayMemoryCard />
 
-      <SettingsGrid label={t('Language')} description={t('App display language')}>
-        <SettingsCard>
-          <SettingRow label={t('Language')} description={t('App display language')}>
-            <div className="flex gap-1.5">
-              {([['system', t('System')], ['en', t('English')], ['ko', t('한국어')]] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => updateDraft({ language: value as 'system' | 'en' | 'ko' })}
-                  aria-pressed={(draft.language ?? 'system') === value}
-                  className={cn(
-                    'rounded-md border px-2.5 py-1 text-[11.5px] transition-colors',
-                    (draft.language ?? 'system') === value
-                      ? 'border-ring bg-accent text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </SettingRow>
-        </SettingsCard>
-      </SettingsGrid>
-
       <SettingsGrid label={t('Connection')} description={t('Path to the prime-agent binary')}>
         <SettingsCard>
           <div className="py-1">

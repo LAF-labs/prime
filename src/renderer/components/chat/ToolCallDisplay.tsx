@@ -66,7 +66,7 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ toolCalls, inline
 
   // Determine header accent color based on overall status
   const headerAccent = runningCount > 0
-    ? 'border-l-blue-500/60'
+    ? 'border-l-primary/60'
     : failedCount > 0
       ? 'border-l-red-500/60'
       : cancelledCount > 0 && completedCount === 0

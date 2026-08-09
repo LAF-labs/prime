@@ -78,7 +78,7 @@ export const STACK_META: Record<string, StackMeta> = {
   python:             { icon: IconBrandPython,     color: 'text-yellow-600 dark:text-yellow-400' },
   swiftui:            { icon: IconBrandSwift,      color: 'text-orange-300' },
   mumzworld:          { icon: IconWorld,           color: 'text-pink-600 dark:text-pink-400' },
-  custom:             { icon: IconRobot,           color: 'text-violet-600 dark:text-violet-400' },
+  custom:             { icon: IconRobot,           color: 'text-primary' },
 }
 
 export const SectionToggle = ({ icon: Icon, iconColor, label, count, errorCount, expanded, onToggle }: {

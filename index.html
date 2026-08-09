@@ -4,9 +4,6 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>LAF Agent</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet" />
         <!-- Prefetch terminal WASM so it's in the HTTP cache before the user opens a terminal -->
         <link rel="prefetch" href="/ghostty-vt.wasm" as="fetch" crossorigin />
         <script>
@@ -30,23 +27,22 @@
             transition: opacity 0.4s ease;
             pointer-events: none;
         ">
-            <span style="
-                font-family: 'JetBrains Mono', monospace;
-                font-size: 42px;
-                font-weight: 700;
-                letter-spacing: 12px;
-                color: #7c6aef;
+            <span id="splash-wordmark" style="
+                font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+                font-size: 28px;
+                font-weight: 600;
+                letter-spacing: 0.01em;
                 user-select: none;
-                text-shadow:
-                    0 0 10px rgba(124, 106, 239, 0.6),
-                    0 0 30px rgba(124, 106, 239, 0.4),
-                    0 0 60px rgba(124, 106, 239, 0.2);
-                animation: glow 2s ease-in-out infinite alternate;
-            ">LAF_AGENT</span>
+                animation: splash-pulse 1.8s ease-in-out infinite alternate;
+            ">LAF Agent</span>
             <style>
-                @keyframes glow {
-                    from { text-shadow: 0 0 10px rgba(124,106,239,0.6), 0 0 30px rgba(124,106,239,0.4), 0 0 60px rgba(124,106,239,0.2); }
-                    to   { text-shadow: 0 0 15px rgba(124,106,239,0.8), 0 0 40px rgba(124,106,239,0.6), 0 0 80px rgba(124,106,239,0.35), 0 0 120px rgba(124,106,239,0.15); }
+                #splash { background: #faf9f5; }
+                #splash-wordmark { color: #73726c; }
+                .dark #splash { background: #262624; }
+                .dark #splash-wordmark { color: #a6a39a; }
+                @keyframes splash-pulse {
+                    from { opacity: 0.55; }
+                    to   { opacity: 1; }
                 }
             </style>
         </div>
@@ -63,8 +59,8 @@
             padding: 24px;
             text-align: center;
             font-family: system-ui, sans-serif;
-            color: #e0e0e0;
-            background: #0D0D0D;
+            color: #ecebe6;
+            background: #262624;
         ">
             <button id="crash-close" aria-label="Close" style="
                 position: absolute; top: 16px; right: 16px;

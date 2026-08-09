@@ -10,7 +10,7 @@ import type { ProjectFile } from '@/types'
 
 // ── Built-in agents for @ mention ────────────────────────────────────
 const BUILT_IN_MENTION_AGENTS = [
-  { name: 'Default', id: 'code', description: 'Code, edit, and execute', icon: IconCode, color: 'text-blue-600 dark:text-blue-400', bgCls: 'bg-blue-500/20' },
+  { name: 'Default', id: 'code', description: 'Code, edit, and execute', icon: IconCode, color: 'text-primary', bgCls: 'bg-primary/20' },
   { name: 'Planner', id: 'plan', description: 'Plan before coding', icon: IconListCheck, color: 'text-teal-600 dark:text-teal-400', bgCls: 'bg-teal-500/20' },
 ] as const
 
@@ -19,7 +19,7 @@ const getAgentPillMeta = (agentPath: string): { icon: typeof IconRobot; color: s
   const name = agentPath.replace(/^agent:/, '')
   const builtin = BUILT_IN_MENTION_AGENTS.find((a) => a.id === name || a.name === name)
   if (builtin) return { icon: builtin.icon, color: builtin.color, bgCls: builtin.bgCls }
-  return { icon: IconRobot, color: 'text-violet-600 dark:text-violet-400', bgCls: 'bg-violet-500/20' }
+  return { icon: IconRobot, color: 'text-primary', bgCls: 'bg-primary/20' }
 }
 
 // ── File type icon by extension ──────────────────────────────────────
@@ -408,8 +408,8 @@ export const FileMentionPicker = memo(function FileMentionPicker({
           const formatName = (name: string): string =>
             name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
           const ItemIcon = item.builtinIcon ?? (item.type === 'agent' ? IconRobot : item.type === 'skill' ? IconBolt : IconAlignLeft)
-          const iconColor = item.builtinColor ?? (item.type === 'agent' ? 'text-violet-600 dark:text-violet-400' : item.type === 'skill' ? 'text-yellow-600 dark:text-yellow-400' : 'text-indigo-600 dark:text-indigo-400')
-          const iconBg = item.builtinBgCls ?? (item.type === 'agent' ? 'bg-violet-500/20' : item.type === 'skill' ? 'bg-yellow-500/20' : 'bg-indigo-500/20')
+          const iconColor = item.builtinColor ?? (item.type === 'agent' ? 'text-primary' : item.type === 'skill' ? 'text-yellow-600 dark:text-yellow-400' : 'text-indigo-600 dark:text-indigo-400')
+          const iconBg = item.builtinBgCls ?? (item.type === 'agent' ? 'bg-primary/20' : item.type === 'skill' ? 'bg-yellow-500/20' : 'bg-indigo-500/20')
           const displayName = item.builtinIcon
             ? BUILT_IN_MENTION_AGENTS.find((b) => b.id === item.name)?.name ?? item.name
             : formatName(item.name)

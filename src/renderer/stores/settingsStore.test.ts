@@ -21,7 +21,7 @@ import { ipc } from '@/lib/ipc'
 import type { AppSettings } from '@/types'
 
 const defaultState = {
-  settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 13, sidebarPosition: 'left' as const },
+  settings: { agentBin: 'prime-agent', agentProfiles: [], sidebarPosition: 'left' as const },
   isLoaded: false,
   availableModels: [],
   currentModelId: null,
@@ -45,9 +45,9 @@ beforeEach(() => {
 describe('settingsStore', () => {
   describe('loadSettings', () => {
     it('loads settings from IPC and merges with defaults', async () => {
-      vi.mocked(ipc.getSettings).mockResolvedValue({ fontSize: 16 } as never)
+      vi.mocked(ipc.getSettings).mockResolvedValue({ theme: 'light' } as never)
       await useSettingsStore.getState().loadSettings()
-      expect(useSettingsStore.getState().settings.fontSize).toBe(16)
+      expect(useSettingsStore.getState().settings.theme).toBe('light')
       expect(useSettingsStore.getState().settings.agentBin).toBe('prime-agent')
       expect(useSettingsStore.getState().isLoaded).toBe(true)
     })
@@ -63,35 +63,35 @@ describe('settingsStore', () => {
       const { loadBackup } = await import('@/lib/history-store')
       vi.mocked(loadBackup).mockResolvedValueOnce({
         threads: [], projects: [], softDeleted: [],
-        settings: { agentBin: 'prime-agent', agentProfiles: [], fontSize: 18, hasOnboardedV2: true, theme: 'light',
+        settings: { agentBin: 'prime-agent', agentProfiles: [], hasOnboardedV2: true, theme: 'light',
           projectPrefs: { '/ws': { iconOverride: { type: 'emoji', emoji: '🚀' } } } } as never,
       })
       await useSettingsStore.getState().loadSettings()
-      expect(useSettingsStore.getState().settings.fontSize).toBe(18)
+      expect(useSettingsStore.getState().settings.theme).toBe('light')
       expect(useSettingsStore.getState().settings.hasOnboardedV2).toBe(true)
       expect(useSettingsStore.getState().settings.projectPrefs?.['/ws']?.iconOverride).toEqual({ type: 'emoji', emoji: '🚀' })
       expect(ipc.saveSettings).toHaveBeenCalled()
     })
 
     it('does not restore from backup when user has already onboarded', async () => {
-      vi.mocked(ipc.getSettings).mockResolvedValue({ hasOnboardedV2: true, fontSize: 14 } as never)
+      vi.mocked(ipc.getSettings).mockResolvedValue({ hasOnboardedV2: true, theme: 'dark' } as never)
       const { loadBackup } = await import('@/lib/history-store')
       vi.mocked(loadBackup).mockResolvedValueOnce({
         threads: [], projects: [], softDeleted: [],
-        settings: { fontSize: 20, hasOnboardedV2: true } as never,
+        settings: { theme: 'light', hasOnboardedV2: true } as never,
       })
       await useSettingsStore.getState().loadSettings()
-      expect(useSettingsStore.getState().settings.fontSize).toBe(14)
+      expect(useSettingsStore.getState().settings.theme).toBe('dark')
       expect(ipc.saveSettings).not.toHaveBeenCalled()
     })
   })
 
   describe('saveSettings', () => {
     it('saves settings via IPC and updates state', async () => {
-      const newSettings = { ...defaultState.settings, fontSize: 18 }
+      const newSettings = { ...defaultState.settings, theme: 'light' as const }
       await useSettingsStore.getState().saveSettings(newSettings)
       expect(ipc.saveSettings).toHaveBeenCalledWith(newSettings)
-      expect(useSettingsStore.getState().settings.fontSize).toBe(18)
+      expect(useSettingsStore.getState().settings.theme).toBe('light')
     })
   })
 
@@ -307,8 +307,6 @@ describe('settingsStore', () => {
     const current: AppSettings = {
       agentBin: '/custom/bin/prime-agent',
       agentProfiles: [],
-      fontSize: 22,
-      chatFontSize: 18,
       sidebarPosition: 'right',
       inlineToolCalls: false,
       autoApprove: true,
@@ -323,8 +321,6 @@ describe('settingsStore', () => {
     it('resets user-tunable fields to the real store defaults', () => {
       const restored = buildRestoredDefaults(current)
       expect(restored.agentBin).toBe('prime-agent')
-      expect(restored.fontSize).toBe(19)
-      expect(restored.chatFontSize).toBe(15)
       expect(restored.sidebarPosition).toBe('left')
       expect(restored.inlineToolCalls).toBe(true)
       expect(restored.autoApprove).toBeUndefined()

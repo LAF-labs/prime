@@ -121,7 +121,7 @@ const TurnChip = memo(function TurnChip({
           >
             {confirm
               ? <IconAlertTriangle className="size-3 text-destructive" aria-hidden />
-              : <IconHistory className="size-3 text-violet-400" aria-hidden />}
+              : <IconHistory className="size-3" aria-hidden />}
             <span>{confirm ? t('Confirm') : t('Rollback')}</span>
           </button>
         </TooltipTrigger>

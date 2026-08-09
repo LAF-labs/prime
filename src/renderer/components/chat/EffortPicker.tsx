@@ -150,7 +150,7 @@ export const EffortPicker = memo(function EffortPicker() {
         className={cn(
           'flex min-w-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] font-medium transition-colors',
           isElevatedLevel(current)
-            ? 'text-violet-600 dark:text-violet-400 hover:text-violet-500 dark:hover:text-violet-300'
+            ? 'text-primary hover:text-primary/80'
             : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -181,7 +181,7 @@ export const EffortPicker = memo(function EffortPicker() {
                 className={cn(
                   'flex w-full items-start gap-2 whitespace-nowrap px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent',
                   isActive ? 'font-medium text-foreground' : 'text-muted-foreground',
-                  isActive && isElevatedLevel(level) && 'text-violet-600 dark:text-violet-400',
+                  isActive && isElevatedLevel(level) && 'text-primary',
                 )}
               >
                 <span className="min-w-0">

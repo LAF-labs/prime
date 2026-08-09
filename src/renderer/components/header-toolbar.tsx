@@ -52,8 +52,8 @@ const SplitToggleButton = memo(function SplitToggleButton() {
             className={cn(
               "inline-flex size-7 items-center justify-center text-xs transition-colors",
               isSplit
-                ? "bg-violet-500/20 text-violet-300"
-                : "text-violet-400/70 hover:bg-violet-500/10 hover:text-violet-300",
+                ? "bg-primary/15 text-primary"
+                : "text-primary/70 hover:bg-primary/10 hover:text-primary",
             )}
           >
             <IconLayoutColumns className="size-3.5" aria-hidden />

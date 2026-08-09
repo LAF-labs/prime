@@ -79,8 +79,6 @@ interface SettingsStore {
 const defaultSettings: AppSettings = {
   agentBin: 'prime-agent',
   agentProfiles: [],
-  fontSize: 19,
-  chatFontSize: 15,
   sidebarPosition: 'left',
   // Default to true — new users get inline tool calls by default.
   // Existing users who never explicitly set this will also get the new default.
@@ -279,10 +277,3 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 }))
 
-/**
- * Resolve the chat font size with fallback to the global UI font size.
- * Use everywhere chat content (markdown, assistant text, user bubble, chat textarea) is rendered
- * so that users on existing settings (no chatFontSize key) keep current behavior.
- */
-export const selectChatFontSize = (s: { settings: AppSettings }): number =>
-  s.settings.chatFontSize ?? s.settings.fontSize ?? 15

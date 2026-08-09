@@ -18,7 +18,7 @@ const STATUS_DOT: Record<string, { cls: string; label: string }> = {
 }
 
 const BUILT_IN_AGENTS = [
-  { id: 'code', name: 'Default', description: 'Code, edit, and execute', icon: IconCode, color: 'text-blue-600 dark:text-blue-400' },
+  { id: 'code', name: 'Default', description: 'Code, edit, and execute', icon: IconCode, color: 'text-primary' },
   { id: 'plan', name: 'Planner', description: 'Plan before coding', icon: IconListCheck, color: 'text-teal-600 dark:text-teal-400' },
 ] as const
 
@@ -145,7 +145,7 @@ export const AgentPanel = memo(function AgentPanel({ onDismiss }: { onDismiss: (
               const isActive = currentModeId === agent.name
               return (
                 <li key={`${agent.source}-${agent.name}`} role="option" aria-selected={isActive} onMouseDown={(e) => { e.preventDefault(); handleSelectAgent(agent.name) }} className={cn('flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors', isActive ? 'text-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground')}>
-                  <IconRobot className={cn('size-3.5 shrink-0', isActive ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground')} />
+                  <IconRobot className={cn('size-3.5 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
                   <span className={cn('flex-1 truncate', isActive && 'font-medium')}>{formatName(agent.name)}</span>
                   <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{agent.description.slice(0, 60)}</span>
                   {isActive && <span className="shrink-0 text-[10px] text-primary">active</span>}

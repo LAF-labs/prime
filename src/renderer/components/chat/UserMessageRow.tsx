@@ -11,7 +11,6 @@ import { CollapsedAnswers } from './CollapsedAnswers'
 import { highlightNode, SearchQueryContext } from './HighlightText'
 import { useFilePreviewStore } from '@/stores/filePreviewStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { useSettingsStore, selectChatFontSize } from '@/stores/settingsStore'
 import { FileTypeIcon } from '@/components/file-tree/FileTypeIcon'
 import { useMessageListTaskId } from './MessageList'
 import type { UserMessageRow as UserMessageRowData } from '@/lib/timeline'
@@ -30,7 +29,7 @@ function renderWithMentions(text: string): ReactNode {
     if (ref.startsWith('agent:')) {
       const name = ref.slice(6)
       parts.push(
-        <span key={idx} className="mx-0.5 inline-flex items-center gap-0.5 rounded bg-blue-500/15 px-1 py-px align-middle text-[13px] font-medium leading-normal text-blue-600 dark:text-blue-400">
+        <span key={idx} className="mx-0.5 inline-flex items-center gap-0.5 rounded bg-primary/15 px-1 py-px align-middle text-[13px] font-medium leading-normal text-primary">
           <IconRobot className="size-3 shrink-0" />{name}
         </span>
       )
@@ -162,7 +161,6 @@ const AttachmentPill = memo(function AttachmentPill({ name, type, src }: { name:
 })
 
 export const UserMessageRow = memo(function UserMessageRow({ row }: { row: UserMessageRowData }) {
-  const chatFontSize = useSettingsStore(selectChatFontSize)
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchQuery = useContext(SearchQueryContext)
@@ -213,7 +211,7 @@ export const UserMessageRow = memo(function UserMessageRow({ row }: { row: UserM
           <div className="rounded-2xl rounded-br-md border border-border/40 bg-card/80 px-4 py-2.5">
                 <div className="space-y-2">
                   {displayText && (
-                    <p className="whitespace-pre-wrap break-words leading-[1.7] text-foreground" style={{ fontSize: chatFontSize }}>
+                    <p className="whitespace-pre-wrap break-words leading-[1.7] text-foreground" style={{ fontSize: 'var(--chat-font-size, 16px)' }}>
                       {highlightNode(renderWithMentions(displayText), searchQuery)}
                     </p>
                   )}

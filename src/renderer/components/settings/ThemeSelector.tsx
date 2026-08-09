@@ -1,4 +1,5 @@
 import { IconCheck } from '@tabler/icons-react'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import type { ThemeMode } from '@/types'
 
@@ -18,22 +19,22 @@ const THEME_COLORS: Record<'dark' | 'light', {
   primary: string
 }> = {
   dark: {
-    bg: '#0D0D0D',
-    sidebar: '#111111',
-    card: '#141414',
-    fg: '#f0f0f0',
-    fgMuted: '#555555',
-    border: 'rgba(255,255,255,0.10)',
-    primary: '#6366f1',
+    bg: '#262624',
+    sidebar: '#1f1e1d',
+    card: '#30302e',
+    fg: '#ecebe6',
+    fgMuted: '#57544e',
+    border: 'rgba(236,235,230,0.10)',
+    primary: '#d97757',
   },
   light: {
-    bg: '#ffffff',
-    sidebar: '#f7f7f8',
-    card: '#fafafa',
-    fg: '#1a1a1a',
-    fgMuted: '#c0c0c0',
-    border: '#e5e5e5',
-    primary: '#6366f1',
+    bg: '#faf9f5',
+    sidebar: '#f5f4ee',
+    card: '#ffffff',
+    fg: '#2b2a27',
+    fgMuted: '#d9d5c9',
+    border: '#e8e6dc',
+    primary: '#c96442',
   },
 }
 
@@ -166,7 +167,7 @@ const ThemeSelector = ({ value, onChange }: ThemeSelectorProps) => (
                 isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground',
               )}
             >
-              {label}
+              {t(label)}
             </span>
           </div>
         </button>

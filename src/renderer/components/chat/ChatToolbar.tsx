@@ -48,7 +48,7 @@ export const ChatToolbar = memo(function ChatToolbar({
   onSend,
   onPause,
 }: ChatToolbarProps) {
-  const buttonBg = isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-blue-500/90 hover:bg-blue-500'
+  const buttonBg = isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-primary/90 hover:bg-primary'
   // Non-reasoning models report a single level, and EffortPicker hides itself —
   // the separator has to disappear with it or the group renders "· ·".
   const { hasChoice: hasEffortChoice } = useEffortOptions()
@@ -111,7 +111,7 @@ export const ChatToolbar = memo(function ChatToolbar({
                 data-testid="pause-button"
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full text-white transition-all duration-150 hover:scale-105',
-                  isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-blue-500/90 hover:bg-blue-500',
+                  isPlanMode ? 'bg-teal-500/90 hover:bg-teal-500' : 'bg-primary/90 hover:bg-primary',
                 )}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">

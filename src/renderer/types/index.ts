@@ -222,13 +222,6 @@ export type ThemeMode = 'dark' | 'light' | 'system'
 export interface AppSettings {
   agentBin: string
   agentProfiles: AgentProfile[]
-  /** Global UI font size in px (sidebar, file tree, header, dialogs, etc.). */
-  fontSize: number
-  /**
-   * Chat content font size in px (markdown body, assistant text, user message bubble,
-   * and the chat textarea / "Type a message" affordance). Falls back to {@link fontSize}.
-   */
-  chatFontSize?: number
   defaultModel?: string | null
   autoApprove?: boolean
   /**

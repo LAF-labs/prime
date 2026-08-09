@@ -6,11 +6,12 @@ import { SettingsCard, SettingsGrid } from './settings-shared'
 /**
  * Web search status.
  *
- * LAF Agent uses the same mechanism Claude and Codex do: Anthropic and OpenAI
- * run the search **server-side** inside the model turn, so there is no search
- * API key to manage — it comes with the model. Providers without a server-side
- * search tool (OpenAI-compatible third parties, local servers) can still read
- * pages through the `web_fetch` tool, which needs no key at all.
+ * LAF Agent uses the same mechanism Claude and Codex do: Anthropic, OpenAI,
+ * and DeepSeek (Responses API) run the search **server-side** inside the model
+ * turn, so there is no search API key to manage — it comes with the model.
+ * Providers without a server-side search tool (OpenAI-compatible third
+ * parties, local servers) can still read pages through the `web_fetch` tool,
+ * which needs no key at all.
  */
 export const WebSearchCard = memo(function WebSearchCard() {
   const t = useT()
@@ -22,7 +23,7 @@ export const WebSearchCard = memo(function WebSearchCard() {
           <div className="flex items-start gap-2.5">
             <IconWorldSearch size={15} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div>
-              <p className="text-[12px] font-medium text-foreground">{t('Built into Anthropic and OpenAI models')}</p>
+              <p className="text-[12px] font-medium text-foreground">{t('Built into Anthropic, OpenAI, and DeepSeek models')}</p>
               <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{t('Search runs on the provider’s servers as part of the model turn — the same way Claude and Codex do it. No search API key, nothing to configure.')}</p>
             </div>
           </div>

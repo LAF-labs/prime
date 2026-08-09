@@ -6,7 +6,7 @@ import type { AppSettings } from '@/types'
 const baseDraft = (patch: Partial<AppSettings> = {}): AppSettings => ({
   agentBin: 'prime-agent',
   agentProfiles: [],
-  fontSize: 14,
+  
   permissionMode: 'ask',
   ...patch,
 })

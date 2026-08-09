@@ -245,7 +245,9 @@ pub(crate) fn create_new_window(app: &tauri::AppHandle) {
         .inner_size(1400.0, 900.0)
         .min_inner_size(800.0, 600.0)
         .decorations(true)
-        .zoom_hotkeys_enabled(true);
+        // Typography is fixed app-wide — OS zoom hotkeys would reintroduce
+        // the growing/shrinking UI the fixed sizes exist to prevent.
+        .zoom_hotkeys_enabled(false);
 
     #[cfg(target_os = "macos")]
     let builder = builder

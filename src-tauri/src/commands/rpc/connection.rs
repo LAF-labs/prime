@@ -256,8 +256,8 @@ pub(crate) fn spawn_connection(
 
 /// Spawn a connection and stash a one-shot preamble that will be prepended to
 /// the very first `Prompt` command this connection receives. Used by
-/// `task_fork` and thread resumption so the freshly spawned prime-agent
-/// subprocess inherits the prior transcript on the user's next message.
+/// thread resumption, so the freshly spawned prime-agent subprocess inherits
+/// the prior transcript on the user's next message.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_connection_with_preamble(
     task_id: String,
@@ -412,12 +412,11 @@ pub(crate) async fn run_rpc_connection(
     let mut cmd = tokio::process::Command::new(&launch.program);
     cmd.args(&launch.prefix_args);
     cmd.arg("--mode").arg("rpc");
-    // Native session continuity: resume/fork the prime-agent session file so
-    // the model keeps its full prior context (tool results, compaction state)
+    // Native session continuity: resume the prime-agent session file so the
+    // model keeps its full prior context (tool results, compaction state)
     // instead of a lossy transcript replay.
     match &session_mode {
         SessionMode::Resume(file) => { cmd.arg("-r").arg(file); }
-        SessionMode::Fork(file) => { cmd.arg("--fork").arg(file); }
         SessionMode::New => {}
     }
     // Goal / autonomous only exist as spawn-time flags — the GUI reaches them
@@ -1134,7 +1133,7 @@ fn try_emit_session_init(ctx: &Arc<ReaderCtx>) {
     let session_id = state.get("sessionId").and_then(|v| v.as_str());
     let session_file = state.get("sessionFile").and_then(|v| v.as_str());
 
-    // Persist the session file on the task so resume/fork can go native.
+    // Persist the session file on the task so resume can go native.
     if let Some(file) = session_file {
         use tauri::Manager;
         if let Some(managed_state) = ctx.app.try_state::<AgentState>() {

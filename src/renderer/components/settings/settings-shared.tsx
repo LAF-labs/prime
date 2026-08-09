@@ -57,7 +57,6 @@ export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
   { label: 'App icon', description: 'Upload a custom app icon for the dock and About dialog', section: 'appearance', keywords: 'icon logo branding image upload custom dock' },
   { label: 'Inline tool calls', description: 'Show each tool entry between paragraphs as it happens', section: 'appearance', keywords: 'inline tool calls activity flow interleave between paragraphs' },
   { label: 'Keyboard shortcuts', description: 'View all available keyboard shortcuts', section: 'keymap', keywords: 'keyboard shortcuts hotkeys keybindings' },
-  { label: 'Max concurrent agents', description: 'How many agents may run at once', section: 'advanced', keywords: 'concurrent agents limit threads processes parallel load memory cap kernel' },
   { label: 'Usage statistics', description: 'Local stats for the dashboard — nothing leaves this machine', section: 'advanced', keywords: 'analytics privacy usage statistics local opt-out disable' },
   { label: 'Export as Markdown', description: 'Right-click a thread in the sidebar to export the conversation', section: 'advanced', keywords: 'export markdown save conversation thread backup' },
   { label: 'Task completion report', description: 'Summary card when a task finishes', section: 'advanced', keywords: 'report summary task completion' },

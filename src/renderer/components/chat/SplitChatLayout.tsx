@@ -33,6 +33,16 @@ export const SplitChatLayout = memo(function SplitChatLayout() {
   }, [closeSplit])
 
   const handleReset = useCallback(() => setSplitRatio(0.5), [setSplitRatio])
+  // Closing one panel leaves the *other* thread on screen, which is what the
+  // ✕ on a panel header reads as.
+  const handleCloseLeft = useCallback(() => {
+    const sv = useTaskStore.getState().splitViews.find((v) => v.id === useTaskStore.getState().activeSplitId)
+    closeSplit(sv?.right)
+  }, [closeSplit])
+  const handleCloseRight = useCallback(() => {
+    const sv = useTaskStore.getState().splitViews.find((v) => v.id === useTaskStore.getState().activeSplitId)
+    closeSplit(sv?.left)
+  }, [closeSplit])
   const handleFocusLeft = useCallback(() => {
     const state = useTaskStore.getState()
     if (state.focusedPanel !== 'left') {
@@ -70,7 +80,7 @@ export const SplitChatLayout = memo(function SplitChatLayout() {
         role="region"
         aria-label={t('Left chat panel')}
       >
-        <SplitPanelHeader taskId={left} isFocused={focusedPanel === 'left'} side="left" onClose={closeSplit} onFocus={handleFocusLeft} />
+        <SplitPanelHeader taskId={left} isFocused={focusedPanel === 'left'} onClose={handleCloseLeft} onFocus={handleFocusLeft} />
         <ChatPanel taskId={left} />
       </div>
 
@@ -83,7 +93,7 @@ export const SplitChatLayout = memo(function SplitChatLayout() {
         role="region"
         aria-label={t('Right chat panel')}
       >
-        <SplitPanelHeader taskId={right} isFocused={focusedPanel === 'right'} side="right" onClose={closeSplit} onFocus={handleFocusRight} />
+        <SplitPanelHeader taskId={right} isFocused={focusedPanel === 'right'} onClose={handleCloseRight} onFocus={handleFocusRight} />
         <ChatPanel taskId={right} />
       </div>
     </div>

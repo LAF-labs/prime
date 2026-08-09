@@ -157,10 +157,10 @@ async function sendMessageDirect(targetTaskId: string, msg: string, attachments?
   }
 }
 
-// Regenerate and edit-and-resend re-enter this exact dispatch pipeline
-// (checkpoint creation, dispatch snapshot, turn claim, SQLite persistence)
-// instead of duplicating it. Module-level registration: ChatPanel is always
-// loaded before any message row can render.
+// Callers that re-send a message (the compaction handoff) re-enter this exact
+// dispatch pipeline — checkpoint creation, dispatch snapshot, turn claim,
+// SQLite persistence — instead of duplicating it. Module-level registration:
+// ChatPanel is always loaded before any message row can render.
 registerResendHandler(sendMessageDirect)
 
 interface DispatchContext {

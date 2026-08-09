@@ -205,7 +205,7 @@ export const ChatInput = memo(function ChatInput({ disabled, disabledReason, con
         <div className={cn(
           'relative min-w-0 rounded-[20px] border-2 bg-card transition-colors duration-200',
           borderIdle, borderFocus,
-          isDragOver && 'border-primary/50',
+          isDragOver && 'border-dashed border-primary/60',
         )}>
           <DragOverlay visible={isDragOver} />
           {contextRingNode && (

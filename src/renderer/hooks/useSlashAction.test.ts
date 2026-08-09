@@ -124,37 +124,6 @@ describe('useSlashAction /usage toggle', () => {
   })
 })
 
-describe('useSlashAction /fork', () => {
-  it('/fork calls forkTask on the selected task', () => {
-    const forkSpy = vi.spyOn(useTaskStore.getState(), 'forkTask').mockResolvedValue(undefined)
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/fork') })
-    expect(forkSpy).toHaveBeenCalledWith('task-1')
-    forkSpy.mockRestore()
-  })
-
-  it('/fork does nothing when no task is selected', () => {
-    useTaskStore.setState({ selectedTaskId: null })
-    const forkSpy = vi.spyOn(useTaskStore.getState(), 'forkTask').mockResolvedValue(undefined)
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/fork') })
-    expect(forkSpy).not.toHaveBeenCalled()
-    forkSpy.mockRestore()
-  })
-
-  it('execute returns true for /fork', () => {
-    const { result } = renderHook(() => useSlashAction())
-    let handled: boolean
-    act(() => { handled = result.current.execute('/fork') })
-    expect(handled!).toBe(true)
-  })
-
-  it('/fork leaves no panel open', () => {
-    const { result } = renderHook(() => useSlashAction())
-    act(() => { result.current.execute('/fork') })
-    expect(result.current.panel).toBeNull()
-  })
-})
 
 describe('createTask passes modeId', () => {
   it('includes modeId when currentModeId is plan', async () => {

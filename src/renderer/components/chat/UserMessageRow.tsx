@@ -1,7 +1,7 @@
 import { t } from '@/lib/i18n'
 import { memo, useState, useRef, useCallback, useContext, useMemo, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { IconCopy, IconCheck, IconPhoto, IconFileText, IconFile, IconRobot, IconBolt, IconGitFork, IconX, IconPencil } from '@tabler/icons-react'
+import { IconCopy, IconCheck, IconPhoto, IconFileText, IconFile, IconRobot, IconBolt, IconX } from '@tabler/icons-react'
 import {
   Tooltip,
   TooltipContent,
@@ -10,9 +10,8 @@ import {
 import { CollapsedAnswers } from './CollapsedAnswers'
 import { highlightNode, SearchQueryContext } from './HighlightText'
 import { useFilePreviewStore } from '@/stores/filePreviewStore'
-import { useTaskStore } from '@/stores/taskStore'
 import { FileTypeIcon } from '@/components/file-tree/FileTypeIcon'
-import { useMessageListTaskId } from './MessageList'
+import { RestoreToHereButton } from './RestoreToHereButton'
 import type { UserMessageRow as UserMessageRowData } from '@/lib/timeline'
 
 /** Match all @mentions: @agent:name, @skill:name, @file/paths */
@@ -173,11 +172,6 @@ export const UserMessageRow = memo(function UserMessageRow({ row }: { row: UserM
     })
   }, [row.content])
 
-  const handleFork = useCallback(() => {
-    const { selectedTaskId, forkTask, isForking } = useTaskStore.getState()
-    if (selectedTaskId && !isForking) void forkTask(selectedTaskId)
-  }, [])
-
   const timeStr = row.timestamp
     ? new Date(row.timestamp).toLocaleTimeString()
     : ''
@@ -187,19 +181,7 @@ export const UserMessageRow = memo(function UserMessageRow({ row }: { row: UserM
   const isQuestionAnswer = !!row.questionAnswers?.length
   const displayText = cleanText
 
-  const taskId = useMessageListTaskId()
-  const isTaskBusy = useTaskStore((s) => taskId ? s.tasks[taskId]?.status === 'running' : false)
-  const canEditResend = !!taskId && typeof row.messageIndex === 'number' && !isQuestionAnswer
-
-  const handleEditResend = useCallback(() => {
-    if (!taskId || typeof row.messageIndex !== 'number') return
-    // Truncate the conversation to just before this message, then prefill the
-    // chat input with its text so the user can edit and send a revised version.
-    // Attachment blocks are stripped — re-editing base64 blobs is useless.
-    const text = cleanText || row.content
-    useTaskStore.getState().truncateFromMessage(taskId, row.messageIndex)
-    document.dispatchEvent(new CustomEvent('queue-edit-message', { detail: { text } }))
-  }, [taskId, row.messageIndex, cleanText, row.content])
+  const canRestore = typeof row.messageIndex === 'number' && !isQuestionAnswer
 
   return (
     <div data-testid="user-message-row" className="pb-4" data-timeline-row-kind="user-message">
@@ -226,40 +208,10 @@ export const UserMessageRow = memo(function UserMessageRow({ row }: { row: UserM
           </div>
           )}
           <div className="mt-1 flex items-center justify-end gap-1.5 px-1">
-            {canEditResend && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={handleEditResend}
-                    disabled={isTaskBusy}
-                    aria-label={t('Edit and resend')}
-                    data-testid="edit-resend-button"
-                    className="rounded-md p-0.5 text-muted-foreground/70 opacity-50 transition-all group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-30"
-                  >
-                    <IconPencil className="size-3" aria-hidden />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {t('Edit and resend')}
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {!isQuestionAnswer && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={handleFork}
-                    className="rounded-md p-0.5 text-muted-foreground/70 opacity-50 transition-all group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
-                  >
-                    <IconGitFork className="size-3" aria-hidden />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {t('Fork thread')}
-                </TooltipContent>
-              </Tooltip>
+            {canRestore && (
+              <div className="opacity-50 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <RestoreToHereButton messageIndex={row.messageIndex!} />
+              </div>
             )}
             <Tooltip>
               <TooltipTrigger asChild>

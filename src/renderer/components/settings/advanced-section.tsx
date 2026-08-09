@@ -20,15 +20,6 @@ const BTW_MIN_CHARS = 100
 const BTW_MAX_CHARS = 10000
 const BTW_DEFAULT_CHARS = 1220
 
-/** 0 is the deliberate opt-out ("no limit"), not an empty value. */
-const CONCURRENT_AGENTS_MIN = 0
-const CONCURRENT_AGENTS_MAX = 64
-/** Mirrors `DEFAULT_MAX_CONCURRENT_AGENTS` in src-tauri/src/commands/settings.rs. */
-const CONCURRENT_AGENTS_DEFAULT = 8
-
-const clampConcurrentAgents = (n: number): number =>
-  Math.max(CONCURRENT_AGENTS_MIN, Math.min(CONCURRENT_AGENTS_MAX, Math.floor(n)))
-
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return '0 B'
   if (bytes < 1024) return `${bytes} B`
@@ -71,19 +62,6 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     updateDraft({ btwMaxChars: Math.max(BTW_MIN_CHARS, Math.min(BTW_MAX_CHARS, Number(e.target.value) || BTW_DEFAULT_CHARS)) })
   }, [updateDraft])
 
-  const handleMaxConcurrentAgentsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.trim()
-    // An empty field means "unset" — the backend then applies its own default.
-    if (raw === '') {
-      updateDraft({ maxConcurrentAgents: null })
-      return
-    }
-    const parsed = Number(raw)
-    if (!Number.isFinite(parsed)) return
-    // Clamp rather than fall back on falsiness, so a typed 0 survives as "no limit".
-    updateDraft({ maxConcurrentAgents: clampConcurrentAgents(parsed) })
-  }, [updateDraft])
-
   const handleAnalyticsToggle = useCallback((checked: boolean) => {
     updateDraft({ analyticsEnabled: checked })
   }, [updateDraft])
@@ -94,34 +72,11 @@ export const AdvancedSection = memo(function AdvancedSection({ draft, updateDraf
     onClose()
   }, [onClose])
 
-  // `?? default` keeps a stored 0 intact; only null/undefined fall back.
-  const concurrentAgents = draft.maxConcurrentAgents ?? CONCURRENT_AGENTS_DEFAULT
-  const isConcurrencyUnlimited = concurrentAgents === 0
-
   return (
     <>
       <SectionHeader section="advanced" />
 
       <SettingsSection title={t('Behavior')} description={t('How the agent runs and reports back')}>
-        <SettingRow
-          label={t('Max concurrent agents')}
-          description={
-            isConcurrencyUnlimited
-              ? t('No limit. Every chat you open runs its own agent process — lift the cap only if your machine can take it.')
-              : t('Up to {count} chats run at once. Each one runs its own agent process, so this caps machine load. Set 0 for no limit.', { count: concurrentAgents })
-          }
-        >
-          <input
-            type="number"
-            min={CONCURRENT_AGENTS_MIN}
-            max={CONCURRENT_AGENTS_MAX}
-            step={1}
-            value={concurrentAgents}
-            onChange={handleMaxConcurrentAgentsChange}
-            className={cn(SETTINGS_INPUT_CLASS, 'w-20 tabular-nums')}
-            aria-label={t('Maximum agents running at once')}
-          />
-        </SettingRow>
         <SettingRow label={t('Task completion report')} description={t('Summary card when a task finishes')}>
           <Switch
             checked={draft.coAuthorJsonReport ?? true}

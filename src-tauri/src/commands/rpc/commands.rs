@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::commands::agent_launch::{resolve as resolve_launch, AgentLaunch};
 use super::connection::{composite_model_id, map_model, spawn_connection};
 use super::types::*;
-use super::types::{LaunchOptions, SessionMode};
+use super::types::SessionMode;
 use super::now_rfc3339;
 
 /// Resolve the model id that should be applied to a freshly spawned agent
@@ -57,63 +57,7 @@ pub(crate) fn build_permission_config(
 /// replacing a connection, not adding one.
 ///
 /// The check and the claim happen under one lock acquisition: the slot is
-/// *reserved* (recorded in `reserved_slots`) before this returns, so two
-/// concurrent `task_create` calls cannot both see a free slot and then both
-/// spawn. The returned guard releases the reservation on drop — hold it until
-/// the connection handle has been inserted into `connections` (at which point
-/// the live handle itself is what's counted) or the spawn has failed.
-pub(crate) fn reserve_agent_slot<'a>(
-    state: &'a AgentState,
-    configured: Option<u32>,
-    task_id: &str,
-) -> Result<SlotReservation<'a>, String> {
-    let conns = state.connections.lock();
-    let mut reserved = state.reserved_slots.lock();
-    // A reservation that also has a live handle must not count twice, and an
-    // id that is already live (or mid-spawn) is replacing, not adding.
-    let live = conns.len() + reserved.iter().filter(|r| !conns.contains_key(*r)).count();
-    let replacing = conns.contains_key(task_id) || reserved.contains(task_id);
-    agent_slot_available(configured, live, replacing)?;
-    reserved.insert(task_id.to_string());
-    Ok(SlotReservation { reserved: &state.reserved_slots, id: task_id.to_string() })
-}
-
-/// RAII guard for a claimed agent slot. Dropping it releases the reservation
-/// — on every path: successful spawn (the inserted handle takes over the
-/// count), spawn failure, and early `?` returns alike.
-pub(crate) struct SlotReservation<'a> {
-    reserved: &'a parking_lot::Mutex<std::collections::HashSet<String>>,
-    id: String,
-}
-
-impl Drop for SlotReservation<'_> {
-    fn drop(&mut self) {
-        self.reserved.lock().remove(&self.id);
-    }
-}
-
-/// The decision itself, separated from the lock so it can be tested.
-pub(crate) fn agent_slot_available(
-    configured: Option<u32>,
-    live: usize,
-    replacing: bool,
-) -> Result<(), String> {
-    let limit = configured.unwrap_or(crate::commands::settings::DEFAULT_MAX_CONCURRENT_AGENTS);
-    if limit == 0 {
-        return Ok(()); // explicitly unlimited
-    }
-    if replacing || live < limit as usize {
-        return Ok(());
-    }
-    Err(format!(
-        "{} agent{} already running, which is the current limit. \
-         Close a thread, or raise the limit in Settings.",
-        limit,
-        if limit == 1 { " is" } else { "s are" }
-    ))
-}
-
-// ── Tauri Commands ─────────────────────────────────────────────────────
+/// ── Tauri Commands ─────────────────────────────────────────────────────
 
 #[tauri::command]
 pub async fn task_create(
@@ -132,13 +76,10 @@ pub async fn task_create(
     // The settings guard lives in a block, not until a `drop()`: this fn is
     // async now, and the future-Send analysis does not credit explicit drops
     // — a parking_lot guard reachable at the `.await` makes the whole future
-    // !Send. `_slot` (the reserved agent slot) escapes the block and is held
-    // until the connection handle is inserted — see `reserve_agent_slot`.
-    let (_slot, agent_bin, co_author, co_author_json_report, tight_sandbox, initial_model_id, permission_config) = {
+    // !Send.
+    let (agent_bin, co_author, co_author_json_report, tight_sandbox, initial_model_id, permission_config) = {
         let settings = settings_state.0.lock();
-        let slot = reserve_agent_slot(state.inner(), settings.settings.max_concurrent_agents, &id)?;
         (
-            slot,
             settings.settings.agent_bin.clone(),
             settings.settings.co_author,
             settings.settings.co_author_json_report,
@@ -199,7 +140,6 @@ pub async fn task_create(
         context_usage: None,
         auto_approve: Some(auto_approve),
         user_paused: None,
-        parent_task_id: None,
         session_file: native_session_file.clone(),
         launch_options: params.launch_options.clone(),
     };
@@ -304,8 +244,7 @@ pub async fn task_create(
     // the user's first prompt instead of an in-process model session.
     //
     // The transcript is capped to keep the resumption preamble well under any
-    // model's input window. Logic lives in `build_resumption_preamble` so
-    // `task_fork` can share the same cap/format.
+    // model's input window. Logic lives in `build_resumption_preamble`.
     let prior_messages: &[TaskMessage] = if native_session_file.is_some() {
         &[] // native resume carries the full context — no replay needed
     } else {
@@ -396,8 +335,6 @@ pub fn task_send_message(
 
     if need_reconnect {
         let settings = settings_state.0.lock();
-        // Held until the reconnected handle is inserted below.
-        let _slot = reserve_agent_slot(state.inner(), settings.settings.max_concurrent_agents, &task_id)?;
         let agent_bin = settings.settings.agent_bin.clone();
 
         let (workspace, task_session_file, stored_options) = {
@@ -434,7 +371,7 @@ pub fn task_send_message(
         };
 
         // A fresh session gets the transcript replayed, exactly as task_create
-        // and task_fork do. Without this — and a crash during the very first
+        // does. Without this — and a crash during the very first
         // turn guarantees there is no session file yet — the reconnect sent
         // the raw message alone, so the user was told "send a new message to
         // continue" and the agent then had total amnesia about the
@@ -577,133 +514,6 @@ pub fn task_delete(state: tauri::State<'_, AgentState>, task_id: String) -> Resu
     }
     state.tasks.lock().remove(&task_id);
     Ok(())
-}
-
-#[tauri::command]
-pub async fn task_fork(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AgentState>,
-    settings_state: tauri::State<'_, crate::commands::settings::SettingsState>,
-    params: ForkTaskParams,
-) -> Result<Task, String> {
-    let task_id = &params.task_id;
-    // A fork is an additional agent, not a replacement — reserve under the
-    // fork's own fresh id so an existing slot for the parent doesn't wave it
-    // through. Held until the fork's connection handle is inserted below.
-    let new_id = Uuid::new_v4().to_string();
-    let _slot = {
-        let limit = settings_state.0.lock().settings.max_concurrent_agents;
-        reserve_agent_slot(state.inner(), limit, &new_id)?
-    };
-    let parent = {
-        let tasks = state.tasks.lock();
-        tasks.get(task_id).cloned()
-    };
-    let workspace = parent.as_ref().map(|p| p.workspace.clone())
-        .or(params.workspace)
-        .ok_or("No workspace found for task")?;
-    let parent_name = parent.as_ref().map(|p| p.name.clone())
-        .or(params.parent_name)
-        .unwrap_or_else(|| "thread".to_string());
-    let parent_session_file = parent
-        .as_ref()
-        .and_then(|p| p.session_file.clone())
-        .or(params.session_file)
-        .filter(|f| std::path::Path::new(f).exists());
-    let mut parent_messages = parent.as_ref().map(|p| p.messages.clone()).unwrap_or_default();
-
-    // Normalize tool-call statuses on the cloned messages. The parent may be
-    // mid-stream when forked; non-terminal statuses (`pending`, `in_progress`)
-    // would render in the fork as if work were ongoing. Fix this on the data
-    // before storing it on the new task.
-    //
-    // Note: there's a benign race here — the parent may complete a tool call
-    // between our clone and this sanitize. The fork is a point-in-time snapshot
-    // and the user can always see the parent's live state in its own thread.
-    super::sanitize_forked_messages(&mut parent_messages);
-
-    let now = now_rfc3339();
-    let settings = settings_state.0.lock();
-    let agent_bin = settings.settings.agent_bin.clone();
-    let tight_sandbox = settings.settings.project_prefs.as_ref()
-        .and_then(|p| p.get(&workspace))
-        .and_then(|pp| pp.tight_sandbox)
-        .unwrap_or(true);
-    let initial_model_id = resolve_initial_model(None, &workspace, &settings.settings);
-    let permission_config = build_permission_config(&settings.settings, &workspace);
-    // The fork inherits the workspace's current permission mode; the atomic
-    // follows it, and the gate enforces acceptEdits/rules from the config.
-    let auto_approve = permission_config.mode == "auto";
-    drop(settings);
-
-    // Build the transcript-replay preamble from the parent's messages. The
-    // freshly spawned prime-agent subprocess has no memory of the parent's
-    // conversation, so we ship the transcript on the user's *next* prompt.
-    // Stored on the connection handle and consumed on the first Prompt — the
-    // fork lands in `paused` state with no model traffic until the user sends.
-    let pending_preamble = if parent_session_file.is_some() {
-        String::new() // native --fork carries the full context
-    } else {
-        super::build_resumption_preamble(
-        &parent_messages,
-        "Forked conversation",
-        "This thread was forked from an earlier conversation. The transcript \
-         below is for context only — do not repeat prior work or re-execute \
-         completed tool calls. The user's new message follows after the \
-         transcript and may diverge from the original direction.",
-    )
-    };
-
-    let fork_task = Task {
-        id: new_id.clone(),
-        name: format!("fork: {}", parent_name),
-        workspace: workspace.clone(),
-        status: "paused".to_string(),
-        created_at: now.clone(),
-        messages: {
-            let mut msgs = parent_messages;
-            msgs.push(TaskMessage {
-                role: "system".to_string(),
-                content: format!("Forked from: {}", parent_name),
-                timestamp: now,
-                tool_calls: None,
-                tool_call_splits: None,
-                thinking: None,
-            });
-            msgs
-        },
-        pending_permission: None,
-        plan: None,
-        context_usage: None,
-        auto_approve: Some(auto_approve),
-        user_paused: None,
-        parent_task_id: Some(task_id.clone()),
-        session_file: None,
-        launch_options: None,
-    };
-    state.tasks.lock().insert(new_id.clone(), fork_task.clone());
-    let preamble_opt = if pending_preamble.is_empty() { None } else { Some(pending_preamble) };
-    let launch = resolve_launch(&app, &agent_bin);
-    let session_mode = match parent_session_file {
-        Some(f) => SessionMode::Fork(f),
-        None => SessionMode::New,
-    };
-    let handle = super::connection::spawn_connection_with_preamble(
-        new_id.clone(),
-        workspace,
-        launch,
-        auto_approve,
-        app,
-        None,
-        initial_model_id,
-        tight_sandbox,
-        session_mode,
-        LaunchOptions::default(),
-        permission_config,
-        preamble_opt,
-    )?;
-    state.connections.lock().insert(new_id, handle);
-    Ok(fork_task)
 }
 
 #[tauri::command]

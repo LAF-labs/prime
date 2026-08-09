@@ -20,7 +20,6 @@ All frontend-to-backend communication in LAF Agent uses Tauri's IPC bridge:
 | `task_resume` | `ipc.resumeTask` | `taskId: string` | `void` | Resume a paused task. |
 | `task_cancel` | `ipc.cancelTask` | `taskId: string` | `void` | Cancel a running task. |
 | `task_delete` | `ipc.deleteTask` | `taskId: string` | `void` | Delete a task and its history. |
-| `task_fork` | `ipc.forkTask` | `taskId: string, workspace?: string, parentName?: string` | `AgentTask` | Fork an existing task into a new independent task. |
 | `task_allow_permission` | `ipc.allowPermission` | `taskId: string, requestId: string, optionId?: string` | `void` | Approve a pending permission request. |
 | `task_deny_permission` | `ipc.denyPermission` | `taskId: string, requestId: string, optionId?: string` | `void` | Deny a pending permission request. |
 | `task_set_auto_approve` | `ipc.setAutoApprove` | `taskId: string, autoApprove: boolean` | `void` | Toggle auto-approve for tool calls on a task. |

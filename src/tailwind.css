@@ -448,16 +448,6 @@ input[type="search"] {
         opacity: 0;
     }
 }
-/* Drag-and-drop overlay — marching dashed border (see chat/DragOverlay.tsx) */
-@keyframes dash-march {
-    to {
-        stroke-dashoffset: -28;
-    }
-}
-.dash-march {
-    animation: dash-march 0.6s linear infinite;
-}
-
 .streaming-cursor > :last-child::after,
 .streaming-cursor:empty::after {
     content: "";

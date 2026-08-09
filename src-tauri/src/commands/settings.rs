@@ -205,20 +205,7 @@ pub struct AppSettings {
     /// `models.json` entries carry no price and therefore report a cost of 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_rates: Option<std::collections::HashMap<String, ProviderRate>>,
-    /// How many agent processes may run at once.
-    ///
-    /// Each live thread is a Node process with its own Python kernel, and
-    /// nothing used to stop them accumulating — a real hazard for an app with
-    /// `/goal` and autonomous mode, where loops keep running while nobody is
-    /// watching. `None` uses [`DEFAULT_MAX_CONCURRENT_AGENTS`]; 0 means no
-    /// limit, for anyone who knows what their machine can take.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_concurrent_agents: Option<u32>,
 }
-
-/// Enough for a comfortable working set of threads, far below the point where
-/// a laptop starts swapping on the kernels alone.
-pub const DEFAULT_MAX_CONCURRENT_AGENTS: u32 = 8;
 
 fn default_agent_bin() -> String {
     "prime-agent".to_string()
@@ -265,7 +252,6 @@ impl Default for AppSettings {
             inline_tool_calls: None,
             auto_archive_days: None,
             provider_rates: None,
-            max_concurrent_agents: None,
         }
     }
 }

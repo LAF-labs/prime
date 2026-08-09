@@ -122,7 +122,6 @@ export interface TaskStore {
   /** Per-thread prime-agent session id for debugging */
   sessionIds: Record<string, string>
   /** Whether a fork operation is in progress */
-  isForking: boolean
   /** Workspace path of the most recently added project (for auto-focus) */
   lastAddedProject: string | null
   /** Thread IDs pinned to the top of the sidebar */
@@ -188,7 +187,6 @@ export interface TaskStore {
   createDraftThread: (workspace: string) => string
   setPendingWorkspace: (workspace: string | null) => void
   renameTask: (taskId: string, name: string) => void
-  forkTask: (taskId: string) => Promise<void>
   projectNames: Record<string, string>
   reorderProject: (from: number, to: number) => void
   /** Reorder a thread within a project */
@@ -246,8 +244,11 @@ export interface TaskStore {
   setSplitRatio: (ratio: number) => void
   /** Set which panel is focused */
   setFocusedPanel: (panel: 'left' | 'right') => void
-  /** Deactivate split view without removing the saved pairing */
-  closeSplit: () => void
+  /**
+   * Leave side-by-side and discard the pairing. `keepTaskId` becomes the
+   * selected thread — the panel that stays when the other one is closed.
+   */
+  closeSplit: (keepTaskId?: string) => void
   /**
    * Save scroll position for a thread (in-memory only). Pass `null` to clear
    * the entry — used when the thread was left at the bottom, so the next open
@@ -255,10 +256,9 @@ export interface TaskStore {
    */
   saveScrollPosition: (taskId: string, scrollTop: number | null) => void
   /**
-   * Truncate messages back to the assistant turn at `messageIndex`
-   * (keeping the assistant message itself) and clear streaming state.
-   * If the task has a worktree+checkpoint mechanism wired, the caller can
-   * additionally invoke `ipc.checkpointRevert` to roll the files back.
+   * Restore the thread to `messageIndex`: keep that message, drop every
+   * message after it, and clear streaming state. Backs the single
+   * "Restore to here" affordance on both questions and answers.
    */
   rollbackToMessage: (taskId: string, messageIndex: number) => void
   /**
@@ -267,11 +267,4 @@ export interface TaskStore {
    * still clears streaming state. Writes through to SQLite.
    */
   truncateFromMessage: (taskId: string, messageIndex: number) => void
-  /**
-   * Regenerate the assistant turn at `assistantMessageIndex`: truncate the
-   * conversation to just before the user message that produced it, then
-   * re-dispatch that message through the registered chat send pipeline
-   * (`@/lib/chat-resend`). No-op while the task is running.
-   */
-  regenerateTurn: (taskId: string, assistantMessageIndex: number) => void
 }

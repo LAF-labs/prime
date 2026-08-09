@@ -87,8 +87,6 @@ export const ipc = {
     invoke('task_cancel', { taskId }),
   deleteTask: (taskId: string): Promise<void> =>
     invoke('task_delete', { taskId }),
-  forkTask: (taskId: string, workspace?: string, parentName?: string, sessionFile?: string): Promise<AgentTask> =>
-    invoke('task_fork', { params: { taskId, workspace, parentName, sessionFile } }),
   allowPermission: (taskId: string, requestId: string, optionId?: string): Promise<void> =>
     invoke('task_allow_permission', { taskId, requestId, optionId }),
   denyPermission: (taskId: string, requestId: string, optionId?: string): Promise<void> =>

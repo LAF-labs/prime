@@ -178,12 +178,6 @@ export const useSlashAction = (): SlashActionResult => {
         setPanel(null)
         return false
       }
-      case 'fork': {
-        const { selectedTaskId, forkTask } = useTaskStore.getState()
-        if (selectedTaskId) void forkTask(selectedTaskId)
-        setPanel(null)
-        return true
-      }
       default: {
         setPanel(null)
         // Session commands (/goal, /autonomous, /compact, /refine) are executed

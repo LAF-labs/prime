@@ -92,7 +92,7 @@ exactly what gets ported, so starting earlier means doing the work twice.
 Round 1 (Waves 1–5, all shipped) closed the P0/P1 findings from the
 four-track product audit: storage-layer data loss, Rust panics/hangs,
 trust-level UX defects, last-mile wiring (PR creation, rollback UI,
-regenerate, edit-resend, global search, enforced plan mode), and full
+restore-to-here, global search, enforced plan mode), and full
 Korean coverage with a regression test.
 
 The next order is set by the GUI↔harness RPC alignment audit: the bundled

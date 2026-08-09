@@ -53,13 +53,12 @@ fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {
     (y, m, d)
 }
 
-// ── Resumption preamble shared by task_create and task_fork ────────────
+// ── Resumption preamble ────────────────────────────────────────────────
 //
-// Both `task_create` (for stateless thread resumption) and `task_fork` need
-// to replay an earlier transcript into a freshly spawned prime-agent subprocess
-// so the model has the conversational context the previous process held.
-// Centralizing the preamble construction here keeps the two code paths in
-// sync and makes the cap/format easy to test.
+// `task_create` (for stateless thread resumption) replays an earlier
+// transcript into a freshly spawned prime-agent subprocess so the model has
+// the conversational context the previous process held. Keeping the preamble
+// construction here makes the cap/format easy to test.
 //
 // Cap: ~60 KB (~15k tokens, conservative across model context windows) and
 // 40 messages. We walk newest-first so the most recent context is preserved
@@ -71,9 +70,9 @@ pub(crate) const RESUMPTION_MAX_MESSAGES: usize = 40;
 /// Build a transcript-replay preamble from `prior_messages`.
 ///
 /// Returns an empty string when there is nothing to replay so callers can
-/// concatenate unconditionally. `header` and `intro` let `task_create`
-/// (resumption) and `task_fork` use distinct wording while sharing the
-/// truncation, ordering, and rendering logic.
+/// concatenate unconditionally. `header` and `intro` are supplied by the
+/// caller so the wording can vary independently of the truncation, ordering,
+/// and rendering logic.
 pub(crate) fn build_resumption_preamble(
     prior_messages: &[types::TaskMessage],
     header: &str,
@@ -140,21 +139,4 @@ pub(crate) fn build_resumption_preamble(
     buf
 }
 
-/// Sanitize messages cloned from a parent thread before they're stored on a
-/// fork. Tool calls captured mid-stream may have non-terminal statuses
-/// (`pending`, `in_progress`) which would render in the fork timeline as if
-/// work were ongoing. Normalize them to `cancelled` so the fork starts in a
-/// quiescent state without losing the call's title or output for context.
-pub(crate) fn sanitize_forked_messages(messages: &mut [types::TaskMessage]) {
-    for m in messages.iter_mut() {
-        if let Some(calls) = m.tool_calls.as_mut() {
-            for c in calls.iter_mut() {
-                match c.status.as_str() {
-                    "completed" | "failed" | "cancelled" | "rejected" => {}
-                    _ => c.status = "cancelled".to_string(),
-                }
-            }
-        }
-    }
-}
 

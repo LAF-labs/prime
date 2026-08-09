@@ -45,7 +45,6 @@ had, so muscle memory carries over.
 | `/new` | Start a new thread in this project |
 | `/clear` | Clear the current conversation |
 | `/close`, `/exit` | Close and archive the current thread |
-| `/fork` | Fork this thread into a new conversation |
 | `/btw`, `/tangent` | Ask a side question without adding it to the session |
 | `/model` | Switch the active model (inline picker) |
 | `/agent` | Switch between agents (inline picker) |

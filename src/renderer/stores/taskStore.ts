@@ -11,7 +11,6 @@ import type { ArchivedThreadMeta } from '@/lib/history-store'
 import { useSettingsStore } from './settingsStore'
 import { sendTaskNotification } from '@/lib/notifications'
 import { snapshotOwnedIds } from '@/lib/turn-ownership'
-import { resendMessage } from '@/lib/chat-resend'
 import type { TaskStore } from './task-store-types'
 
 interface SavedMessageLike {
@@ -230,7 +229,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   taskModes: {},
   taskModels: {},
   sessionIds: {},
-  isForking: false,
   lastAddedProject: null,
   splitViews: [],
   pinnedThreadIds: [],
@@ -1005,46 +1003,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return { tasks: { ...state.tasks, [taskId]: { ...task, name } } }
     })
     get().persistHistory()
-  },
-
-  forkTask: async (taskId) => {
-    if (get().isForking) return
-    set({ isForking: true })
-    try {
-      const task = get().tasks[taskId]
-      const forked = await ipc.forkTask(taskId, task?.workspace, task?.name, task?.sessionFile)
-      // Backend sets parent_task_id; preserve worktree fields from parent so
-      // the forked thread nests under the same project in the sidebar.
-      if (task?.worktreePath) forked.worktreePath = task.worktreePath
-      if (task?.originalWorkspace) forked.originalWorkspace = task.originalWorkspace
-      forked.projectId = task?.projectId ?? get().getProjectId(task?.originalWorkspace ?? forked.workspace)
-      set((state) => {
-        const realWorkspace = forked.originalWorkspace ?? forked.workspace
-        const projects = realWorkspace && !state.projects.includes(realWorkspace) && !isChatWorkspace(realWorkspace)
-          ? [...state.projects, realWorkspace]
-          : state.projects
-        return {
-          tasks: { ...state.tasks, [forked.id]: forked },
-          selectedTaskId: forked.id,
-          view: 'chat' as const,
-          projects,
-          isForking: false,
-        }
-      })
-      get().persistHistory()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      const { selectedTaskId, tasks, upsertTask } = get()
-      const tid = selectedTaskId ?? taskId
-      const task = tasks[tid]
-      if (task) {
-        upsertTask({
-          ...task,
-          messages: [...task.messages, { role: 'system', content: t('⚠️ Fork failed: {error}', { error: msg }), timestamp: new Date().toISOString() }],
-        })
-      }
-      set({ isForking: false })
-    }
   },
 
   reorderProject: (from, to) => {
@@ -1862,12 +1820,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   createSplitView: (left, right) => {
     const id = crypto.randomUUID()
-    set((s) => ({
-      splitViews: [...s.splitViews, { id, left, right, ratio: 0.5 }],
+    // Side-by-side is a view mode, not a saved object: opening a new pairing
+    // replaces whatever was on screen, so `splitViews` never accumulates
+    // inactive pairings that can snap back later.
+    set({
+      splitViews: [{ id, left, right, ratio: 0.5 }],
       activeSplitId: id,
       selectedTaskId: left,
       focusedPanel: 'left',
-    }))
+    })
     return id
   },
   removeSplitView: (id) => {
@@ -1915,9 +1876,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     if (get().focusedPanel === panel) return
     set({ focusedPanel: panel })
   },
-  closeSplit: () => {
-    if (!get().activeSplitId) return
-    set({ activeSplitId: null })
+  closeSplit: (keepTaskId) => {
+    const { activeSplitId, splitViews } = get()
+    if (!activeSplitId) return
+    // Discard the pairing, don't just deactivate it. Deactivating left the
+    // pair in `splitViews`, and the next click on either thread re-entered
+    // side-by-side — so neither the toolbar toggle nor a panel's ✕ could
+    // actually turn the mode off.
+    set({
+      splitViews: splitViews.filter((sv) => sv.id !== activeSplitId),
+      activeSplitId: null,
+      ...(keepTaskId ? { selectedTaskId: keepTaskId } : {}),
+    })
   },
   saveScrollPosition: (taskId, scrollTop) => {
     if (scrollTop === null) {
@@ -1934,9 +1904,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   rollbackToMessage: (taskId, messageIndex) => {
-    // Keep messages up to and including the target assistant message —
-    // rolling back "to here" means this turn is preserved and everything
-    // after it is dropped.
+    // Keep messages up to and including the target message — restoring "to
+    // here" means this message is preserved and everything after it is
+    // dropped. Same meaning on a question or an answer.
     if (messageIndex < 0) return
     get().truncateFromMessage(taskId, messageIndex + 1)
   },
@@ -1965,28 +1935,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // after the rollback lands out of order behind it.
     attempt(t('Could not save the conversation'), threadDb.replaceMessages(taskId, truncated))
     get().persistHistory()
-  },
-
-  regenerateTurn: (taskId, assistantMessageIndex) => {
-    const task = get().tasks[taskId]
-    if (!task || task.status === 'running') return
-    // Find the user message that produced this assistant turn.
-    const start = Math.min(assistantMessageIndex, task.messages.length) - 1
-    let userIndex = -1
-    for (let i = start; i >= 0; i--) {
-      if (task.messages[i].role === 'user') {
-        userIndex = i
-        break
-      }
-    }
-    if (userIndex < 0) return
-    const content = task.messages[userIndex].content
-    if (!content) return
-    // Truncate to just before that user message, then re-dispatch its content
-    // through the same send pipeline ChatPanel uses — the conversation is
-    // identical up to this point, and a fresh answer streams in.
-    get().truncateFromMessage(taskId, userIndex)
-    void resendMessage(taskId, content)
   },
 }))
 

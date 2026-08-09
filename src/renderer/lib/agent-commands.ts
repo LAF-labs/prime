@@ -99,7 +99,6 @@ export const GUI_COMMANDS: readonly AgentCommandSpec[] = [
   { name: 'clear', description: 'Clear the current conversation', kind: 'gui' },
   { name: 'close', description: 'Close and archive the current thread', kind: 'gui' },
   { name: 'exit', description: 'Close and archive the current thread', kind: 'gui' },
-  { name: 'fork', description: 'Fork this thread into a new conversation', kind: 'gui' },
   { name: 'btw', description: 'Ask a side question without adding it to the session', argumentHint: '<question>', kind: 'gui' },
   { name: 'tangent', description: 'Ask a side question (alias for /btw)', argumentHint: '<question>', kind: 'gui' },
   { name: 'model', description: 'Switch the active model', kind: 'gui' },

@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
 interface SplitPanelHeaderProps {
   readonly taskId: string
   readonly isFocused: boolean
-  readonly side: 'left' | 'right'
   readonly onClose: () => void
   readonly onFocus: () => void
 }
@@ -18,7 +17,6 @@ interface SplitPanelHeaderProps {
 export const SplitPanelHeader = memo(function SplitPanelHeader({
   taskId,
   isFocused,
-  side,
   onClose,
   onFocus,
 }: SplitPanelHeaderProps) {
@@ -74,11 +72,7 @@ export const SplitPanelHeader = memo(function SplitPanelHeader({
             type="button"
             aria-label={t('Close panel')}
             onClick={handleClose}
-            className={cn(
-              'inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-all',
-              'text-muted-foreground/40 hover:text-foreground hover:bg-accent',
-              side === 'left' && 'opacity-0 group-hover/header:opacity-100',
-            )}
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
           >
             <IconX className="size-3.5" />
           </button>

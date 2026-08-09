@@ -478,18 +478,11 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
     if (id.startsWith('draft:')) {
       useTaskStore.getState().setPendingWorkspace(id.slice(6))
     } else {
-      // If this thread is part of a split view, activate that split instead
-      const state = useTaskStore.getState()
-      const sv = state.splitViews.find((v) => v.left === id || v.right === id)
-      if (sv) {
-        state.setActiveSplit(sv.id)
-        const panel = sv.left === id ? 'left' : 'right'
-        state.setFocusedPanel(panel)
-        useTaskStore.setState({ selectedTaskId: id })
-        setView('chat')
-      } else {
-        setSelectedTask(id); setView('chat')
-      }
+      // `setSelectedTask` already focuses the matching panel when the thread
+      // is part of the *active* split. It must not re-enter side-by-side on
+      // its own, or closing the split would only last until the next click.
+      setSelectedTask(id)
+      setView('chat')
     }
   }, [setSelectedTask, setView])
   const handleDeleteTask = useCallback((id: string) => {

@@ -115,7 +115,6 @@ Type `/` in the chat input to see available commands:
 | `/plan` | Toggle plan mode |
 | `/goal <objective>` | Start an autonomous goal loop |
 | `/btw <question>` | Ask a side question without polluting history |
-| `/fork` | Fork thread into a new conversation |
 | `/close` | Archive the thread |
 | `/data` | Open analytics dashboard |
 

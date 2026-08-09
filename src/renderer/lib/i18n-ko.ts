@@ -122,7 +122,6 @@ export const ko: Record<string, string> = {
   'Restore it with Undo, or from Settings → Archives within 2 days.':
     '실행 취소로 되돌리거나, 2일 이내에 설정 → 보관함에서 복원할 수 있습니다.',
   'Undo': '실행 취소',
-  'Fork thread': '스레드 포크',
   'No threads yet': '아직 스레드가 없습니다',
   'No live threads': '실행 중인 스레드가 없습니다',
   'Pick a thread': '스레드 선택',
@@ -270,7 +269,6 @@ export const ko: Record<string, string> = {
   'Side question (/btw)': '곁가지 질문 (/btw)',
   'Side question — not saved to conversation': '곁가지 질문 — 대화에 저장되지 않습니다',
   'Dismiss side question': '곁가지 질문 닫기',
-  'Rollback to this turn': '이 턴으로 되돌리기',
   'Tool call failed — no details available': '도구 실행 실패 — 상세 정보 없음',
   'Add to chat': '채팅에 추가',
   'Add to chat input': '입력창에 추가',
@@ -285,17 +283,11 @@ export const ko: Record<string, string> = {
   'Drag into chat': '채팅으로 끌어놓기',
   'Drag tip': '끌어놓기 안내',
   'No preview available': '미리보기를 사용할 수 없습니다',
-  'Rolled back files + messages': '파일과 메시지를 되돌렸습니다',
-  'Rolled back messages — no matching checkpoint to revert files':
-    '메시지를 되돌렸습니다 — 파일을 되돌릴 체크포인트가 없습니다',
-  'Reverted messages, but file revert failed': '메시지는 되돌렸지만 파일 되돌리기에 실패했습니다',
-  'Rolled back messages': '메시지를 되돌렸습니다',
   '⏳ Compacting context...': '⏳ 컨텍스트 압축 중...',
   'Plan to preserve:': '보존할 계획:',
   '✅ Context compacted — plan preserved': '✅ 컨텍스트 압축 완료 — 계획 보존됨',
   '✅ Context compacted': '✅ 컨텍스트 압축 완료',
   '⚠️ Context compaction failed': '⚠️ 컨텍스트 압축 실패',
-  '⚠️ Fork failed: {error}': '⚠️ 분기 실패: {error}',
   '⚠️ /btw question exceeds {max} character limit ({length} chars). Shorten your question or adjust the limit in Settings > Advanced.':
     '⚠️ /btw 질문이 {max}자 제한을 초과했습니다 ({length}자). 질문을 줄이거나 설정 > 고급에서 제한을 조정하세요.',
   '⚠️ The agent refused to continue. Retrying automatically…':
@@ -561,7 +553,6 @@ export const ko: Record<string, string> = {
   'Start a new thread in this project': '이 프로젝트에서 새 스레드를 시작합니다',
   'Clear the current conversation': '현재 대화를 지웁니다',
   'Close and archive the current thread': '현재 스레드를 닫고 보관합니다',
-  'Fork this thread into a new conversation': '이 스레드를 새 대화로 분기합니다',
   'Ask a side question without adding it to the session':
     '세션에 남기지 않고 곁가지 질문을 합니다',
   'Ask a side question (alias for /btw)': '곁가지 질문을 합니다 (/btw 별칭)',
@@ -658,9 +649,7 @@ export const ko: Record<string, string> = {
   'Live threads': '활성 스레드',
   'Live turn': '진행 중인 턴',
   'Look & feel': '모양과 느낌',
-  'Max concurrent agents': '최대 동시 에이전트 수',
   'Side question length limit': '곁가지 질문 길이 제한',
-  'Maximum agents running at once': '동시에 실행할 최대 에이전트 수',
   'Messages': '메시지',
   'Minutes of no terminal output before a background tab is auto-closed.':
     '터미널 출력이 없을 때 백그라운드 탭을 자동으로 닫기까지의 시간(분).',
@@ -823,20 +812,16 @@ export const ko: Record<string, string> = {
   // ── Background download / clone ──────────────────────────────────
   'Continue in background': '백그라운드에서 계속',
 
-  // ── Conversation control (rollback / regenerate / edit-resend) ────
-  Rollback: '롤백',
+  // ── Conversation control (restore to here) ───────────────────────
   Confirm: '확인',
-  'Reverts files + messages': '파일과 메시지를 되돌립니다',
-  'Reverts messages only': '메시지만 되돌립니다',
-  'Regenerate response': '응답 다시 생성',
-  'Edit and resend': '수정 후 다시 보내기',
+  'Restore to here': '여기로 되돌리기',
+  'Deletes every message after this one': '이 메시지 이후의 모든 메시지를 삭제합니다',
 
   // ── Empty-thread splash ───────────────────────────────────────────
 
   // ── Pull request creation ─────────────────────────────────────────
   Title: '제목',
   Body: '본문',
-  Regenerate: '다시 생성',
 
 
   // ── i18n wave: palette, git menu, settings nav/search, onboarding,
@@ -1105,10 +1090,6 @@ export const ko: Record<string, string> = {
   'Hide ignored files': '무시된 파일 숨기기',
   'Keep files your project excludes out of @ mentions': '프로젝트에서 제외한 파일을 @ 멘션에서 숨깁니다',
   'Toggle hiding ignored files': '무시된 파일 숨기기 전환',
-  'No limit. Every chat you open runs its own agent process — lift the cap only if your machine can take it.':
-    '제한 없음. 채팅을 열 때마다 별도의 에이전트 프로세스가 실행됩니다 — 기기가 감당할 수 있을 때만 제한을 해제하세요.',
-  'Up to {count} chats run at once. Each one runs its own agent process, so this caps machine load. Set 0 for no limit.':
-    '한 번에 최대 {count}개의 채팅이 실행됩니다. 각 채팅은 별도의 에이전트 프로세스로 실행되므로 기기 부하를 제한합니다. 0이면 제한이 없습니다.',
   'Loading…': '불러오는 중…',
   'Check': '확인',
 

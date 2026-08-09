@@ -657,7 +657,6 @@ pub fn run() {
             rpc::task_resume,
             rpc::task_cancel,
             rpc::task_delete,
-            rpc::task_fork,
             rpc::task_allow_permission,
             rpc::task_deny_permission,
             rpc::task_set_auto_approve,

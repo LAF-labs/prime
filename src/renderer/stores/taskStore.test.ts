@@ -22,7 +22,6 @@ vi.mock('@/lib/ipc', () => ({
   checkpointCleanup: vi.fn().mockResolvedValue(0),
     listTasks: vi.fn().mockResolvedValue([]),
     sendMessage: vi.fn().mockResolvedValue(undefined),
-    forkTask: vi.fn().mockResolvedValue({ id: 'fork-1', name: 'Fork', workspace: '/ws', status: 'paused', createdAt: '', messages: [] }),
     addRecentProject: vi.fn().mockResolvedValue(undefined),
     rebuildRecentMenu: vi.fn().mockResolvedValue(undefined),
     threadDbAutoArchive: vi.fn().mockResolvedValue([]),
@@ -540,46 +539,6 @@ describe('archiveTask', () => {
   it('no-ops for non-existent task', () => {
     useTaskStore.getState().archiveTask('nonexistent')
     expect(useTaskStore.getState().tasks['nonexistent']).toBeUndefined()
-  })
-})
-
-describe('forkTask', () => {
-  it('adds forked task to state and selects it', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', name: 'Fork of Test Task', workspace: '/projects/test' })
-    vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
-    useTaskStore.getState().upsertTask(makeTask())
-    useTaskStore.setState({ selectedTaskId: 'task-1' })
-    await useTaskStore.getState().forkTask('task-1')
-    expect(useTaskStore.getState().tasks['fork-1']).toBeDefined()
-    expect(useTaskStore.getState().selectedTaskId).toBe('fork-1')
-    expect(useTaskStore.getState().view).toBe('chat')
-  })
-
-  it('adds workspace to projects if not present', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/new-ws' })
-    vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
-    useTaskStore.getState().upsertTask(makeTask())
-    await useTaskStore.getState().forkTask('task-1')
-    // forkTask resolves projectId via getProjectId which uses the workspace
-    // The workspace itself gets added to projects via the projectId resolution
-    const pid = useTaskStore.getState().tasks['fork-1'].projectId
-    expect(pid).toBeDefined()
-    expect(pid).toMatch(/^[0-9a-f-]{36}$/)
-  })
-
-  it('adds system error message on fork failure', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    vi.mocked(ipc.forkTask).mockRejectedValueOnce(new Error('Agent connection lost'))
-    useTaskStore.getState().upsertTask(makeTask())
-    useTaskStore.setState({ selectedTaskId: 'task-1' })
-    await useTaskStore.getState().forkTask('task-1')
-    const task = useTaskStore.getState().tasks['task-1']
-    const systemMsg = task.messages.find((m) => m.role === 'system')
-    expect(systemMsg).toBeDefined()
-    expect(systemMsg?.content).toContain('Fork failed')
-    expect(systemMsg?.content).toContain('Agent connection lost')
   })
 })
 
@@ -1719,49 +1678,6 @@ describe('projectId', () => {
     expect(useTaskStore.getState().tasks[id].projectId).toBe(expectedPid)
   })
 
-  it('forkTask inherits projectId from parent', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
-    vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
-    useTaskStore.getState().upsertTask(makeTask({
-      projectId: '/project',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-      workspace: '/project/.laf-agent/worktrees/feat',
-    }))
-    await useTaskStore.getState().forkTask('task-1')
-    expect(useTaskStore.getState().tasks['fork-1'].projectId).toBe('/project')
-  })
-
-  it('forkTask falls back to UUID via getProjectId when parent has no projectId', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
-    vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
-    useTaskStore.getState().upsertTask(makeTask({
-      originalWorkspace: '/project',
-      workspace: '/project/.laf-agent/worktrees/feat',
-    }))
-    await useTaskStore.getState().forkTask('task-1')
-    const pid = useTaskStore.getState().tasks['fork-1'].projectId
-    expect(pid).toMatch(/^[0-9a-f-]{36}$/)
-    // Should be the same UUID as getProjectId('/project')
-    expect(pid).toBe(useTaskStore.getState().projectIds['/project'])
-  })
-
-  it('forkTask adds real workspace to projects list, not worktree path', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
-    vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
-    useTaskStore.getState().upsertTask(makeTask({
-      projectId: useTaskStore.getState().getProjectId('/project'),
-      workspace: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-    }))
-    await useTaskStore.getState().forkTask('task-1')
-    expect(useTaskStore.getState().projects).toContain('/project')
-    expect(useTaskStore.getState().projects).not.toContain('/project/.laf-agent/worktrees/feat')
-  })
-
   it('removeProject matches worktree threads by originalWorkspace', () => {
     useTaskStore.getState().addProject('/project')
     useTaskStore.getState().upsertTask(makeTask({
@@ -1888,20 +1804,6 @@ describe('workspace scoping', () => {
     vi.mocked(toArchivedTasks).mockReturnValueOnce([])
     await useTaskStore.getState().loadTasks()
     expect(useTaskStore.getState().projects).toEqual(['/project'])
-    expect(useTaskStore.getState().projects.some((p) => p.includes('.laf-agent/worktrees'))).toBe(false)
-  })
-
-  it('forkTask of worktree thread adds project root to projects, not worktree path', async () => {
-    const { ipc } = await import('@/lib/ipc')
-    const forkedTask = makeTask({ id: 'fork-1', workspace: '/project/.laf-agent/worktrees/feat' })
-    vi.mocked(ipc.forkTask).mockResolvedValueOnce(forkedTask)
-    useTaskStore.getState().upsertTask(makeTask({
-      workspace: '/project/.laf-agent/worktrees/feat',
-      originalWorkspace: '/project',
-      worktreePath: '/project/.laf-agent/worktrees/feat',
-    }))
-    await useTaskStore.getState().forkTask('task-1')
-    expect(useTaskStore.getState().projects).toContain('/project')
     expect(useTaskStore.getState().projects.some((p) => p.includes('.laf-agent/worktrees'))).toBe(false)
   })
 
@@ -2176,11 +2078,10 @@ describe('createSplitView', () => {
     expect(id).toMatch(/^[0-9a-f-]{36}$/)
   })
 
-  it('allows multiple split views', () => {
+  it('replaces the previous pairing instead of stacking a second one', () => {
     useTaskStore.getState().createSplitView('a', 'b')
     const id2 = useTaskStore.getState().createSplitView('c', 'd')
-    expect(useTaskStore.getState().splitViews).toHaveLength(2)
-    // Second one becomes active
+    expect(useTaskStore.getState().splitViews).toHaveLength(1)
     expect(useTaskStore.getState().activeSplitId).toBe(id2)
   })
 })
@@ -2264,26 +2165,25 @@ describe('setSplitRatio', () => {
     expect(useTaskStore.getState().splitViews).toBe(before)
   })
 
-  it('only updates the active split view, not others', () => {
-    useTaskStore.getState().createSplitView('a', 'b')
-    const id2 = useTaskStore.getState().createSplitView('c', 'd')
-    // id2 is active
+  it('updates the active split view', () => {
+    const id = useTaskStore.getState().createSplitView('a', 'b')
     useTaskStore.getState().setSplitRatio(0.3)
-    const sv1 = useTaskStore.getState().splitViews[0]
-    const sv2 = useTaskStore.getState().splitViews.find((v) => v.id === id2)
-    expect(sv1.ratio).toBe(0.5) // unchanged
-    expect(sv2?.ratio).toBe(0.3)
+    expect(useTaskStore.getState().splitViews.find((v) => v.id === id)?.ratio).toBe(0.3)
   })
 })
 
 describe('closeSplit', () => {
-  it('deactivates the active split without removing it', () => {
-    const id = useTaskStore.getState().createSplitView('a', 'b')
+  it('discards the pairing so side-by-side cannot come back on the next click', () => {
+    useTaskStore.getState().createSplitView('a', 'b')
     useTaskStore.getState().closeSplit()
     expect(useTaskStore.getState().activeSplitId).toBeNull()
-    // Split view still exists
-    expect(useTaskStore.getState().splitViews).toHaveLength(1)
-    expect(useTaskStore.getState().splitViews[0].id).toBe(id)
+    expect(useTaskStore.getState().splitViews).toHaveLength(0)
+  })
+
+  it('keeps the surviving thread selected when one panel is closed', () => {
+    useTaskStore.getState().createSplitView('a', 'b')
+    useTaskStore.getState().closeSplit('b')
+    expect(useTaskStore.getState().selectedTaskId).toBe('b')
   })
 
   it('no-ops when no active split', () => {
@@ -2670,7 +2570,7 @@ describe('rekeyDispatchSnapshot', () => {
   })
 })
 
-// ── Conversation control: truncate / regenerate ────────────────────
+// ── Conversation control: truncate / restore ───────────────────────
 
 const conversation = () => [
   { role: 'user' as const, content: 'first question', timestamp: 't0' },
@@ -2754,46 +2654,3 @@ describe('rollbackToMessage keeps the target turn', () => {
   })
 })
 
-describe('regenerateTurn', () => {
-  beforeEach(() => {
-    mockResendMessage.mockClear()
-  })
-
-  it('truncates to just before the preceding user message and re-dispatches it', () => {
-    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
-    useTaskStore.getState().regenerateTurn('task-1', 3)
-    const messages = useTaskStore.getState().tasks['task-1'].messages
-    // Conversation is identical up to the user message being re-sent.
-    expect(messages.map((m) => m.content)).toEqual(['first question', 'first answer'])
-    expect(mockResendMessage).toHaveBeenCalledTimes(1)
-    expect(mockResendMessage).toHaveBeenCalledWith('task-1', 'second question')
-  })
-
-  it('regenerating the first turn empties the thread and resends the first message', () => {
-    useTaskStore.getState().upsertTask(makeTask({ messages: conversation() }))
-    useTaskStore.getState().regenerateTurn('task-1', 1)
-    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(0)
-    expect(mockResendMessage).toHaveBeenCalledWith('task-1', 'first question')
-  })
-
-  it('does nothing while the task is running', () => {
-    useTaskStore.getState().upsertTask(makeTask({ status: 'running', messages: conversation() }))
-    useTaskStore.getState().regenerateTurn('task-1', 3)
-    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(4)
-    expect(mockResendMessage).not.toHaveBeenCalled()
-  })
-
-  it('does nothing when no user message precedes the index', () => {
-    useTaskStore.getState().upsertTask(makeTask({
-      messages: [{ role: 'assistant' as const, content: 'orphan answer', timestamp: 't0' }],
-    }))
-    useTaskStore.getState().regenerateTurn('task-1', 0)
-    expect(useTaskStore.getState().tasks['task-1'].messages).toHaveLength(1)
-    expect(mockResendMessage).not.toHaveBeenCalled()
-  })
-
-  it('is a no-op for unknown tasks', () => {
-    useTaskStore.getState().regenerateTurn('missing', 1)
-    expect(mockResendMessage).not.toHaveBeenCalled()
-  })
-})

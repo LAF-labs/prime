@@ -36,7 +36,7 @@ pub struct ToolCallData {
 
 /// Anchor recording where a tool call appeared in the assistant prose stream
 /// (`at` is a UTF-16 offset into the message content). Authored by the
-/// frontend; carried through so resumption/fork keeps inline tool ordering.
+/// frontend; carried through so resumption keeps inline tool ordering.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolCallSplitData {
@@ -105,11 +105,9 @@ pub struct Task {
     pub auto_approve: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_paused: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parent_task_id: Option<String>,
     /// prime-agent session JSONL path (from get_state.sessionFile). Lets the
-    /// app resume/fork natively with `-r` / `--fork` instead of replaying a
-    /// transcript into a fresh context.
+    /// app resume natively with `-r` instead of replaying a transcript into a
+    /// fresh context.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_file: Option<String>,
     /// Spawn-time options (goal / autonomous) kept so reconnects preserve them.
@@ -166,8 +164,6 @@ pub enum SessionMode {
     New,
     /// `-r <file>`: resume an existing session file with full native context.
     Resume(String),
-    /// `--fork <file>`: branch a new session off an existing one.
-    Fork(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -234,12 +230,6 @@ pub struct AgentState {
     /// probe thread can hold its own clone and reset the flag on exit even
     /// when the app is tearing down and `try_state` would fail.
     pub probe_running: Arc<std::sync::atomic::AtomicBool>,
-    /// Task ids that have claimed an agent slot but whose connection handle is
-    /// not in `connections` yet (spawn in progress). Counted alongside live
-    /// connections when enforcing `max_concurrent_agents`, so two concurrent
-    /// `task_create` calls cannot both pass the cap check before either one
-    /// inserts its handle.
-    pub reserved_slots: Mutex<std::collections::HashSet<String>>,
 }
 
 pub struct PermissionReply {
@@ -253,7 +243,6 @@ impl Default for AgentState {
             connections: Mutex::new(HashMap::new()),
             permission_resolvers: Mutex::new(HashMap::new()),
             probe_running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            reserved_slots: Mutex::new(std::collections::HashSet::new()),
         }
     }
 }
@@ -293,14 +282,4 @@ pub struct CreateTaskParams {
     /// explicitly anymore.
     #[serde(default)]
     pub defer_spawn: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ForkTaskParams {
-    pub task_id: String,
-    pub workspace: Option<String>,
-    pub parent_name: Option<String>,
-    /// Parent thread's prime-agent session file for native `--fork`.
-    pub session_file: Option<String>,
 }

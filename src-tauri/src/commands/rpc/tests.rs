@@ -190,7 +190,6 @@ fn task_serializes_auto_approve_true() {
         context_usage: None,
         auto_approve: Some(true),
         user_paused: None,
-        parent_task_id: None,
         session_file: None,
         launch_options: None,
     };
@@ -212,7 +211,6 @@ fn task_serializes_auto_approve_false() {
         context_usage: None,
         auto_approve: Some(false),
         user_paused: None,
-        parent_task_id: None,
         session_file: None,
         launch_options: None,
     };
@@ -234,7 +232,6 @@ fn task_omits_auto_approve_when_none() {
         context_usage: None,
         auto_approve: None,
         user_paused: None,
-        parent_task_id: None,
         session_file: None,
         launch_options: None,
     };
@@ -256,7 +253,6 @@ fn task_auto_approve_roundtrip() {
         context_usage: None,
         auto_approve: Some(true),
         user_paused: None,
-        parent_task_id: None,
         session_file: None,
         launch_options: None,
     };
@@ -439,7 +435,7 @@ fn attachment_data_deserializes_without_name() {
     assert_eq!(att.name, None);
 }
 
-// ── build_resumption_preamble + sanitize_forked_messages ───────────────
+// ── build_resumption_preamble ──────────────────────────────────────────
 
 fn make_msg(role: &str, content: &str) -> TaskMessage {
     TaskMessage {
@@ -454,7 +450,7 @@ fn make_msg(role: &str, content: &str) -> TaskMessage {
 
 #[test]
 fn preamble_empty_for_no_messages() {
-    let preamble = build_resumption_preamble(&[], "Forked conversation", "intro");
+    let preamble = build_resumption_preamble(&[], "Resumed conversation", "intro");
     assert!(preamble.is_empty());
 }
 
@@ -464,9 +460,9 @@ fn preamble_includes_header_intro_and_transcript() {
         make_msg("user", "hello"),
         make_msg("assistant", "hi there"),
     ];
-    let preamble = build_resumption_preamble(&msgs, "Forked conversation", "Forked intro line.");
-    assert!(preamble.contains("## Forked conversation"));
-    assert!(preamble.contains("Forked intro line."));
+    let preamble = build_resumption_preamble(&msgs, "Resumed conversation", "Resumed intro line.");
+    assert!(preamble.contains("## Resumed conversation"));
+    assert!(preamble.contains("Resumed intro line."));
     assert!(preamble.contains("user: hello"));
     assert!(preamble.contains("assistant: hi there"));
     assert!(preamble.ends_with("## New message\n\n"));
@@ -510,7 +506,7 @@ fn preamble_truncates_when_byte_budget_exceeded() {
         make_msg("assistant", "recent reply 1"),
         make_msg("user", "recent question"),
     ];
-    let preamble = build_resumption_preamble(&msgs, "Forked conversation", "intro");
+    let preamble = build_resumption_preamble(&msgs, "Resumed conversation", "intro");
     assert!(preamble.contains("recent question"));
     assert!(preamble.contains("recent reply 1"));
     assert!(!preamble.contains(&big));
@@ -533,58 +529,7 @@ fn preamble_truncates_when_message_count_exceeded() {
     assert!(preamble.contains("older context omitted"));
 }
 
-#[test]
-fn sanitize_normalizes_in_progress_tool_calls() {
-    let mut msgs = vec![TaskMessage {
-        role: "assistant".to_string(),
-        content: "working on it".to_string(),
-        timestamp: "t".to_string(),
-        thinking: None,
-        tool_call_splits: None,
-        tool_calls: Some(vec![
-            ToolCallData {
-                tool_call_id: "tc-1".to_string(),
-                title: "edit file".to_string(),
-                status: "in_progress".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
-            },
-            ToolCallData {
-                tool_call_id: "tc-2".to_string(),
-                title: "read file".to_string(),
-                status: "pending".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
-            },
-            ToolCallData {
-                tool_call_id: "tc-3".to_string(),
-                title: "shell".to_string(),
-                status: "completed".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
-            },
-            ToolCallData {
-                tool_call_id: "tc-4".to_string(),
-                title: "run".to_string(),
-                status: "failed".to_string(),
-                kind: None, locations: None, content: None, raw_input: None, raw_output: None, created_at: None, completed_at: None,
-            },
-        ]),
-    }];
-    sanitize_forked_messages(&mut msgs);
-    let calls = msgs[0].tool_calls.as_ref().unwrap();
-    assert_eq!(calls[0].status, "cancelled"); // in_progress => cancelled
-    assert_eq!(calls[1].status, "cancelled"); // pending => cancelled
-    assert_eq!(calls[2].status, "completed"); // terminal preserved
-    assert_eq!(calls[3].status, "failed");    // terminal preserved
-    // Title and id preserved.
-    assert_eq!(calls[0].title, "edit file");
-    assert_eq!(calls[0].tool_call_id, "tc-1");
-}
 
-#[test]
-fn sanitize_leaves_messages_without_tool_calls_untouched() {
-    let mut msgs = vec![make_msg("user", "hi")];
-    sanitize_forked_messages(&mut msgs);
-    assert!(msgs[0].tool_calls.is_none());
-}
 
 // ── existing_messages round-trip (resumption keeps tool history) ────────
 
@@ -840,83 +785,6 @@ fn prompt_payload_carries_multiple_images() {
     assert_eq!(images.len(), 2);
     assert_eq!(images[1]["mimeType"], "image/jpeg");
     assert_eq!(payload["streamingBehavior"], "steer");
-}
-
-// ── Concurrent agent limit ──────────────────────────────────────
-
-use super::commands::agent_slot_available;
-use crate::commands::settings::DEFAULT_MAX_CONCURRENT_AGENTS;
-
-#[test]
-fn agents_below_the_limit_are_allowed() {
-    assert!(agent_slot_available(Some(3), 0, false).is_ok());
-    assert!(agent_slot_available(Some(3), 2, false).is_ok());
-}
-
-#[test]
-fn the_agent_at_the_limit_is_refused_with_something_actionable() {
-    let err = agent_slot_available(Some(3), 3, false).unwrap_err();
-    assert!(err.contains('3'), "the message should name the limit: {err}");
-    assert!(err.to_lowercase().contains("settings"), "and where to change it: {err}");
-}
-
-/// Reconnecting a thread replaces its connection; refusing that would strand a
-/// thread the user already has open once the limit is reached.
-#[test]
-fn replacing_an_existing_connection_is_always_allowed() {
-    assert!(agent_slot_available(Some(1), 1, true).is_ok());
-    assert!(agent_slot_available(Some(3), 99, true).is_ok());
-}
-
-#[test]
-fn zero_means_the_user_opted_out_of_the_limit() {
-    assert!(agent_slot_available(Some(0), 500, false).is_ok());
-}
-
-#[test]
-fn an_unset_limit_falls_back_to_the_default() {
-    let n = DEFAULT_MAX_CONCURRENT_AGENTS as usize;
-    assert!(agent_slot_available(None, n - 1, false).is_ok());
-    assert!(agent_slot_available(None, n, false).is_err());
-}
-
-/// The singular reads correctly, since a limit of one is a plausible setting.
-#[test]
-fn a_limit_of_one_is_phrased_as_one() {
-    let err = agent_slot_available(Some(1), 1, false).unwrap_err();
-    assert!(err.starts_with("1 agent is"), "got: {err}");
-}
-
-// ── Slot reservation (check-and-claim under one lock) ───────────
-
-use super::commands::reserve_agent_slot;
-use super::types::AgentState;
-
-/// Two concurrent task_creates used to both pass the cap check before either
-/// inserted its handle. A reservation claims the slot at check time, so the
-/// second caller sees the first caller's claim.
-#[test]
-fn a_reservation_counts_toward_the_limit_until_dropped() {
-    let state = AgentState::default();
-    let first = reserve_agent_slot(&state, Some(1), "task-a").expect("first slot");
-    assert!(
-        reserve_agent_slot(&state, Some(1), "task-b").is_err(),
-        "the reserved (not yet spawned) slot must already count"
-    );
-    drop(first);
-    assert!(
-        reserve_agent_slot(&state, Some(1), "task-b").is_ok(),
-        "dropping the reservation must release the slot"
-    );
-}
-
-/// Re-reserving the same id is a replacement, not an addition — the reconnect
-/// path must never be refused for the thread it is reconnecting.
-#[test]
-fn reserving_the_same_id_twice_is_a_replacement() {
-    let state = AgentState::default();
-    let _first = reserve_agent_slot(&state, Some(1), "task-a").expect("first slot");
-    assert!(reserve_agent_slot(&state, Some(1), "task-a").is_ok());
 }
 
 // ── Backend timestamp precision ─────────────────────────────────

@@ -280,8 +280,6 @@ export const ko: Record<string, string> = {
   'Very deep reasoning': '매우 깊게 추론',
   'Maximum reasoning': '최대한 깊게 추론',
   // Simple-mode reasoning switch
-  'Think longer': '깊이 생각하기',
-  'Spend more time reasoning before answering': '답변하기 전에 더 오래 생각합니다',
   'Search messages': '메시지 검색',
   'Search messages…': '메시지 검색…',
   'Previous match': '이전 일치',

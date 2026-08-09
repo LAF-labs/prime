@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
+import { THINKING_LEVELS } from '@/types'
 
 vi.mock('@/lib/ipc', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/ipc')>()
@@ -130,14 +131,31 @@ describe('EffortPicker in simple mode', () => {
     resetStores('simple')
   })
 
-  it('renders the Think longer switch instead of the dropdown', () => {
-    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
+  /**
+   * Simple mode shows the same control as developer mode, narrowed to three
+   * steps. An on/off switch was the earlier design and the wrong
+   * simplification: reasoning effort genuinely has a middle, and a binary both
+   * removes it and hides which side you are on behind a single word.
+   */
+  it('offers exactly low, medium and high', () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: [...THINKING_LEVELS] } })
     renderPicker()
-    const toggle = screen.getByTestId('think-longer-toggle')
-    expect(toggle.textContent).toContain('Think longer')
-    expect(toggle.getAttribute('aria-checked')).toBe('false')
-    expect(screen.queryByTestId('effort-picker')).toBeNull()
-    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.click(screen.getByRole('button'))
+    const labels = screen.getAllByRole('option').map((o) => o.textContent)
+    expect(labels).toHaveLength(3)
+    expect(labels[0]).toContain('Low')
+    expect(labels[1]).toContain('Medium')
+    expect(labels[2]).toContain('High')
+  })
+
+  /** `off` degrades answers outright; the floor here is `low`, not `none`. */
+  it('never offers off, even when the model accepts it', () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['off', 'low', 'medium'] } })
+    renderPicker()
+    fireEvent.click(screen.getByRole('button'))
+    const labels = screen.getAllByRole('option').map((o) => o.textContent)
+    expect(labels).toHaveLength(2)
+    expect(labels.some((l) => l?.includes('Off'))).toBe(false)
   })
 
   it('renders nothing when the model offers no choice', () => {
@@ -146,10 +164,18 @@ describe('EffortPicker in simple mode', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('persists high when switched on', async () => {
+  /** One level left after narrowing is not worth a picker either. */
+  it('renders nothing when only one of the three is available', () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['off', 'medium', 'max'] } })
+    const { container } = renderPicker()
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('persists the level it was given', async () => {
     useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
     renderPicker()
-    fireEvent.click(screen.getByRole('switch'))
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.mouseDown(screen.getByRole('option', { name: /High/ }))
 
     expect(ipc.setThinkingLevel).toHaveBeenCalledWith(TASK, 'high')
     expect(useTaskStore.getState().thinkingLevels[TASK]).toBe('high')
@@ -161,40 +187,35 @@ describe('EffortPicker in simple mode', () => {
     )
   })
 
-  it('persists medium — not off — when switched back off', async () => {
-    const { settings } = useSettingsStore.getState()
-    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'high' } } })
-    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['off', 'low', 'medium', 'high'] } })
-    renderPicker()
-    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
-    fireEvent.click(screen.getByRole('switch'))
-
-    expect(ipc.setThinkingLevel).toHaveBeenCalledWith(TASK, 'medium')
-    expect(ipc.saveSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ modelEfforts: { [MODEL]: 'medium' } }),
-    )
-    await vi.waitFor(() =>
-      expect(useSettingsStore.getState().settings.modelEfforts?.[MODEL]).toBe('medium'),
-    )
-  })
-
-  it('reads a stored xhigh as on and leaves it alone until toggled', () => {
+  /**
+   * A level picked in developer mode has no button of its own here. It is
+   * displayed as its nearest neighbour so the control never reads as broken —
+   * but the stored value is untouched until the user actually picks something.
+   */
+  it('shows a stored xhigh as High without rewriting it', () => {
     const { settings } = useSettingsStore.getState()
     useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'xhigh' } } })
     useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['medium', 'high', 'xhigh'] } })
     renderPicker()
 
-    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
-    // Rendering must not rewrite a developer's stored level.
+    expect(screen.getByRole('button').getAttribute('aria-label')).toContain('High')
     expect(ipc.saveSettings).not.toHaveBeenCalled()
     expect(useSettingsStore.getState().settings.modelEfforts?.[MODEL]).toBe('xhigh')
   })
 
-  it('reads a stored low as off', () => {
+  it('shows a stored off as Low', () => {
+    const { settings } = useSettingsStore.getState()
+    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'off' } } })
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['off', 'low', 'medium', 'high'] } })
+    renderPicker()
+    expect(screen.getByRole('button').getAttribute('aria-label')).toContain('Low')
+  })
+
+  it('leaves a stored level in the visible set exactly as it is', () => {
     const { settings } = useSettingsStore.getState()
     useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'low' } } })
     useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
     renderPicker()
-    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByRole('button').getAttribute('aria-label')).toContain('Low')
   })
 })

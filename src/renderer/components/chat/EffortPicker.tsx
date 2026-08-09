@@ -7,7 +7,6 @@ import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useIsSimpleMode } from '@/lib/ui-mode'
-import { ThinkLongerToggle } from './ThinkLongerToggle'
 import { THINKING_LEVELS, isThinkingLevel, type ThinkingLevel } from '@/types'
 
 /** Short label + one-line description per level, mirroring the harness's own copy. */
@@ -24,6 +23,41 @@ const LEVEL_META: Record<ThinkingLevel, { label: string; desc: string }> = {
 /** Levels above `medium` get a warmer tint — they cost visibly more. */
 const isElevatedLevel = (level: ThinkingLevel): boolean =>
   level === 'high' || level === 'xhigh' || level === 'max'
+
+/**
+ * The three levels simple mode offers.
+ *
+ * Seven named levels are developer detail, but a two-state switch was the
+ * wrong simplification: it forces a binary on something that genuinely has a
+ * middle, and it hides which of the two you are on behind a word. Three
+ * named steps read at a glance and still map onto levels the harness
+ * actually accepts.
+ *
+ * `off` is deliberately absent. It disables reasoning outright and visibly
+ * degrades answers, which is not a trade an everyday user should be able to
+ * make by accident — the floor here is `low`, not `none`.
+ */
+const SIMPLE_LEVELS: readonly ThinkingLevel[] = ['low', 'medium', 'high']
+
+const rank = (level: ThinkingLevel): number => THINKING_LEVELS.indexOf(level)
+
+/**
+ * Show a stored level as its nearest visible neighbour.
+ *
+ * A level chosen in developer mode — `xhigh`, or `off` — has no button of its
+ * own in simple mode, and a picker whose current value matches nothing reads
+ * as broken. This only affects what is displayed; the stored value is
+ * replaced solely when the user picks something.
+ */
+export const clampToVisible = (
+  level: ThinkingLevel,
+  visible: readonly ThinkingLevel[],
+): ThinkingLevel => {
+  if (visible.length === 0 || visible.includes(level)) return level
+  return [...visible].sort(
+    (a, b) => Math.abs(rank(a) - rank(level)) - Math.abs(rank(b) - rank(level)),
+  )[0]
+}
 
 /**
  * Read the effort remembered for `modelId`. Effort is stored per model because
@@ -67,13 +101,18 @@ export const useEffortOptions = () => {
  * Reasoning-effort picker for the active thread.
  *
  * Developer mode gets the harness's full level list. Simple mode gets the same
- * state and the same persistence behind a single "Think longer" switch — see
- * `ThinkLongerToggle`.
+ * control narrowed to three steps (see {@link SIMPLE_LEVELS}) — same state,
+ * same persistence, fewer choices.
  */
 export const EffortPicker = memo(function EffortPicker() {
   const t = useT()
-  const { options, current, modelId, taskId: resolvedTaskId, hasChoice } = useEffortOptions()
+  const { options: allOptions, current: reportedCurrent, modelId, taskId: resolvedTaskId } = useEffortOptions()
   const isSimpleMode = useIsSimpleMode()
+  const options = isSimpleMode ? allOptions.filter((level) => SIMPLE_LEVELS.includes(level)) : allOptions
+  const current = isSimpleMode ? clampToVisible(reportedCurrent, options) : reportedCurrent
+  // A model offering one level — or, in simple mode, one of these three — is
+  // not worth a picker at all.
+  const hasChoice = options.length > 1
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -102,8 +141,6 @@ export const EffortPicker = memo(function EffortPicker() {
   }, [modelId, resolvedTaskId])
 
   if (!hasChoice) return null
-  // Same `handleSelect`, so the switch writes through the one persistence path.
-  if (isSimpleMode) return <ThinkLongerToggle level={current} options={options} onChange={handleSelect} />
 
   const meta = LEVEL_META[current]
 

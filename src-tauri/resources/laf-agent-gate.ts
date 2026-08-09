@@ -12,6 +12,7 @@
  * so this extension stays approval-mode-agnostic.
  */
 
+import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -62,6 +63,8 @@ function summarize(toolName: string, input: Record<string, unknown>): string {
 	return summary;
 }
 
+/** Simple mode: the everyday profile, spawned with --no-builtin-tools. */
+const EVERYDAY = process.env.LAF_PROFILE === "everyday";
 const TIGHT_SANDBOX = process.env.LAF_TIGHT_SANDBOX === "1";
 const PATH_KEYS = ["path", "file_path", "filePath"] as const;
 
@@ -559,6 +562,226 @@ function repairEverydayArgs(toolName: string, input: Record<string, unknown>): s
 	return null;
 }
 
+// ── Research mode: real subagents, without the RLM recursion ──────────
+//
+// Fanning research out across child agents is a context-management
+// strategy, not a luxury: each child reads its own sources and returns a
+// short brief, so the parent synthesizes from a few hundred tokens instead
+// of drowning in a dozen full pages. That matters *more* with a small model,
+// not less — the parent's context is the scarcest thing in the system.
+//
+// The harness's own fan-out (`await rlm(...)`) lives inside ipython, which
+// the everyday profile switches off, and the RPC surface can observe
+// subagents but not spawn them. So the gate spawns them itself: the same
+// binary, in RPC mode, with the everyday profile and a research-only brief.
+//
+// Three properties keep this from being a runaway:
+//   - depth. A child is spawned with LAF_RESEARCH_DEPTH set, and the tool
+//     only registers at depth 0. A child can never fan out again.
+//   - read-only. Children run with LAF_READONLY=1, which blocks every
+//     mutating tool in the gate. A headless child has no approval dialog to
+//     answer, so it must not be able to reach a file-changing tool at all.
+//   - bounded. Question count, concurrency, per-child wall clock and brief
+//     length are all capped, and every child is killed on the way out.
+
+
+const RESEARCH_DEPTH = Number.parseInt(process.env.LAF_RESEARCH_DEPTH ?? "0", 10) || 0;
+const READONLY = process.env.LAF_READONLY === "1";
+
+const MAX_QUESTIONS = 5;
+const MAX_CONCURRENT = 3;
+// A child fetches (up to 20s) and then generates from what it read; ninety
+// seconds proved too tight once pages carried real content.
+const CHILD_TIMEOUT_MS = 150_000;
+const MAX_BRIEF_CHARS = 4_000;
+
+/** Tools a read-only child may never reach, having no way to ask permission. */
+const MUTATING_EVERYDAY_TOOLS = new Set(["write_file", "organize", "remember"]);
+
+const CHILD_BRIEF = [
+  "You are researching one question on behalf of another assistant. You are not talking to a person.",
+  "Gather what you can with the tools available, then answer with the findings themselves — no preamble, no greeting, no offer to help further.",
+  "Give the substance: concrete facts, figures, names and dates, each with the source URL you got it from.",
+  "If you could not establish something, say so plainly instead of guessing. A short honest answer is worth more than a long invented one.",
+  "Keep it under 400 words.",
+].join(" ");
+
+/**
+ * Run one child agent to answer one question. Resolves to its final text, or
+ * to a short explanation of why it produced none — never rejects, because one
+ * failed line of inquiry should not sink the whole research turn.
+ */
+function runResearchChild(question: string, index: number): Promise<string> {
+  return new Promise((resolve) => {
+    const argv = process.argv.slice(1, 2);
+    if (argv.length === 0) {
+      resolve(`(could not start a research agent for: ${question})`);
+      return;
+    }
+    const args = [...argv, "--mode", "rpc", "--no-builtin-tools"];
+    const gatePath = process.env.LAF_GATE_PATH;
+    if (gatePath) args.push("-e", gatePath);
+    const model = process.env.LAF_MODEL;
+    if (model) args.push("--model", model);
+
+    const child = spawn(process.execPath, args, {
+      env: {
+        ...process.env,
+        LAF_PROFILE: "everyday",
+        LAF_RESEARCH_DEPTH: String(RESEARCH_DEPTH + 1),
+        LAF_READONLY: "1",
+      },
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+
+    let settled = false;
+    const texts: string[] = [];
+    // Streamed deltas, used only when no completed message carried text: a
+    // child that answered must never be reported as silent.
+    let streamed = "";
+    let buffer = "";
+
+    const finish = (fallback: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.kill("SIGKILL");
+      const answer = texts.filter((t) => t.trim()).pop() ?? streamed;
+      resolve(answer.trim() || fallback);
+    };
+
+    const timer = setTimeout(
+      () => finish(`(research on "${question}" ran out of time before answering)`),
+      CHILD_TIMEOUT_MS,
+    );
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      buffer += chunk.toString("utf8");
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let event: Record<string, unknown>;
+        try {
+          event = JSON.parse(line) as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+        if (event.type === "message_end") {
+          const message = event.message as { role?: string; content?: unknown } | undefined;
+          if (message?.role !== "assistant") continue;
+          const content = message.content;
+          if (typeof content === "string") texts.push(content);
+          else if (Array.isArray(content)) {
+            for (const part of content) {
+              const p = part as { type?: string; text?: string };
+              if (p?.type === "text" && typeof p.text === "string") texts.push(p.text);
+            }
+          }
+        } else if (event.type === "message_update") {
+          const delta = (event.message as { role?: string; content?: unknown } | undefined) ?? {};
+          if (delta.role === "assistant" && Array.isArray(delta.content)) {
+            for (const part of delta.content) {
+              const p = part as { type?: string; text?: string };
+              if (p?.type === "text" && typeof p.text === "string" && p.text.length > streamed.length) {
+                streamed = p.text;
+              }
+            }
+          }
+        } else if (event.type === "agent_end") {
+          // `agent_end` is the only end. `turn_end` also fires after a turn
+          // that merely called a tool, and treating it as completion killed
+          // children mid-investigation: measured, a child answered at 33s and
+          // was cut off at 23s, one tool call in, then reported as silent.
+          //
+          // The final message_end lands just after agent_end, so give it a
+          // moment rather than reading the buffer immediately.
+          setTimeout(() => finish(`(research on "${question}" produced no answer)`), 1_000);
+        }
+      }
+    });
+
+    child.on("error", () => finish(`(a research agent could not be started for: ${question})`));
+    child.on("exit", () => finish(`(research on "${question}" ended without an answer)`));
+
+    child.stdin.write(`${JSON.stringify({ type: "prompt", message: `${CHILD_BRIEF}\n\nQuestion ${index + 1}: ${question}` })}\n`);
+  });
+}
+
+/** Run the children a few at a time rather than all at once. */
+async function runWithLimit(questions: string[]): Promise<string[]> {
+  const results: string[] = new Array(questions.length).fill("");
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(MAX_CONCURRENT, questions.length) }, async () => {
+    for (;;) {
+      const index = cursor++;
+      if (index >= questions.length) return;
+      results[index] = await runResearchChild(questions[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+function registerResearch(pi: ExtensionAPI): void {
+  // Only the top-level session fans out. A child that could fan out again
+  // is an exponential process tree one prompt injection away.
+  if (!EVERYDAY || RESEARCH_DEPTH > 0 || READONLY) return;
+
+  pi.registerTool({
+    name: "research",
+    label: "Research",
+    description:
+      "Investigate a topic in depth by splitting it into separate questions and looking each one up independently, in parallel. " +
+      "Use it when a question is broad enough that one search will not settle it — comparisons, 'what are my options', " +
+      "anything needing several sources. For a single fact, use web_search or web_fetch instead: this is slower and costs more.",
+    promptGuidelines: [
+      "Split the topic into questions that do not overlap, and write each one so it stands alone — the researcher answering it " +
+        "cannot see the conversation, the other questions, or the user's earlier messages.",
+      "Two to four questions is usually right.",
+      "What research returns are notes from other researchers, not an answer to show the user. Write the answer yourself " +
+        "in the user's language, keep the source URLs, and say plainly which parts could not be established. " +
+        "Never repeat the notes verbatim.",
+    ],
+    parameters: {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          description: "Self-contained questions to research in parallel (2-5)",
+          items: { type: "string" },
+        },
+      },
+      required: ["questions"],
+    },
+    execute: async (_toolCallId: string, params: { questions: string[] }) => {
+      const raw = Array.isArray(params.questions) ? params.questions : [];
+      const questions = raw
+        .map((q) => String(q ?? "").trim())
+        .filter(Boolean)
+        .slice(0, MAX_QUESTIONS);
+      if (questions.length === 0) {
+        throw new Error('research needs a list of questions, e.g. {"questions": ["...", "..."]}.');
+      }
+      const briefs = await runWithLimit(questions);
+      const sections = questions.map((question, index) => {
+        const brief = briefs[index] ?? "";
+        const trimmed = brief.length > MAX_BRIEF_CHARS ? `${brief.slice(0, MAX_BRIEF_CHARS)}…` : brief;
+        return `## ${question}\n\n${trimmed}`;
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: sections.join("\n\n"),
+          },
+        ],
+        details: { questions: questions.length },
+      };
+    },
+  });
+}
+
 export default function (pi: ExtensionAPI) {
 	registerParityCommands(pi);
 	registerPlanGuard(pi);
@@ -566,21 +789,41 @@ export default function (pi: ExtensionAPI) {
 	registerWebSearch(pi);
 	registerWebFetch(pi);
 	registerEverydayProfile(pi);
+	registerResearch(pi);
 
 	// Everyday sessions must never gain a shell, even if a stale env leaks
 	// LAF_TIGHT_SANDBOX from a developer-mode configuration.
 	if (TIGHT_SANDBOX && WORKSPACE && !EVERYDAY) registerSandboxedBash(pi);
 
 	pi.on("tool_call", async (event, ctx) => {
-		// Repair first, before any gating decision: the approval dialog should
-		// show the arguments that will actually run, and a read-only tool with
-		// a mistyped argument still deserves the correction.
+		// A read-only research child is refused the mutating tools outright.
+		// It has no one to ask: nothing answers its dialogs, and auto-allowing
+		// them instead would let a headless agent change files unsupervised.
+		if (READONLY && MUTATING_EVERYDAY_TOOLS.has(event.toolName)) {
+			return {
+				block: true,
+				reason: `'${event.toolName}' is not available while researching. Report what you found; the assistant that asked will act on it.`,
+			};
+		}
+
+		// Repair before the remaining gating: the approval dialog should show
+		// the arguments that will actually run, and a tool with a mistyped
+		// argument deserves the correction. Availability comes first, though —
+		// a tool this session may not use is never told to fix its arguments.
 		const correction = repairEverydayArgs(event.toolName, event.input as Record<string, unknown>);
 		if (correction) {
 			return { block: true, reason: `Wrong arguments for '${event.toolName}'. ${correction} Call it again with that exact shape.` };
 		}
 
 		if (READ_ONLY_TOOLS.has(event.toolName) || PROMPTLESS_TOOLS.has(event.toolName)) return undefined;
+
+		// A research child's stdout is consumed by the parent's research tool,
+		// not by a UI, so an approval dialog is a request nothing can answer:
+		// the child waits on it forever and the whole research turn stalls.
+		// Skipping it is safe precisely because of the refusal above — every
+		// tool still reachable is a read, already confined to the workspace
+		// and home directory.
+		if (READONLY) return undefined;
 
 		// Plan mode: block mutations before anything else — no approval dialog
 		// can override a plan-mode block, and the reason tells the model what
@@ -928,14 +1171,64 @@ function registerWebSearch(pi: ExtensionAPI): void {
  */
 
 const FETCH_TIMEOUT_MS = 20_000;
-const MAX_PAGE_CHARS = 40_000;
+
+/**
+ * How much of a page a fetch hands back.
+ *
+ * The limit belongs to the model class, not to the tool. Forty thousand
+ * characters is roughly twelve thousand tokens — fine for a large model, and
+ * measured live, far too much for the small ones the everyday profile exists
+ * to serve: a single Wikipedia article at that size pushed a research child
+ * past a ninety-second budget without producing an answer. Twelve thousand
+ * characters still carries the lede and the first several sections of almost
+ * any article, which is where the answer to an everyday question actually is.
+ */
+const MAX_PAGE_CHARS = EVERYDAY ? 12_000 : 40_000;
+
+/**
+ * Narrow a page down to its article body before any text extraction.
+ *
+ * Observed live: fetching a Wikipedia article returned forty thousand
+ * characters of navigation, and the prose the model actually needed sat past
+ * the truncation limit. The model fetched twice, got the same wall of chrome
+ * both times, and gave up without answering. Extracting the content region
+ * first is what makes a fetched page usable — and it is a large token saving
+ * on every fetch besides.
+ *
+ * Ordered most specific to least. Anything not matched falls through to the
+ * whole document, which is the old behaviour.
+ */
+function mainContent(html: string): string {
+	const patterns = [
+		/<main\b[^>]*>([\s\S]*?)<\/main>/i,
+		/<article\b[^>]*>([\s\S]*?)<\/article>/i,
+		/<div[^>]*\bid=["']?(?:mw-content-text|content|main-content|article)["']?[^>]*>([\s\S]*)/i,
+		/<div[^>]*\bclass=["'][^"']*\b(?:post-content|entry-content|article-body|markdown-body)\b[^"']*["'][^>]*>([\s\S]*)/i,
+	];
+	for (const pattern of patterns) {
+		const match = html.match(pattern);
+		// A match so short it cannot hold prose is a false positive — an empty
+		// <main> wrapper, say — and losing the whole page to it is worse than
+		// keeping the chrome.
+		if (match?.[1] && match[1].length > 500) return match[1];
+	}
+	return html;
+}
 
 function htmlToText(html: string): string {
-	return html
+	return mainContent(html)
 		// Drop anything that isn't prose before stripping tags.
 		.replace(/<script[\s\S]*?<\/script>/gi, " ")
 		.replace(/<style[\s\S]*?<\/style>/gi, " ")
 		.replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+		.replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+		// Page furniture: menus, banners, sidebars and footers carry no
+		// answers and crowd out the text that does.
+		.replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
+		.replace(/<header\b[\s\S]*?<\/header>/gi, " ")
+		.replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
+		.replace(/<aside\b[\s\S]*?<\/aside>/gi, " ")
+		.replace(/<form\b[\s\S]*?<\/form>/gi, " ")
 		.replace(/<!--[\s\S]*?-->/g, " ")
 		// Keep block boundaries as newlines so structure survives.
 		.replace(/<\/(p|div|section|article|li|h[1-6]|tr|br)>/gi, "\n")
@@ -948,6 +1241,12 @@ function htmlToText(html: string): string {
 		.replace(/&quot;/g, '"')
 		.replace(/&#39;/g, "'")
 		.replace(/[ \t]+/g, " ")
+		// Stripped markup leaves behind lines holding nothing but a space.
+		// They survive the blank-line collapse below and, on a nav-heavy
+		// page, they were most of what the model received.
+		.split("\n")
+		.map((line) => line.trim())
+		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")
 		.trim();
 }
@@ -1027,7 +1326,6 @@ function registerWebFetch(pi: ExtensionAPI): void {
 // organize match the gate's mutation classification); nothing here can
 // delete a file — removal stays a human decision.
 
-const EVERYDAY = process.env.LAF_PROFILE === "everyday";
 
 /** Canonical home directory — the outer boundary for everyday file tools. */
 const HOME = (() => {
@@ -1323,6 +1621,8 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 			};
 		},
 	});
+
+	if (READONLY) return;
 
 	pi.registerTool({
 		name: "write_file",

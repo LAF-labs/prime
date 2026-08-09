@@ -241,39 +241,54 @@ where a value belongs) and blocks with the exact expected shape only when
 a call is genuinely ambiguous. Scoped to the everyday tools; developer
 tool arguments are never rewritten.
 
-### Research fan-out — attempted, withdrawn, not yet understood
+### Research fan-out — real subagents, without the RLM recursion
 
-Real subagents are a context-management strategy, not a luxury: each child
-reads its own sources and returns a short brief, so the parent synthesizes
-from hundreds of tokens instead of a dozen full pages. That matters *more*
-with a small model, not less.
+Fanning research out across child agents is a context-management strategy,
+not a luxury: each child reads its own sources and returns a short brief, so
+the parent synthesizes from hundreds of tokens instead of a dozen full pages.
+That matters *more* with a small model, not less.
 
-The harness's own fan-out (`await rlm(...)`) lives inside ipython, which
-this profile switches off, and the RPC surface can `observe` subagents but
-not spawn them. The attempt was therefore to have the gate spawn children
-itself — same binary, RPC mode, everyday profile, depth-limited and
-read-only.
+The harness's own fan-out (`await rlm(...)`) lives inside ipython, which this
+profile switches off, and the RPC surface can `observe` subagents but not
+spawn them. So the gate spawns them itself: the same binary, in RPC mode,
+with the everyday profile. Three properties keep it from running away —
+depth (the tool is not registered for a child, so a child can never fan out
+again), read-only (`LAF_READONLY=1` leaves the mutating tools unregistered
+*and* refused), and hard bounds on question count, concurrency, per-child
+wall clock and brief length.
 
-It does not work, and the cause is not yet established. Live, the parent
-model called `research` with a correct argument shape, `tool_execution_start`
-fired, and the tool's `execute` body never produced an observable effect —
-instrumentation on its first statement never ran, and no `tool_execution_end`
-followed. Two hypotheses were tested and eliminated:
+Verified live: two children spawned in parallel, both answered, the parent
+synthesized in Korean, no orphaned processes. Four defects were found and
+fixed on the way, all of which cost real time to isolate and are worth
+recording:
 
-- *Array-typed parameters are unsupported.* Ruled out: `organize` takes an
-  array of objects and executes correctly live.
-- *A headless child auto-approves and runs unchecked.* The opposite is
-  true, and worth recording: a child raises `extension_ui_request` and
-  waits forever, because nothing answers it. With stdin closed the harness
-  reports "Blocked by user"; with stdin open the child hangs. Any future
-  attempt must exempt such children from the approval dialog entirely,
-  which is only safe if the mutating tools are also unregistered for them.
+1. **A headless child blocks forever on an approval dialog.** It raises
+   `extension_ui_request` and nothing answers; with stdin closed the harness
+   reports "Blocked by user", with stdin open it hangs. Read-only children
+   skip the dialog entirely, which is safe only because the mutating tools
+   are already unreachable for them.
+2. **`turn_end` is not the end of the agent's work.** It also fires after a
+   turn that merely called a tool. Treating it as completion killed children
+   mid-investigation — measured, a child answered at 33s and was cut off at
+   23s, one tool call in, then reported as silent. Only `agent_end` ends a
+   child.
+3. **`web_fetch` returned navigation, not content.** A Wikipedia article came
+   back as 40,000 characters of menus with the prose past the truncation
+   limit; the model fetched twice, got the same wall of chrome, and gave up.
+   Fetches now extract the article region first — "Guido van Rossum" moved
+   from beyond 40,000 characters to character 981.
+4. **The page limit belongs to the model class, not the tool.** 40,000
+   characters is fine for a large model and far too much for the small ones
+   this profile serves; a single article at that size pushed a child past its
+   budget without answering. The everyday profile takes 12,000.
 
-The feature was withdrawn rather than shipped, because its failure mode is
-a permanently stuck turn. Reviving it needs one of: a spawn path proven to
-work from inside an extension, an RPC method to spawn a child session, or
-GUI-side orchestration in Rust (which already owns multi-connection
-lifecycle). The last is the most likely to succeed and the most work.
+A methodological note worth keeping: this feature was once withdrawn as
+"broken, cause not established". It was not broken. The test harness driving
+it never answered the approval dialog, which produces exactly the symptom
+that was mistaken for a dead tool — `tool_execution_start`, no
+`tool_execution_end`, and an `execute` body that appears never to run.
+`write_file` reproduces it identically. Before concluding a tool is dead,
+check that something is answering its dialogs.
 
 ### Still open
 
@@ -283,3 +298,6 @@ lifecycle). The last is the most likely to succeed and the most work.
   sites visited — a trust surface, distinct from the developer debug log.
 - **Escalation.** Two failed tool repairs in a row could retry once on a
   larger model. Needs the usage metering to be wired to a budget first.
+- **Research progress.** A research turn is silent for half a minute or
+  more. The children's briefs arrive all at once; showing them as they land
+  would make the wait legible.

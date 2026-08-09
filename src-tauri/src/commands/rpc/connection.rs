@@ -455,9 +455,17 @@ pub(crate) async fn run_rpc_connection(
     }
     if let Some(model) = initial_model_id.as_deref().filter(|m| m.contains('/')) {
         cmd.arg("--model").arg(model);
+        // Research children inherit the model rather than falling back to the
+        // CLI default, which could be a different provider entirely.
+        cmd.env("LAF_MODEL", model);
     }
     if let Some(gate) = gate_extension_path(&app) {
-        cmd.arg("-e").arg(gate);
+        cmd.arg("-e").arg(&gate);
+        // The gate's research tool re-spawns this same binary for its child
+        // agents, and a child needs the gate too — without it a child comes up
+        // with no tools and the RLM prompt. Hand it the resolved path rather
+        // than making it guess.
+        cmd.env("LAF_GATE_PATH", gate);
     } else {
         log::warn!("[RPC] permission-gate extension not found — tool calls will run ungated");
     }

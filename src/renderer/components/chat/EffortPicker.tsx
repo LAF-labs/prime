@@ -6,6 +6,8 @@ import { usePanelResolvedTaskId } from './PanelContext'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useIsSimpleMode } from '@/lib/ui-mode'
+import { ThinkLongerToggle } from './ThinkLongerToggle'
 import { THINKING_LEVELS, isThinkingLevel, type ThinkingLevel } from '@/types'
 
 /** Short label + one-line description per level, mirroring the harness's own copy. */
@@ -61,10 +63,17 @@ export const useEffortOptions = () => {
   return { options, current, modelId, taskId: resolvedTaskId, hasChoice: options.length > 1 }
 }
 
-/** Reasoning-effort picker for the active thread. */
+/**
+ * Reasoning-effort picker for the active thread.
+ *
+ * Developer mode gets the harness's full level list. Simple mode gets the same
+ * state and the same persistence behind a single "Think longer" switch — see
+ * `ThinkLongerToggle`.
+ */
 export const EffortPicker = memo(function EffortPicker() {
   const t = useT()
   const { options, current, modelId, taskId: resolvedTaskId, hasChoice } = useEffortOptions()
+  const isSimpleMode = useIsSimpleMode()
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -93,6 +102,9 @@ export const EffortPicker = memo(function EffortPicker() {
   }, [modelId, resolvedTaskId])
 
   if (!hasChoice) return null
+  // Same `handleSelect`, so the switch writes through the one persistence path.
+  if (isSimpleMode) return <ThinkLongerToggle level={current} options={options} onChange={handleSelect} />
+
   const meta = LEVEL_META[current]
 
   return (

@@ -147,10 +147,10 @@ describe('everyday profile', () => {
 
 describe('everyday file confinement', () => {
   it.each([
-    ['outside the home directory', '/etc/passwd', /outside your home/],
+    ['outside every allowed root', '/etc/passwd', /outside your home folder/],
     ['a dotfile', '~/.ssh/id_ed25519', /hidden or system/],
     ['the Library folder', '~/Library/Cookies/x', /hidden or system/],
-    ['a traversal escape', '~/Documents/../../../etc/hosts', /outside your home/],
+    ['a traversal escape', '~/Documents/../../../etc/hosts', /outside your home folder/],
   ])('refuses to read %s', async (_label, path, message) => {
     const { tools } = await loadGate()
     await expect(tools.get('read_file')?.execute('c', { path })).rejects.toThrow(message)
@@ -169,6 +169,158 @@ describe('everyday file confinement', () => {
     writeFileSync(file, Buffer.from([0x50, 0x4b, 0x00, 0x01]))
     const { tools } = await loadGate()
     await expect(tools.get('read_file')?.execute('c', { path: file })).rejects.toThrow(/not text/)
+  })
+})
+
+/**
+ * A live run against a small model produced both failures below within three
+ * turns: it translated `보고서.txt` to `report.txt`, and it re-typed a long
+ * absolute path one character off. Both ended the turn with "the file does
+ * not exist" and no attempt to recover. Naming what the folder actually
+ * contains is what turns each into a self-correcting step — which is the
+ * whole difference between an assistant that feels capable and one that
+ * gives up.
+ */
+describe('everyday not-found recovery', () => {
+  it('lists the real names when a file name was guessed', async () => {
+    writeFileSync(join(home, '보고서.txt'), '분기 매출')
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('read_file')?.execute('c', { path: join(home, 'report.txt') }),
+    ).rejects.toThrow(/보고서\.txt/)
+  })
+
+  it('tells the model not to translate or re-spell the name', async () => {
+    writeFileSync(join(home, '자료.txt'), 'x')
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('read_file')?.execute('c', { path: join(home, 'data.txt') }),
+    ).rejects.toThrow(/do not translate or re-spell/)
+  })
+
+  it('says the folder is empty rather than listing nothing', async () => {
+    const empty = join(home, 'empty-folder')
+    mkdirSync(empty, { recursive: true })
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('read_file')?.execute('c', { path: join(empty, 'nope.txt') }),
+    ).rejects.toThrow(/that folder is empty/)
+  })
+
+  it('reports a missing parent folder as such', async () => {
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('read_file')?.execute('c', { path: join(home, 'no-such-dir', 'x.txt') }),
+    ).rejects.toThrow(/There is no folder at/)
+  })
+
+  it('redirects read_file at a folder to list_dir', async () => {
+    mkdirSync(join(home, 'a-folder'), { recursive: true })
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('read_file')?.execute('c', { path: join(home, 'a-folder') }),
+    ).rejects.toThrow(/is a folder, not a file/)
+  })
+
+  it('redirects list_dir at a file to read_file', async () => {
+    writeFileSync(join(home, 'a-file.txt'), 'x')
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('list_dir')?.execute('c', { path: join(home, 'a-file.txt') }),
+    ).rejects.toThrow(/is a file, not a folder/)
+  })
+
+  it('names the real files when organize is pointed at a guessed one', async () => {
+    mkdirSync(join(home, 'tidy'), { recursive: true })
+    writeFileSync(join(home, 'tidy', '사진.jpg'), 'x')
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('organize')?.execute('c', {
+        operations: [{ from: join(home, 'tidy', 'photo.jpg'), to: join(home, 'tidy', 'moved.jpg') }],
+      }),
+    ).rejects.toThrow(/사진\.jpg/)
+  })
+
+  /**
+   * Long absolute paths are both a token cost on every tool result and,
+   * observed live, something a small model re-types incorrectly.
+   */
+  it('reports paths relative to the workspace, not as absolute ones', async () => {
+    const { tools } = await loadGate()
+    const result = await tools.get('write_file')?.execute('c', {
+      path: join(home, 'short.txt'),
+      content: 'hi',
+    })
+    const text = result?.content[0]?.text ?? ''
+    expect(text).toBe('Created short.txt (2 B).')
+    expect(text).not.toContain(home)
+  })
+})
+
+/**
+ * Regression: confining to the home directory alone left a session unable to
+ * read the very folder it was opened on. A live run against a small model
+ * caught it immediately — the model called `list_dir` on its own workspace
+ * and was refused. Workspaces legitimately live outside the home directory
+ * (an external drive, a temp folder, the app's own chat workspaces under a
+ * dot-directory), so the workspace is an allowed root in its own right.
+ */
+describe('everyday workspace root', () => {
+  let outside: string
+  let realHomeForBlock: string | undefined
+
+  beforeAll(() => {
+    outside = mkdtempSync(join(tmpdir(), 'laf-outside-ws-'))
+    realHomeForBlock = process.env.LAF_WORKSPACE
+    process.env.LAF_WORKSPACE = outside
+  })
+
+  afterAll(() => {
+    if (realHomeForBlock === undefined) delete process.env.LAF_WORKSPACE
+    else process.env.LAF_WORKSPACE = realHomeForBlock
+    rmSync(outside, { recursive: true, force: true })
+  })
+
+  it('reads a file in a workspace that sits outside the home directory', async () => {
+    const file = join(outside, 'report.txt')
+    writeFileSync(file, '분기 매출 보고')
+    const { tools } = await loadGate()
+    const result = await tools.get('read_file')?.execute('c', { path: file })
+    expect(result?.content[0]?.text).toContain('분기 매출')
+  })
+
+  it('still reaches the home directory from an outside workspace', async () => {
+    const file = join(home, 'from-home.txt')
+    writeFileSync(file, 'home file')
+    const { tools } = await loadGate()
+    const result = await tools.get('read_file')?.execute('c', { path: file })
+    expect(result?.content[0]?.text).toContain('home file')
+  })
+
+  it('still refuses hidden entries inside that workspace', async () => {
+    const secret = join(outside, '.env')
+    writeFileSync(secret, 'API_KEY=leak-me')
+    const { tools } = await loadGate()
+    await expect(tools.get('read_file')?.execute('c', { path: secret })).rejects.toThrow(
+      /hidden or system/,
+    )
+  })
+
+  it('still refuses a path outside both roots', async () => {
+    const { tools } = await loadGate()
+    await expect(tools.get('read_file')?.execute('c', { path: '/etc/passwd' })).rejects.toThrow(
+      /outside/,
+    )
+  })
+
+  /** A home path seen from an outside workspace is reported in `~/…` form. */
+  it('abbreviates a home path with a tilde', async () => {
+    const { tools } = await loadGate()
+    const result = await tools.get('write_file')?.execute('c', {
+      path: join(home, 'tilde.txt'),
+      content: 'hi',
+    })
+    expect(result?.content[0]?.text).toBe('Created ~/tilde.txt (2 B).')
   })
 })
 

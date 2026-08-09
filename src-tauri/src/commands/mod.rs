@@ -6,6 +6,7 @@ pub mod checkpoint;
 pub mod diff_parse;
 pub mod diff_stats;
 pub mod error;
+pub mod everyday_memory;
 pub mod fs_ops;
 pub mod fuzzy;
 pub mod git;

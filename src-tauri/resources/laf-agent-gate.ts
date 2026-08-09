@@ -1104,10 +1104,22 @@ function buildEverydayPrompt(cwd: string): string {
 
 /**
  * Resolve an everyday tool path: expand `~`, resolve relative paths against
- * the workspace, canonicalize through symlinks, and confine the result to
- * the user's home. Dotfiles and ~/Library are refused — an everyday session
- * has no business in either, and prompt-injected text should not be able to
- * point these tools at keychains, cookies, or ssh keys.
+ * the workspace, canonicalize through symlinks, and confine the result to a
+ * folder the user actually chose.
+ *
+ * Two roots are allowed, and the order matters. The session's own workspace
+ * comes first because the user picked it explicitly and it may legitimately
+ * sit outside the home directory — an external drive, a temp folder, or the
+ * app's own `~/.laf-agent/chats/<id>` for a project-less chat. Confining to
+ * the home directory alone made a session unable to read the very folder it
+ * was opened on. The home directory is the second root, so "summarize the
+ * thing in my Downloads" keeps working from any workspace.
+ *
+ * Within whichever root matched, hidden entries are refused, as is
+ * `~/Library`. That check runs on the path *relative to the root*, so a
+ * workspace that itself lives under a dot-directory stays usable while
+ * `~/.ssh/id_ed25519` stays unreachable. Prompt-injected text must not be
+ * able to point these tools at keychains, cookies, or ssh keys.
  */
 function resolveEverydayPath(raw: string): { path: string } | { error: string } {
 	const trimmed = raw.trim();
@@ -1115,15 +1127,20 @@ function resolveEverydayPath(raw: string): { path: string } | { error: string } 
 	const expanded = trimmed === "~" ? HOME : trimmed.startsWith("~/") ? joinPath(HOME, trimmed.slice(2)) : trimmed;
 	const absolute = isAbsolute(expanded) ? expanded : resolvePath(WORKSPACE || HOME, expanded);
 	const canonical = canonicalize(absolute);
-	if (canonical !== HOME && !canonical.startsWith(`${HOME}/`)) {
-		return { error: `'${raw}' is outside your home folder, which everyday tools cannot reach.` };
+
+	const roots = WORKSPACE && WORKSPACE !== HOME ? [WORKSPACE, HOME] : [HOME];
+	const root = roots.find((r) => canonical === r || canonical.startsWith(`${r}/`));
+	if (!root) {
+		return {
+			error:
+				`'${raw}' is outside this conversation's folder and outside your home folder, ` +
+				"so everyday tools cannot reach it.",
+		};
 	}
-	const relative = canonical === HOME ? "" : canonical.slice(HOME.length + 1);
+
+	const relative = canonical === root ? "" : canonical.slice(root.length + 1);
 	const segments = relative ? relative.split("/") : [];
-	// The app's own ~/.laf-agent/chats workspaces must stay reachable — chat
-	// threads live there. Everything else hidden stays off-limits.
-	const insideOwnData = segments[0] === ".laf-agent";
-	if (!insideOwnData && (segments.some((s) => s.startsWith(".")) || segments[0] === "Library")) {
+	if (segments.some((s) => s.startsWith(".")) || (root === HOME && segments[0] === "Library")) {
 		return { error: `'${raw}' is a hidden or system location, which everyday tools cannot touch.` };
 	}
 	return { path: canonical };
@@ -1133,6 +1150,67 @@ function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Shorten a path for the model: relative to the workspace when it lives
+ * there, `~/…` when it lives under the home directory, absolute otherwise.
+ *
+ * Two reasons. Absolute paths are paid for in tokens on every tool result,
+ * and — observed against a real small model — a long absolute path is
+ * something a small model will re-type incorrectly, one character off, on
+ * the very next call. Short paths are cheaper *and* more reliable.
+ */
+function displayPath(absolute: string): string {
+	if (WORKSPACE && absolute === WORKSPACE) return ".";
+	if (WORKSPACE && absolute.startsWith(`${WORKSPACE}/`)) return absolute.slice(WORKSPACE.length + 1);
+	if (absolute === HOME) return "~";
+	if (absolute.startsWith(`${HOME}/`)) return `~/${absolute.slice(HOME.length + 1)}`;
+	return absolute;
+}
+
+/** Visible entry names in a folder, or null when it cannot be listed. */
+async function visibleNames(folder: string): Promise<string[] | null> {
+	try {
+		const entries = await readdir(folder, { withFileTypes: true });
+		return entries.filter((e) => !e.name.startsWith(".")).map((e) => (e.isDirectory() ? `${e.name}/` : e.name));
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Turn "file not found" into something the model can act on.
+ *
+ * A small model guesses file names: it will translate `보고서.txt` to
+ * `report.txt`, or mistype one character of a long path, and then report
+ * failure to the user. Naming what the folder *does* contain converts that
+ * dead end into a self-correcting step, which is the whole difference
+ * between an assistant that feels capable and one that gives up.
+ */
+async function missingPathHint(target: string): Promise<string> {
+	const parent = dirname(target);
+	const base = target.slice(parent.length + 1);
+	const names = await visibleNames(parent);
+	if (names === null) {
+		return `There is no folder at '${displayPath(parent)}', so '${base}' cannot exist. List a folder you know exists before trying again.`;
+	}
+	if (names.length === 0) {
+		return `'${base}' is not in '${displayPath(parent)}' — that folder is empty.`;
+	}
+	const shown = names.slice(0, 30).join(", ");
+	const more = names.length > 30 ? `, and ${names.length - 30} more` : "";
+	return (
+		`'${base}' is not in '${displayPath(parent)}'. That folder contains: ${shown}${more}. ` +
+		"Use one of these names exactly as written — do not translate or re-spell it."
+	);
+}
+
+/** Node's filesystem errors carry a `code`; narrow without an `any` cast. */
+function errorCode(error: unknown): string {
+	return typeof error === "object" && error !== null && "code" in error
+		? String((error as { code: unknown }).code)
+		: "";
 }
 
 /** Suffix listing already-completed operations, so a mid-batch failure is honest about partial state. */
@@ -1163,7 +1241,19 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		execute: async (_toolCallId: string, params: { path: string }) => {
 			const resolved = resolveEverydayPath(String(params.path ?? ""));
 			if ("error" in resolved) throw new Error(resolved.error);
-			const body = await readFile(resolved.path, "utf8");
+			let body: string;
+			try {
+				body = await readFile(resolved.path, "utf8");
+			} catch (error) {
+				const code = errorCode(error);
+				if (code === "ENOENT") throw new Error(await missingPathHint(resolved.path));
+				if (code === "EISDIR") {
+					throw new Error(
+						`'${displayPath(resolved.path)}' is a folder, not a file. Use list_dir to see what is inside it.`,
+					);
+				}
+				throw error;
+			}
 			if (body.includes("\u0000")) {
 				throw new Error("This file is not text (it looks like an image, archive, or other binary format).");
 			}
@@ -1192,7 +1282,19 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		execute: async (_toolCallId: string, params: { path: string }) => {
 			const resolved = resolveEverydayPath(String(params.path ?? ""));
 			if ("error" in resolved) throw new Error(resolved.error);
-			const entries = await readdir(resolved.path, { withFileTypes: true });
+			let entries: Awaited<ReturnType<typeof readdir>>;
+			try {
+				entries = await readdir(resolved.path, { withFileTypes: true });
+			} catch (error) {
+				const code = errorCode(error);
+				if (code === "ENOENT") throw new Error(await missingPathHint(resolved.path));
+				if (code === "ENOTDIR") {
+					throw new Error(
+						`'${displayPath(resolved.path)}' is a file, not a folder. Use read_file to read it.`,
+					);
+				}
+				throw error;
+			}
 			const visible = entries.filter((e) => !e.name.startsWith("."));
 			visible.sort((a, b) =>
 				a.isDirectory() === b.isDirectory() ? a.name.localeCompare(b.name) : a.isDirectory() ? -1 : 1,
@@ -1251,7 +1353,7 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				content: [
 					{
 						type: "text",
-						text: `${replaced ? "Replaced" : "Created"} ${resolved.path} (${formatBytes(Buffer.byteLength(content, "utf8"))}).`,
+						text: `${replaced ? "Replaced" : "Created"} ${displayPath(resolved.path)} (${formatBytes(Buffer.byteLength(content, "utf8"))}).`,
 					},
 				],
 				details: { path: resolved.path, replaced, chars: content.length },
@@ -1299,6 +1401,11 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				const label = `operation ${index + 1}`;
 				const from = resolveEverydayPath(String(op.from ?? ""));
 				if ("error" in from) throw new Error(`${label}: ${from.error}${doneSuffix(done)}`);
+				try {
+					await stat(from.path);
+				} catch {
+					throw new Error(`${label}: ${await missingPathHint(from.path)}${doneSuffix(done)}`);
+				}
 				const to = resolveEverydayPath(String(op.to ?? ""));
 				if ("error" in to) throw new Error(`${label}: ${to.error}${doneSuffix(done)}`);
 				let exists = true;
@@ -1309,7 +1416,7 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				}
 				if (exists) {
 					throw new Error(
-						`${label}: '${to.path}' already exists — organize never overwrites. Pick a different name.${doneSuffix(done)}`,
+						`${label}: '${displayPath(to.path)}' already exists — organize never overwrites. Pick a different name.${doneSuffix(done)}`,
 					);
 				}
 				await mkdir(dirname(to.path), { recursive: true });
@@ -1318,7 +1425,7 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				} else {
 					await rename(from.path, to.path);
 				}
-				done.push(`${op.op === "copy" ? "Copied" : "Moved"} ${from.path} → ${to.path}`);
+				done.push(`${op.op === "copy" ? "Copied" : "Moved"} ${displayPath(from.path)} → ${displayPath(to.path)}`);
 			}
 			return {
 				content: [{ type: "text", text: done.join("\n") }],

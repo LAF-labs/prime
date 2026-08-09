@@ -21,6 +21,19 @@ export interface TaskErrorPayload {
   detail?: string
 }
 
+/**
+ * One fact the everyday assistant remembers about the user.
+ *
+ * Written by the gate extension's `remember` tool into
+ * `~/.laf-agent/memories.json` and injected into every turn's system prompt,
+ * which is why the settings panel can list and delete them.
+ */
+export interface EverydayMemory {
+  fact: string
+  /** ISO-8601 timestamp. Empty when the entry predates the field. */
+  at: string
+}
+
 /** What `history_health` reports about a store file on disk. */
 export interface HistoryHealth {
   /** False on a first run, which is not a fault. */
@@ -116,6 +129,21 @@ export const ipc = {
     invoke('set_dock_icon', { iconBase64 }),
   resetDockIcon: (): Promise<void> =>
     invoke('reset_dock_icon'),
+
+  // ── Everyday memories ────────────────────────────────────────────────────
+  /**
+   * Facts the everyday assistant has remembered, in the order the gate wrote
+   * them (oldest first). Never rejects for a missing or damaged store — both
+   * come back as an empty list.
+   */
+  everydayMemoriesList: (): Promise<EverydayMemory[]> =>
+    invoke('everyday_memories_list'),
+  /** Forget one fact, matched on its exact text. A miss is a no-op. */
+  everydayMemoryDelete: (fact: string): Promise<void> =>
+    invoke('everyday_memory_delete', { fact }),
+  /** Forget everything: the store file is removed, not emptied. */
+  everydayMemoriesClear: (): Promise<void> =>
+    invoke('everyday_memories_clear'),
 
   // ── History integrity ────────────────────────────────────────────────────
   /**

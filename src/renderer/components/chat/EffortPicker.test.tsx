@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EffortPicker } from './EffortPicker'
 import { PanelProvider } from './PanelContext'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ipc } from '@/lib/ipc'
@@ -23,25 +24,32 @@ const MODEL = 'openai/gpt-5'
 
 const renderPicker = () =>
   render(
-    <PanelProvider value={TASK}>
-      <EffortPicker />
-    </PanelProvider>,
+    <TooltipProvider>
+      <PanelProvider value={TASK}>
+        <EffortPicker />
+      </PanelProvider>
+    </TooltipProvider>,
   )
+
+/** Both surfaces share this state; only `uiMode` decides which one renders. */
+const resetStores = (uiMode: 'simple' | 'developer') => {
+  vi.mocked(ipc.setThinkingLevel).mockClear()
+  vi.mocked(ipc.saveSettings).mockClear()
+  useTaskStore.setState({
+    thinkingLevels: {},
+    availableThinkingLevels: {},
+    taskModels: { [TASK]: MODEL },
+  })
+  const { settings } = useSettingsStore.getState()
+  useSettingsStore.setState({
+    currentModelId: MODEL,
+    settings: { ...settings, modelEfforts: undefined, uiMode },
+  })
+}
 
 describe('EffortPicker', () => {
   beforeEach(() => {
-    vi.mocked(ipc.setThinkingLevel).mockClear()
-    vi.mocked(ipc.saveSettings).mockClear()
-    useTaskStore.setState({
-      thinkingLevels: {},
-      availableThinkingLevels: {},
-      taskModels: { [TASK]: MODEL },
-    })
-    const { settings } = useSettingsStore.getState()
-    useSettingsStore.setState({
-      currentModelId: MODEL,
-      settings: { ...settings, modelEfforts: undefined },
-    })
+    resetStores('developer')
   })
 
   it('hides itself when the model reports a single level', () => {
@@ -107,5 +115,86 @@ describe('EffortPicker', () => {
     })
     renderPicker()
     expect(screen.getByTestId('effort-picker').textContent).toContain('High')
+  })
+
+  it('keeps the full dropdown, never the simple-mode switch', () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
+    renderPicker()
+    expect(screen.getByTestId('effort-picker')).toBeTruthy()
+    expect(screen.queryByTestId('think-longer-toggle')).toBeNull()
+  })
+})
+
+describe('EffortPicker in simple mode', () => {
+  beforeEach(() => {
+    resetStores('simple')
+  })
+
+  it('renders the Think longer switch instead of the dropdown', () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
+    renderPicker()
+    const toggle = screen.getByTestId('think-longer-toggle')
+    expect(toggle.textContent).toContain('Think longer')
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    expect(screen.queryByTestId('effort-picker')).toBeNull()
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('renders nothing when the model offers no choice', () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['off'] } })
+    const { container } = renderPicker()
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('persists high when switched on', async () => {
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
+    renderPicker()
+    fireEvent.click(screen.getByRole('switch'))
+
+    expect(ipc.setThinkingLevel).toHaveBeenCalledWith(TASK, 'high')
+    expect(useTaskStore.getState().thinkingLevels[TASK]).toBe('high')
+    expect(ipc.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ modelEfforts: { [MODEL]: 'high' } }),
+    )
+    await vi.waitFor(() =>
+      expect(useSettingsStore.getState().settings.modelEfforts?.[MODEL]).toBe('high'),
+    )
+  })
+
+  it('persists medium — not off — when switched back off', async () => {
+    const { settings } = useSettingsStore.getState()
+    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'high' } } })
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['off', 'low', 'medium', 'high'] } })
+    renderPicker()
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(screen.getByRole('switch'))
+
+    expect(ipc.setThinkingLevel).toHaveBeenCalledWith(TASK, 'medium')
+    expect(ipc.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ modelEfforts: { [MODEL]: 'medium' } }),
+    )
+    await vi.waitFor(() =>
+      expect(useSettingsStore.getState().settings.modelEfforts?.[MODEL]).toBe('medium'),
+    )
+  })
+
+  it('reads a stored xhigh as on and leaves it alone until toggled', () => {
+    const { settings } = useSettingsStore.getState()
+    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'xhigh' } } })
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['medium', 'high', 'xhigh'] } })
+    renderPicker()
+
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    // Rendering must not rewrite a developer's stored level.
+    expect(ipc.saveSettings).not.toHaveBeenCalled()
+    expect(useSettingsStore.getState().settings.modelEfforts?.[MODEL]).toBe('xhigh')
+  })
+
+  it('reads a stored low as off', () => {
+    const { settings } = useSettingsStore.getState()
+    useSettingsStore.setState({ settings: { ...settings, modelEfforts: { [MODEL]: 'low' } } })
+    useTaskStore.setState({ availableThinkingLevels: { [TASK]: ['low', 'medium', 'high'] } })
+    renderPicker()
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('false')
   })
 })

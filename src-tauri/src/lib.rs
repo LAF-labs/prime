@@ -1,6 +1,6 @@
 pub mod commands;
 
-use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing, vcs_status};
+use commands::{rpc, analytics, kernel_setup, branch_ai, checkpoint, diff_parse, everyday_memory, fs_ops, fuzzy, git, git_ai, git_history, git_pr, git_stack, agent_resources, history_guard, resource_watcher, markdown, pr_ai, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing, vcs_status};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -627,6 +627,10 @@ pub fn run() {
             // History integrity
             history_guard::history_health,
             history_guard::history_quarantine,
+            // Everyday memories (facts the simple-mode assistant remembers)
+            everyday_memory::everyday_memories_list,
+            everyday_memory::everyday_memory_delete,
+            everyday_memory::everyday_memories_clear,
             // File ops
             fs_ops::detect_agent_cli,
             fs_ops::harness_info,

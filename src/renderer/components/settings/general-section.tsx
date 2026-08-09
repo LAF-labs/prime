@@ -12,6 +12,7 @@ import { useT } from '@/lib/i18n'
 import { resolveUiMode } from '@/lib/ui-mode'
 import type { AppSettings } from '@/types'
 import { SectionHeader, SettingsCard, SettingRow, SettingsGrid, Divider } from './settings-shared'
+import { EverydayMemoryCard } from './everyday-memory-card'
 import { SummonCard } from './summon-card'
 import { UpdatesCard } from './updates-card'
 
@@ -126,6 +127,10 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
           </SettingRow>
         </SettingsCard>
       </SettingsGrid>
+
+      {/* Renders only on the everyday surface — it is the only one that has an
+          assistant remembering anything. */}
+      <EverydayMemoryCard />
 
       <SettingsGrid label={t('Language')} description={t('App display language')}>
         <SettingsCard>

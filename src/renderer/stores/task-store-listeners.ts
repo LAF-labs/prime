@@ -2,7 +2,6 @@ import type { AgentTask } from '@/types'
 import { ipc } from '@/lib/ipc'
 import { joinChunk } from '@/lib/utils'
 import { sendTaskNotification } from '@/lib/notifications'
-import { useDebugStore } from '@/stores/debugStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useTaskStore } from './taskStore'
@@ -292,29 +291,8 @@ export function initTaskListeners(): () => void {
         })
         useTaskStore.getState().persistHistory()
         delete lastActivityMs[taskId]
-        useDebugStore.getState().addEntry({
-          id: 0,
-          direction: 'in',
-          category: 'error',
-          type: 'watchdog',
-          taskId,
-          summary: `Task stuck for ${Math.round(idle / 1000)}s with no activity — auto-cleared spinner`,
-          payload: { idleMs: idle },
-          isError: true,
-          timestamp: new Date().toISOString(),
-        })
       } else if (idle >= WATCHDOG_WARN_MS) {
-        useDebugStore.getState().addEntry({
-          id: 0,
-          direction: 'in',
-          category: 'error',
-          type: 'watchdog',
-          taskId,
-          summary: `Task has been running with no activity for ${Math.round(idle / 1000)}s — may be stuck`,
-          payload: { idleMs: idle },
-          isError: false,
-          timestamp: new Date().toISOString(),
-        })
+        console.warn(`[watchdog] task ${taskId} idle for ${Math.round(idle / 1000)}s — may be stuck`)
       }
     }
     // Prune orphaned records for tasks that no longer exist in state
@@ -658,8 +636,9 @@ export function initTaskListeners(): () => void {
     }
   })
 
+  // The agent's debug stream no longer feeds a panel, but its stderr is still
+  // the only place an MCP OAuth misconfiguration announces itself.
   const unsub9 = ipc.onDebugLog((entry) => {
-    useDebugStore.getState().addEntry(entry)
     if (entry.category === 'stderr') {
       const text = typeof entry.payload === 'string' ? entry.payload : JSON.stringify(entry.payload)
       if (text.includes('Dynamic registration failed') || text.includes('invalid_redirect_uri')) {

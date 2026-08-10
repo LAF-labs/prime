@@ -147,10 +147,7 @@ window.addEventListener('keydown', (e) => {
   }
 })
 
-// Install JS debug interceptors (console, errors, fetch/XHR) before React renders
-import { installJsInterceptors } from './lib/jsInterceptors'
 import { t } from '@/lib/i18n'
-installJsInterceptors()
 
 // Safety net: persist thread history before the window closes.
 // We eagerly import the store module so the reference is available synchronously

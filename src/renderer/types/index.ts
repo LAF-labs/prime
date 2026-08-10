@@ -283,6 +283,11 @@ export interface AppSettings {
    */
   autoArchiveDays?: number | null
   /**
+   * Name shown in the sidebar account row. Set by the user today; the account
+   * system will supply it once sign-up exists. Absent means "not signed in".
+   */
+  displayName?: string
+  /**
    * Local usage statistics. Everything stays on this machine either way —
    * there is no telemetry client — but off means nothing is recorded at all.
    * Absent means enabled, matching the Rust default.

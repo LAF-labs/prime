@@ -20,21 +20,7 @@ vi.mock('@/stores/resourceStore', () => ({
   ),
 }))
 
-vi.mock('@/stores/debugStore', () => ({
-  useDebugStore: Object.assign(
-    (selector: (s: Record<string, unknown>) => unknown) =>
-      selector({ isOpen: false }),
-    { getState: () => ({ toggleOpen: vi.fn() }) },
-  ),
-}))
 
-vi.mock('@/stores/jsDebugStore', () => ({
-  useJsDebugStore: Object.assign(
-    (selector: (s: Record<string, unknown>) => unknown) =>
-      selector({}),
-    { getState: () => ({}) },
-  ),
-}))
 
 vi.mock('@/lib/ipc', () => ({
   ipc: { watchResourcePath: vi.fn().mockResolvedValue(undefined), unwatchResourcePath: vi.fn().mockResolvedValue(undefined) },
@@ -58,7 +44,6 @@ vi.mock('@/lib/connection-state', () => ({
 }))
 
 vi.mock('@/components/header-user-menu', () => ({
-  HeaderUserMenu: () => <div data-testid="header-user-menu" />,
 }))
 
 import { ResourcePanel } from './ResourcePanel'

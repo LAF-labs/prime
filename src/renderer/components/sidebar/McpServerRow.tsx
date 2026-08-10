@@ -10,7 +10,6 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useDebugStore } from '@/stores/debugStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { ipc } from '@/lib/ipc'
 import type { McpServerConfig } from '@/types'
@@ -131,12 +130,6 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
   const handleEnableAllTools = useCallback(() => {
     setCtxMenu(null)
     useResourceStore.getState().setMcpDisabledTools(server.name, [])
-  }, [server.name])
-
-  const handleShowLogs = useCallback(() => {
-    setCtxMenu(null)
-    useDebugStore.getState().setFilter({ mcpServerName: server.name })
-    useDebugStore.getState().setOpen(true)
   }, [server.name])
 
   /**
@@ -390,13 +383,6 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
             </>
           )}
 
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent"
-            onClick={handleShowLogs}
-          >
-            <IconTerminal className="size-3.5" /> {t('Show MCP Logs')}
-          </button>
           <button
             type="button"
             className={cn(

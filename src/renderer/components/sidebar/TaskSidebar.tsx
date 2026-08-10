@@ -545,7 +545,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
   })
 
   return (
-    <div data-testid="task-sidebar" onContextMenu={handleContextMenu} className={cn('relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl bg-sidebar pt-9 text-foreground', isRight && 'order-last')} style={{ width }}>
+    <div data-testid="task-sidebar" onContextMenu={handleContextMenu} className={cn('relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar pt-9 text-foreground', isRight ? 'order-last border-l border-border' : 'border-r border-border')} style={{ width }}>
       {/* NavHistoryButtons disabled for now */}
       {/* Collapse button in traffic lights zone */}
       {onCollapse && (

@@ -202,6 +202,14 @@ pub struct AppSettings {
     pub auto_archive_days: Option<u32>,
     /// Manual token pricing keyed by provider name, in **USD per 1M tokens**.
     /// Only needed for user-registered OpenAI-compatible providers, whose
+    /// Display name shown in the sidebar account row.
+    ///
+    /// A placeholder for the account system: once sign-up exists it supplies
+    /// the name, and until then the user can set it themselves. Absent means
+    /// "no account yet", which the UI renders as a sign-in prompt rather than
+    /// inventing a name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
     /// `models.json` entries carry no price and therefore report a cost of 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_rates: Option<std::collections::HashMap<String, ProviderRate>>,
@@ -252,6 +260,7 @@ impl Default for AppSettings {
             inline_tool_calls: None,
             auto_archive_days: None,
             provider_rates: None,
+            display_name: None,
         }
     }
 }

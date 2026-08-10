@@ -652,6 +652,7 @@ pub fn run() {
             fs_ops::export_text_file,
             fs_ops::open_in_editor,
             fs_ops::open_url,
+            fs_ops::save_bug_report,
             fs_ops::detect_editors,
             fs_ops::detect_editors_background,
             fs_ops::list_project_files,

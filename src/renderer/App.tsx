@@ -27,11 +27,6 @@ const SettingsPanel = lazy(() =>
     default: m.SettingsPanel,
   })),
 );
-const DebugPanel = lazy(() =>
-  import("@/components/debug/DebugPanel").then((m) => ({
-    default: m.DebugPanel,
-  })),
-);
 const FileTreePanel = lazy(() =>
   import("@/components/file-tree/FileTreePanel").then((m) => ({
     default: m.FileTreePanel,
@@ -44,7 +39,6 @@ const AnalyticsDashboard = lazy(() =>
 );
 import { useTaskStore, initTaskListeners } from "@/stores/taskStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useDebugStore } from "@/stores/debugStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { initResourceListeners } from "@/stores/resourceStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -273,7 +267,6 @@ export function App() {
       activeSplitId: s.activeSplitId,
     })),
   );
-  const debugOpen = useDebugStore((s) => s.isOpen);
   const isSettingsOpen = useTaskStore((s) => s.isSettingsOpen);
   const settingsLoaded = useSettingsStore((s) => s.isLoaded);
   const hasOnboardedV2 = useSettingsStore((s) => s.settings.hasOnboardedV2);
@@ -702,7 +695,10 @@ export function App() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div data-testid="app-container" className="flex h-full gap-3 p-3 bg-background text-foreground">
+      {/* No padding or gap: the sidebar meets the window edge and the content
+          area, the way Codex and Claude Code sit. The panels carry their own
+          separation with a border instead of floating on a background gutter. */}
+      <div data-testid="app-container" className="flex h-full bg-background text-foreground">
         {/* Sidebar — full height, bleeds into top */}
         <ErrorBoundary>
           {!isSidebarCollapsed && <TaskSidebar width={sidebarWidth} onResize={setSidebarWidth} position={sidebarPosition} onCollapse={toggleSidebar} />}
@@ -757,15 +753,6 @@ export function App() {
             )}
           </main>
           </div>
-
-          {/* Bottom debug panel */}
-          {debugOpen && (
-            <ErrorBoundary>
-              <Suspense fallback={<PanelFallback />}>
-                <DebugPanel />
-              </Suspense>
-            </ErrorBoundary>
-          )}
         </div>
       </div>
       <ErrorBoundary>

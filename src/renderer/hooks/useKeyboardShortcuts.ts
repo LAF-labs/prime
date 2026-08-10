@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
-import { useDebugStore } from '@/stores/debugStore'
 import { ipc } from '@/lib/ipc'
 import { attempt } from '@/lib/ipc-report'
 import { t } from '@/lib/i18n'
@@ -126,13 +125,6 @@ export function useKeyboardShortcuts() {
             return bTime.localeCompare(aTime)
           })[0]
         if (candidate) state.createSplitView(current, candidate.id)
-        return
-      }
-
-      // ── Cmd+Shift+D → Toggle debug panel ───────────────────
-      if (key === 'd' && e.shiftKey) {
-        e.preventDefault()
-        useDebugStore.getState().toggleOpen()
         return
       }
 

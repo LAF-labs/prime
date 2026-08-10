@@ -6,8 +6,6 @@ import {
   IconNote, IconBug, IconCpu, IconFlame, IconChevronRight,
 } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
-import { useDebugStore } from '@/stores/debugStore'
-import { useJsDebugStore } from '@/stores/jsDebugStore'
 import { measureMemory, formatBytes, type MemoryReport, type ThreadMemoryBreakdown } from '@/lib/thread-memory'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
@@ -225,8 +223,6 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
   const [isPurgeOpen, setIsPurgeOpen] = useState(false)
 
   const purgeAllSoftDeletes = useTaskStore((s) => s.purgeAllSoftDeletes)
-  const clearDebugLog = useDebugStore((s) => s.clear)
-  const clearJsDebugLog = useJsDebugStore((s) => s.clear)
 
   useEffect(() => {
     if (!autoRefresh) return
@@ -235,11 +231,7 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
   }, [autoRefresh])
 
   useEffect(() => {
-    const next = measureMemory(
-      useTaskStore.getState(),
-      useDebugStore.getState(),
-      useJsDebugStore.getState(),
-    )
+    const next = measureMemory(useTaskStore.getState())
     setReport(next)
     setHeap(readHeap())
     let cancelled = false
@@ -256,16 +248,9 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
     setTick((n) => n + 1)
   }, [purgeAllSoftDeletes])
 
-  const handleClearDebug = useCallback(() => {
-    clearDebugLog()
-    clearJsDebugLog()
-    setTick((n) => n + 1)
-  }, [clearDebugLog, clearJsDebugLog])
-
   const top = useMemo(() => report?.threads.slice(0, 25) ?? [], [report])
   const remaining = (report?.threads.length ?? 0) - top.length
   const isHot = report ? report.grandTotal >= HOT_TOTAL_BYTES : false
-  const debugLogTotal = report ? report.debugLog + report.jsDebugLog : 0
 
   const scrollback = clampScrollback(draft.terminalScrollback ?? DEFAULT_SCROLLBACK)
   const idleMins = draft.terminalAutoCloseIdleMins ?? null
@@ -431,13 +416,6 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
                 accentClass="bg-[var(--chart-6)]"
                 icon={IconNote}
               />
-              <CategoryRow
-                label={t('Debug buffers')}
-                bytes={debugLogTotal}
-                total={report.grandTotal}
-                accentClass="bg-orange-500"
-                icon={IconBug}
-              />
             </div>
           </SettingBlock>
         </SettingsSection>
@@ -544,25 +522,6 @@ export const MemorySection = memo(function MemorySection({ draft, updateDraft }:
           >
             <IconTrash className="size-3.5" />
             {t('Purge now')}
-          </button>
-        </SettingRow>
-        <SettingRow
-          label={t('Clear debug log buffers')}
-          description={
-            report
-              ? `${report.debugLogCount + report.jsDebugLogCount} captured entries (${formatBytes(debugLogTotal)}).`
-              : 'Drops the in-memory agent and JS console capture buffers.'
-          }
-        >
-          <button
-            type="button"
-            disabled={!report || (report.debugLogCount === 0 && report.jsDebugLogCount === 0)}
-            onClick={handleClearDebug}
-            className={cn(SETTINGS_BUTTON_CLASS, 'disabled:cursor-not-allowed disabled:opacity-40')}
-            aria-label={t('Clear debug log buffers')}
-          >
-            <IconBug className="size-3.5" />
-            {t('Clear')}
           </button>
         </SettingRow>
       </SettingsSection>

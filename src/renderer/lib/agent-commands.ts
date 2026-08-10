@@ -110,7 +110,6 @@ export const GUI_COMMANDS: readonly AgentCommandSpec[] = [
   { name: 'logout', description: 'Remove provider authentication', kind: 'gui' },
   { name: 'mcp', description: 'Manage MCP connections', kind: 'gui' },
   { name: 'hotkeys', description: 'Show all keyboard shortcuts', kind: 'gui' },
-  { name: 'logs', description: 'Open the debug log panel', kind: 'gui' },
   { name: 'changelog', description: 'Show what changed in this release', kind: 'gui' },
   { name: 'usage', description: 'Open the analytics dashboard', kind: 'gui' },
   { name: 'data', description: 'Open the analytics dashboard (alias for /usage)', kind: 'gui' },

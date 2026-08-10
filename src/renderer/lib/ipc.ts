@@ -256,6 +256,9 @@ export const ipc = {
   resetAppData: (): Promise<void> => invoke('reset_app_data'),
   openTerminalAt: (workspace: string, relPath: string): Promise<void> =>
     invoke('open_terminal_at', { workspace, relPath }),
+  /** Write a bug report beside the app logs; returns the file path. */
+  saveBugReport: (body: string): Promise<string> =>
+    invoke('save_bug_report', { body }),
   openUrl: (url: string): Promise<void> =>
     invoke('open_url', { url }),
   detectProjectIcon: (cwd: string): Promise<{ iconType: string; value: string } | null> =>

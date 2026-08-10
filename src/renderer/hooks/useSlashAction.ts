@@ -5,7 +5,6 @@ import * as threadDb from '@/lib/thread-db'
 import { attempt } from '@/lib/ipc-report'
 import { t } from '@/lib/i18n'
 import { isPassthroughCommand, parseCommand, runRpcCommand, GUI_COMMANDS, RPC_COMMANDS } from '@/lib/agent-commands'
-import { useDebugStore } from '@/stores/debugStore'
 import { record } from '@/lib/analytics-collector'
 
 export type SlashPanel = 'model' | 'agent' | null
@@ -100,10 +99,6 @@ export const useSlashAction = (): SlashActionResult => {
         return true
       case 'hotkeys':
         useTaskStore.getState().setSettingsOpen(true, 'keymap')
-        setPanel(null)
-        return true
-      case 'logs':
-        useDebugStore.getState().setOpen(true)
         setPanel(null)
         return true
       case 'changelog':

@@ -69,15 +69,26 @@ export const attempt = (action: string, promise: Promise<unknown>): void => {
  * register turns into "the New Thread menu item does nothing", with nothing
  * anywhere to say why.
  *
- * `console.warn` is intercepted into the JS debug panel (`jsInterceptors`),
- * so this lands somewhere a user can copy out of Settings → Logs.
+ * These go to the Rust log file (`~/Library/Logs/<bundle>/LAF Agent.log`)
+ * through tauri-plugin-log, which is the only durable sink the app has now
+ * that the in-app debug panel is gone. `console.warn` is kept alongside so a
+ * developer sees it in the WebView inspector, and so this still works in the
+ * browser preview where the Tauri globals are absent.
  *
  * `context` should name the thing that broke, not the symptom:
  * "register menu listeners", not "listener error".
  */
 export const ignoreFailure = (context: string, promise: Promise<unknown>): void => {
   promise.catch((err) => {
-    console.warn(`[background] ${context} failed:`, err)
+    const detail = err instanceof Error ? err.message : String(err)
+    const line = `[background] ${context} failed: ${detail}`
+    console.warn(line, err)
+    // Fire-and-forget into the log file. Nested failure is ignored on purpose:
+    // this is the error path, and a logger that throws here would replace a
+    // background failure with an unhandled rejection.
+    void import('@tauri-apps/plugin-log')
+      .then(({ warn }) => warn(line))
+      .catch(() => {})
   })
 }
 

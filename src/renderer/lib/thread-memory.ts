@@ -126,11 +126,7 @@ export interface MemoryReport {
   /** Bytes used by per-workspace drafts (text + attachments + pasted chunks). */
   readonly drafts: number
   /** Bytes used by the Rust→WebView debug log buffer. */
-  readonly debugLog: number
-  readonly debugLogCount: number
   /** Bytes used by the JS console / network capture buffer. */
-  readonly jsDebugLog: number
-  readonly jsDebugLogCount: number
   /** Sum of every category. Best estimate of Zustand-held memory overall. */
   readonly grandTotal: number
 }
@@ -188,19 +184,12 @@ export const measureThread = (
   }
 }
 
-interface DebugLikeStore {
-  readonly entries: readonly unknown[]
-}
-
 /**
  * Measure all renderer-side memory tied to threads. Reads directly from the
- * provided task store snapshot plus optional debug store snapshots so the
- * caller can compute everything in a single React-batched pass.
+ * provided task store snapshot in a single React-batched pass.
  */
 export const measureMemory = (
   store: TaskStore,
-  debugStore?: DebugLikeStore,
-  jsDebugStore?: DebugLikeStore,
 ): MemoryReport => {
   const threads: ThreadMemoryBreakdown[] = []
   for (const task of Object.values(store.tasks)) {
@@ -239,13 +228,6 @@ export const measureMemory = (
     for (const chunk of list) drafts += sizeOfValue(chunk)
   }
 
-  const debugLog = debugStore
-    ? debugStore.entries.reduce<number>((sum, e) => sum + sizeOfValue(e), 0)
-    : 0
-  const jsDebugLog = jsDebugStore
-    ? jsDebugStore.entries.reduce<number>((sum, e) => sum + sizeOfValue(e), 0)
-    : 0
-
   return {
     threads,
     threadsTotal,
@@ -254,11 +236,7 @@ export const measureMemory = (
     archivedMeta,
     archivedMetaCount,
     drafts,
-    debugLog,
-    debugLogCount: debugStore?.entries.length ?? 0,
-    jsDebugLog,
-    jsDebugLogCount: jsDebugStore?.entries.length ?? 0,
-    grandTotal: threadsTotal + softDeleted + archivedMeta + drafts + debugLog + jsDebugLog,
+    grandTotal: threadsTotal + softDeleted + archivedMeta + drafts,
   }
 }
 

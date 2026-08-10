@@ -660,6 +660,35 @@ fn xdg_data_dirs() -> Vec<PathBuf> {
     }
 }
 
+/// Write a bug report next to the app's own logs and reveal it in Finder.
+///
+/// There is no endpoint to submit to yet, so the honest thing is to hand the
+/// user a file they can attach to a mail. It lands in the log directory
+/// because that is already where support asks people to look, and the app log
+/// sits beside it.
+///
+/// The caller composes the body; this only owns where it goes.
+#[tauri::command]
+pub fn save_bug_report(app: tauri::AppHandle, body: String) -> Result<String, AppError> {
+    use tauri::Manager;
+    let dir = app
+        .path()
+        .app_log_dir()
+        .map_err(|e| AppError::Other(format!("No log directory: {e}")))?;
+    std::fs::create_dir_all(&dir)?;
+    // Second granularity is enough to keep two reports apart, and a readable
+    // name matters more than uniqueness for a file the user has to find.
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let path = dir.join(format!("bug-report-{stamp}.txt"));
+    std::fs::write(&path, body)?;
+    // Best-effort: the file is saved either way, and its path is returned.
+    let _ = open::that(&dir);
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), AppError> {
     open::that(&url).map_err(AppError::Io)

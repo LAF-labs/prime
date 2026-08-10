@@ -1,12 +1,11 @@
 import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconBolt, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconSettings, IconBug, IconDownload, IconDots } from '@tabler/icons-react'
+import { IconChevronUp, IconBolt, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconBug, IconDownload } from '@tabler/icons-react'
 import { getVersion } from '@tauri-apps/api/app'
-import { AgentGhostIcon } from '@/components/icons/AgentGhostIcon'
 import { useResourceStore } from '@/stores/resourceStore'
+import { AccountMenu } from './AccountMenu'
+import { BugReportDialog } from '@/components/BugReportDialog'
 import { useTaskStore } from '@/stores/taskStore'
-import { useDebugStore } from '@/stores/debugStore'
-import { useJsDebugStore } from '@/stores/jsDebugStore'
 import { useUpdateStore, type UpdateStatus } from '@/stores/updateStore'
 import { ipc } from '@/lib/ipc'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -16,8 +15,6 @@ import { type ViewerState, EMPTY_ARRAY, SectionToggle, InlineSearch } from './re
 import { SkillRow } from './AgentSkillRow'
 import { McpRow } from './McpServerRow'
 import { AddMcpServerDialog } from './AddMcpServerDialog'
-import { HeaderUserMenu } from '@/components/header-user-menu'
-import { useMenuPosition } from '@/hooks/useMenuPosition'
 import { measureMemory, formatBytes } from '@/lib/thread-memory'
 import { deriveConnectionUiState, type ConnectionUiState } from '@/lib/connection-state'
 
@@ -65,6 +62,7 @@ export const ResourcePanel = memo(function ResourcePanel({
   const [search, setSearch] = useState('')
   const [viewer, setViewer] = useState<ViewerState | null>(null)
   const [addMcpOpen, setAddMcpOpen] = useState(false)
+  const [bugReportOpen, setBugReportOpen] = useState(false)
 
   // Footer state (merged into header row)
   const setSettingsOpen = useTaskStore((s) => s.setSettingsOpen)
@@ -78,11 +76,6 @@ export const ResourcePanel = memo(function ResourcePanel({
   const [isMemorySpike, setIsMemorySpike] = useState(false)
   const [spikeTotal, setSpikeTotal] = useState('')
   const [appVersion, setAppVersion] = useState('')
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuBtnRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
-  useMenuPosition(menuRef, menuOpen ? { x: menuPos.left, y: menuPos.top } : null)
 
   useEffect(() => { void loadConfig(activeWorkspace ?? undefined) }, [loadConfig, activeWorkspace])
 
@@ -99,11 +92,7 @@ export const ResourcePanel = memo(function ResourcePanel({
 
   useEffect(() => {
     const check = () => {
-      const report = measureMemory(
-        useTaskStore.getState(),
-        useDebugStore.getState(),
-        useJsDebugStore.getState(),
-      )
+      const report = measureMemory(useTaskStore.getState())
       const isHot = report.grandTotal >= MEMORY_SPIKE_THRESHOLD
       setIsMemorySpike(isHot)
       if (isHot) setSpikeTotal(formatBytes(report.grandTotal))
@@ -113,28 +102,11 @@ export const ResourcePanel = memo(function ResourcePanel({
     return () => window.clearInterval(id)
   }, [])
 
-  const handleOpenMenu = useCallback(() => {
-    setMenuOpen((v) => {
-      if (!v && menuBtnRef.current) {
-        const r = menuBtnRef.current.getBoundingClientRect()
-        setMenuPos({ top: r.top - 8, left: r.left })
-      }
-      return !v
-    })
-  }, [])
-
   const handleSettingsClick = useCallback(() => {
-    setMenuOpen(false)
     setSettingsOpen(true, isMemorySpike ? 'memory' : undefined)
   }, [setSettingsOpen, isMemorySpike])
 
-  const handleDebugClick = useCallback(() => {
-    setMenuOpen(false)
-    useDebugStore.getState().toggleOpen()
-  }, [])
-
   const handleUpdateClick = useCallback(() => {
-    setMenuOpen(false)
     triggerDownload?.()
   }, [triggerDownload])
 
@@ -190,12 +162,8 @@ export const ResourcePanel = memo(function ResourcePanel({
     return (
       <>
         <div className="flex w-full min-w-0 flex-col">
-          <div className="mb-0.5 flex items-center justify-between pr-1.5">
-            <button type="button" onClick={onToggleCollapse}
-              className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
-              <AgentGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-              LAF Agent
-            </button>
+          <div className="mb-0.5 flex items-center justify-between gap-1 pr-1.5">
+            <AccountMenu appVersion={appVersion} />
             <div className="flex items-center gap-0.5">
               {connectionUi !== 'connected' && (
                 <Tooltip>
@@ -238,15 +206,22 @@ export const ResourcePanel = memo(function ResourcePanel({
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button ref={menuBtnRef} type="button" aria-label={t('More actions')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={handleOpenMenu}
-                    className={cn('inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      menuOpen ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground')}>
-                    <IconDots className="size-3" aria-hidden />
+                  <button type="button" aria-label={collapsed ? t('Show agents and tools') : t('Hide agents and tools')} aria-expanded={!collapsed} onClick={onToggleCollapse}
+                    className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                    <IconChevronUp className={cn('size-3.5 transition-transform', !collapsed && 'rotate-180')} aria-hidden />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">{t('More')}</TooltipContent>
+                <TooltipContent side="top">{collapsed ? t('Show agents and tools') : t('Hide agents and tools')}</TooltipContent>
               </Tooltip>
-              <HeaderUserMenu />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label={t('Report a problem')} onClick={() => setBugReportOpen(true)}
+                    className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                    <IconBug className="size-3.5" aria-hidden />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{t('Report a problem')}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
           {!collapsed && (
@@ -262,35 +237,7 @@ export const ResourcePanel = memo(function ResourcePanel({
           )}
         </div>
         <AddMcpServerDialog open={addMcpOpen} onOpenChange={setAddMcpOpen} workspace={activeWorkspace} />
-        {menuOpen && (
-          <>
-            <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setMenuOpen(false)} />
-            <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[180px] -translate-y-full rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: menuPos.top, left: menuPos.left }}>
-              <button type="button" role="menuitem" onClick={handleSettingsClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                <IconSettings className={cn('size-3.5', isMemorySpike && 'text-destructive')} aria-hidden />
-                <span className={cn(isMemorySpike && 'font-medium text-destructive')}>{isMemorySpike ? t('Memory spike') : t('Settings')}</span>
-                {isMemorySpike && <span className="ml-auto text-[11px] text-destructive">{spikeTotal}</span>}
-              </button>
-              <button type="button" role="menuitem" onClick={handleDebugClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                <IconBug className="size-3.5" aria-hidden /> {t('Debug panel')}
-              </button>
-              {isUpdateAvailable && (
-                <>
-                  <div className="my-1 border-t border-border/50" />
-                  <button type="button" role="menuitem" onClick={handleUpdateClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                    <IconDownload className="size-3.5" aria-hidden /> {t('Install update')}
-                  </button>
-                </>
-              )}
-              {appVersion && (
-                <>
-                  <div className="my-1 border-t border-border/50" />
-                  <div className="px-3 py-1 text-[11px] tabular-nums text-muted-foreground/70">v{appVersion}</div>
-                </>
-              )}
-            </div>
-          </>
-        )}
+        <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
       </>
     )
   }
@@ -300,12 +247,8 @@ export const ResourcePanel = memo(function ResourcePanel({
   return (
     <>
       <div className="flex w-full min-w-0 flex-col">
-        <div className="mb-0.5 flex items-center justify-between pr-1.5">
-          <button type="button" onClick={onToggleCollapse}
-            className="flex h-6 cursor-pointer items-center gap-1.5 pl-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:text-muted-foreground transition-colors">
-            <AgentGhostIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-            LAF Agent
-          </button>
+        <div className="mb-0.5 flex items-center justify-between gap-1 pr-1.5">
+          <AccountMenu appVersion={appVersion} />
           <div className="flex items-center gap-0.5">
             {!collapsed && (
               <>
@@ -375,15 +318,22 @@ export const ResourcePanel = memo(function ResourcePanel({
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <button ref={menuBtnRef} type="button" aria-label={t('More actions')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={handleOpenMenu}
-                  className={cn('inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    menuOpen ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground')}>
-                  <IconDots className="size-3" aria-hidden />
+                <button type="button" aria-label={collapsed ? t('Show agents and tools') : t('Hide agents and tools')} aria-expanded={!collapsed} onClick={onToggleCollapse}
+                  className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                  <IconChevronUp className={cn('size-3.5 transition-transform', !collapsed && 'rotate-180')} aria-hidden />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">{t('More')}</TooltipContent>
+              <TooltipContent side="top">{collapsed ? t('Show agents and tools') : t('Hide agents and tools')}</TooltipContent>
             </Tooltip>
-            <HeaderUserMenu />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label={t('Report a problem')} onClick={() => setBugReportOpen(true)}
+                  className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                  <IconBug className="size-3.5" aria-hidden />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('Report a problem')}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -480,35 +430,7 @@ export const ResourcePanel = memo(function ResourcePanel({
 
       {viewer && <ResourceFileViewer filePath={viewer.filePath} title={viewer.title} onClose={closeViewer} />}
       <AddMcpServerDialog open={addMcpOpen} onOpenChange={setAddMcpOpen} workspace={activeWorkspace} />
-      {menuOpen && (
-        <>
-          <div role="presentation" className="fixed inset-0 z-[199]" onClick={() => setMenuOpen(false)} />
-          <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[180px] -translate-y-full rounded-lg border border-border bg-popover py-1 shadow-lg" style={{ top: menuPos.top, left: menuPos.left }}>
-            <button type="button" role="menuitem" onClick={handleSettingsClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-              <IconSettings className={cn('size-3.5', isMemorySpike && 'text-destructive')} aria-hidden />
-              <span className={cn(isMemorySpike && 'font-medium text-destructive')}>{isMemorySpike ? 'Memory Spike' : 'Settings'}</span>
-              {isMemorySpike && <span className="ml-auto text-[11px] text-destructive">{spikeTotal}</span>}
-            </button>
-            <button type="button" role="menuitem" onClick={handleDebugClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-              <IconBug className="size-3.5" aria-hidden /> {t('Debug panel')}
-            </button>
-            {isUpdateAvailable && (
-              <>
-                <div className="my-1 border-t border-border/50" />
-                <button type="button" role="menuitem" onClick={handleUpdateClick} className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-accent">
-                  <IconDownload className="size-3.5" aria-hidden /> {t('Install update')}
-                </button>
-              </>
-            )}
-            {appVersion && (
-              <>
-                <div className="my-1 border-t border-border/50" />
-                <div className="px-3 py-1 text-[11px] tabular-nums text-muted-foreground/70">v{appVersion}</div>
-              </>
-            )}
-          </div>
-        </>
-      )}
+      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </>
   )
 })

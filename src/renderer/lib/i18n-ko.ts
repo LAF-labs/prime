@@ -295,6 +295,21 @@ export const ko: Record<string, string> = {
   '⚠️ The agent refused to continue. You can try rephrasing your request or sending a new message.':
     '⚠️ 에이전트가 계속하기를 거부했습니다. 요청을 바꿔 말하거나 새 메시지를 보내 보세요.',
 
+  // ── Account row & bug report ──────────────────────────────────────
+  'Not signed in': '로그인하지 않음',
+  'Usage': '사용량',
+  'Log out': '로그아웃',
+  'Show agents and tools': '에이전트와 도구 보기',
+  'Hide agents and tools': '에이전트와 도구 숨기기',
+  'Report a problem': '문제 신고',
+  'What went wrong?': '무엇이 잘못되었나요?',
+  'The report includes the app version and what you wrote here. Your conversations, files and API keys are not included.':
+    '앱 버전과 여기에 적으신 내용이 포함됩니다. 대화 내용, 파일, API 키는 포함되지 않습니다.',
+  'Save report': '리포트 저장',
+  'Saving…': '저장 중…',
+  'Report saved. Send us the file and we can take a look.': '리포트를 저장했습니다. 이 파일을 보내주시면 확인하겠습니다.',
+  'Could not save the report': '리포트를 저장하지 못했습니다',
+
   // ── Workspace toolbar ─────────────────────────────────────────────
   'Toggle side-by-side': '나란히 보기 전환',
   'Toggle file tree': '파일 트리 전환',

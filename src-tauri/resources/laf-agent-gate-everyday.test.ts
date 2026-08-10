@@ -121,6 +121,49 @@ describe('everyday profile', () => {
     expect(prompt.length).toBeLessThan(2000)
   })
 
+  /**
+   * Memories are fixed input: paid on every request of every session. The
+   * store used to allow 200 of them at 500 characters each, all injected —
+   * about 25k tokens a turn, arrived at slowly enough that nobody would
+   * connect the bill to the feature.
+   */
+  it('bounds the prompt no matter how much has been remembered', async () => {
+    const { tools, beforeAgentStart } = await loadGate()
+    const remember = tools.get('remember')!
+    for (let i = 0; i < 80; i++) {
+      await remember.execute('c', { fact: `Fact number ${i} ${'x'.repeat(200)}` })
+    }
+    const prompt = beforeAgentStart?.({ systemPromptOptions: { cwd: '/x' } })?.systemPrompt ?? ''
+    expect(prompt.length).toBeLessThan(4200)
+  })
+
+  /** What Settings lists and what the model is told have to be the same set. */
+  it('stores only what it injects, so the two never disagree', async () => {
+    const { tools, beforeAgentStart } = await loadGate()
+    const remember = tools.get('remember')!
+    for (let i = 0; i < 40; i++) {
+      await remember.execute('c', { fact: `Fact number ${i} ${'y'.repeat(150)}` })
+    }
+    const stored = JSON.parse(readFileSync(memoryPath, 'utf8')) as { fact: string }[]
+    const prompt = beforeAgentStart?.({ systemPromptOptions: { cwd: '/x' } })?.systemPrompt ?? ''
+    for (const memory of stored) expect(prompt).toContain(memory.fact)
+  })
+
+  /** The newest facts survive; the user hears that the oldest did not. */
+  it('drops the oldest first and says so', async () => {
+    const { tools } = await loadGate()
+    const remember = tools.get('remember')!
+    let lastText = ''
+    for (let i = 0; i < 40; i++) {
+      const result = await remember.execute('c', { fact: `Fact number ${i} ${'z'.repeat(150)}` })
+      lastText = result.content[0].text
+    }
+    expect(lastText).toMatch(/dropped to make room/)
+    const stored = JSON.parse(readFileSync(memoryPath, 'utf8')) as { fact: string }[]
+    expect(stored.at(-1)!.fact).toContain('Fact number 39')
+    expect(stored.some((m) => m.fact.includes('Fact number 0 '))).toBe(false)
+  })
+
   it('carries remembered facts into the next prompt', async () => {
     const { tools, beforeAgentStart } = await loadGate()
     await tools.get('remember')?.execute('c', { fact: 'Prefers green tea' })

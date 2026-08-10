@@ -1542,8 +1542,18 @@ const HOME = (() => {
 
 const MEMORY_DIR = joinPath(HOME, ".laf-agent");
 const MEMORY_PATH = process.env.LAF_MEMORY_PATH || joinPath(MEMORY_DIR, "memories.json");
-const MAX_MEMORIES = 200;
-const MAX_MEMORY_CHARS = 500;
+const MAX_MEMORIES = 60;
+const MAX_MEMORY_CHARS = 240;
+/**
+ * How much of the system prompt memories may occupy, in characters.
+ *
+ * Memories are fixed input: every one of them is paid for on every request of
+ * every session, forever. Without this the ceiling was `MAX_MEMORIES` times
+ * `MAX_MEMORY_CHARS` — a hundred thousand characters, roughly 25k tokens a
+ * turn — reached slowly enough that nobody would connect the bill to the
+ * feature. Bounded, the worst case is about 500 tokens.
+ */
+const MAX_MEMORY_BLOCK_CHARS = 2_000;
 const MAX_READ_CHARS = 40_000;
 const MAX_DIR_ENTRIES = 200;
 const MAX_ORGANIZE_OPS = 100;
@@ -1612,6 +1622,29 @@ interface EverydayMemory {
 	at: string;
 }
 
+/**
+ * The newest memories that fit the budget, back in their original order.
+ *
+ * Newest-first selection, because a fact worth restating recently is the one
+ * most likely to still be true. This is applied on both sides — when the
+ * prompt is built and when a memory is saved — so what Settings lists and what
+ * the model is told are the same set. A screen showing fifteen facts while the
+ * assistant acts on eight is worse than forgetting.
+ */
+function withinMemoryBudget(memories: EverydayMemory[]): EverydayMemory[] {
+	const kept: EverydayMemory[] = [];
+	let used = 0;
+	for (let i = memories.length - 1; i >= 0; i--) {
+		const memory = memories[i];
+		// The rendered line is "- ", the fact, and a newline.
+		const cost = memory.fact.length + 3;
+		if (kept.length >= MAX_MEMORIES || used + cost > MAX_MEMORY_BLOCK_CHARS) break;
+		used += cost;
+		kept.push(memory);
+	}
+	return kept.reverse();
+}
+
 function loadMemories(): EverydayMemory[] {
 	try {
 		const parsed = JSON.parse(readFileSync(MEMORY_PATH, "utf8")) as unknown;
@@ -1670,7 +1703,10 @@ function buildEverydayPrompt(cwd: string): string {
 		for (const skill of skills) parts.push(`- ${skill.description} → ${skill.path}`);
 	}
 
-	const memories = loadMemories();
+	// Budgeted here as well as on save: an install that already has a long
+	// memory file is bounded from the first turn after the update, without
+	// waiting for the next `remember` call to prune it.
+	const memories = withinMemoryBudget(loadMemories());
 	if (memories.length > 0) {
 		parts.push("", "Things you remember about this user:");
 		for (const memory of memories) parts.push(`- ${memory.fact}`);
@@ -2250,11 +2286,19 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				return { content: [{ type: "text", text: "Already remembered." }], details: { total: memories.length } };
 			}
 			memories.push({ fact, at: new Date().toISOString() });
-			while (memories.length > MAX_MEMORIES) memories.shift();
-			saveMemories(memories);
+			const kept = withinMemoryBudget(memories);
+			const dropped = memories.length - kept.length;
+			saveMemories(kept);
+			// Say it when something was forgotten to make room. The user is the
+			// one who can act on it — they can prune the list in Settings — and
+			// they only hear about it if the model passes it on.
+			const note =
+				dropped > 0
+					? ` The ${dropped === 1 ? "oldest memory was" : `${dropped} oldest memories were`} dropped to make room; tell the user they can review the list in Settings.`
+					: "";
 			return {
-				content: [{ type: "text", text: `Remembered. (${memories.length} memories total)` }],
-				details: { total: memories.length },
+				content: [{ type: "text", text: `Remembered.${note} (${kept.length} memories total)` }],
+				details: { total: kept.length, dropped },
 			};
 		},
 	});

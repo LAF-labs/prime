@@ -27,6 +27,10 @@ export interface TaskErrorPayload {
  * Written by the gate extension's `remember` tool into
  * `~/.laf-agent/memories.json` and injected into every turn's system prompt,
  * which is why the settings panel can list and delete them.
+ *
+ * The gate keeps the file within the same budget it injects, so this list is
+ * exactly what the assistant is told — never a longer one the model never
+ * sees. Saving past the budget drops the oldest entries.
  */
 export interface EverydayMemory {
   fact: string

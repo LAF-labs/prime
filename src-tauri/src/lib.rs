@@ -757,7 +757,6 @@ pub fn run() {
             settings::add_recent_project,
             settings::clear_recent_projects,
             rebuild_recent_menu,
-            // Pattern extraction (code signatures for agent context)
             // Structured tracing (NDJSON debug traces)
             app_tracing::trace_read_recent,
             app_tracing::trace_file_location,

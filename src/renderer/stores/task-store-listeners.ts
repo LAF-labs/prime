@@ -237,7 +237,8 @@ export function initTaskListeners(): () => void {
 
   // ── Activity watchdog ────────────────────────────────────────────────────────
   // If a task stays in `running` with no streaming chunk, tool-call update, or
-  // plan update for WATCHDOG_WARN_MS, we surface a warning in the debug panel.
+  // plan update for WATCHDOG_WARN_MS, we log a warning (the debug panel this
+  // once fed is gone; `console.warn` below is what is left).
   // After WATCHDOG_KILL_MS we auto-clear the spinner via a synthetic turn_end.
   // This catches the common dev-reload case where the Tauri webview restarts
   // mid-turn and the backend never fires `turn_end`.

@@ -844,7 +844,7 @@ fn error_events_are_mirrored_in_full_even_when_large() {
     let big = "x".repeat(DEBUG_MIRROR_MAX_BYTES + 1);
     let event = serde_json::json!({ "type": "extension_error", "error": big });
     let mirrored = debug_mirror_payload("extension_error", event.clone()).unwrap();
-    assert_eq!(mirrored, event, "error detail is exactly what the debug panel is for");
+    assert_eq!(mirrored, event, "an error is the one payload never worth truncating");
 }
 
 // ── skill_dirs_in: what the agent is allowed to load ────────────

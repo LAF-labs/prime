@@ -30,7 +30,8 @@ pub enum ErrorAction {
 pub struct ProviderError {
     pub message: String,
     pub action: ErrorAction,
-    /// The provider's own text, kept for the debug panel.
+    /// The provider's own text, kept verbatim. The summary above is what a
+    /// non-developer reads; this is what a bug report needs.
     pub detail: String,
 }
 
@@ -213,8 +214,8 @@ mod tests {
         assert!(e.message.contains("something entirely novel"));
     }
 
-    /// The raw text is what the debug panel shows, so it must survive intact
-    /// even when the summary is rewritten.
+    /// The summary is rewritten for the user; the provider's own words have
+    /// to survive that, or a bug report has nothing to go on.
     #[test]
     fn the_original_text_is_always_kept() {
         let raw = r#"{"error":{"message":"Incorrect API key"}}"#;

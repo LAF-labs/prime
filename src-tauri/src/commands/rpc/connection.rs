@@ -924,13 +924,14 @@ pub(crate) fn refine_status_payload(task_id: &str, event: &Value) -> Value {
 /// once as `debug_log`) doubled IPC volume on the streaming hot path.
 pub(crate) const DEBUG_MIRROR_MAX_BYTES: usize = 32 * 1024;
 
-/// Decide what (if anything) the debug panel gets for `event`.
+/// Decide what (if anything) the `debug_log` channel gets for `event`.
 ///
 /// - `message_update` deltas are not mirrored at all: the renderer already
 ///   receives every delta as `message_chunk` / `thinking_chunk`, and
 ///   mirroring each one duplicated per-token IPC traffic while streaming.
-/// - Error events (`extension_error`) are always mirrored in full — they are
-///   exactly what the debug panel exists for.
+/// - Error events (`extension_error`) are always mirrored in full. An error is
+///   the one payload never worth truncating; the handler above also logs it,
+///   since the mirror no longer has a consumer that renders it.
 /// - Anything else larger than [`DEBUG_MIRROR_MAX_BYTES`] serialized is
 ///   replaced by a placeholder recording the type and original size.
 pub(crate) fn debug_mirror_payload(event_type: &str, event: Value) -> Option<Value> {
@@ -1074,11 +1075,11 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
         }
         "goal_update" => {
             // No goal UI exists — nothing in the renderer listens for this.
-            // Surfaced only in the debug panel (below); acknowledged, not lost.
+            // Deliberately dropped: matched so it does not fall through to the
+            // unhandled-event log, which is noisier than the event is useful.
         }
         "rlm_child_update" => {
-            // No subagent panel exists anymore — nothing in the renderer
-            // listens for this. Surfaced only in the debug panel (below).
+            // No subagent panel exists anymore. Same as above.
         }
         "session_info_changed" => {
             if let Some(name) = event.get("name").and_then(|v| v.as_str()) {
@@ -1120,9 +1121,33 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
             let level = event.get("level").and_then(|v| v.as_str()).unwrap_or("");
             let _ = app.emit("thinking_level_changed", json!({ "taskId": tid, "level": level }));
         }
-        "session_action_update" | "extension_error" | "service_tier_changed" => {
-            // Surfaced only in the debug panel (below). Service tiers have no
-            // GUI surface (the /fast dead end) — acknowledged, not lost.
+        "session_action_update" | "service_tier_changed" => {
+            // Neither has a GUI surface (service tiers are the `/fast` dead
+            // end). Matched so they do not reach the unhandled-event log.
+        }
+        "extension_error" => {
+            // This one gets a log line, and the reason is worth writing down.
+            //
+            // It used to be justified as "surfaced only in the debug panel —
+            // acknowledged, not lost". That panel was deleted, and with it the
+            // only consumer: the renderer still listens to `debug_log`, but
+            // only for `category == "stderr"`, to catch an MCP OAuth
+            // misconfiguration. A `notification`-category mirror reaches
+            // nothing.
+            //
+            // Which matters more here than for the events above. Everything
+            // the everyday profile can do lives in the gate — the permission
+            // prompt, the file tools, web fetch, document extraction — so an
+            // error from it is the difference between "the app cannot read
+            // your PDF" and "the app cannot read your PDF *because* the
+            // reader failed to load". Chat is the wrong place for that; the
+            // log file is the right one.
+            let detail = event
+                .get("error")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .unwrap_or_else(|| event.to_string());
+            log::warn!("[RPC] gate extension reported an error on task {tid}: {detail}");
         }
         "response" => {
             handle_rpc_response(ctx, &event);
@@ -1135,8 +1160,11 @@ fn handle_rpc_line(ctx: &Arc<ReaderCtx>, event: Value) {
         }
     }
 
-    // Mirror into the debug panel — gated, not wholesale: streaming deltas
-    // are skipped and oversized payloads truncated (`debug_mirror_payload`).
+    // Mirror onto the `debug_log` channel — gated, not wholesale: streaming
+    // deltas are skipped and oversized payloads truncated
+    // (`debug_mirror_payload`). The debug panel this fed is gone; the one
+    // remaining consumer watches `stderr` entries for an MCP OAuth
+    // misconfiguration, which is the only thing that announces itself there.
     let is_error = event_type == "extension_error";
     let event_type = event_type.to_string();
     if let Some(payload) = debug_mirror_payload(&event_type, event) {

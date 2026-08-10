@@ -90,7 +90,7 @@ export const RPC_COMMANDS: readonly AgentCommandSpec[] = [
  * Commands the desktop app handles itself, dispatched by `useSlashAction`.
  *
  * The first group is native to a GUI; the second keeps the CLI's name for a
- * place the app already had (`/logs` opens the debug panel, `/login` opens the
+ * place the app already had (`/login` opens the
  * provider settings) so someone coming from the terminal finds it by typing
  * what they already know.
  */

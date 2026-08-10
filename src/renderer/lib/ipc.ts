@@ -17,7 +17,7 @@ export interface TaskErrorPayload {
   /** Already phrased for a person. */
   message: string
   action?: TaskErrorAction
-  /** The provider's own text, for the debug panel. */
+  /** The provider's own text, kept verbatim for bug reports. */
   detail?: string
 }
 

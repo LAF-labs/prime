@@ -10,8 +10,10 @@
 //! - `attributes`: structured context (task_id, cwd, etc.)
 //! - `exit`: "success" or error message
 //!
-//! The frontend can read the trace file via the debug panel for diagnosing
-//! slow operations, stuck agent connections, or git failures.
+//! The file is read back through the `trace_*` commands below. It used to
+//! feed the debug panel; that is gone, so today the file on disk is the
+//! surface — which is enough for what it is for: diagnosing slow operations
+//! and stuck agent connections after the fact.
 
 use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};
@@ -228,7 +230,7 @@ pub fn trace_read_recent(limit: Option<u32>) -> Result<Vec<TraceRecord>, AppErro
     Ok(records)
 }
 
-/// Get the trace file path (for the debug panel to show).
+/// Get the trace file path, so it can be opened directly.
 #[tauri::command]
 pub fn trace_file_location() -> String {
     trace_file_path().to_string_lossy().to_string()

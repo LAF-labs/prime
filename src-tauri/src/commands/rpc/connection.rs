@@ -562,9 +562,26 @@ pub(crate) async fn run_rpc_connection(
     // reaps the leader, `child.id()` returns None — but the process *group*
     // outlives its leader as long as any member is running, so the pid is
     // still the group id we need to signal.
+    //
+    // Reading it here is safe: tokio only drops the pid once the child has
+    // been reaped, that needs `wait()` to be polled, and there is no await
+    // between `spawn()` above and this line for anything to poll it. An
+    // exited-but-unreaped child still reports its pid — see
+    // `backend_audit_tests`.
+    //
+    // Which makes the `else` unreachable, and worth a line anyway. If it ever
+    // fires, `pid_slot` stays 0, the exit sweep cannot find the group, and
+    // every process the agent spawned survives the app — silently. That was a
+    // real incident, found only because a user noticed the fans. A warning is
+    // the difference between finding it in a log and finding it in 23 hours
+    // of orphaned agents.
     let child_pid = child.id();
-    if let Some(id) = child_pid {
-        pid_slot.store(id, Ordering::SeqCst);
+    match child_pid {
+        Some(id) => pid_slot.store(id, Ordering::SeqCst),
+        None => log::error!(
+            "[RPC] the agent reported no pid immediately after spawn; its process group \
+             cannot be signalled on teardown and may outlive the app"
+        ),
     }
 
     let mut stdin = child.stdin.take().ok_or("No stdin")?;

@@ -126,7 +126,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedupe
 /// role, thread, *and* the same millisecond. That residual collapse is
 /// accepted deliberately: it is indistinguishable from the cross-window
 /// double-persist this key exists to suppress.
-fn dedupe_key(message: &DbMessage) -> String {
+pub(crate) fn dedupe_key(message: &DbMessage) -> String {
     // FNV-1a: tiny, and — unlike `DefaultHasher` — stable across Rust
     // releases, which matters for a value written to disk.
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -529,7 +529,7 @@ impl ThreadDatabase {
     /// Execute a write operation on the background writer thread.
     /// The closure captures its own `oneshot::Sender` for the result, so we
     /// only allocate one channel pair per call.
-    async fn write<F>(&self, op: F) -> Result<(), ThreadDbError>
+    pub(crate) async fn write<F>(&self, op: F) -> Result<(), ThreadDbError>
     where
         F: FnOnce(&rusqlite::Connection) -> Result<(), ThreadDbError> + Send + 'static,
     {
@@ -776,9 +776,24 @@ impl ThreadDatabase {
 
     /// Delete a thread and all its messages atomically within a transaction.
     ///
-    /// Messages are deleted explicitly before the thread so that the `AFTER DELETE`
-    /// trigger on `messages` fires and keeps the FTS index in sync. SQLite's
-    /// `ON DELETE CASCADE` does not fire row-level triggers.
+    /// Messages go first, explicitly, rather than being left to the cascade.
+    ///
+    /// The reason given here used to be that `ON DELETE CASCADE` does not fire
+    /// row-level triggers, so the FTS index would be left holding rows for
+    /// messages that no longer exist. That is not true, and this file already
+    /// said so a few hundred lines up: `save_thread`'s comment describes an
+    /// `INSERT OR REPLACE` cascade wiping "every message + the FTS index
+    /// entries", which only happens if the trigger fires. Measured directly
+    /// against the FTS table — see `backend_audit_tests` — a cascade delete
+    /// takes the index row with it (SQLite 3.45.0, `foreign_keys=1`,
+    /// `recursive_triggers=0`).
+    ///
+    /// What the explicit delete actually buys is independence from
+    /// `PRAGMA foreign_keys`. It is per-connection and defaults to *off*; the
+    /// cascade exists only because `set_pragmas` turns it on. A connection
+    /// opened by some future path that forgets to would silently orphan every
+    /// message and every FTS row instead of deleting them. Naming the rows to
+    /// delete costs one statement and does not depend on that.
     pub async fn delete_thread(&self, id: &str) -> Result<(), ThreadDbError> {
         let id = id.to_string();
         self.write(move |conn| {

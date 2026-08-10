@@ -399,8 +399,28 @@ pub fn task_send_message(
             app.clone(), None, initial_model_id, tight_sandbox, session_mode,
             stored_options, permission_config,
         )?;
-        let _ = handle.cmd_tx.send(AgentCommand::Prompt(full_message, attachments.unwrap_or_default()));
+        // Same care as the live-connection branch below, for the same reason.
+        // `spawn_connection` only creates the channel and spawns a task; the
+        // agent process is started inside that task, afterwards. So a runtime
+        // that fails to launch — a bad path, a missing binary — drops the
+        // receiver moments after this returns Ok, and the send that follows
+        // fails. Discarding it left the user's message in the timeline with a
+        // spinner and no delivery, which is the exact bug the branch below
+        // already carries a comment about.
+        let sent = handle
+            .cmd_tx
+            .send(AgentCommand::Prompt(full_message, attachments.unwrap_or_default()))
+            .is_ok();
         state.connections.lock().insert(task_id.clone(), handle);
+        if !sent {
+            if let Some(task) = state.tasks.lock().get_mut(&task_id) {
+                task.status = "paused".to_string();
+            }
+            return Err(
+                "The agent could not be started, so the message was not sent. Send it again to retry."
+                    .to_string(),
+            );
+        }
     } else {
         // The liveness check above and this send are not atomic: the child can
         // die in between. Swallowing the error left the message in the

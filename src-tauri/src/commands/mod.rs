@@ -22,3 +22,6 @@ pub mod settings;
 pub mod thread_db;
 pub mod thread_title;
 pub mod tracing;
+
+#[cfg(test)]
+mod backend_audit_tests;

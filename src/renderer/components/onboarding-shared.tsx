@@ -1,6 +1,6 @@
 import { IconMessageChatbot, IconWorldSearch, IconFiles, IconBrain } from '@tabler/icons-react'
 
-export type Step = 'welcome' | 'theme' | 'setup'
+export type Step = 'welcome' | 'name' | 'theme' | 'setup'
 export type DetectState = 'detecting' | 'found' | 'not-found'
 export type AuthState = 'checking' | 'authenticated' | 'not-authenticated'
 

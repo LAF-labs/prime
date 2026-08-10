@@ -295,6 +295,17 @@ export const ko: Record<string, string> = {
   '⚠️ The agent refused to continue. You can try rephrasing your request or sending a new message.':
     '⚠️ 에이전트가 계속하기를 거부했습니다. 요청을 바꿔 말하거나 새 메시지를 보내 보세요.',
 
+  // ── Account name (onboarding + settings) ──────────────────────────
+  'What should we call you?': '어떻게 불러드릴까요?',
+  'Just for how the app greets you. It stays on this device.': '앱이 부르는 이름으로만 쓰이며, 이 기기에만 저장됩니다.',
+  'Your name': '이름',
+  'Your name or nickname': '이름 또는 닉네임',
+  'Skip for now': '나중에 하기',
+  'Almost there, {name}': '거의 다 됐어요, {name}님',
+  'How the app refers to you': '앱이 당신을 부르는 방식',
+  'Display name': '표시 이름',
+  'Shown in the sidebar. Stays on this device.': '사이드바에 표시됩니다. 이 기기에만 저장됩니다.',
+
   // ── Account row & bug report ──────────────────────────────────────
   'Not signed in': '로그인하지 않음',
   'Usage': '사용량',

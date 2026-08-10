@@ -14,9 +14,11 @@ const DETECT_TIMEOUT_MS = 8000
 
 interface OnboardingSetupStepProps {
   themeChoice: ThemeMode
+  /** Collected on the name step; empty means the user skipped it. */
+  displayName: string
 }
 
-export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) => {
+export const OnboardingSetupStep = ({ themeChoice, displayName }: OnboardingSetupStepProps) => {
   const t = useT()
   const [bin, setBin] = useState('lafagent')
   const [isCliReady, setIsCliReady] = useState(false)
@@ -58,7 +60,16 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
   const finish = useCallback(async () => {
     const settings = useSettingsStore.getState().settings
     try {
-      await useSettingsStore.getState().saveSettings({ ...settings, agentBin: bin, hasOnboardedV2: true, theme: themeChoice })
+      const trimmedName = displayName.trim()
+      await useSettingsStore.getState().saveSettings({
+        ...settings,
+        agentBin: bin,
+        hasOnboardedV2: true,
+        theme: themeChoice,
+        // Omitted rather than stored empty, so "unset" stays distinguishable
+        // from "deliberately blank" once the account system owns this field.
+        ...(trimmedName ? { displayName: trimmedName } : {}),
+      })
     } catch (err) {
       // A silently rejected write here left a dead "Launch" button on first
       // run — the wizard never advanced and never said why. Surface it and
@@ -68,12 +79,14 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
     }
     useSettingsStore.getState().checkAuth()
     ipc.probeCapabilities().catch(() => {})
-  }, [bin, themeChoice, t])
+  }, [bin, themeChoice, displayName, t])
 
   return (
     <div className="flex w-full flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t('Set up LAF Agent')}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          {displayName.trim() ? t('Almost there, {name}', { name: displayName.trim() }) : t('Set up LAF Agent')}
+        </h2>
         <p className="mt-2 text-[14px] text-muted-foreground">{t('Add an AI provider key and you’re ready to go.')}</p>
       </div>
 

@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { MAX_DISPLAY_NAME } from '@/components/OnboardingNameStep'
 import type { AppSettings } from '@/types'
 import {
   SectionHeader, SettingBlock, SettingRow, SettingsSection, SETTINGS_BUTTON_CLASS, SETTINGS_INPUT_CLASS,
@@ -101,6 +102,13 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
     updateDraft({ projectPrefs: { ...prefs, [activeWorkspace]: { ...existing, [key]: value } } })
   }, [activeWorkspace, draft.projectPrefs, updateDraft])
 
+  const handleDisplayNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value.slice(0, MAX_DISPLAY_NAME)
+    // Store undefined for an emptied field so "never set" and "cleared" stay
+    // the same state — the sidebar treats both as not-signed-in.
+    updateDraft({ displayName: next.trim() ? next : undefined })
+  }, [updateDraft])
+
   const handleSandboxChange = useCallback((checked: boolean) => {
     updateProjectPref('tightSandbox', checked)
   }, [updateProjectPref])
@@ -108,6 +116,20 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
   return (
     <>
       <SectionHeader section="general" />
+
+      <SettingsSection title={t('Account')} description={t('How the app refers to you')}>
+        <SettingRow label={t('Display name')} description={t('Shown in the sidebar. Stays on this device.')}>
+          <input
+            type="text"
+            value={draft.displayName ?? ''}
+            maxLength={MAX_DISPLAY_NAME}
+            onChange={handleDisplayNameChange}
+            placeholder={t('Your name or nickname')}
+            aria-label={t('Display name')}
+            className={cn(SETTINGS_INPUT_CLASS, 'w-48')}
+          />
+        </SettingRow>
+      </SettingsSection>
 
       <EverydayMemoryCard />
 

@@ -7,14 +7,20 @@ import type { ThemeMode } from '@/types'
 import { applyTheme, persistTheme } from '@/lib/theme'
 import type { Step } from '@/components/onboarding-shared'
 import { OnboardingWelcomeStep } from '@/components/OnboardingWelcomeStep'
+import { OnboardingNameStep } from '@/components/OnboardingNameStep'
 import { OnboardingThemeStep } from '@/components/OnboardingThemeStep'
 import { OnboardingSetupStep } from '@/components/OnboardingSetupStep'
 
-const STEPS: Step[] = ['welcome', 'theme', 'setup']
+const STEPS: Step[] = ['welcome', 'name', 'theme', 'setup']
 
 export function Onboarding() {
   const t = useT()
   const [step, setStep] = useState<Step>('welcome')
+  // Held here rather than saved per-step: the wizard writes settings once, at
+  // the end, so backing out of a step cannot leave a half-configured install.
+  const [name, setName] = useState(
+    () => useSettingsStore.getState().settings.displayName ?? '',
+  )
   const [themeChoice, setThemeChoice] = useState<ThemeMode>(
     useSettingsStore.getState().settings.theme ?? 'dark',
   )
@@ -78,8 +84,9 @@ export function Onboarding() {
         className="onboarding-step flex min-h-[560px] w-full max-w-xl flex-col items-center justify-center gap-8 px-8 py-24 text-center"
       >
         {step === 'welcome' && <OnboardingWelcomeStep onNext={setStep} />}
+        {step === 'name' && <OnboardingNameStep name={name} onNameChange={setName} onNext={setStep} />}
         {step === 'theme' && <OnboardingThemeStep themeChoice={themeChoice} onThemeChange={handleThemeChange} onNext={setStep} />}
-        {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} />}
+        {step === 'setup' && <OnboardingSetupStep themeChoice={themeChoice} displayName={name} />}
       </div>
     </div>
   )

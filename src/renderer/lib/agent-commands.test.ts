@@ -6,6 +6,8 @@ import {
   PASSTHROUGH_COMMANDS,
   RPC_COMMANDS,
   THINKING_LEVELS,
+  mergePaletteCommands,
+  visibleClientCommands,
 } from './agent-commands'
 
 vi.mock('@/lib/ipc', () => ({
@@ -135,5 +137,65 @@ describe('command catalog', () => {
     for (const c of [...PASSTHROUGH_COMMANDS, ...RPC_COMMANDS]) {
       expect(c.description.length).toBeGreaterThan(0)
     }
+  })
+})
+
+// ── Palette merge (agent commands + client registry) ──────────────
+
+/** Identity `describe` so assertions read against the English source strings. */
+const asIs = (s: string) => s
+
+const names = (rows: Array<{ name: string }>) => rows.map((r) => r.name)
+
+describe('mergePaletteCommands', () => {
+  it('drops a skill that duplicates a built-in command', () => {
+    const merged = mergePaletteCommands(
+      [{ name: 'skill:compact', description: 'Compact from IPython' }],
+      asIs,
+    )
+    expect(names(merged)).not.toContain('skill:compact')
+    // The built-in survives — it runs in the agent session with no kernel.
+    expect(names(merged)).toContain('compact')
+  })
+
+  it('keeps a skill that has no built-in counterpart', () => {
+    const merged = mergePaletteCommands(
+      [{ name: 'skill:notion', description: 'Search Notion' }],
+      asIs,
+    )
+    expect(names(merged)).toContain('skill:notion')
+  })
+
+  it('still lets a plain agent command override a built-in of the same name', () => {
+    const merged = mergePaletteCommands(
+      [{ name: 'compact', description: 'Project override' }],
+      asIs,
+    )
+    expect(merged.filter((c) => c.name === 'compact')).toHaveLength(1)
+    expect(merged.find((c) => c.name === 'compact')?.description).toBe('Project override')
+  })
+
+  it('hides the reply command from either source', () => {
+    const merged = mergePaletteCommands([{ name: 'reply', description: 'x' }], asIs)
+    expect(names(merged)).not.toContain('reply')
+  })
+
+  it('tolerates a leading slash on advertised names', () => {
+    const merged = mergePaletteCommands(
+      [{ name: '/skill:compact', description: 'Compact from IPython' }],
+      asIs,
+    )
+    expect(names(merged)).not.toContain('/skill:compact')
+  })
+
+  it('lists agent commands before the client registry', () => {
+    const merged = mergePaletteCommands([{ name: 'skill:notion', description: 'x' }], asIs)
+    expect(merged[0].name).toBe('skill:notion')
+  })
+
+  it('passes every client description through the translator', () => {
+    const merged = mergePaletteCommands([], (s) => `KO:${s}`)
+    expect(merged).toHaveLength(visibleClientCommands().length)
+    expect(merged.every((c) => c.description?.startsWith('KO:'))).toBe(true)
   })
 })

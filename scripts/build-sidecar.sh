@@ -25,12 +25,12 @@ set -euo pipefail
 
 HARNESS_REPO="${HARNESS_REPO:-https://github.com/LAF-labs/prime-harness}"
 # The single source of truth for which harness this app ships.
-HARNESS_REF="${HARNESS_REF:-v0.7.0-laf.1}"
+HARNESS_REF="${HARNESS_REF:-v0.7.0-laf.2}"
 # Commit the tag above is expected to resolve to. Tags are movable; this pin
 # is not. The build fails if the clone resolves elsewhere. When bumping
 # HARNESS_REF, update this in the same change (or set HARNESS_SHA="" for a
 # one-off unpinned build) — the new value ends up in HARNESS.json either way.
-HARNESS_SHA="${HARNESS_SHA-d5da20ca8fdde8afbd26aae43f57e8f75b15671d}"
+HARNESS_SHA="${HARNESS_SHA-83ce976c9ef22f85c1875966b1045d3d9eb5e1d6}"
 # Major version of the Node runtime the sidecar is allowed to ship. The
 # binary is copied from the build machine, so without this the shipped
 # runtime would silently float with whatever the runner has installed.

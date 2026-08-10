@@ -71,7 +71,21 @@ automatically — see the note on `/plan` below). A project's own `.agent/`
 extensions and skills appear the same way.
 
 A name the agent advertises wins over ours, so a project can override a
-built-in command.
+built-in command. Skills are the exception: their `skill:` prefix means they
+can never collide with a built-in by name, so `/compact` and `/skill:compact`
+used to sit side by side looking like two features. A skill whose target names
+a built-in is dropped — the built-in runs in the agent session on any
+transport, while the skill drives the same action from IPython and fails when
+the kernel is not up. See `mergePaletteCommands` in `lib/agent-commands.ts`.
+
+### Which skills ship
+
+The sidecar bundles **`notion` and `attach-image`, and nothing else.** Every
+skill's name and description is injected into the system prompt on every turn,
+and prime-agent's full developer set cost ~1,390 tokens of a 2k fixed-input
+budget while advertising things like `prime-intellect` (a GPU/ML product CLI)
+to people who are here to write a document. The rest are removed in the
+harness fork — see `docs/sidecar-architecture.md`.
 
 ## Deliberately absent
 

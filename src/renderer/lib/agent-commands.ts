@@ -126,6 +126,46 @@ export const CLIENT_COMMANDS: readonly AgentCommandSpec[] = [
 /** The palette for a given surface. Simple mode drops developer-only rows. */
 export const visibleClientCommands = (): readonly AgentCommandSpec[] => CLIENT_COMMANDS
 
+/** Palette rows the agent advertises but the app never wants shown. */
+const HIDDEN_COMMANDS = new Set(['reply'])
+
+const bareName = (name: string): string => name.replace(/^\/+/, '')
+
+/**
+ * Merge the agent's runtime commands (extensions, prompt templates, skills)
+ * with this client's registry into one palette.
+ *
+ * The agent's own commands come first because they are project-specific, and a
+ * name it already advertises wins so a project can override a built-in.
+ *
+ * Skills are the exception. Their `skill:` prefix means a skill can never
+ * collide with a built-in by name, so `/compact` and `/skill:compact` both sat
+ * in the palette looking like separate features. They are one action by two
+ * routes, and the built-in is the better route: the agent session runs it on
+ * any transport, while the skill drives it from IPython and fails when the
+ * kernel is not up. A skill whose target names a built-in is dropped.
+ *
+ * `describe` translates a registry description — passed in rather than called
+ * here so the caller controls when the active locale is read.
+ */
+export const mergePaletteCommands = <T extends { name: string; description?: string }>(
+  agentCommands: readonly T[],
+  describe: (source: string) => string,
+): Array<T | { name: string; description: string }> => {
+  const clientNames = new Set(visibleClientCommands().map((c) => c.name))
+  const fromAgent = agentCommands.filter((c) => {
+    const name = bareName(c.name)
+    if (HIDDEN_COMMANDS.has(name)) return false
+    if (name.startsWith('skill:') && clientNames.has(name.slice('skill:'.length))) return false
+    return true
+  })
+  const advertised = new Set(fromAgent.map((c) => bareName(c.name)))
+  const ours = visibleClientCommands()
+    .filter((c) => !advertised.has(c.name) && !HIDDEN_COMMANDS.has(c.name))
+    .map((c) => ({ name: c.name, description: describe(c.description) }))
+  return [...fromAgent, ...ours]
+}
+
 export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number]
 

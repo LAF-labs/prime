@@ -178,6 +178,28 @@ paid third-party search API — is deleted in our harness fork rather than
 disabled. A tool that exists only to ask for an API key the app never uses is
 a support burden, not a feature.
 
+## The skill set is cut to two
+
+`v0.7.0-laf.2` ships `notion` and `attach-image`. The other ten are deleted in
+the fork for the same reason as `websearch`: `formatSkillsForPrompt` injects
+every skill's name and description into the system prompt on every turn, and
+the developer set measured ~1,390 tokens against a 2k fixed-input budget.
+
+- `compact`, `goal`, `refine` duplicate slash commands the session already
+  handles, and the skill versions additionally need the IPython kernel.
+- `prime-intellect` is a third-party GPU/ML product CLI and was the single
+  most expensive entry at 727 characters.
+- `agent-message`, `agent-observe`, `rlm-heartbeat` are multi-agent daemon
+  plumbing; `skill-creator` is authoring tooling for the harness itself.
+- `edit` is an exact-string replace primitive — the everyday profile edits
+  through the gate's `write_file` and `organize`.
+- `linear` is a developer issue tracker.
+
+Deleting rather than hiding matters: hiding a skill from the palette leaves it
+in the prompt, where it still costs tokens and the model can still invoke it.
+The harness does support `disable-model-invocation: true` for the middle case
+(reachable by `/skill:name`, absent from the prompt).
+
 ## The real cost: version drift
 
 prime-agent shipped v0.5.0 through v0.7.0 in three days, 40 releases so far.

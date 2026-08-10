@@ -165,7 +165,13 @@ bun run clean
   the three kinds (session / rpc / gui) and, importantly, which CLI commands are
   deliberately absent because they are TUI-only with no RPC method behind them.
   `get_commands` supplies extensions, prompt templates, and skills at runtime —
-  never the agent's built-ins.
+  never the agent's built-ins. `mergePaletteCommands` folds those into the
+  palette; a skill whose target names a built-in (`skill:compact` vs `/compact`)
+  is dropped, because the built-in needs no Python kernel.
+- **The sidecar ships two skills**: `notion` and `attach-image`. Every skill's
+  description is injected into the system prompt on every turn, so the rest are
+  deleted in the harness fork, not hidden. Do not re-add one without asking —
+  see `docs/sidecar-architecture.md`.
 - **The agent runtime is bundled**: `agent_launch::resolve()` prefers an explicit
   user path, then the sidecar (`<resources>/prime-agent/node dist/bundle/cli.js`),
   then PATH. Every spawn site must use `agent_launch::agent_path_env()` so the

@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import { ipc } from '@/lib/ipc'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useResourceStore } from '@/stores/resourceStore'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ProjectFile } from '@/types'
 
 // ── Built-in agents for @ mention ────────────────────────────────────

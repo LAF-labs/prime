@@ -26,7 +26,6 @@ interface ChatToolbarProps {
   isRunning?: boolean
   canSend: boolean
   hasQueuedMessages?: boolean
-  workspace: string | null
   isMetaHeld?: boolean
   fileInputRef: React.RefObject<HTMLInputElement | null>
   onFilePickerClick: () => void
@@ -40,7 +39,6 @@ export const ChatToolbar = memo(function ChatToolbar({
   isRunning,
   canSend,
   hasQueuedMessages,
-  workspace,
   isMetaHeld,
   fileInputRef,
   onFilePickerClick,

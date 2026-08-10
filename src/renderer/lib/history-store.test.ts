@@ -139,11 +139,13 @@ describe('saveThreads', () => {
     const tasks: Record<string, AgentTask> = {
       't1': {
         id: 't1', name: 'Nested Task', workspace: '/ws/sub/feat', status: 'paused',
+        projectId: 'proj-1',
         createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
       },
     }
     await saveThreads(tasks, {})
     const savedThreads = mockSet.mock.calls.find((c: unknown[]) => c[0] === 'threads')?.[1]
+    expect(savedThreads[0].projectId).toBe('proj-1')
   })
 
   it('groups threads by workspace into projects', async () => {
@@ -194,10 +196,11 @@ describe('toArchivedTasks', () => {
 
   it('preserves project metadata', () => {
     const saved = [{
-      id: 't1', name: 'Nested Thread', workspace: '/ws/sub/feat',
+      id: 't1', name: 'Nested Thread', workspace: '/ws/sub/feat', projectId: 'proj-1',
       createdAt: '', messages: [{ role: 'user', content: 'hi', timestamp: '' }],
     }]
     const actual = toArchivedTasks(saved)
+    expect(actual[0].projectId).toBe('proj-1')
   })
 })
 

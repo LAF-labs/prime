@@ -537,7 +537,7 @@ export const TaskSidebar = memo(function TaskSidebar({ width, onResize, position
         // silent dead end on the primary CTA must explain itself.
         toast.error(t('Could not create the chats folder'), { description: err instanceof Error ? err.message : String(err) })
       })
-  }, [])
+  }, [t])
 
   // Sidebar edge resize
   const handleResizeStart = useResizeHandle({

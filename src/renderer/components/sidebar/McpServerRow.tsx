@@ -3,7 +3,7 @@ import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   IconChevronRight, IconCircle, IconCheck,
   IconLoader2, IconAlertTriangle, IconLock, IconLockOpen,
-  IconPlugOff, IconBan, IconCircleCheck, IconTerminal, IconTrash,
+  IconPlugOff, IconBan, IconCircleCheck, IconTrash,
 } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -286,8 +286,7 @@ export const McpRow = memo(function McpRow({ server, onOpen }: { server: McpServ
                   <li key={tool.name} className="flex items-center gap-1.5 px-1.5 h-5">
                     <button
                       type="button"
-                      role="checkbox"
-                      aria-checked={!isDisabled}
+                      aria-pressed={!isDisabled}
                       onClick={() => handleToggleTool(tool.name)}
                       className={cn(
                         // Checked state mirrors the shared Checkbox primitive

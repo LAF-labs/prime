@@ -3,7 +3,7 @@ import { memo, useEffect, useMemo, useState, useCallback } from 'react'
 import {
   IconRefresh, IconTrash, IconTerminal2,
   IconMessage, IconTool, IconPlayerPlay, IconStack2, IconArchive,
-  IconNote, IconBug, IconCpu, IconFlame, IconChevronRight,
+  IconNote, IconCpu, IconFlame, IconChevronRight,
 } from '@tabler/icons-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { measureMemory, formatBytes, type MemoryReport, type ThreadMemoryBreakdown } from '@/lib/thread-memory'

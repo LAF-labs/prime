@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconChevronUp, IconBolt, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconBug, IconDownload } from '@tabler/icons-react'
+import { IconChevronUp, IconSearch, IconPlug, IconEdit, IconHandFinger, IconPlus, IconAlignLeft, IconBug, IconDownload } from '@tabler/icons-react'
 import { getVersion } from '@tauri-apps/api/app'
 import { useResourceStore } from '@/stores/resourceStore'
 import { AccountMenu } from './AccountMenu'

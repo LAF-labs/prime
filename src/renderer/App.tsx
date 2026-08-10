@@ -7,7 +7,6 @@ import { applyTheme, listenSystemTheme, persistTheme } from "@/lib/theme";
 import { preloadHighlighterIdle } from "@/lib/chatHighlighter";
 import { warmTerminalRuntime } from "@/components/chat/TerminalDrawer";
 import { startConnectionHealthMonitor } from "@/lib/connection-health";
-import { getReceiptBus } from "@/lib/typed-receipts";
 import { AppHeader } from "@/components/AppHeader";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { TaskSidebar } from "@/components/sidebar/TaskSidebar";
@@ -60,7 +59,6 @@ import {
   IconStack2,
   IconPlus,
   IconFolderOpen,
-  IconLayoutColumns,
   IconWorld,
   IconFiles,
   IconBulb,
@@ -155,7 +153,7 @@ function EmptyState() {
         // primary CTA must never be a silent dead end.
         toast.error(t('Could not create the chats folder'), { description: err instanceof Error ? err.message : String(err) })
       })
-  }, []);
+  }, [t]);
 
   const handleOpenFolder = useCallback(() => {
     if (projects.length > 0) {
@@ -664,9 +662,6 @@ export function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const toggleSidePanel = useCallback(() => {
-    useFileTreeStore.getState().toggle()
-  }, [])
   const closeSidePanel = useCallback(() => {
     useFileTreeStore.getState().setOpen(false)
   }, [])

@@ -109,9 +109,7 @@ function taskToDbThread(task: AgentTask): DbThread {
     updatedAt: new Date().toISOString(),
     parentThreadId: task.parentTaskId,
     autoApprove: false,
-    metadata: {
-      ...(task.projectId ? { projectId: task.projectId } : {}),
-    },
+    metadata: task.projectId ? { projectId: task.projectId } : {},
   }
 }
 
@@ -319,9 +317,7 @@ export async function migrateFromJsonHistory(
           ? saved.messages[saved.messages.length - 1].timestamp
           : saved.createdAt,
         autoApprove: false,
-        metadata: {
-          ...(saved.projectId ? { projectId: saved.projectId } : {}),
-        },
+        metadata: saved.projectId ? { projectId: saved.projectId } : {},
       }
       await ipc.threadDbSave(dbThread)
 

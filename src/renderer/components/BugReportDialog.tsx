@@ -83,7 +83,7 @@ export const BugReportDialog = memo(function BugReportDialog({
       role="presentation"
       onClick={() => onOpenChange(false)}
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the backdrop closes; the panel must not */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the click handler only stops the backdrop from closing on clicks inside the panel; it is not an interaction and has no keyboard equivalent. Escape is handled on the dialog. */}
       <div
         role="dialog"
         aria-modal="true"

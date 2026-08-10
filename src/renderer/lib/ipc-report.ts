@@ -58,6 +58,29 @@ export const attempt = (action: string, promise: Promise<unknown>): void => {
   promise.catch((err) => reportFailure(action, err))
 }
 
+/**
+ * Background work whose failure the user cannot act on.
+ *
+ * The third tier, between `attempt` (toast it) and a bare `.catch(() => {})`
+ * (lose it). Startup probes, dock icons, listener registration and shutdown
+ * acks all fail in ways no user can fix, so toasting them would bury the
+ * failures that matter — the reasoning in this module's header. But silence
+ * costs support the one clue they had: a menu listener that failed to
+ * register turns into "the New Thread menu item does nothing", with nothing
+ * anywhere to say why.
+ *
+ * `console.warn` is intercepted into the JS debug panel (`jsInterceptors`),
+ * so this lands somewhere a user can copy out of Settings → Logs.
+ *
+ * `context` should name the thing that broke, not the symptom:
+ * "register menu listeners", not "listener error".
+ */
+export const ignoreFailure = (context: string, promise: Promise<unknown>): void => {
+  promise.catch((err) => {
+    console.warn(`[background] ${context} failed:`, err)
+  })
+}
+
 /** Test hook: forget past failures so dedup state doesn't leak across tests. */
 export const resetFailureDedup = (): void => {
   recentFailures.clear()

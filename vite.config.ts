@@ -4,6 +4,43 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import fs from "node:fs";
 
+// Drop the syntax grammars this app never asks for.
+//
+// Shiki bundles 332 languages behind `bundledLanguages`, each one a dynamic
+// import, so the bundler emitted 368 chunks — 10.5 MB of a 12.4 MB build for
+// grammars an everyday-agent audience never opens (emacs-lisp alone was
+// 764 kB). They were lazy, so this costs no runtime, but it rode along in
+// every DMG.
+//
+// The kept set is `BUNDLED_GRAMMARS` in src/renderer/lib/chatHighlighter.ts,
+// which also normalises every code fence to that set — so a stubbed module
+// is unreachable, not merely unused. Keep the two in sync; the list there is
+// the one a human edits.
+function shikiGrammarSubset(): Plugin {
+  const KEEP = new Set([
+    "css", "diff", "html", "javascript", "json", "jsonc", "jsx",
+    "markdown", "python", "shellscript", "sql", "tsx", "typescript",
+  ]);
+  const GRAMMAR_MODULE = /^@shikijs\/langs\/([\w.+-]+)$/;
+  const STUB = "\0shiki-grammar-stub:";
+  return {
+    name: "laf-shiki-grammar-subset",
+    enforce: "pre",
+    resolveId(id) {
+      const match = GRAMMAR_MODULE.exec(id);
+      if (!match || KEEP.has(match[1])) return null;
+      return STUB + match[1];
+    },
+    load(id) {
+      if (!id.startsWith(STUB)) return null;
+      // Shape matches a real grammar module: a default export of an array of
+      // TextMate grammars. Empty means "registers nothing", which shiki only
+      // ever sees if something bypasses normalizeLanguage.
+      return "export default []\n";
+    },
+  };
+}
+
 // Serve material-icon-theme SVG icons from node_modules.
 // In dev, Vite serves them via the middleware. In production, they're copied to dist/material-icons.
 function materialIconsPlugin(): Plugin {
@@ -42,7 +79,7 @@ function materialIconsPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [materialIconsPlugin(), tailwindcss(), react()],
+  plugins: [shikiGrammarSubset(), materialIconsPlugin(), tailwindcss(), react()],
   root: ".",
   base: "/",
   clearScreen: false,

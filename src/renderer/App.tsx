@@ -21,6 +21,7 @@ const SplitChatLayout = lazy(() =>
 import { PendingChat } from "@/components/chat/PendingChat";
 import { NewProjectSheet } from "@/components/task/NewProjectSheet";
 import { ipc } from "@/lib/ipc";
+import { ignoreFailure } from "@/lib/ipc-report";
 const SettingsPanel = lazy(() =>
   import("@/components/settings/SettingsPanel").then((m) => ({
     default: m.SettingsPanel,
@@ -405,7 +406,7 @@ export function App() {
               useTaskStore.setState({ taskModes: validModes })
             }
           }
-        }).catch(() => {})
+        }).catch((err) => console.warn('[background] restore persisted UI state failed:', err))
       })
     });
     useSettingsStore.getState().loadSettings().then(() => {
@@ -414,15 +415,15 @@ export function App() {
       const { customAppIcon } = useSettingsStore.getState().settings;
       if (customAppIcon) {
         const base64 = customAppIcon.replace(/^data:[^;]+;base64,/, '');
-        ipc.setDockIcon(base64).catch(() => {});
+        ignoreFailure('apply the custom dock icon', ipc.setDockIcon(base64));
       }
     });
     // Backfill compat flags on custom providers registered before the
     // conservative defaults existed — without them, endpoints like Upstage
     // reject every request with "400 Unrecognized request arguments: store".
-    ipc.repairCustomProviders().catch(() => {});
+    ignoreFailure('backfill custom provider compat flags', ipc.repairCustomProviders());
     // Pre-warm the agent connection to get models before the first thread
-    ipc.probeCapabilities().catch(() => {});
+    ignoreFailure('pre-warm the agent connection', ipc.probeCapabilities());
     // Purge expired soft-deleted threads every hour
     const purgeInterval = setInterval(() => {
       useTaskStore.getState().purgeExpiredSoftDeletes();
@@ -458,8 +459,8 @@ export function App() {
         } else {
           notifActionListener = listener;
         }
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch((err) => console.warn('[background] register the notification handler failed:', err));
+    }).catch((err) => console.warn('[background] load the notification plugin failed:', err));
     // Clear notification badges when the user returns to the app — if they
     // can see the window, they don't need attention indicators anymore.
     const handleWindowFocus = () => {
@@ -493,40 +494,50 @@ export function App() {
       }
     }
     import('@tauri-apps/api/event').then(({ listen }) => {
+      // Every menu listener registers the same way and fails the same way: a
+      // rejected registration leaves the menu item inert with nothing to say
+      // why, which is worth a line in the debug log even though no user can
+      // act on it.
+      const registerListener = <T,>(event: string, handler: (e: { payload: T }) => void) =>
+        listen<T>(event, handler)
+          .then(keepUnlisten)
+          .catch((err) => console.warn(`[background] register the ${event} listener failed:`, err))
+
       // Rust emits this right before app.exit(0) — flush all state to disk
-      listen('app://flush-before-quit', () => {
+      registerListener('app://flush-before-quit', () => {
+        // Rust blocks on this ack before exiting, so it has to fire on every
+        // path including the failures — a missed ack is a hung quit. `finally`
+        // is what guarantees exactly one, and is why this no longer repeats
+        // the emit once per error branch.
+        const ack = () =>
+          import('@tauri-apps/api/event')
+            .then(({ emit }) => emit('app://flush-ack'))
+            .catch((err) => console.warn('[background] ack the pre-quit flush failed:', err))
+
         useTaskStore.getState().persistHistory()
-        import('@/lib/history-store').then((hs) => {
-          const { selectedTaskId, view, splitViews, activeSplitId, pinnedThreadIds, taskModels, taskModes } = useTaskStore.getState()
-          hs.saveUiState({
-            selectedTaskId,
-            view,
-            sidePanelOpen: sidePanelOpenRef.current,
-            sidebarCollapsed: sidebarCollapsedRef.current,
-            splitViews,
-            activeSplitId,
-            pinnedThreadIds,
-            taskModels,
-            taskModes,
-          }).catch(() => {})
-          hs.flush().then(() => {
-            // Ack the flush so Rust can proceed with shutdown
-            import('@tauri-apps/api/event').then(({ emit }) => {
-              emit('app://flush-ack').catch(() => {})
-            })
-          }).catch(() => {
-            // Ack even on failure so Rust doesn't hang
-            import('@tauri-apps/api/event').then(({ emit }) => {
-              emit('app://flush-ack').catch(() => {})
-            })
+        void import('@/lib/history-store')
+          .then(async (hs) => {
+            const { selectedTaskId, view, splitViews, activeSplitId, pinnedThreadIds, taskModels, taskModes } = useTaskStore.getState()
+            // A failed UI-state write must not skip the flush below: losing
+            // the sidebar width is cosmetic, losing queued thread writes is
+            // not.
+            await hs.saveUiState({
+              selectedTaskId,
+              view,
+              sidePanelOpen: sidePanelOpenRef.current,
+              sidebarCollapsed: sidebarCollapsedRef.current,
+              splitViews,
+              activeSplitId,
+              pinnedThreadIds,
+              taskModels,
+              taskModes,
+            }).catch((err) => console.warn('[background] save UI state before quit failed:', err))
+            await hs.flush()
           })
-        }).catch(() => {
-          import('@tauri-apps/api/event').then(({ emit }) => {
-            emit('app://flush-ack').catch(() => {})
-          })
-        })
-      }).then(keepUnlisten).catch(() => {})
-      listen('menu-new-thread', () => {
+          .catch((err) => console.warn('[background] flush state before quit failed:', err))
+          .finally(ack)
+      })
+      registerListener('menu-new-thread', () => {
         const state = useTaskStore.getState()
         const task = state.selectedTaskId ? state.tasks[state.selectedTaskId] : null
         const workspace = task
@@ -535,18 +546,18 @@ export function App() {
         if (workspace) {
           state.setPendingWorkspace(workspace)
         }
-      }).then(keepUnlisten).catch(() => {})
-      listen('menu-new-project', () => {
+      })
+      registerListener('menu-new-project', () => {
         useTaskStore.getState().setNewProjectOpen(true)
-      }).then(keepUnlisten).catch(() => {})
-      listen<string>('menu-open-recent-project', (event) => {
+      })
+      registerListener<string>('menu-open-recent-project', (event) => {
         const path = event.payload
         if (!path) return
         const state = useTaskStore.getState()
         state.addProject(path)
         state.setPendingWorkspace(path)
-      }).then(keepUnlisten).catch(() => {})
-    }).catch(() => {})
+      })
+    }).catch((err) => console.warn('[background] load the event plugin failed:', err))
     // Cross-window state sync — reload when another window persists changes.
     // Same async-registration hazard as the menu listeners above.
     let unsubSync: (() => void) | null = null
@@ -571,8 +582,8 @@ export function App() {
         } else {
           unsubSync = fn
         }
-      }).catch(() => {})
-    }).catch(() => {})
+      }).catch((err) => console.warn('[background] subscribe to cross-window changes failed:', err))
+    }).catch((err) => console.warn('[background] load the history store failed:', err))
     return () => {
       window.removeEventListener("focus", handleWindowFocus);
       clearInterval(purgeInterval);
@@ -624,7 +635,7 @@ export function App() {
       const lastSeen = settings.lastSeenChangelogVersion;
       // Fresh install — seed the version silently, don't show dialog
       if (!lastSeen) {
-        saveSettings({ ...settings, lastSeenChangelogVersion: currentVersion }).catch(() => {});
+        ignoreFailure('record the seen changelog version', saveSettings({ ...settings, lastSeenChangelogVersion: currentVersion }));
         return;
       }
       // Only show if current version is strictly newer than last seen
@@ -636,9 +647,9 @@ export function App() {
         setWhatsNewEntry(entry);
       } else {
         // No entry found — still update lastSeen so we don't re-check every launch
-        saveSettings({ ...settings, lastSeenChangelogVersion: currentVersion }).catch(() => {});
+        ignoreFailure('record the seen changelog version', saveSettings({ ...settings, lastSeenChangelogVersion: currentVersion }));
       }
-    }).catch(() => {});
+    }).catch((err) => console.warn('[background] read the app version failed:', err));
   }, [settingsLoaded]);
 
   // `/changelog` shows the same dialog on demand, always the newest entry.
@@ -672,8 +683,8 @@ export function App() {
     setWhatsNewEntry(null);
     getVersion().then((v) => {
       const { settings, saveSettings } = useSettingsStore.getState();
-      saveSettings({ ...settings, lastSeenChangelogVersion: v }).catch(() => {});
-    }).catch(() => {});
+      ignoreFailure('record the seen changelog version', saveSettings({ ...settings, lastSeenChangelogVersion: v }));
+    }).catch((err) => console.warn('[background] read the app version failed:', err));
   }, []);
 
   if (settingsLoaded && !hasOnboardedV2)

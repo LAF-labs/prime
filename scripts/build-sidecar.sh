@@ -11,11 +11,11 @@
 # The sidecar is an npm-package-shaped folder:
 #   node                  — Node.js runtime (>= 22.8, arm64)
 #   package.json          — {"type":"module"} + native deps
-#   dist/                 — prime-agent compiled output (bundle/cli.js entry)
+#   dist/                 — agent harness compiled output (bundle/cli.js entry)
 #   node_modules/         — native modules the bundle keeps external
 #                           (zeromq, koffi, undici, photon-node, clipboard, cmake-ts)
 #
-# The app spawns: <resources>/prime-agent/node dist/bundle/cli.js --mode rpc
+# The app spawns: <resources>/lafagent/node dist/bundle/cli.js --mode rpc
 #
 # Note: the bun-compiled standalone binary (dist/pi) is NOT used — zeromq's
 # NAPI addon calls uv_async_init, which Bun does not support yet
@@ -25,12 +25,12 @@ set -euo pipefail
 
 HARNESS_REPO="${HARNESS_REPO:-https://github.com/LAF-labs/prime-harness}"
 # The single source of truth for which harness this app ships.
-HARNESS_REF="${HARNESS_REF:-v0.7.0-laf.2}"
+HARNESS_REF="${HARNESS_REF:-v0.7.0-laf.5}"
 # Commit the tag above is expected to resolve to. Tags are movable; this pin
 # is not. The build fails if the clone resolves elsewhere. When bumping
 # HARNESS_REF, update this in the same change (or set HARNESS_SHA="" for a
 # one-off unpinned build) — the new value ends up in HARNESS.json either way.
-HARNESS_SHA="${HARNESS_SHA-83ce976c9ef22f85c1875966b1045d3d9eb5e1d6}"
+HARNESS_SHA="${HARNESS_SHA-7c3f01c68387b6776d684f76632e08d2e8bcfb9c}"
 # Major version of the Node runtime the sidecar is allowed to ship. The
 # binary is copied from the build machine, so without this the shipped
 # runtime would silently float with whatever the runner has installed.
@@ -39,7 +39,7 @@ NODE_VERSION_EXPECTED="${NODE_VERSION_EXPECTED:-22}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$REPO_ROOT/src-tauri/resources/prime-agent"
+OUT="$REPO_ROOT/src-tauri/resources/lafagent"
 
 # Guard the Node runtime before spending minutes on the build: the same
 # binary that runs npm below is the one that ships in the sidecar.
@@ -91,7 +91,11 @@ const pkg = {
   version: require(process.cwd() + '/package.json').version,
   private: true,
   type: 'module',
-  piConfig: { name: 'prime-agent', configDir: '.prime/agent' },
+  // Names the harness answers to: its config directory (~/.lafagent), its
+  // LAFAGENT_* environment switches, and the kernel venv underneath. Without
+  // this the app would write its users' credentials into another product's
+  // dotfile. See docs/sidecar-architecture.md.
+  piConfig: { name: 'lafagent', configDir: '.lafagent' },
   dependencies: {
     ...Object.fromEntries(
       ['zeromq', 'koffi', 'undici', '@silvia-odwyer/photon-node', '@mariozechner/clipboard']

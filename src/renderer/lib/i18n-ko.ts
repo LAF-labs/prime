@@ -845,7 +845,7 @@ export const ko: Record<string, string> = {
   'AI providers': 'AI 프로바이더',
   'Checking...': '확인 중...',
   'Pick a provider and add its API key': '프로바이더를 선택하고 API 키를 추가하세요',
-  'Keys are stored locally in ~/.prime/agent/auth.json; custom endpoints in models.json. Nothing is sent anywhere except the provider you choose.': '키는 ~/.prime/agent/auth.json에, 커스텀 엔드포인트는 models.json에 로컬로 저장됩니다. 선택한 프로바이더 외에는 어디에도 전송되지 않습니다.',
+  'Keys are stored locally in ~/.lafagent/auth.json; custom endpoints in models.json. Nothing is sent anywhere except the provider you choose.': '키는 ~/.lafagent/auth.json에, 커스텀 엔드포인트는 models.json에 로컬로 저장됩니다. 선택한 프로바이더 외에는 어디에도 전송되지 않습니다.',
   'Set up LAF Agent': 'LAF Agent 설정하기',
   'Add an AI provider key and you’re ready to go.': 'AI 프로바이더 키만 추가하면 바로 시작할 수 있습니다.',
   'The agent runtime is bundled with the app — nothing to install.': '에이전트 런타임이 앱에 포함되어 있습니다 — 별도 설치가 필요 없습니다.',

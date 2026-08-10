@@ -251,14 +251,14 @@ mod tests {
     /// The reaper's matching rule, exercised against a synthetic table.
     #[test]
     fn orphan_matching_is_narrow() {
-        let node = "/Applications/LAF Agent.app/Contents/Resources/resources/prime-agent/node";
+        let node = "/Applications/LAF Agent.app/Contents/Resources/resources/lafagent/node";
         let table = format!(
             "\
   100     1 {node}
   101   100 {node}
   102     1 /usr/local/bin/node
   103   999 {node}
-  104     1 /Applications/Other.app/Contents/Resources/resources/prime-agent/node
+  104     1 /Applications/Other.app/Contents/Resources/resources/lafagent/node
 "
         );
         let pids = orphan_pids(&table, node);

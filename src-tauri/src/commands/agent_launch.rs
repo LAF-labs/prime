@@ -6,7 +6,7 @@
 //!
 //! 1. An explicit user-configured binary path (Settings → agent binary) that
 //!    differs from the default — power users can point at their own install.
-//! 2. The bundled sidecar (`<resources>/prime-agent/node dist/bundle/cli.js`).
+//! 2. The bundled sidecar (`<resources>/lafagent/node dist/bundle/cli.js`).
 //! 3. The configured name as-is (PATH lookup, default `prime-agent`).
 
 use std::path::PathBuf;
@@ -30,14 +30,14 @@ pub fn bundled_sidecar_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     use tauri::Manager;
     if let Ok(p) = app
         .path()
-        .resolve("resources/prime-agent", tauri::path::BaseDirectory::Resource)
+        .resolve("resources/lafagent", tauri::path::BaseDirectory::Resource)
     {
         if p.join("dist/bundle/cli.js").exists() {
             return Some(p);
         }
     }
-    // Dev fallback: src-tauri/resources/prime-agent
-    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/prime-agent");
+    // Dev fallback: src-tauri/resources/lafagent
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/lafagent");
     if dev.join("dist/bundle/cli.js").exists() {
         return Some(dev);
     }
@@ -47,10 +47,12 @@ pub fn bundled_sidecar_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
 /// Resolve the launch spec for the configured binary name/path.
 pub fn resolve(app: &tauri::AppHandle, configured: &str) -> AgentLaunch {
     let configured = configured.trim();
-    let is_default = configured.is_empty() || configured == "prime-agent";
+    // "prime-agent" is accepted for configs written before the rename.
+    let is_default =
+        configured.is_empty() || configured == "lafagent" || configured == "prime-agent";
 
     // Explicit user override (an absolute path outside our bundle) wins.
-    if !is_default && configured.contains('/') && !configured.contains("/resources/prime-agent/") {
+    if !is_default && configured.contains('/') && !configured.contains("/resources/lafagent/") {
         return AgentLaunch::plain(configured);
     }
 

@@ -18,4 +18,4 @@ website/node_modules
 website/dist
 website/.browse/
 /diff/.claude/
-src-tauri/resources/prime-agent/
+src-tauri/resources/lafagent/

@@ -75,7 +75,7 @@ interface SettingsStore {
 }
 
 const defaultSettings: AppSettings = {
-  agentBin: 'prime-agent',
+  agentBin: 'lafagent',
   agentProfiles: [],
   sidebarPosition: 'left',
   // Default to true — new users get inline tool calls by default.

@@ -451,6 +451,13 @@ pub fn run() {
             let _window = app.get_webview_window("main")
                 .ok_or_else(|| "main window not found".to_string())?;
 
+            // One-time move of ~/.prime/agent to ~/.lafagent. Runs before
+            // anything reads a credential or spawns an agent, so the rest of
+            // startup sees a single, current location.
+            if let Some(dir) = commands::agent_paths::migrate_legacy_config_dir() {
+                log::info!("Migrated agent config to {dir:?}");
+            }
+
             // Agents from a previous run that no code could clean up — the app
             // was force-quit, panicked, or the machine lost power. They have no
             // parent and no window, so nothing else will ever reach them.

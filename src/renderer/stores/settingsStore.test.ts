@@ -20,7 +20,7 @@ import { ipc } from '@/lib/ipc'
 import type { AppSettings } from '@/types'
 
 const defaultState = {
-  settings: { agentBin: 'prime-agent', agentProfiles: [], sidebarPosition: 'left' as const },
+  settings: { agentBin: 'lafagent', agentProfiles: [], sidebarPosition: 'left' as const },
   isLoaded: false,
   availableModels: [],
   currentModelId: null,
@@ -47,7 +47,7 @@ describe('settingsStore', () => {
       vi.mocked(ipc.getSettings).mockResolvedValue({ theme: 'light' } as never)
       await useSettingsStore.getState().loadSettings()
       expect(useSettingsStore.getState().settings.theme).toBe('light')
-      expect(useSettingsStore.getState().settings.agentBin).toBe('prime-agent')
+      expect(useSettingsStore.getState().settings.agentBin).toBe('lafagent')
       expect(useSettingsStore.getState().isLoaded).toBe(true)
     })
 
@@ -62,7 +62,7 @@ describe('settingsStore', () => {
       const { loadBackup } = await import('@/lib/history-store')
       vi.mocked(loadBackup).mockResolvedValueOnce({
         threads: [], projects: [], softDeleted: [],
-        settings: { agentBin: 'prime-agent', agentProfiles: [], hasOnboardedV2: true, theme: 'light',
+        settings: { agentBin: 'lafagent', agentProfiles: [], hasOnboardedV2: true, theme: 'light',
           projectPrefs: { '/ws': { iconOverride: { type: 'emoji', emoji: '🚀' } } } } as never,
       })
       await useSettingsStore.getState().loadSettings()
@@ -285,7 +285,7 @@ describe('settingsStore', () => {
     it('opens Settings on the Providers section when not logged in — never a terminal', async () => {
       vi.mocked(ipc.authStatus).mockRejectedValue(new Error('not logged in'))
       await useSettingsStore.getState().openLogin()
-      // A DMG-only install has no `prime-agent` on PATH, so the old terminal
+      // A DMG-only install has no agent binary on PATH, so the old terminal
       // path died with "command not found" — sign-in must go to Providers.
       const { useTaskStore } = await import('./taskStore')
       expect(useTaskStore.getState().isSettingsOpen).toBe(true)
@@ -310,7 +310,7 @@ describe('settingsStore', () => {
 
     it('resets user-tunable fields to the real store defaults', () => {
       const restored = buildRestoredDefaults(current)
-      expect(restored.agentBin).toBe('prime-agent')
+      expect(restored.agentBin).toBe('lafagent')
       expect(restored.sidebarPosition).toBe('left')
       expect(restored.inlineToolCalls).toBe(true)
       expect(restored.autoApprove).toBeUndefined()

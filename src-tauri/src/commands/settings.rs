@@ -208,7 +208,7 @@ pub struct AppSettings {
 }
 
 fn default_agent_bin() -> String {
-    "prime-agent".to_string()
+    "lafagent".to_string()
 }
 fn default_theme() -> String {
     "dark".to_string()
@@ -475,7 +475,7 @@ mod tests {
     #[test]
     fn default_settings_values() {
         let s = AppSettings::default();
-        assert_eq!(s.agent_bin, "prime-agent");
+        assert_eq!(s.agent_bin, "lafagent");
         assert!(!s.auto_approve);
         assert!(s.respect_gitignore);
         assert!(s.co_author);

@@ -24,7 +24,7 @@ patches.
 
 ## What ships today
 
-`src-tauri/resources/prime-agent/` is a 192 MB folder inside the app bundle:
+`src-tauri/resources/lafagent/` is a 192 MB folder inside the app bundle:
 
 | Part | Size | Why |
 |---|---|---|

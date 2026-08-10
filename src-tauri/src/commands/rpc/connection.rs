@@ -503,11 +503,12 @@ pub(crate) async fn run_rpc_connection(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .env("PATH", agent_path_env(&launch))
-        // prime-agent provisions its Python kernel with uv, which we ship in
+        // The agent provisions its Python kernel with uv, which we ship in
         // the sidecar. The flag is a fallback for installs that resolve an
-        // external prime-agent: without it a GUI session can never install uv,
+        // external binary: without it a GUI session can never install uv,
         // because the interactive consent prompt only exists on a TTY.
-        .env("PRIME_AGENT_INSTALL_UV", "1")
+        // The name follows `piConfig.name` — see commands::agent_paths.
+        .env("LAFAGENT_INSTALL_UV", "1")
         .spawn()
         .map_err(|e| format!("Could not start the agent: {e}"))?;
 

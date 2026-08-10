@@ -1,5 +1,6 @@
 pub mod rpc;
 pub mod agent_launch;
+pub mod agent_paths;
 pub mod agent_oneshot;
 pub mod analytics;
 pub mod diff_stats;

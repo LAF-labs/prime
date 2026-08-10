@@ -43,7 +43,7 @@ pub struct McpServerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     pub file_path: String,
-    /// "global" (~/.prime/agent/settings.json) or "local" (<project>/.prime/agent/settings.json).
+    /// "global" (~/.lafagent/settings.json) or "local" (<project>/.lafagent/settings.json).
     /// When the same server name appears in both, the local entry wins.
     pub source: String,
 }
@@ -60,7 +60,7 @@ pub struct AgentResources {
 /// is unnecessary — the file is tiny and read at config-load time only).
 fn mcp_cred_names() -> std::collections::HashSet<String> {
     dirs::home_dir()
-        .map(|h| h.join(".prime/agent/auth.json"))
+        .map(|h| h.join(".lafagent/auth.json"))
         .and_then(|p| fs::read_to_string(p).ok())
         .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
         .and_then(|v| v.as_object().map(|o| o.keys().cloned().collect()))
@@ -193,14 +193,14 @@ pub fn get_agent_resources(project_path: Option<String>) -> AgentResources {
     let mut config = AgentResources::default();
 
     if let Some(home) = dirs::home_dir() {
-        let global_dir = home.join(".prime").join("agent");
+        let global_dir = home.join(".lafagent");
         config.skills.extend(scan_skills(&global_dir, true));
         config.prompts.extend(scan_prompts(&global_dir, true));
         load_mcp_file(&global_dir.join("settings.json"), true, &mut config.mcp_servers);
     }
 
     if let Some(ref project) = project_path {
-        let local_dir = Path::new(project).join(".prime").join("agent");
+        let local_dir = Path::new(project).join(".lafagent");
         config.skills.extend(scan_skills(&local_dir, false));
         // Local prompts override global ones with the same name
         let local_prompts = scan_prompts(&local_dir, false);
@@ -228,14 +228,13 @@ pub struct McpServerPatch {
 pub fn save_mcp_server_config(file_path: String, server_name: String, patch: McpServerPatch) -> Result<(), AppError> {
     let path = Path::new(&file_path);
 
-    // Validate that the file path is a .prime/agent/settings.json file
+    // Validate that the file path is a .lafagent/settings.json file
     let canonical = path.canonicalize().map_err(|e| AppError::Other(format!("Invalid path '{}': {}", file_path, e)))?;
     let file_name = canonical.file_name().and_then(|n| n.to_str()).unwrap_or("");
     let parent = canonical.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or("");
-    let grandparent = canonical.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or("");
-    if file_name != "settings.json" || parent != "agent" || grandparent != ".prime" {
+    if file_name != "settings.json" || parent != crate::commands::agent_paths::AGENT_CONFIG_DIR {
         return Err(AppError::Other(format!(
-            "Refusing to write '{}': path must be a .prime/agent/settings.json file", file_path
+            "Refusing to write '{}': path must be a .lafagent/settings.json file", file_path
         )));
     }
 
@@ -269,8 +268,8 @@ pub fn save_mcp_server_config(file_path: String, server_name: String, patch: Mcp
 // ── MCP server configuration commands ────────────────────────────────────────
 //
 // prime-agent reads MCP servers from the `mcpServers` object in its
-// settings.json (global `~/.prime/agent/settings.json` or per-project
-// `<project>/.prime/agent/settings.json`). There is no CLI subcommand for
+// settings.json (global `~/.lafagent/settings.json` or per-project
+// `<project>/.lafagent/settings.json`). There is no CLI subcommand for
 // managing them, so these commands do careful read-modify-write JSON edits
 // that preserve every other key in the settings file.
 
@@ -279,8 +278,8 @@ pub fn save_mcp_server_config(file_path: String, server_name: String, patch: Mcp
 pub struct McpAddRequest {
     /// Server name as referenced in mcp.json's `mcpServers` map.
     pub name: String,
-    /// "global" → ~/.prime/agent/settings.json,
-    /// "workspace" → <project>/.prime/agent/settings.json.
+    /// "global" → ~/.lafagent/settings.json,
+    /// "workspace" → <project>/.lafagent/settings.json.
     pub scope: String,
     /// stdio command (e.g. "uvx") OR remote URL (https://…). Exactly one of
     /// `command` or `url` must be set; the CLI rejects requests that omit both
@@ -308,10 +307,10 @@ pub struct McpRemoveRequest {
 fn scope_settings_path(scope: &str, workspace: Option<&str>) -> Result<std::path::PathBuf, AppError> {
     match scope {
         "global" => dirs::home_dir()
-            .map(|h| h.join(".prime").join("agent").join("settings.json"))
+            .map(|h| h.join(".lafagent").join("settings.json"))
             .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string())),
         "workspace" => workspace
-            .map(|ws| Path::new(ws).join(".prime").join("agent").join("settings.json"))
+            .map(|ws| Path::new(ws).join(".lafagent").join("settings.json"))
             .ok_or_else(|| AppError::Other("Workspace scope requires a workspace path".to_string())),
         other => Err(AppError::Other(format!(
             "Unknown scope '{other}' (expected 'global' or 'workspace')"
@@ -546,13 +545,13 @@ mod tests {
     #[test]
     fn scope_settings_path_global() {
         let p = super::scope_settings_path("global", None).unwrap();
-        assert!(p.ends_with(".prime/agent/settings.json"));
+        assert!(p.ends_with(".lafagent/settings.json"));
     }
 
     #[test]
     fn scope_settings_path_workspace() {
         let p = super::scope_settings_path("workspace", Some("/tmp/proj")).unwrap();
-        assert_eq!(p, std::path::PathBuf::from("/tmp/proj/.prime/agent/settings.json"));
+        assert_eq!(p, std::path::PathBuf::from("/tmp/proj/.lafagent/settings.json"));
     }
 
     #[test]
@@ -576,7 +575,7 @@ mod tests {
     #[test]
     fn save_mcp_server_config_sets_disabled() {
         let tmp = tempfile::tempdir().unwrap();
-        let settings_dir = tmp.path().join(".prime").join("agent");
+        let settings_dir = tmp.path().join(".lafagent");
         std::fs::create_dir_all(&settings_dir).unwrap();
         let f = settings_dir.join("settings.json");
         std::fs::write(&f, r#"{"mcpServers": {"slack": {"command": "slack-mcp"}}}"#).unwrap();
@@ -590,7 +589,7 @@ mod tests {
     #[test]
     fn save_mcp_server_config_removes_disabled_on_enable() {
         let tmp = tempfile::tempdir().unwrap();
-        let settings_dir = tmp.path().join(".prime").join("agent");
+        let settings_dir = tmp.path().join(".lafagent");
         std::fs::create_dir_all(&settings_dir).unwrap();
         let f = settings_dir.join("settings.json");
         std::fs::write(&f, r#"{"mcpServers": {"slack": {"command": "slack-mcp", "disabled": true}}}"#).unwrap();
@@ -603,7 +602,7 @@ mod tests {
     #[test]
     fn save_mcp_server_config_sets_disabled_tools() {
         let tmp = tempfile::tempdir().unwrap();
-        let settings_dir = tmp.path().join(".prime").join("agent");
+        let settings_dir = tmp.path().join(".lafagent");
         std::fs::create_dir_all(&settings_dir).unwrap();
         let f = settings_dir.join("settings.json");
         std::fs::write(&f, r#"{"mcpServers": {"slack": {"command": "slack-mcp"}}}"#).unwrap();
@@ -616,7 +615,7 @@ mod tests {
     #[test]
     fn save_mcp_server_config_removes_disabled_tools_on_empty() {
         let tmp = tempfile::tempdir().unwrap();
-        let settings_dir = tmp.path().join(".prime").join("agent");
+        let settings_dir = tmp.path().join(".lafagent");
         std::fs::create_dir_all(&settings_dir).unwrap();
         let f = settings_dir.join("settings.json");
         std::fs::write(&f, r#"{"mcpServers": {"slack": {"command": "slack-mcp", "disabledTools": ["x"]}}}"#).unwrap();

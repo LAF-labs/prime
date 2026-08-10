@@ -12,11 +12,11 @@ Based on a desktop codebase by Sabeur Thabti, fully acquired with permission and
 - Agent events (text/thinking deltas, tool executions, compaction, retries) are translated into Tauri events consumed by the React 19 renderer.
 - Tool-call approval rides on prime-agent's extension UI protocol via a bundled gate extension (`src-tauri/resources/laf-agent-gate.ts`).
 - Models are addressed as `provider/model-id`; the picker is populated from `get_available_models`.
-- Config lives in prime-agent's own `~/.prime/agent/` (settings.json, skills, prompts, MCP servers under `mcpServers`).
+- Config lives in its own `~/.lafagent/` (settings.json, skills, prompts, MCP servers under `mcpServers`).
 
 ## Requirements
 
-None — the DMG bundles the full prime-agent runtime (Node + compiled package under `Resources/resources/prime-agent/`). Install, open, paste an API key, done. Regenerate the bundled sidecar with `scripts/build-sidecar.sh`.
+None — the DMG bundles the full prime-agent runtime (Node + compiled package under `Resources/resources/lafagent/`). Install, open, paste an API key, done. Regenerate the bundled sidecar with `scripts/build-sidecar.sh`.
 
 Power users can point Settings → agent binary at their own prime-agent install instead:
   ```

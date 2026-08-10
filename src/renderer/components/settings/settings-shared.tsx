@@ -43,7 +43,7 @@ export interface SearchableItem {
 }
 
 export const SEARCHABLE_SETTINGS: readonly SearchableItem[] = [
-  { label: 'Agent connection', description: 'Where the agent runs from', section: 'general', keywords: 'cli binary connection detect path prime-agent' },
+  { label: 'Agent connection', description: 'Where the agent runs from', section: 'general', keywords: 'cli binary connection detect path runtime lafagent' },
   { label: 'Default model', description: 'Choose the default AI model', section: 'general', keywords: 'model ai llm' },
   { label: 'Permission mode', description: 'Ask, accept edits, or auto-run tool calls', section: 'permissions', keywords: 'permissions approve tools ask accept edits auto mode auto-approve' },
   { label: 'Allow rules', description: 'Always-allow rules for tools and commands', section: 'permissions', keywords: 'permissions allow rules always tool command glob whitelist' },

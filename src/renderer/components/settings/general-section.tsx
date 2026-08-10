@@ -118,7 +118,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               value={draft.agentBin}
               data-testid="settings-cli-path-input"
               onChange={handleCliPathChange}
-              placeholder="prime-agent"
+              placeholder="lafagent"
               aria-label={t('Path to the agent runtime')}
               className={cn(SETTINGS_INPUT_CLASS, 'min-w-0 flex-1 font-mono text-[12px]')}
             />

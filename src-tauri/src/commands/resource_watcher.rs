@@ -41,7 +41,7 @@ impl Default for ResourceWatcherState {
 /// Start watching the global ~/.agent directory. Called once at app setup.
 pub fn watch_global_resources(app: &AppHandle) {
     let Some(home) = dirs::home_dir() else { return };
-    let global_dir = home.join(".prime").join("agent");
+    let global_dir = home.join(".lafagent");
     if !global_dir.is_dir() {
         return;
     }
@@ -51,17 +51,17 @@ pub fn watch_global_resources(app: &AppHandle) {
 
 /// Start watching a project's .agent directory.
 ///
-/// Known limitation, on purpose: if `.prime/agent` does not exist yet, this
+/// Known limitation, on purpose: if `.lafagent` does not exist yet, this
 /// is a no-op — we do not create directories inside the user's project as a
 /// side effect of opening it, and `notify` cannot watch a path that isn't
-/// there. A `.prime/agent` created later is picked up on the next call (the
+/// there. A `.lafagent` created later is picked up on the next call (the
 /// frontend re-invokes this on project activation and on resource refresh).
 #[tauri::command]
 pub fn watch_resource_path(path: String, app: AppHandle) {
-    let agent_dir = PathBuf::from(&path).join(".prime").join("agent");
+    let agent_dir = PathBuf::from(&path).join(".lafagent");
     if !agent_dir.is_dir() {
         log::info!(
-            "[resource-watcher] no .prime/agent under this project yet — not watching (re-checked on next activation)"
+            "[resource-watcher] no .lafagent under this project yet — not watching (re-checked on next activation)"
         );
         return;
     }
@@ -75,7 +75,7 @@ pub fn watch_resource_path(path: String, app: AppHandle) {
 /// Stop watching a project's .agent directory.
 #[tauri::command]
 pub fn unwatch_resource_path(path: String, app: AppHandle) {
-    let agent_dir = PathBuf::from(&path).join(".prime").join("agent");
+    let agent_dir = PathBuf::from(&path).join(".lafagent");
     let state = app.state::<ResourceWatcherState>();
     let mut watchers = state.watchers.lock();
     if watchers.remove(&agent_dir).is_some() {
@@ -107,9 +107,9 @@ fn start_watcher(
     }
     // Cap check and insert happen under this one lock acquisition so
     // concurrent calls cannot both observe "one slot left" and both insert.
-    // The global ~/.prime/agent watcher does not count toward the limit.
+    // The global ~/.lafagent watcher does not count toward the limit.
     if project_path.is_some() {
-        let home_agent = dirs::home_dir().map(|h| h.join(".prime").join("agent"));
+        let home_agent = dirs::home_dir().map(|h| h.join(".lafagent"));
         let project_count = watchers.keys()
             .filter(|k| home_agent.as_ref() != Some(*k))
             .count();

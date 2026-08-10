@@ -667,7 +667,7 @@ export function initTaskListeners(): () => void {
         const serverName = entry.mcpServerName
           ?? knownServers.find((s) => text.toLowerCase().includes(s))
           ?? 'unknown'
-        useResourceStore.getState().setMcpError(serverName, 'OAuth setup needed — add http://127.0.0.1 as a redirect URI in your OAuth app, or disable it in ~/.prime/agent/settings.json')
+        useResourceStore.getState().setMcpError(serverName, 'OAuth setup needed — add http://127.0.0.1 as a redirect URI in your OAuth app, or disable it in ~/.lafagent/settings.json')
       }
     }
   })

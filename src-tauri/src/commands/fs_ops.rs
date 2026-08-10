@@ -84,12 +84,12 @@ pub(crate) fn read_json_object_for_update(
 /// (`detect_agent_cli`) because the frontend IPC wrapper calls it by name.
 ///
 /// When the app ships the bundled sidecar, this returns the default name
-/// `prime-agent` — the launch resolver maps that to the bundled runtime, and
+/// `lafagent` — the launch resolver maps that to the bundled runtime, and
 /// settings stay portable across app updates (no baked-in absolute path).
 #[tauri::command]
 pub fn detect_agent_cli(app: tauri::AppHandle) -> Option<String> {
     if crate::commands::agent_launch::bundled_sidecar_dir(&app).is_some() {
-        return Some("prime-agent".to_string());
+        return Some("lafagent".to_string());
     }
     let candidates = [
         dirs::home_dir().map(|h| h.join(".local/bin/prime-agent")),
@@ -138,10 +138,10 @@ pub fn harness_info(app: tauri::AppHandle) -> Result<Option<HarnessInfo>, AppErr
 ///
 /// This guards only the generic read commands (`read_text_file`,
 /// `read_file_base64`). The dedicated `auth_*` commands below read
-/// `~/.prime/agent/auth.json` through `std::fs` directly and are unaffected.
+/// `~/.lafagent/auth.json` through `std::fs` directly and are unaffected.
 const SENSITIVE_PATH_PREFIXES: &[&str] = &[
     ".ssh/", ".gnupg/", ".aws/", ".config/gh/", ".netrc",
-    ".prime/agent/auth.json", ".docker/config.json", ".kube/", ".npmrc",
+    ".lafagent/auth.json", ".docker/config.json", ".kube/", ".npmrc",
     ".git-credentials", ".config/gcloud/",
 ];
 
@@ -766,10 +766,10 @@ pub struct AuthIdentity {
 #[tauri::command]
 pub fn auth_status(agent_bin: Option<String>) -> Result<AuthIdentity, AppError> {
     // prime-agent has no `whoami`. Credentials are provider API keys / OAuth
-    // tokens stored in ~/.prime/agent/auth.json, or environment variables.
+    // tokens stored in ~/.lafagent/auth.json, or environment variables.
     let _ = agent_bin;
     let auth_path = dirs::home_dir()
-        .map(|h| h.join(".prime/agent/auth.json"))
+        .map(|h| h.join(".lafagent/auth.json"))
         .filter(|p| p.exists());
 
     if let Some(path) = auth_path {
@@ -852,7 +852,7 @@ pub fn auth_set_api_key(provider: String, key: String) -> Result<(), AppError> {
     }
 
     let dir = dirs::home_dir()
-        .map(|h| h.join(".prime/agent"))
+        .map(|h| h.join(".lafagent"))
         .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
     std::fs::create_dir_all(&dir)?;
     #[cfg(unix)]
@@ -895,7 +895,7 @@ pub struct ConfiguredProvider {
 #[tauri::command]
 pub fn auth_list_providers() -> Result<Vec<ConfiguredProvider>, AppError> {
     let home = dirs::home_dir().ok_or_else(|| AppError::Other("No home directory".into()))?;
-    let agent_dir = home.join(".prime/agent");
+    let agent_dir = home.join(".lafagent");
 
     let read_json = |path: std::path::PathBuf| -> Option<serde_json::Map<String, serde_json::Value>> {
         std::fs::read_to_string(path)
@@ -961,7 +961,7 @@ fn conservative_compat() -> serde_json::Value {
 /// existed. Returns the number of providers repaired.
 #[tauri::command]
 pub fn repair_custom_providers() -> Result<u32, AppError> {
-    let path = match dirs::home_dir().map(|h| h.join(".prime/agent/models.json")) {
+    let path = match dirs::home_dir().map(|h| h.join(".lafagent/models.json")) {
         Some(p) if p.exists() => p,
         _ => return Ok(0),
     };
@@ -1002,7 +1002,7 @@ pub fn repair_custom_providers() -> Result<u32, AppError> {
 }
 
 /// Register a custom OpenAI-compatible provider (e.g. Upstage Solar, vLLM,
-/// a proxy) in prime-agent's `~/.prime/agent/models.json`, and mirror the key
+/// a proxy) in prime-agent's `~/.lafagent/models.json`, and mirror the key
 /// into auth.json so the app's auth status reflects it. models.json schema:
 /// `{providers: {<name>: {baseUrl, api, apiKey, models: [{id}]}}}`.
 ///
@@ -1053,7 +1053,7 @@ pub fn auth_set_custom_provider(
     }
 
     let dir = dirs::home_dir()
-        .map(|h| h.join(".prime/agent"))
+        .map(|h| h.join(".lafagent"))
         .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
     std::fs::create_dir_all(&dir)?;
 
@@ -1105,7 +1105,7 @@ pub fn auth_set_custom_provider(
 #[tauri::command]
 pub fn auth_remove_provider(provider: String) -> Result<(), AppError> {
     let auth_path = dirs::home_dir()
-        .map(|h| h.join(".prime/agent/auth.json"))
+        .map(|h| h.join(".lafagent/auth.json"))
         .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
     if !auth_path.exists() {
         return Ok(());
@@ -1119,7 +1119,7 @@ pub fn auth_remove_provider(provider: String) -> Result<(), AppError> {
 
     // Custom endpoints also live in models.json — drop them together so a
     // removed provider doesn't linger in the model picker without a key.
-    if let Some(models_path) = dirs::home_dir().map(|h| h.join(".prime/agent/models.json")) {
+    if let Some(models_path) = dirs::home_dir().map(|h| h.join(".lafagent/models.json")) {
         if models_path.exists() {
             if let Ok(text) = std::fs::read_to_string(&models_path) {
                 if let Ok(mut models) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -1143,7 +1143,7 @@ pub fn auth_logout(agent_bin: Option<String>) -> Result<(), AppError> {
     // Logging out means removing prime-agent's stored credentials.
     let _ = agent_bin;
     let auth_path = dirs::home_dir()
-        .map(|h| h.join(".prime/agent/auth.json"))
+        .map(|h| h.join(".lafagent/auth.json"))
         .ok_or_else(|| AppError::Other("Could not resolve home directory".to_string()))?;
     if auth_path.exists() {
         std::fs::remove_file(&auth_path)

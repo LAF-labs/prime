@@ -74,12 +74,12 @@ const PROFILE: &str = r#"(version 1)
 /// directory so they sit next to the venv they wrap and are removed with it.
 fn sandbox_dir() -> Result<PathBuf, AppError> {
     let home = dirs::home_dir().ok_or_else(|| AppError::Other("no home directory".into()))?;
-    Ok(home.join(".prime/agent/laf-sandbox"))
+    Ok(home.join(".lafagent/laf-sandbox"))
 }
 
 /// The bootstrapped kernel interpreter, if it exists yet.
 pub fn kernel_venv_python() -> Option<PathBuf> {
-    let python = dirs::home_dir()?.join(".prime/agent/kernel-venv/bin/python");
+    let python = dirs::home_dir()?.join(".lafagent/kernel-venv/bin/python");
     python.exists().then_some(python)
 }
 
@@ -111,9 +111,9 @@ pub fn wrapper_for(workspace: &str) -> Result<Option<PathBuf>, AppError> {
     let workspace_param = if Path::new(workspace).is_dir() {
         workspace.to_string()
     } else {
-        home.join(".prime/agent").to_string_lossy().to_string()
+        home.join(".lafagent").to_string_lossy().to_string()
     };
-    let agent_dir = home.join(".prime/agent");
+    let agent_dir = home.join(".lafagent");
     let tmpdir = std::env::var("TMPDIR").unwrap_or_else(|_| "/private/tmp".to_string());
 
     let param = |k: &str, v: String| format!("  -D {k}={}", shell_quote(&v));

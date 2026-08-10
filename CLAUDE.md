@@ -39,7 +39,7 @@ release DMG is ~76 MB, most of which is the bundled Node runtime and `uv`.
 - **Build**: Vite 6 (via `rolldown-vite`), Cargo, bun as package manager.
   Build target `safari16`; manual vendor chunks.
 - **Testing**: Vitest 4 with jsdom, @testing-library/react, v8 coverage
-- **Agent**: prime-agent 0.7.0, bundled under `src-tauri/resources/prime-agent/`
+- **Agent**: prime-agent 0.7.0, bundled under `src-tauri/resources/lafagent/`
 - **Rust crates**: thiserror, which, confy, redb, rusqlite, parking_lot,
   reqwest, notify, ignore, nucleo-matcher, imara-diff, pulldown-cmark,
   imagesize, window-vibrancy, glob, base64, uuid, open, dirs, libc
@@ -107,7 +107,7 @@ src-tauri/
 ├── tauri.conf.json
 └── capabilities/            # Tauri v2 permissions
 scripts/
-├── build-sidecar.sh         # Rebuild src-tauri/resources/prime-agent
+├── build-sidecar.sh         # Rebuild src-tauri/resources/lafagent
 ├── bump-version.sh, release.sh, generate-notes.sh
 docs/                        # architecture, ipc-reference, slash-commands,
                              # sidecar-architecture, development, …
@@ -233,7 +233,7 @@ Run `bun run build` before shipping a release.
 
 The string appears ~180 times and almost all of them are load-bearing: the
 binary we spawn and look up on PATH, the sidecar directory, the config dir
-`~/.prime/agent` (auth.json, models.json), the `PRIME_AGENT_*` env vars, and
+`~/.lafagent` (auth.json, models.json), the `PRIME_AGENT_*` env vars, and
 the harness fork `LAF-labs/prime-harness`. Renaming any of those breaks the
 app.
 
@@ -242,7 +242,7 @@ onboarding text, and error messages say "the agent" or "the agent runtime".
 Three exceptions stay on purpose — the About dialog's MIT attribution to
 PrimeIntellect-ai/prime-agent, the two path placeholders (the field really
 does want that binary), and the onboarding line naming
-`~/.prime/agent/auth.json`, because it tells users where their API keys
+`~/.lafagent/auth.json`, because it tells users where their API keys
 actually live and a friendlier lie would be worse.
 
 ### The IPC surface must stay symmetric

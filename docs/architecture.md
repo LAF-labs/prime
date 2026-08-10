@@ -40,7 +40,7 @@ graph TD
   Kernel --> Launch
   RPC -- "JSONL over stdin/stdout" --> Agent["prime-agent --mode rpc<br/>(bundled sidecar)"]
   Agent -- "extension UI protocol" --> Gate["laf-agent-gate.ts<br/>(permission gate, sandbox)"]
-  Kernel -- "spawns" --> Uv["bundled uv → ~/.prime/agent/kernel-venv"]
+  Kernel -- "spawns" --> Uv["bundled uv → ~/.lafagent/kernel-venv"]
   PTY -- "PTY I/O" --> Shell["User shell"]
   Analytics -- "ACID storage" --> ReDB["redb database"]
   ThreadDB -- "ACID storage" --> ReDB
@@ -89,7 +89,7 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 |--------|---------|
 | `pty.rs` | Terminal emulation via `portable-pty`. Manages PTY child process lifecycle. |
 | `settings.rs` | Config persistence via `confy`, plus the recent-projects list. |
-| `fs_ops.rs` | File operations, agent detection, and `~/.prime/agent/auth.json` management. |
+| `fs_ops.rs` | File operations, agent detection, and `~/.lafagent/auth.json` management. |
 | `agent_resources.rs` | `.agent/` project configuration discovery and parsing. |
 | `error.rs` | Shared `AppError` enum via `thiserror`. |
 

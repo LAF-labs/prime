@@ -24,8 +24,8 @@ import { cn } from '@/lib/utils'
  *
  * prime-agent has no CLI subcommand for managing MCP servers, so the Rust
  * side (`mcp_add_server`) does an atomic read-modify-write of the settings
- * file for the chosen scope: `~/.prime/agent/settings.json` (global) or
- * `<workspace>/.prime/agent/settings.json` (workspace).
+ * file for the chosen scope: `~/.lafagent/settings.json` (global) or
+ * `<workspace>/.lafagent/settings.json` (workspace).
  */
 
 type Transport = 'stdio' | 'http'
@@ -191,20 +191,20 @@ export function AddMcpServerDialog({ open, onOpenChange, workspace }: Props) {
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-medium text-muted-foreground">{t('Scope')}</label>
             <div className="flex items-center rounded-md border border-border overflow-hidden">
-              <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.prime/agent/settings.json" />
+              <ScopeButton active={scope === 'global'} onClick={() => setScope('global')} label="Global" hint="~/.lafagent/settings.json" />
               <ScopeButton
                 active={scope === 'workspace'}
                 onClick={() => setScope('workspace')}
                 label="Workspace"
-                hint=".prime/agent/settings.json"
+                hint=".lafagent/settings.json"
                 disabled={!workspace}
                 divider
               />
             </div>
             <p className="font-mono text-[11px] text-muted-foreground/70">
               {scope === 'global'
-                ? '~/.prime/agent/settings.json'
-                : '.prime/agent/settings.json'}
+                ? '~/.lafagent/settings.json'
+                : '.lafagent/settings.json'}
             </p>
           </div>
 

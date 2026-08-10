@@ -18,7 +18,7 @@ interface OnboardingSetupStepProps {
 
 export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) => {
   const t = useT()
-  const [bin, setBin] = useState('prime-agent')
+  const [bin, setBin] = useState('lafagent')
   const [isCliReady, setIsCliReady] = useState(false)
   const [isBundled, setIsBundled] = useState<boolean | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -28,7 +28,7 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
     setIsCliReady(true)
   }, [])
 
-  // The app ships prime-agent inside the bundle: when detection resolves to
+  // The app ships the agent runtime inside the bundle: when detection resolves to
   // the default name we can skip the whole CLI card and show a one-line
   // confirmation instead of an install flow.
   useEffect(() => {
@@ -39,9 +39,9 @@ export const OnboardingSetupStep = ({ themeChoice }: OnboardingSetupStepProps) =
     withTimeout(ipc.detectAgentCli(), DETECT_TIMEOUT_MS)
       .then((path) => {
         if (cancelled) return
-        if (path === 'prime-agent') {
+        if (path === 'lafagent') {
           setIsBundled(true)
-          setBin('prime-agent')
+          setBin('lafagent')
           setIsCliReady(true)
         } else {
           setIsBundled(false)

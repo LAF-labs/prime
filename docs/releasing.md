@@ -78,7 +78,7 @@ machine-verified during the v0.1.x rehearsal; steps marked 👤 need a human.
 4. ⚙ Signature chain: the `.sig` verifies against the pubkey in
    `tauri.conf.json` (minisign format — `tauri signer` produced it).
 5. ⚙ DMG mounts; the app inside contains the sidecar
-   (`Contents/Resources/prime-agent/` with `node`, `uv`, `dist/`).
+   (`Contents/Resources/resources/lafagent/` with `node`, `uv`, `dist/`).
 6. 👤 Fresh-account install: onboarding completes with a real API key, first
    message round-trips, app restart restores the session.
 7. 👤 Update loop: with the previous version installed and this release

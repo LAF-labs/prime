@@ -67,7 +67,7 @@ export const OnboardingAuthSection = ({ bin, isCliReady, onAuthChange }: Onboard
         <div className="flex flex-col gap-3 px-5 py-4">
           <ProviderKeyManager onChange={checkAuth} showConfigured={false} />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {t('Keys are stored locally in ~/.prime/agent/auth.json; custom endpoints in models.json. Nothing is sent anywhere except the provider you choose.')}
+            {t('Keys are stored locally in ~/.lafagent/auth.json; custom endpoints in models.json. Nothing is sent anywhere except the provider you choose.')}
           </p>
         </div>
       )}

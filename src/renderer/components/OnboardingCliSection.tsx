@@ -32,10 +32,10 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
   useEffect(() => { detect() }, [detect])
 
   useEffect(() => {
-    if (isCliReady) onCliReady(cliPath || manualPath || 'prime-agent')
+    if (isCliReady) onCliReady(cliPath || manualPath || 'lafagent')
   }, [isCliReady, cliPath, manualPath, onCliReady])
 
-  // The target is the prime-agent executable — a FILE. The folder picker
+  // The target is the agent runtime executable — a FILE. The folder picker
   // could never select it, so Browse was a dead end on the recovery path.
   const handleBrowse = useCallback(async () => {
     try {
@@ -64,7 +64,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
             {detectState === 'detecting' && t('Looking for the agent runtime…')}
             {/* The bundled sidecar reports as the bare name; anything else is a
                 path the user pointed us at. */}
-            {detectState === 'found' && (cliPath === 'prime-agent' ? t('Bundled with the app — nothing to install.') : cliPath)}
+            {detectState === 'found' && (cliPath === 'lafagent' ? t('Bundled with the app — nothing to install.') : cliPath)}
             {detectState === 'not-found' && !manualPath && t('Missing from this build.')}
             {detectState === 'not-found' && manualPath && manualPath}
           </p>
@@ -79,7 +79,7 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
       {/* LAF Agent ships the runtime inside the bundle, so reaching this branch
           means the app itself is incomplete — a damaged download or a
           quarantined copy. Reinstalling is the fix; pointing at your own
-          prime-agent build is the escape hatch. */}
+          build is the escape hatch. */}
       {detectState === 'not-found' && !manualPath && (
         <div className="flex flex-col gap-3 px-5 py-4">
           <div className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
@@ -89,14 +89,14 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
             </p>
           </div>
           <div className="flex gap-1.5">
-            <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/prime-agent"
+            <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/the-agent-binary"
               className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50" />
             <button type="button" onClick={handleBrowse} aria-label={t('Browse for the agent runtime')} tabIndex={0}
               className="rounded-lg border border-border px-2.5 py-2 text-muted-foreground transition-colors hover:text-foreground/70">
               <IconFolderOpen size={16} />
             </button>
           </div>
-          <a href="https://github.com/PrimeIntellect-ai/prime-agent#readme" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
+          <a href="https://github.com/LAF-labs/prime-harness#readme" onClick={handleExternalLinkClick} onKeyDown={handleExternalLinkKeyDown}
             className="flex items-center justify-center gap-1.5 text-[12px] text-primary transition-colors hover:text-primary">
             {t('About the agent runtime')} <IconExternalLink size={12} />
           </a>

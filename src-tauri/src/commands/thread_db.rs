@@ -790,7 +790,7 @@ impl ThreadDatabase {
     ///
     /// What the explicit delete actually buys is independence from
     /// `PRAGMA foreign_keys`. It is per-connection and defaults to *off*; the
-    /// cascade exists only because `set_pragmas` turns it on. A connection
+    /// cascade exists only because `initialize_connection` turns it on. A connection
     /// opened by some future path that forgets to would silently orphan every
     /// message and every FTS row instead of deleting them. Naming the rows to
     /// delete costs one statement and does not depend on that.

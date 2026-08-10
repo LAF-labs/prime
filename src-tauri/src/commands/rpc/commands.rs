@@ -45,19 +45,7 @@ pub(crate) fn build_permission_config(
     PermissionConfig { mode, rules_json }
 }
 
-/// Refuse to start another agent when the machine already has enough.
-///
-/// Every live thread is a Node process that in turn runs a Python kernel, and
-/// there was no cap at any level — not per window, not globally. With `/goal`
-/// and autonomous mode in the product, threads can keep starting while nobody
-/// is at the keyboard, and the failure mode was the OS refusing to fork with
-/// an error that only reached the debug panel.
-///
-/// Reconnecting a thread that already has a slot is always allowed: that is
-/// replacing a connection, not adding one.
-///
-/// The check and the claim happen under one lock acquisition: the slot is
-/// ── Tauri Commands ─────────────────────────────────────────────────────
+// ── Tauri Commands ─────────────────────────────────────────────────────
 
 #[tauri::command]
 pub async fn task_create(
@@ -399,14 +387,22 @@ pub fn task_send_message(
             app.clone(), None, initial_model_id, tight_sandbox, session_mode,
             stored_options, permission_config,
         )?;
-        // Same care as the live-connection branch below, for the same reason.
-        // `spawn_connection` only creates the channel and spawns a task; the
-        // agent process is started inside that task, afterwards. So a runtime
-        // that fails to launch — a bad path, a missing binary — drops the
-        // receiver moments after this returns Ok, and the send that follows
-        // fails. Discarding it left the user's message in the timeline with a
-        // spinner and no delivery, which is the exact bug the branch below
-        // already carries a comment about.
+        // Check the send here too, for symmetry with the branch below — but
+        // be honest about how much this catches.
+        //
+        // `spawn_connection` only creates the channel and returns; the agent
+        // process starts later, inside the spawned task. So this send almost
+        // always succeeds: the task has not been polled yet, the receiver is
+        // still alive, and the message goes into the queue. It fails only in
+        // the narrow case where the task was scheduled, failed, and dropped
+        // the receiver between the line above and this one.
+        //
+        // The common failure — agent fails to start *after* the message is
+        // queued — is not caught here and does not need to be. The connection
+        // task's epilogue emits a synthetic `turn_end` so the spinner clears
+        // and a `task_error` carrying the real cause. What this replaces is a
+        // `let _ =` that would have dropped a genuine error on the floor in
+        // the one case where the channel does report one.
         let sent = handle
             .cmd_tx
             .send(AgentCommand::Prompt(full_message, attachments.unwrap_or_default()))

@@ -123,12 +123,6 @@ Server status is derived from the configured credentials when
 | `pty_data` | `{ id: string, data: string }` | Output data from a PTY session. |
 | `pty_exit` | `{ id: string }` | Emitted when a PTY session exits. |
 
-### Setup events
-
-| Event name | Payload type | Description |
-|---|---|---|
-| `kernel_setup_progress` | `{ line: string }` | A progress line from the Python kernel bootstrap. |
-
 ### System events
 
 | Event name | Payload type | Description |

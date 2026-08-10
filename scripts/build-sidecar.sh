@@ -143,28 +143,17 @@ rm -rf node_modules/zeromq/build/darwin/x64
 echo "==> Bundling Node runtime (${NODE_VERSION})"
 cp "$NODE_BIN" node
 
-# uv is prime-agent's only Python installer: it fetches a standalone CPython
-# and builds ~/.prime/agent/kernel-venv on first run. Bundling the single
-# static binary means a fresh machine needs no Python and no uv install step
-# — the app just needs network for the one-time kernel setup.
-echo "==> Bundling uv"
-UV_VERSION="${UV_VERSION:-0.10.2}"
-case "$(uname -m)" in
-  arm64|aarch64) UV_TARGET="aarch64-apple-darwin" ;;
-  x86_64)        UV_TARGET="x86_64-apple-darwin" ;;
-  *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
-esac
-UV_URL="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${UV_TARGET}.tar.gz"
-# uv publishes a .sha256 next to every release asset. Verify before
-# extracting — a curl|tar of an unauthenticated tarball is exactly the shape
-# of a supply-chain hole, and this binary ships inside the app.
-curl -fsSL -o "$WORK/uv-${UV_TARGET}.tar.gz" "$UV_URL"
-curl -fsSL -o "$WORK/uv-${UV_TARGET}.tar.gz.sha256" "${UV_URL}.sha256"
-(cd "$WORK" && shasum -a 256 -c "uv-${UV_TARGET}.tar.gz.sha256") \
-  || { echo "error: uv ${UV_VERSION} tarball failed checksum verification" >&2; exit 1; }
-tar -xzf "$WORK/uv-${UV_TARGET}.tar.gz" -C "$WORK"
-cp "$WORK/uv-${UV_TARGET}/uv" uv
-chmod +x uv
+# No uv, and no Python.
+#
+# uv was here to build ~/.lafagent/kernel-venv, the virtualenv behind the
+# harness's `ipython` tool. The app spawns the agent with `--no-builtin-tools`,
+# which removes that tool, so nothing ever asked uv for anything — it was a
+# 44 MB static binary shipped to every user, plus a first-run CPython download
+# on their network, for a feature the product does not have.
+#
+# If ipython ever comes back, so does this block: fetch the release asset,
+# verify it against the .sha256 published beside it, and extract. Do not
+# curl|tar an unauthenticated tarball into a binary that ships inside the app.
 
 # The gate extension lives INSIDE the sidecar so its value imports resolve
 # against the sidecar's node_modules (sandbox-runtime above). The tracked
@@ -180,7 +169,6 @@ cat > "$OUT/HARNESS.json" <<EOF
   "commit": "${HARNESS_SHA_ACTUAL}",
   "repo": "${HARNESS_REPO}",
   "node": "${NODE_VERSION}",
-  "uv": "${UV_VERSION}",
   "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF

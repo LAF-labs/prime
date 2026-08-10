@@ -17,7 +17,7 @@ itself. Do not reintroduce one without asking. macOS is the shipping platform;
 the Windows and Linux bundle targets build but are not exercised.
 
 Built with Tauri v2 (Rust backend) and React 19 (TypeScript frontend). The
-release DMG is ~76 MB, most of which is the bundled Node runtime and `uv`.
+release DMG is ~76 MB, most of which is the bundled Node runtime.
 
 ## Tech stack
 
@@ -89,7 +89,6 @@ src-tauri/
 │       │   ├── types.rs     # AgentState, AgentCommand, SessionMode, …
 │       │   └── tests.rs     # Event-translation unit tests
 │       ├── agent_launch.rs  # Resolve how to launch the agent + its PATH
-│       ├── kernel_setup.rs  # Provision the Python kernel with the bundled uv
 │       ├── provider_discovery.rs # Probe /models for a user-supplied key
 │       ├── fs_ops.rs        # File ops, agent detection, auth.json management
 │       ├── agent_resources.rs / resource_watcher.rs  # .agent/ discovery
@@ -168,14 +167,18 @@ bun run clean
   never the agent's built-ins. `mergePaletteCommands` folds those into the
   palette; a skill whose target names a built-in (`skill:compact` vs `/compact`)
   is dropped, because the built-in needs no Python kernel.
-- **The sidecar ships two skills**: `notion` and `attach-image`. Every skill's
-  description is injected into the system prompt on every turn, so the rest are
-  deleted in the harness fork, not hidden. Do not re-add one without asking —
-  see `docs/sidecar-architecture.md`.
+- **Skills are an allowlist**: the agent is spawned with `--no-skills
+  --no-extensions` and one `--skill` per folder in
+  `src-tauri/resources/laf-skills/`. Without those flags the harness scans
+  `~/.agents/skills` (shared with every other agent tool on the machine),
+  `.agents/skills` in the working folder and its ancestors, and
+  `~/.lafagent/skills` — and every skill it finds is injected into the system
+  prompt on every turn. Adding a skill means adding a folder there, never
+  re-enabling discovery. See `docs/sidecar-architecture.md`.
 - **The agent runtime is bundled**: `agent_launch::resolve()` prefers an explicit
   user path, then the sidecar (`<resources>/prime-agent/node dist/bundle/cli.js`),
   then PATH. Every spawn site must use `agent_launch::agent_path_env()` so the
-  bundled `uv` wins over any system copy. See `docs/sidecar-architecture.md`.
+  bundled runtime wins over any system copy. See `docs/sidecar-architecture.md`.
 - **State**: Zustand stores are the single source of truth. No Redux, no Context
   for global state.
 - **Persistence**: `tauri-plugin-store` (LazyStore) for tasks, projects, and

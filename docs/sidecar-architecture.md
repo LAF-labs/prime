@@ -10,7 +10,7 @@ pinned `HARNESS_REF` in `scripts/build-sidecar.sh`, never from upstream
 directly and never from a moving branch. Because a tag is movable and a
 commit is not, the script also pins `HARNESS_SHA` and fails the build if the
 cloned tag resolves to a different commit. `HARNESS.json` inside the sidecar
-records the exact ref, commit, `node` and `uv` versions, and build time; the
+records the exact ref, commit and `node` version, and build time; the
 app shows it in Settings.
 
 Upstream (`PrimeIntellect-ai/prime-agent`) ships fast — 40+ releases. We
@@ -24,17 +24,20 @@ patches.
 
 ## What ships today
 
-`src-tauri/resources/lafagent/` is a 192 MB folder inside the app bundle:
+`src-tauri/resources/lafagent/` is a 165 MB folder inside the app bundle:
 
 | Part | Size | Why |
 |---|---|---|
 | `node` | 108 MB | Node.js 22 — prime-agent is JavaScript and needs a runtime |
-| `uv` | 42 MB | Astral's installer; the only way prime-agent provisions Python |
 | `dist/` | 21 MB | prime-agent 0.7.0, compiled |
 | `node_modules/` | 21 MB | native modules the JS bundle keeps external |
 
-Plus, on first run, roughly 350 MB into the user's home directory: a
-standalone CPython 3.11 and the kernel venv. That part is not redistributed.
+Nothing is downloaded on first run, and nothing is written outside the app's
+own config directory. `uv` (42 MB) used to ship here, and used to pull a
+standalone CPython and a kernel venv — roughly 350 MB into the user's home —
+to back the harness's `ipython` tool. The app spawns the agent with
+`--no-builtin-tools`, so that tool does not exist and none of it was ever
+reached.
 
 `agent_launch.rs` resolves, in order: a user-configured binary, this sidecar,
 then `prime-agent` on PATH.
@@ -49,10 +52,6 @@ remote host:
   the build fails unless the resolved `HEAD` equals `HARNESS_SHA`. A moved or
   force-pushed tag cannot silently change what ships. Bumps update both
   values together; `HARNESS_SHA=""` allows a one-off unpinned build.
-- **uv: SHA256-verified download.** The release tarball is verified against
-  the `.sha256` file uv publishes next to every GitHub release asset
-  (`shasum -a 256 -c`) before extraction. A tampered or truncated download
-  fails hard instead of shipping. `UV_VERSION` selects the release.
 - **Node: major-version guard.** The runtime is copied from the build
   machine, so the script refuses to build unless `node --version` matches
   `NODE_VERSION_EXPECTED` (major, currently 22), and records the exact
@@ -61,7 +60,7 @@ remote host:
   build leaves nothing behind.
 
 `HARNESS.json` is the provenance record for all of it: `ref`, `commit`,
-`repo`, `node`, `uv`, `builtAt`.
+`repo`, `node`, `builtAt`.
 
 ## Why not the alternatives
 
@@ -107,32 +106,14 @@ layers on top of the approval prompt:
    workspace and temp dirs; `~/.ssh`, `~/.aws`, `~/.gnupg`, and `auth.json`
    are unreadable. Verified end to end: a model-issued `bash` writing to
    `$HOME` returns `Operation not permitted`.
-3. **OS-level confinement of `ipython`** (`src-tauri/src/commands/kernel_sandbox.rs`).
-   The kernel is a long-lived process the harness spawns itself, out of the
-   gate's reach — but `PRIME_AGENT_KERNEL_PYTHON` lets us substitute the
-   interpreter, so we point it at a wrapper that re-execs the venv python
-   under a generated Seatbelt profile. Same write scope, same credential
-   denials. Verified: workspace write succeeds, `$HOME` write and `auth.json`
-   read both raise `PermissionError`, network still works, and the harness's
-   own interpreter validation (ipykernel, prime-agent-runtime, default
-   packages) passes through the wrapper.
-
 Not covered, and stated in the UI rather than buried here:
 
 - **Network** — deliberately open for both tools. A domain allowlist routes
   traffic through a proxy and breaks npm, pip, and git for every project.
 - **Reads** — only credential files are denied; the rest of the disk is
   readable.
-- **Non-macOS** — the kernel profile is `sandbox-exec`, so on Linux and
-  Windows the kernel runs unconfined and the approval prompt is the only
-  control. (`bash` is still confined on Linux via bubblewrap.)
-
-The profile is `(allow default)` with targeted denials rather than
-`(deny default)` with an allow-list. A deny-default profile for CPython means
-enumerating every dylib, locale file, and framework it touches — derivable
-only by bisecting against a running kernel, and brittle across Python
-versions. Paths enter the profile as `-D` parameters, never by string
-interpolation, so no path can alter the policy's structure.
+- **Windows** — no sandbox backend, so the approval prompt is the only
+  control there. (`bash` is confined on macOS and Linux.)
 
 The approval prompt remains the real control. This narrows the blast radius
 when a user approves something they misread; it does not make untrusted
@@ -178,27 +159,34 @@ paid third-party search API — is deleted in our harness fork rather than
 disabled. A tool that exists only to ask for an API key the app never uses is
 a support burden, not a feature.
 
-## The skill set is cut to two
+## Skills are an allowlist, not a discovery
 
-`v0.7.0-laf.2` ships `notion` and `attach-image`. The other ten are deleted in
-the fork for the same reason as `websearch`: `formatSkillsForPrompt` injects
-every skill's name and description into the system prompt on every turn, and
-the developer set measured ~1,390 tokens against a 2k fixed-input budget.
+The agent is spawned with `--no-skills --no-extensions`, plus one `--skill`
+per folder in `src-tauri/resources/laf-skills/`. Nothing else loads.
 
-- `compact`, `goal`, `refine` duplicate slash commands the session already
-  handles, and the skill versions additionally need the IPython kernel.
-- `prime-intellect` is a third-party GPU/ML product CLI and was the single
-  most expensive entry at 727 characters.
-- `agent-message`, `agent-observe`, `rlm-heartbeat` are multi-agent daemon
-  plumbing; `skill-creator` is authoring tooling for the harness itself.
-- `edit` is an exact-string replace primitive — the everyday profile edits
-  through the gate's `write_file` and `organize`.
-- `linear` is a developer issue tracker.
+Left to itself the harness scans `~/.agents/skills` — a directory shared with
+every other agent tool installed on the machine — plus `.agents/skills` in the
+working folder and each of its ancestors up to the repo root, and
+`~/.lafagent/skills`. Whatever it finds is loaded: `formatSkillsForPrompt`
+injects each skill's name and description into the system prompt on *every*
+turn, and each is registered as a `/skill:` command in the palette.
+
+Measured on a real machine, that meant three third-party skills belonging to
+other tools — including one whose instructions were "fetch your rules from a
+licensed MCP server, and set `UIDOTSH_TOKEN` to your license token." Someone
+else's product, in our prompt, billed to our user as tokens on every request,
+whether or not they ever invoked it.
+
+The same flags go on the research children the gate spawns, where an injected
+skill would be even less visible.
+
+`--skill` paths survive `--no-skills`, and `-e` paths survive
+`--no-extensions`, so the gate still loads and our own skills still load. The
+sidecar's own bundled skills (`notion`, `attach-image`) do not: both are Python
+skills that call into the IPython kernel, and `--no-builtin-tools` removes it.
 
 Deleting rather than hiding matters: hiding a skill from the palette leaves it
 in the prompt, where it still costs tokens and the model can still invoke it.
-The harness does support `disable-model-invocation: true` for the middle case
-(reachable by `/skill:name`, absent from the prompt).
 
 ## The real cost: version drift
 
@@ -208,10 +196,8 @@ last DMG was built with. Two consequences:
 
 1. **Upstream fixes need an app release.** There is no way for a user to take
    an agent-side fix without downloading a new DMG.
-2. **The kernel venv is invalidated by upgrades.** prime-agent hashes its
-   Python runtime source into `kernel-venv/.bootstrap-version`; when the hash
-   changes the venv is deleted and rebuilt. Every sidecar bump that touches
-   `prime-agent-runtime` therefore costs the user another ~350 MB download.
+2. **A bump is a full re-download.** The sidecar is 165 MB of the DMG, so
+   every agent-side fix costs the user the whole app again.
 
 Neither is fatal today — the app is pre-1.0 and ships often anyway — but both
 get worse as the user base grows.

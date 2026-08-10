@@ -108,9 +108,11 @@ export const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => {
           <DialogDescription className="mt-1 text-center text-[13px] text-muted-foreground">
             {appVersion ? t('Version {version}', { version: appVersion }) : t('Loading…')}
           </DialogDescription>
-          <p className="mt-1 text-center text-[11px] text-muted-foreground/60">
-            {t('Powered by Prime Agent (PrimeIntellect-ai/prime-agent)')}
-          </p>
+          {/* The MIT attribution the bundled runtime requires lives in the
+              third-party notices below, which is the right place for it. A
+              "Powered by" line is a different claim — a brand endorsement —
+              and it stopped being accurate once the everyday profile replaced
+              the runtime's tools, prompt, and skills. */}
           {harness && (
             <p className="mt-0.5 text-center text-[11px] text-muted-foreground/60">
               {t('Harness {version} ({commit})', { version: harness.ref, commit: harness.commit.slice(0, 7) })}

@@ -846,3 +846,59 @@ fn error_events_are_mirrored_in_full_even_when_large() {
     let mirrored = debug_mirror_payload("extension_error", event.clone()).unwrap();
     assert_eq!(mirrored, event, "error detail is exactly what the debug panel is for");
 }
+
+// ── skill_dirs_in: what the agent is allowed to load ────────────
+
+use super::connection::skill_dirs_in;
+
+/// Create `<root>/<name>/SKILL.md`.
+fn make_skill(root: &std::path::Path, name: &str) {
+    let dir = root.join(name);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("SKILL.md"), "---\nname: x\ndescription: y\n---\n").unwrap();
+}
+
+#[test]
+fn every_folder_holding_a_skill_file_is_offered() {
+    let tmp = tempfile::tempdir().unwrap();
+    make_skill(tmp.path(), "summarize");
+    make_skill(tmp.path(), "organize-files");
+
+    let found = skill_dirs_in(tmp.path());
+    assert_eq!(found.len(), 2);
+    assert!(found.iter().all(|p| p.join("SKILL.md").is_file()));
+}
+
+#[test]
+fn folders_without_a_skill_file_are_not_skills() {
+    let tmp = tempfile::tempdir().unwrap();
+    make_skill(tmp.path(), "real");
+    std::fs::create_dir_all(tmp.path().join("assets")).unwrap();
+    std::fs::write(tmp.path().join("README.md"), "not a skill").unwrap();
+
+    let found = skill_dirs_in(tmp.path());
+    assert_eq!(found.len(), 1);
+    assert!(found[0].ends_with("real"));
+}
+
+/// The whole skills block sits in the prompt prefix the provider caches, so
+/// two runs of the same install must produce byte-identical ordering.
+#[test]
+fn the_order_is_stable_between_runs() {
+    let tmp = tempfile::tempdir().unwrap();
+    for name in ["zebra", "alpha", "middle"] {
+        make_skill(tmp.path(), name);
+    }
+    let first = skill_dirs_in(tmp.path());
+    let second = skill_dirs_in(tmp.path());
+    assert_eq!(first, second);
+    assert!(first[0].ends_with("alpha") && first[2].ends_with("zebra"));
+}
+
+/// A missing folder is the normal state of a build that ships no skills, not
+/// an error — the agent still launches, just with an empty allowlist.
+#[test]
+fn a_missing_folder_yields_no_skills_rather_than_failing() {
+    let tmp = tempfile::tempdir().unwrap();
+    assert!(skill_dirs_in(&tmp.path().join("nope")).is_empty());
+}

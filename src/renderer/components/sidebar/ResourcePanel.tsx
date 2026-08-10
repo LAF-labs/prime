@@ -12,7 +12,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { ResourceFileViewer } from './ResourceFileViewer'
 import { type ViewerState, EMPTY_ARRAY, SectionToggle, InlineSearch } from './resource-helpers'
-import { SkillRow } from './AgentSkillRow'
 import { McpRow } from './McpServerRow'
 import { AddMcpServerDialog } from './AddMcpServerDialog'
 import { measureMemory, formatBytes } from '@/lib/thread-memory'
@@ -40,7 +39,6 @@ export const ResourcePanel = memo(function ResourcePanel({
   collapsed?: boolean
   onToggleCollapse?: () => void
 }) {
-  const skills = useResourceStore((s) => s.config.skills)
   const mcpServersRaw = useResourceStore((s) => s.config.mcpServers)
   const mcpServers = mcpServersRaw ?? EMPTY_ARRAY
   const prompts = useResourceStore((s) => s.config.prompts)
@@ -55,7 +53,6 @@ export const ResourcePanel = memo(function ResourcePanel({
     return s.pendingWorkspace
   }) ?? null
 
-  const [skillsOpen, setSkillsOpen] = useState(false)
   const [mcpOpen, setMcpOpen] = useState(false)
   const [promptsOpen, setPromptsOpen] = useState(false)
   const [searching, setSearching] = useState(false)
@@ -134,8 +131,6 @@ export const ResourcePanel = memo(function ResourcePanel({
   const lowerSearch = search.toLowerCase()
 
 
-  const filteredSkills = useMemo(() =>
-    skills.filter((s) => !lowerSearch || s.name.toLowerCase().includes(lowerSearch)), [skills, lowerSearch])
   const filteredMcp = useMemo(() =>
     mcpServers.filter((m) => !lowerSearch || m.name.toLowerCase().includes(lowerSearch)), [mcpServers, lowerSearch])
   const filteredPrompts = useMemo(() =>
@@ -156,7 +151,7 @@ export const ResourcePanel = memo(function ResourcePanel({
   // Always render the panel once loaded — even with no items, the user needs
   // the "Add MCP server" button. The panel is hidden by the parent sidebar
   // when the workspace has no .agent directory at all.
-  if (skills.length === 0 && mcpServers.length === 0 && prompts.length === 0) {
+  if (mcpServers.length === 0 && prompts.length === 0) {
     // Nothing configured yet — show just the "Add MCP server" affordance
     // so a fresh install isn't a dead end.
     return (
@@ -242,7 +237,7 @@ export const ResourcePanel = memo(function ResourcePanel({
     )
   }
 
-  const noResults = !!search && filteredSkills.length === 0 && filteredMcp.length === 0 && filteredPrompts.length === 0
+  const noResults = !!search && filteredMcp.length === 0 && filteredPrompts.length === 0
 
   return (
     <>
@@ -263,7 +258,7 @@ export const ResourcePanel = memo(function ResourcePanel({
                     <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{t('Drop any agent, skill, or steering rule into the message box to attach it as context.')}</p>
                   </TooltipContent>
                 </Tooltip>
-                {(skills.length + mcpServers.length) > 10 && (
+                {mcpServers.length > 10 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" onClick={() => setSearching((v) => !v)}
@@ -340,16 +335,6 @@ export const ResourcePanel = memo(function ResourcePanel({
         {!collapsed && (
           <>
             {searching && <InlineSearch value={search} onChange={setSearch} onClose={() => setSearching(false)} />}
-
-
-            {skills.length > 0 && (filteredSkills.length > 0 || !search) && (
-              <SectionToggle icon={IconBolt} iconColor="text-amber-600 dark:text-amber-400" label={t('Skills')} count={filteredSkills.length} expanded={skillsOpen} onToggle={() => setSkillsOpen((v) => !v)} />
-            )}
-            {skillsOpen && filteredSkills.length > 0 && (
-              <ul className="flex min-w-0 flex-col gap-px border-l border-border/30 mx-1 px-1.5 py-px">
-                {filteredSkills.map((skill) => <SkillRow key={`${skill.source}-${skill.name}`} skill={skill} onOpen={openViewer} />)}
-              </ul>
-            )}
 
 
             {mcpServers.length > 0 && (filteredMcp.length > 0 || !search) && (

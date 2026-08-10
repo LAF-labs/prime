@@ -624,7 +624,12 @@ function runResearchChild(question: string, index: number): Promise<string> {
       resolve(`(could not start a research agent for: ${question})`);
       return;
     }
-    const args = [...argv, "--mode", "rpc", "--no-builtin-tools"];
+    // Same allowlist the app spawns the parent with, and for the same reason:
+    // a skill or extension discovered under the user's home or working folder
+    // would land in this child's system prompt too, where nobody would ever
+    // see it. `--skill` paths the parent passed are deliberately not inherited
+    // — a researcher gets tools, not procedures.
+    const args = [...argv, "--mode", "rpc", "--no-builtin-tools", "--no-skills", "--no-extensions"];
     const gatePath = process.env.LAF_GATE_PATH;
     if (gatePath) args.push("-e", gatePath);
     const model = process.env.LAF_MODEL;

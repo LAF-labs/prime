@@ -52,7 +52,7 @@ bun run release
 That bumps the version, writes the changelog, tags, and pushes. The tag
 triggers `.github/workflows/release.yml`, which builds for
 `aarch64-apple-darwin`, signs and notarizes, verifies the signature covers the
-bundled Node and `uv` binaries, and publishes a **draft** release.
+bundled Node runtime, and publishes a **draft** release.
 
 The draft is the gate. `releases/latest/download/latest.json` only serves
 published releases, so nobody is offered the update until the draft is
@@ -78,7 +78,7 @@ machine-verified during the v0.1.x rehearsal; steps marked 👤 need a human.
 4. ⚙ Signature chain: the `.sig` verifies against the pubkey in
    `tauri.conf.json` (minisign format — `tauri signer` produced it).
 5. ⚙ DMG mounts; the app inside contains the sidecar
-   (`Contents/Resources/resources/lafagent/` with `node`, `uv`, `dist/`).
+   (`Contents/Resources/resources/lafagent/` with `node`, `dist/`).
 6. 👤 Fresh-account install: onboarding completes with a real API key, first
    message round-trips, app restart restores the session.
 7. 👤 Update loop: with the previous version installed and this release

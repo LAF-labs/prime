@@ -1007,7 +1007,6 @@ export const ko: Record<string, string> = {
     '에이전트, 스킬, 스티어링 규칙을 메시지 입력창에 끌어다 놓으면 컨텍스트로 첨부됩니다.',
   'Right-click for actions · changes apply to new threads': '우클릭으로 작업 실행 · 변경은 새 스레드부터 적용됩니다',
   'Click to view · drag into chat to attach as': '클릭해 보기 · 채팅으로 끌어 놓아 첨부:',
-  'Powered by Prime Agent (PrimeIntellect-ai/prime-agent)': 'Prime Agent 기반 (PrimeIntellect-ai/prime-agent)',
   'Move sidebar to left': '사이드바를 왼쪽으로 이동',
   'Move sidebar to right': '사이드바를 오른쪽으로 이동',
   'Click a thread to replace left panel': '왼쪽 패널을 교체할 스레드를 클릭하세요',

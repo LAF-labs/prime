@@ -4,7 +4,7 @@ import { ipc } from '@/lib/ipc'
 
 type McpStatus = McpServerConfig['status']
 
-const EMPTY_CONFIG: AgentResources = { agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
+const EMPTY_CONFIG: AgentResources = { agents: [], steeringRules: [], mcpServers: [], prompts: [] }
 
 interface ResourceStore {
   /** Per-project config cache keyed by workspace path */
@@ -46,7 +46,6 @@ const patchAllConfigs = (configs: Record<string, AgentResources>, serverName: st
 
 const sanitizeConfig = (config: AgentResources): AgentResources => ({
   agents: (config.agents ?? []).filter((a) => a.filePath),
-  skills: (config.skills ?? []).filter((s) => s.filePath),
   steeringRules: (config.steeringRules ?? []).filter((r) => r.filePath),
   mcpServers: config.mcpServers ?? [],
   prompts: (config.prompts ?? []).filter((p) => p.filePath),

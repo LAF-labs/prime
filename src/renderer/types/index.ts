@@ -351,12 +351,6 @@ export interface AgentAgent {
   hooks?: AgentAgentHooks
 }
 
-export interface AgentSkill {
-  name: string
-  source: 'global' | 'local'
-  filePath: string
-}
-
 export interface AgentSteeringRule {
   name: string
   alwaysApply: boolean
@@ -389,7 +383,6 @@ export interface AgentPrompt {
 
 export interface AgentResources {
   agents: AgentAgent[]
-  skills: AgentSkill[]
   steeringRules: AgentSteeringRule[]
   mcpServers?: McpServerConfig[]
   prompts: AgentPrompt[]

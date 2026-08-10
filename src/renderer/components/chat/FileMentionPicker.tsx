@@ -197,7 +197,6 @@ export const FileMentionPicker = memo(function FileMentionPicker({
   const filesRef = useRef<ProjectFile[]>([])
   const respectGitignore = useSettingsStore((s) => s.settings.respectGitignore ?? true)
   const agents = useResourceStore((s) => s.config.agents)
-  const skills = useResourceStore((s) => s.config.skills)
   const prompts = useResourceStore((s) => s.config.prompts)
 
   // Ensure agent config is loaded
@@ -223,7 +222,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
     return () => { cancelled = true }
   }, [workspace, respectGitignore])
 
-  // Build agent items filtered by query — built-in agents first, then .agent agents, then skills, then prompts
+  // Build agent items filtered by query — built-in agents first, then .agent agents, then prompts
   const q = (query ?? '').replace(/^[@./]+/, '').trim()
   type AgentItem = { type: 'agent' | 'skill' | 'prompt'; name: string; description?: string; builtinIcon?: typeof IconRobot; builtinColor?: string; builtinBgCls?: string }
 
@@ -253,16 +252,6 @@ export const FileMentionPicker = memo(function FileMentionPicker({
         }
       }
     }
-    for (const s of skills) {
-      if (!q) {
-        scored.push({ item: { type: 'skill', name: s.name }, score: 0 })
-      } else {
-        const score = fuzzyScore(q, s.name)
-        if (score !== null) {
-          scored.push({ item: { type: 'skill', name: s.name }, score })
-        }
-      }
-    }
     for (const p of prompts) {
       // Cap content search at 500 chars to avoid O(n × content_length) on every keystroke
       const searchableContent = p.content.slice(0, 500)
@@ -279,7 +268,7 @@ export const FileMentionPicker = memo(function FileMentionPicker({
     }
     if (q) scored.sort((a, b) => a.score - b.score)
     return scored.map((s) => s.item)
-  }, [q, agents, skills, prompts])
+  }, [q, agents, prompts])
 
   // Update filtered results when query changes
   const filtered = query ? searchFiles(filesRef.current, query) : filesRef.current.slice(0, 50)

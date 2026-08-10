@@ -2,7 +2,7 @@
 
 LAF Agent is distributed with the components below. Each remains under its own
 license; the full texts ship inside the application bundle at
-`Contents/Resources/resources/prime-agent/node_modules/<package>/LICENSE` where
+`Contents/Resources/resources/lafagent/node_modules/<package>/LICENSE` where
 the package includes one, and are otherwise available at the linked sources.
 
 ## Bundled agent runtime
@@ -11,7 +11,6 @@ the package includes one, and are otherwise available at the linked sources.
 |---|---|---|---|
 | Prime Agent (`@earendil-works/pi-coding-agent`) | 0.7.0 | MIT | https://github.com/PrimeIntellect-ai/prime-agent |
 | Node.js | 22.23.1 | MIT (with dependencies under their own terms) | https://github.com/nodejs/node |
-| uv | 0.10.2 | Apache-2.0 OR MIT | https://github.com/astral-sh/uv |
 
 Prime Agent derives from `pi-mono` by Mario Zechner, also MIT.
 

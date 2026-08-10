@@ -1,3 +1,11 @@
+//! What the resource panel shows: prompt templates and MCP servers found in
+//! `~/.lafagent` and `<project>/.lafagent`.
+//!
+//! Skills are deliberately not among them. The agent is spawned with an
+//! explicit `--skill` allowlist (see `rpc::connection`), so a folder dropped
+//! into `~/.lafagent/skills` no longer reaches the model — and a panel that
+//! lists skills the agent will never load is worse than no panel at all.
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -9,14 +17,6 @@ use super::error::AppError;
 pub struct AgentPrompt {
     pub name: String,
     pub content: String,
-    pub source: String,
-    pub file_path: String,
-}
-
-#[derive(Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct AgentSkill {
-    pub name: String,
     pub source: String,
     pub file_path: String,
 }
@@ -51,7 +51,6 @@ pub struct McpServerConfig {
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentResources {
-    pub skills: Vec<AgentSkill>,
     pub mcp_servers: Vec<McpServerConfig>,
     pub prompts: Vec<AgentPrompt>,
 }
@@ -72,34 +71,6 @@ fn source_str(is_global: bool) -> &'static str {
 }
 
 
-
-
-fn scan_skills(base: &Path, is_global: bool) -> Vec<AgentSkill> {
-    let dir = base.join("skills");
-    let Ok(entries) = fs::read_dir(&dir) else { return vec![] };
-    let source = source_str(is_global);
-    entries
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            let name = e.file_name();
-            !name.to_string_lossy().starts_with('.')
-                && (e.file_type().is_ok_and(|t| t.is_dir() || t.is_symlink()))
-        })
-        .map(|e| {
-            let skill_md = e.path().join("SKILL.md");
-            let file_path = if skill_md.exists() {
-                skill_md.to_string_lossy().to_string()
-            } else {
-                e.path().to_string_lossy().to_string()
-            };
-            AgentSkill {
-                name: e.file_name().to_string_lossy().to_string(),
-                source: source.to_string(),
-                file_path,
-            }
-        })
-        .collect()
-}
 
 
 fn scan_prompts(base: &Path, is_global: bool) -> Vec<AgentPrompt> {
@@ -194,14 +165,12 @@ pub fn get_agent_resources(project_path: Option<String>) -> AgentResources {
 
     if let Some(home) = dirs::home_dir() {
         let global_dir = home.join(".lafagent");
-        config.skills.extend(scan_skills(&global_dir, true));
         config.prompts.extend(scan_prompts(&global_dir, true));
         load_mcp_file(&global_dir.join("settings.json"), true, &mut config.mcp_servers);
     }
 
     if let Some(ref project) = project_path {
         let local_dir = Path::new(project).join(".lafagent");
-        config.skills.extend(scan_skills(&local_dir, false));
         // Local prompts override global ones with the same name
         let local_prompts = scan_prompts(&local_dir, false);
         for lp in local_prompts {
@@ -444,12 +413,6 @@ mod tests {
     #[test]
     fn source_str_local() {
         assert_eq!(super::source_str(false), "local");
-    }
-
-    #[test]
-    fn scan_skills_nonexistent_dir_returns_empty() {
-        let tmp = std::env::temp_dir().join("laf-agent_test_nonexistent_skills");
-        assert!(super::scan_skills(&tmp, false).is_empty());
     }
 
     #[test]

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/ipc', () => ({
   ipc: {
-    getAgentResources: vi.fn().mockResolvedValue({ agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }),
+    getAgentResources: vi.fn().mockResolvedValue({ agents: [], steeringRules: [], mcpServers: [], prompts: [] }),
     saveMcpServerConfig: vi.fn().mockResolvedValue(undefined),
     onAgentResourcesChanged: vi.fn().mockReturnValue(() => {}),
   },
@@ -22,7 +22,7 @@ beforeEach(() => {
   useResourceStore.setState({
     configs: {},
     activeProject: null,
-    config: { agents: [], skills: [], steeringRules: [], mcpServers: makeMcpServers(), prompts: [] },
+    config: { agents: [], steeringRules: [], mcpServers: makeMcpServers(), prompts: [] },
     loading: false,
     loaded: true,
   })
@@ -33,7 +33,6 @@ describe('resourceStore', () => {
     it('loads config from IPC and caches it', async () => {
       vi.mocked(ipc.getAgentResources).mockResolvedValue({
         agents: [{ name: 'Agent1', description: 'desc', tools: [], source: 'local', filePath: '/a' }],
-        skills: [],
         steeringRules: [],
         mcpServers: [],
       } as never)
@@ -48,7 +47,6 @@ describe('resourceStore', () => {
     it('returns cached config without IPC call', async () => {
       const cachedConfig = {
         agents: [{ name: 'Cached', description: '', tools: [] as string[], source: 'local' as const, filePath: '/c' }],
-        skills: [],
         steeringRules: [],
         mcpServers: [],
         prompts: [],
@@ -61,8 +59,8 @@ describe('resourceStore', () => {
     })
 
     it('caches separate configs per project', async () => {
-      const configA = { agents: [{ name: 'A', description: '', tools: [] as string[], source: 'local' as const, filePath: '/a' }], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
-      const configB = { agents: [{ name: 'B', description: '', tools: [] as string[], source: 'local' as const, filePath: '/b' }], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
+      const configA = { agents: [{ name: 'A', description: '', tools: [] as string[], source: 'local' as const, filePath: '/a' }], steeringRules: [], mcpServers: [], prompts: [] }
+      const configB = { agents: [{ name: 'B', description: '', tools: [] as string[], source: 'local' as const, filePath: '/b' }], steeringRules: [], mcpServers: [], prompts: [] }
       vi.mocked(ipc.getAgentResources)
         .mockResolvedValueOnce(configA as never)
         .mockResolvedValueOnce(configB as never)
@@ -82,7 +80,6 @@ describe('resourceStore', () => {
           { name: 'Good', description: '', tools: [], source: 'local', filePath: '/a' },
           { name: 'Bad', description: '', tools: [], source: 'local', filePath: '' },
         ],
-        skills: [],
         steeringRules: [],
         mcpServers: [],
       } as never)
@@ -114,14 +111,14 @@ describe('resourceStore', () => {
 
   describe('invalidateConfig', () => {
     it('removes cached config for a project', async () => {
-      const config = { agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
+      const config = { agents: [], steeringRules: [], mcpServers: [], prompts: [] }
       useResourceStore.setState({ configs: { '/project': config } })
       useResourceStore.getState().invalidateConfig('/project')
       expect(useResourceStore.getState().configs['/project']).toBeUndefined()
     })
 
     it('forces reload on next loadConfig', async () => {
-      const config = { agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
+      const config = { agents: [], steeringRules: [], mcpServers: [], prompts: [] }
       useResourceStore.setState({ configs: { '/project': config } })
       useResourceStore.getState().invalidateConfig('/project')
       await useResourceStore.getState().loadConfig('/project')
@@ -131,7 +128,7 @@ describe('resourceStore', () => {
 
   describe('setMcpError', () => {
     it('patches matching server in active config and all caches', () => {
-      const config = { agents: [], skills: [], steeringRules: [], mcpServers: makeMcpServers(), prompts: [] }
+      const config = { agents: [], steeringRules: [], mcpServers: makeMcpServers(), prompts: [] }
       useResourceStore.setState({ configs: { '/p': config }, config })
       useResourceStore.getState().setMcpError('Slack', 'OAuth failed')
       const slack = useResourceStore.getState().config.mcpServers?.find((s) => s.name === 'Slack')
@@ -176,7 +173,7 @@ describe('resourceStore', () => {
       expect(useResourceStore.getState().loaded).toBe(true)
       expect(useResourceStore.getState().loading).toBe(false)
       // Config should remain the default empty config, not corrupted
-      expect(useResourceStore.getState().config).toEqual({ agents: [], skills: [], steeringRules: [], mcpServers: makeMcpServers(), prompts: [] })
+      expect(useResourceStore.getState().config).toEqual({ agents: [], steeringRules: [], mcpServers: makeMcpServers(), prompts: [] })
     })
 
     it('loadConfig does not cache failed loads', async () => {
@@ -185,7 +182,7 @@ describe('resourceStore', () => {
       await useResourceStore.getState().loadConfig('/broken')
       expect(useResourceStore.getState().configs['/broken']).toBeUndefined()
       // Retry should call IPC again
-      vi.mocked(ipc.getAgentResources).mockResolvedValue({ agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] } as never)
+      vi.mocked(ipc.getAgentResources).mockResolvedValue({ agents: [], steeringRules: [], mcpServers: [], prompts: [] } as never)
       await useResourceStore.getState().loadConfig('/broken')
       expect(ipc.getAgentResources).toHaveBeenCalledTimes(2)
     })
@@ -193,7 +190,6 @@ describe('resourceStore', () => {
     it('loadConfig handles null/undefined fields in response', async () => {
       vi.mocked(ipc.getAgentResources).mockResolvedValue({
         agents: null,
-        skills: undefined,
         steeringRules: null,
         mcpServers: undefined,
       } as never)
@@ -201,20 +197,19 @@ describe('resourceStore', () => {
       await useResourceStore.getState().loadConfig('/project')
       const config = useResourceStore.getState().config
       expect(config.agents).toEqual([])
-      expect(config.skills).toEqual([])
       expect(config.steeringRules).toEqual([])
       expect(config.mcpServers).toEqual([])
     })
 
     it('invalidateConfig on non-existent key is a no-op', () => {
-      useResourceStore.setState({ configs: { '/a': { agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] } } })
+      useResourceStore.setState({ configs: { '/a': { agents: [], steeringRules: [], mcpServers: [], prompts: [] } } })
       useResourceStore.getState().invalidateConfig('/nonexistent')
       // /a should still be there
       expect(useResourceStore.getState().configs['/a']).toBeDefined()
     })
 
     it('loadConfig with undefined projectPath uses __global__ key', async () => {
-      vi.mocked(ipc.getAgentResources).mockResolvedValue({ agents: [], skills: [], steeringRules: [], mcpServers: [], prompts: [] } as never)
+      vi.mocked(ipc.getAgentResources).mockResolvedValue({ agents: [], steeringRules: [], mcpServers: [], prompts: [] } as never)
       useResourceStore.setState({ configs: {} })
       await useResourceStore.getState().loadConfig(undefined)
       expect(useResourceStore.getState().configs['__global__']).toBeDefined()
@@ -232,8 +227,8 @@ describe('resourceStore', () => {
     })
 
     it('switching projects updates activeProject and config atomically', async () => {
-      const configA = { agents: [{ name: 'A', description: '', tools: [] as string[], source: 'local' as const, filePath: '/a' }], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
-      const configB = { agents: [{ name: 'B', description: '', tools: [] as string[], source: 'local' as const, filePath: '/b' }], skills: [], steeringRules: [], mcpServers: [], prompts: [] }
+      const configA = { agents: [{ name: 'A', description: '', tools: [] as string[], source: 'local' as const, filePath: '/a' }], steeringRules: [], mcpServers: [], prompts: [] }
+      const configB = { agents: [{ name: 'B', description: '', tools: [] as string[], source: 'local' as const, filePath: '/b' }], steeringRules: [], mcpServers: [], prompts: [] }
       useResourceStore.setState({ configs: { '/a': configA, '/b': configB } })
       await useResourceStore.getState().loadConfig('/a')
       expect(useResourceStore.getState().activeProject).toBe('/a')

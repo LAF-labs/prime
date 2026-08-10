@@ -17,7 +17,6 @@ graph TD
   subgraph Backend["Backend — Rust (Tauri v2)"]
     RPC["rpc/<br/>(prime-agent RPC client)"]
     Launch["agent_launch.rs<br/>(resolve binary + PATH)"]
-    Kernel["kernel_setup.rs<br/>(Python kernel via uv)"]
     PTY["pty.rs<br/>(portable-pty)"]
     Analytics["analytics.rs<br/>(redb)"]
     ThreadDB["thread_db.rs<br/>(redb)"]
@@ -29,7 +28,6 @@ graph TD
 
   Zustand -- "invoke() / listen()" --> RPC
   Zustand -- "invoke() / listen()" --> PTY
-  Zustand -- "invoke() / listen()" --> Kernel
   Zustand -- "invoke()" --> Analytics
   Zustand -- "invoke()" --> Settings
   Zustand -- "invoke()" --> FsOps
@@ -37,10 +35,8 @@ graph TD
   Zustand -- "invoke()" --> ThreadDB
 
   RPC --> Launch
-  Kernel --> Launch
   RPC -- "JSONL over stdin/stdout" --> Agent["prime-agent --mode rpc<br/>(bundled sidecar)"]
   Agent -- "extension UI protocol" --> Gate["laf-agent-gate.ts<br/>(permission gate, sandbox)"]
-  Kernel -- "spawns" --> Uv["bundled uv → ~/.lafagent/kernel-venv"]
   PTY -- "PTY I/O" --> Shell["User shell"]
   Analytics -- "ACID storage" --> ReDB["redb database"]
   ThreadDB -- "ACID storage" --> ReDB
@@ -79,8 +75,7 @@ agent as JSON strings and are surfaced as `Result<T, String>`.
 | Module | Purpose |
 |--------|---------|
 | `rpc/` | prime-agent RPC client. Spawns `prime-agent --mode rpc`, writes JSONL commands to stdin, and translates the agent's stdout events into Tauri events. `commands.rs` holds the handlers (including the generic `agent_rpc_request` bridge), `connection.rs` the process lifecycle and event translation, `types.rs` the shared state. |
-| `agent_launch.rs` | Resolves how to launch the agent — user-configured path, then the bundled sidecar, then PATH — and builds the PATH every spawn site must use so the bundled `uv` wins. |
-| `kernel_setup.rs` | Provisions the agent's Python kernel with the bundled `uv`, streaming progress lines to the onboarding UI. |
+| `agent_launch.rs` | Resolves how to launch the agent — user-configured path, then the bundled sidecar, then PATH — and builds the PATH every spawn site must use so the bundled runtime wins. |
 | `provider_discovery.rs` | Probes a provider's `/models` endpoint to validate a key and list what it unlocks. |
 
 ### Core modules

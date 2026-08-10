@@ -231,6 +231,42 @@ fn gate_extension_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     None
 }
 
+/// Locate the folder holding the skills this app ships.
+///
+/// Kept out of the sidecar on purpose: the sidecar is a build artifact of the
+/// harness fork, while these are ours and are tracked in this repo.
+fn bundled_skills_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    use tauri::Manager;
+    if let Ok(p) = app
+        .path()
+        .resolve("resources/laf-skills", tauri::path::BaseDirectory::Resource)
+    {
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    let dev = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/laf-skills");
+    dev.is_dir().then_some(dev)
+}
+
+/// Every skill folder under `dir`, sorted, as absolute paths.
+///
+/// A skill is a directory holding a `SKILL.md`. Sorting keeps the resulting
+/// system prompt byte-identical between runs, which matters because the whole
+/// skills block sits in the cached prefix.
+pub(crate) fn skill_dirs_in(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut found: Vec<std::path::PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.join("SKILL.md").is_file())
+        .collect();
+    found.sort();
+    found
+}
+
 // ── Spawn a prime-agent RPC connection ─────────────────────────────────
 
 #[allow(clippy::too_many_arguments)]
@@ -461,6 +497,30 @@ pub(crate) async fn run_rpc_connection(
     // conversational prompt and the plain-language tools in its place.
     cmd.arg("--no-builtin-tools");
     cmd.env("LAF_PROFILE", "everyday");
+    // Skills and extensions are an allowlist, not a discovery.
+    //
+    // Left to itself the harness scans `~/.agents/skills` — a directory shared
+    // with every other agent tool on the machine — plus `.agents/skills` in the
+    // working folder and each of its ancestors up to the repo root. Whatever it
+    // finds there is loaded: its description goes into the system prompt on
+    // every single turn, and it is registered as a `/skill:` command. That is
+    // someone else's content in our prompt and our palette. A real one found on
+    // this machine pointed the model at a licensed third-party MCP server and
+    // told it to hold a paid token, and it was billed to the user as tokens on
+    // every request, whether or not they ever used it.
+    //
+    // `--no-skills` drops the whole scan, including the sidecar's own bundled
+    // skills, which need the Python kernel that `--no-builtin-tools` removes.
+    // `--skill` paths survive it, so what ships below is exactly what loads.
+    // `--no-extensions` does the same for extension code; the gate is immune
+    // because it arrives via `-e`.
+    cmd.arg("--no-skills");
+    cmd.arg("--no-extensions");
+    if let Some(dir) = bundled_skills_dir(&app) {
+        for skill in skill_dirs_in(&dir) {
+            cmd.arg("--skill").arg(skill);
+        }
+    }
     // The bundled gate extension enforces the workspace sandbox when asked:
     // file-mutating tools targeting paths outside the workspace are blocked
     // outright instead of prompting.
@@ -472,27 +532,13 @@ pub(crate) async fn run_rpc_connection(
         cmd.env(key, value);
     }
     if tight_sandbox {
+        // Everything the model can execute now goes through the gate, which
+        // confines it directly. The old second half of this — a Seatbelt
+        // wrapper around the kernel's Python interpreter — went away with
+        // `ipython` itself; there is no interpreter left to confine.
         cmd.env("LAF_TIGHT_SANDBOX", "1");
-        // The gate can only reach `bash`. `ipython` runs in a kernel process
-        // the harness spawns itself, so confine it at the interpreter: point
-        // PRIME_AGENT_KERNEL_PYTHON at a wrapper that re-execs the venv python
-        // under a Seatbelt profile. Skipped until the kernel is bootstrapped —
-        // setting the override makes the harness skip its own bootstrap, and
-        // that bootstrap is our code, not the model's.
-        match crate::commands::kernel_sandbox::wrapper_for(&workspace) {
-            Ok(Some(wrapper)) => {
-                cmd.env("PRIME_AGENT_KERNEL_PYTHON", &wrapper);
-                // Byte-code caching would need writes inside the venv, which
-                // the profile denies — and a writable venv is a persistence
-                // vector we would rather not open.
-                cmd.env("PYTHONDONTWRITEBYTECODE", "1");
-                log::info!("[RPC] kernel confined via {}", wrapper.display());
-            }
-            Ok(None) => log::info!("[RPC] kernel sandbox unavailable (not bootstrapped, or not macOS)"),
-            Err(e) => log::warn!("[RPC] could not build the kernel sandbox, running unconfined: {e}"),
-        }
     }
-    // The agent goes on to spawn a Python kernel, `uv`, MCP servers, and the
+    // The agent goes on to spawn research children, MCP servers, and the
     // model's own bash commands. Giving it its own process group is what lets
     // teardown reach all of them instead of just the Node process.
     crate::commands::process_group::lead_new_group(&mut cmd);
@@ -503,12 +549,6 @@ pub(crate) async fn run_rpc_connection(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .env("PATH", agent_path_env(&launch))
-        // The agent provisions its Python kernel with uv, which we ship in
-        // the sidecar. The flag is a fallback for installs that resolve an
-        // external binary: without it a GUI session can never install uv,
-        // because the interactive consent prompt only exists on a TTY.
-        // The name follows `piConfig.name` — see commands::agent_paths.
-        .env("LAFAGENT_INSTALL_UV", "1")
         .spawn()
         .map_err(|e| format!("Could not start the agent: {e}"))?;
 

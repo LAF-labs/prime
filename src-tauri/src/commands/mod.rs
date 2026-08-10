@@ -8,7 +8,6 @@ pub mod error;
 pub mod everyday_memory;
 pub mod fs_ops;
 pub mod history_guard;
-pub mod kernel_sandbox;
 pub mod agent_resources;
 pub mod resource_watcher;
 pub mod process_diagnostics;

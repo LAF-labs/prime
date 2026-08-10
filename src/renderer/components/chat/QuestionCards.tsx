@@ -1,10 +1,10 @@
 import { t } from '@/lib/i18n'
-import { memo, useState, useCallback, useEffect } from "react";
+import { memo, useState, useCallback, useEffect, useRef } from "react";
 import { IconChevronLeft, IconChevronRight, IconCornerDownLeft, IconMessageCircleQuestion, IconCircleCheckFilled } from "@tabler/icons-react";
 import { useTaskStore } from "@/stores/taskStore";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
-import { parseQuestions } from "@/lib/question-parser";
+import { parseQuestions, type QuestionBlock } from "@/lib/question-parser";
 
 export const QuestionCards = memo(function QuestionCards({
   text,
@@ -34,11 +34,32 @@ export const QuestionCards = memo(function QuestionCards({
     );
   }, []);
 
-  const isAllAnswered = blocks.every((b) => selections[b.number] || b.options.length === 0);
+  /**
+   * A question is answered by picking an option **or** by writing an answer.
+   *
+   * This only counted selections, so typing into the free-text box left
+   * Submit disabled with no way to send — on a single question card the only
+   * route was to pick an option you did not mean. The box exists precisely
+   * for answers the options do not cover, and `handleContinue` already builds
+   * the message from either source.
+   */
+  const isAnswered = useCallback(
+    (b: QuestionBlock) =>
+      !!selections[b.number] || (extraText[b.number] ?? '').trim().length > 0 || b.options.length === 0,
+    [selections, extraText],
+  );
+  const isAllAnswered = blocks.every(isAnswered);
   const currentExtra = current ? (extraText[current.number] ?? '') : ''
   const hasAnyInput =
     Object.keys(selections).length > 0 || Object.values(extraText).some((v) => v.trim().length > 0);
   const isLastPage = page === total - 1
+  /** Submit sends; on an earlier page the same button advances instead. */
+  const canSubmit = isAllAnswered || (!isLastPage && hasAnyInput)
+  // The key handler is registered once per render but reads this at keypress
+  // time, so the button and the Enter key can never disagree about whether
+  // the card is submittable.
+  const canSubmitRef = useRef(canSubmit)
+  canSubmitRef.current = canSubmit
 
   const handleContinue = useCallback(() => {
     if (!isLastPage && !isAllAnswered) {
@@ -113,8 +134,7 @@ export const QuestionCards = memo(function QuestionCards({
         return;
       }
       if (e.key === "Enter" && !e.shiftKey) {
-        const canSubmit = isAllAnswered || (!isLastPage && hasAnyInput);
-        if (!canSubmit) return;
+        if (!canSubmitRef.current) return;
         e.preventDefault();
         handleContinue();
         return;
@@ -153,8 +173,9 @@ export const QuestionCards = memo(function QuestionCards({
 
   if (blocks.length === 0 || dismissed) return null;
 
-  const selectedCount = Object.keys(selections).length;
-  const canSubmit = isAllAnswered || isLastPage ? isAllAnswered : hasAnyInput;
+  // Counts written answers too, so the tally cannot disagree with the button.
+  const answeredCount = blocks.filter(isAnswered).length;
+
 
   return (
     <div className="my-4 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/[0.04] to-transparent shadow-sm">
@@ -270,9 +291,9 @@ export const QuestionCards = memo(function QuestionCards({
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-primary/10 bg-primary/[0.02] px-5 py-3">
         <div className="flex items-center gap-3">
-          {selectedCount > 0 && total > 1 && (
+          {answeredCount > 0 && total > 1 && (
             <span className="text-[11px] text-muted-foreground">
-              {selectedCount}/{total} answered
+              {answeredCount}/{total} answered
             </span>
           )}
           <button

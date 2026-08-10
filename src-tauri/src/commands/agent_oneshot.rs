@@ -71,7 +71,7 @@ pub(crate) async fn run_agent_oneshot(launch: &crate::commands::agent_launch::Ag
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Other(format!(
-            "prime-agent exited with status {}: {}",
+            "The agent exited with status {}: {}",
             output.status,
             stderr.trim()
         )));

@@ -85,13 +85,13 @@ export const OnboardingCliSection = ({ onCliReady }: OnboardingCliSectionProps) 
           <div className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
             <IconAlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              {t('The agent runtime should ship inside this app. Reinstalling from the DMG usually fixes this. You can also point at your own prime-agent build below.')}
+              {t('The agent runtime should ship inside this app. Reinstalling from the DMG usually fixes this. You can also point at your own build below.')}
             </p>
           </div>
           <div className="flex gap-1.5">
             <input type="text" value={manualPath} onChange={(e) => setManualPath(e.target.value)} placeholder="/path/to/prime-agent"
               className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50" />
-            <button type="button" onClick={handleBrowse} aria-label={t('Browse for prime-agent')} tabIndex={0}
+            <button type="button" onClick={handleBrowse} aria-label={t('Browse for the agent runtime')} tabIndex={0}
               className="rounded-lg border border-border px-2.5 py-2 text-muted-foreground transition-colors hover:text-foreground/70">
               <IconFolderOpen size={16} />
             </button>

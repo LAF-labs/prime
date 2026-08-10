@@ -509,9 +509,14 @@ pub(crate) async fn run_rpc_connection(
         // because the interactive consent prompt only exists on a TTY.
         .env("PRIME_AGENT_INSTALL_UV", "1")
         .spawn()
-        .map_err(|e| format!("Failed to spawn prime-agent: {e}"))?;
+        .map_err(|e| format!("Could not start the agent: {e}"))?;
 
-    if let Some(id) = child.id() {
+    // Remember the pid separately from the `Child`. Once `child.wait()`
+    // reaps the leader, `child.id()` returns None — but the process *group*
+    // outlives its leader as long as any member is running, so the pid is
+    // still the group id we need to signal.
+    let child_pid = child.id();
+    if let Some(id) = child_pid {
         pid_slot.store(id, Ordering::SeqCst);
     }
 
@@ -711,11 +716,21 @@ pub(crate) async fn run_rpc_connection(
                 // so a crash looked like a clean finish to the whole UI.
                 if let Ok(status) = status {
                     if !status.success() {
+                        // The leader is reaped, but its group is not: the
+                        // Python kernel, MCP servers and any bash children
+                        // are still running and about to be reparented to
+                        // init. This early return used to skip teardown
+                        // entirely, which is how a crashed agent left a
+                        // process tree alive for a day.
+                        terminate_group_of(child_pid).await;
                         reader.abort();
                         stderr_task.abort();
                         return Err(describe_exit(status));
                     }
                 }
+                // A leader that exits cleanly can still leave group members
+                // behind — sweep on this path too.
+                terminate_group_of(child_pid).await;
                 break;
             }
         }
@@ -727,6 +742,33 @@ pub(crate) async fn run_rpc_connection(
     reader.abort();
     stderr_task.abort();
     Ok(())
+}
+
+/// Terminate a process group by its leader's pid, for the paths where the
+/// leader has already been reaped and only the group remains.
+///
+/// `terminate_child_group` needs a live `Child` to wait on; this one has no
+/// handle to reap, so it gives the group a grace period and then forces it.
+async fn terminate_group_of(pid: Option<u32>) {
+    #[cfg(unix)]
+    {
+        use crate::commands::process_group::{group_is_alive, signal_group_kill, signal_group_term};
+        let Some(pid) = pid else { return };
+        if !group_is_alive(pid) {
+            return;
+        }
+        signal_group_term(pid);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1500);
+        while std::time::Instant::now() < deadline {
+            if !group_is_alive(pid) {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        signal_group_kill(pid);
+    }
+    #[cfg(not(unix))]
+    let _ = pid;
 }
 
 /// Kill a per-task agent subprocess and everything it spawned.

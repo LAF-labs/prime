@@ -229,6 +229,22 @@ Run `bun run build` before shipping a release.
 
 ## Engineering learnings
 
+### `prime-agent` is a name, not a brand
+
+The string appears ~180 times and almost all of them are load-bearing: the
+binary we spawn and look up on PATH, the sidecar directory, the config dir
+`~/.prime/agent` (auth.json, models.json), the `PRIME_AGENT_*` env vars, and
+the harness fork `LAF-labs/prime-harness`. Renaming any of those breaks the
+app.
+
+What must **not** carry it is copy a non-developer reads: settings labels,
+onboarding text, and error messages say "the agent" or "the agent runtime".
+Three exceptions stay on purpose — the About dialog's MIT attribution to
+PrimeIntellect-ai/prime-agent, the two path placeholders (the field really
+does want that binary), and the onboarding line naming
+`~/.prime/agent/auth.json`, because it tells users where their API keys
+actually live and a friendlier lie would be worse.
+
 ### The IPC surface must stay symmetric
 
 `lib/ipc.ts` and the `generate_handler!` list in `lib.rs` are two halves of one

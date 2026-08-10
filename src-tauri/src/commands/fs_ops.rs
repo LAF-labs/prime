@@ -806,7 +806,7 @@ pub fn auth_status(agent_bin: Option<String>) -> Result<AuthIdentity, AppError> 
     }
 
     Err(AppError::Other(
-        "Not authenticated: no ~/.prime/agent/auth.json and no provider API key env vars. Run `prime-agent` in a terminal and use /login.".to_string(),
+        "Not signed in: no stored credentials and no provider API key in the environment. Open Settings → Providers to sign in.".to_string(),
     ))
 }
 

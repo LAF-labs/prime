@@ -451,6 +451,16 @@ pub fn run() {
             let _window = app.get_webview_window("main")
                 .ok_or_else(|| "main window not found".to_string())?;
 
+            // Agents from a previous run that no code could clean up — the app
+            // was force-quit, panicked, or the machine lost power. They have no
+            // parent and no window, so nothing else will ever reach them.
+            if let Some(dir) = commands::agent_launch::bundled_sidecar_dir(app.handle()) {
+                let reaped = commands::process_group::reap_orphans(&dir);
+                if reaped > 0 {
+                    log::info!("Reaped {reaped} orphaned agent process group(s) from a previous run");
+                }
+            }
+
             // Build and set the custom native menu
             let menu = build_app_menu(app.handle())?;
             app.set_menu(menu)?;

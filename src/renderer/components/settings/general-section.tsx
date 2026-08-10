@@ -119,7 +119,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
               data-testid="settings-cli-path-input"
               onChange={handleCliPathChange}
               placeholder="prime-agent"
-              aria-label={t('Path to prime-agent binary')}
+              aria-label={t('Path to the agent runtime')}
               className={cn(SETTINGS_INPUT_CLASS, 'min-w-0 flex-1 font-mono text-[12px]')}
             />
             <Tooltip>
@@ -127,7 +127,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                 <button
                   type="button"
                   onClick={handleBrowseCli}
-                  aria-label={t('Browse for prime-agent binary')}
+                  aria-label={t('Browse for the agent runtime')}
                   className={cn(SETTINGS_BUTTON_CLASS, 'shrink-0')}
                 >
                   {t('Browse')}
@@ -141,7 +141,7 @@ export const GeneralSection = memo(function GeneralSection({ draft, updateDraft 
                   type="button"
                   onClick={handleAutoDetect}
                   disabled={isDetecting}
-                  aria-label={t('Auto-detect prime-agent path')}
+                  aria-label={t('Auto-detect the agent runtime')}
                   className={cn(SETTINGS_BUTTON_CLASS, 'shrink-0 disabled:pointer-events-none disabled:opacity-50')}
                 >
                   {isDetecting ? <IconLoader2 className="size-3.5 animate-spin" aria-hidden /> : <IconSearch className="size-3.5" aria-hidden />}

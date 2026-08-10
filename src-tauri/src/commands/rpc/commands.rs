@@ -636,7 +636,7 @@ pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>,
         .stderr(std::process::Stdio::null())
         .env("PATH", format!("/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{}", std::env::var("PATH").unwrap_or_default()))
         .spawn()
-        .map_err(|e| format!("Failed to spawn prime-agent: {e}"))?;
+        .map_err(|e| format!("Could not start the agent: {e}"))?;
 
     // Every exit path must kill AND wait: a dropped `Child` is never reaped,
     // so an early return here left a zombie behind even after the watchdog
@@ -683,7 +683,7 @@ pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>,
     {
         done.store(true, std::sync::atomic::Ordering::SeqCst);
         reap(&mut child);
-        return Err(format!("Failed to write to prime-agent: {e}"));
+        return Err(format!("Could not reach the agent: {e}"));
     }
 
     let mut models: Option<Value> = None;
@@ -706,7 +706,7 @@ pub(crate) fn query_models_blocking(launch: &AgentLaunch) -> Result<(Vec<Value>,
     done.store(true, std::sync::atomic::Ordering::SeqCst);
     reap(&mut child);
 
-    let models = models.ok_or("prime-agent did not answer get_available_models")?;
+    let models = models.ok_or("The agent did not return a model list")?;
     let available: Vec<Value> = models
         .get("models")
         .and_then(|m| m.as_array())

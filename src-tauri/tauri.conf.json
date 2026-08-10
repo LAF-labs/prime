@@ -45,7 +45,8 @@
       "nsis"
     ],
     "resources": [
-      "resources/**/*"
+      "resources/lafagent/**/*",
+      "resources/laf-agent-gate.ts"
     ],
     "icon": [
       "icons/prod/icon.png",

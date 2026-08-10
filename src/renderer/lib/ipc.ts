@@ -249,6 +249,11 @@ export const ipc = {
     invoke('reveal_in_finder', { workspace, relPath }),
   openInDefaultApp: (workspace: string, relPath: string): Promise<void> =>
     invoke('open_in_default_app', { workspace, relPath }),
+  /** Open a Finder window scoped to `path`. Rejects when Finder declines. */
+  openFinderSearch: (path: string): Promise<void> =>
+    invoke('open_finder_search', { path }),
+  /** Wipe this app's data directory. Used only by the recovery path in main.tsx. */
+  resetAppData: (): Promise<void> => invoke('reset_app_data'),
   openTerminalAt: (workspace: string, relPath: string): Promise<void> =>
     invoke('open_terminal_at', { workspace, relPath }),
   openUrl: (url: string): Promise<void> =>

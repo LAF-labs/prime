@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { t } from '@/lib/i18n'
+import { ipc } from '@/lib/ipc'
 import { reportFailure } from '@/lib/ipc-report'
 import { useFileTreeStore, type TreeEntry } from '@/stores/fileTreeStore'
 import { useTaskStore } from '@/stores/taskStore'
@@ -94,7 +94,7 @@ export const TreeContextMenu = memo(function TreeContextMenu({
 
   const handleReveal = useCallback(() => {
     if (!entry) return
-    invoke('reveal_in_finder', { workspace, relPath: entry.path }).catch(console.error)
+    ipc.revealInFinder(workspace, entry.path).catch(console.error)
     onClose()
   }, [entry, workspace, onClose])
 
@@ -180,8 +180,8 @@ export const TreeContextMenu = memo(function TreeContextMenu({
     if (entry.isDir) {
       items.push({ label: t('Find in Folder...'), icon: <IconSearch className="size-3.5" />, shortcut: IS_MAC ? '⌥⌘⇧F' : 'Ctrl+Alt+Shift+F', action: () => {
         const absPath = `${workspace}/${entry.path}`
-        invoke('open_finder_search', { path: absPath }).catch(() => {
-          invoke('reveal_in_finder', { workspace, relPath: entry.path }).catch(console.error)
+        ipc.openFinderSearch(absPath).catch(() => {
+          ipc.revealInFinder(workspace, entry.path).catch(console.error)
         })
         onClose()
       }, separator: true })

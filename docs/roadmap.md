@@ -10,8 +10,8 @@ nothing subscription/billing-shaped is implemented (open-source distribution —
 extensibility is considered, features are not built).
 
 > **Shipped since this was written:** every git feature is gone — worktrees and
-> the git panel first (`aa3876e`), then turn checkpoints, file-tree git status,
-> and the `git2` crate itself (`cdac8b4`). Sections below that describe git
+> the git panel first (`0a04712`), then turn checkpoints, file-tree git status,
+> and the `git2` crate itself (`513fb7d`). Sections below that describe git
 > branches, worktrees, or checkpoint retention are historical record, not
 > pending work. The app is now a non-developer everyday agent.
 

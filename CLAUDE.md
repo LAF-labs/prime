@@ -100,9 +100,12 @@ src-tauri/
 │       ├── markdown.rs      # Server-side markdown parsing
 │       └── error.rs         # Shared AppError (thiserror)
 ├── resources/
-│   ├── prime-agent/         # Bundled runtime: node, uv, dist/, node_modules/
+│   ├── lafagent/            # Bundled runtime: node, dist/, node_modules/
+│   ├── laf-skills/          # The skills we ship (organize-files, find-file,
+│   │                        # summarize-docs) — one folder per SKILL.md
 │   └── laf-agent-gate.ts    # Bundled extension: permission gate, sandbox,
-│                            # parity commands, native web search, web_fetch
+│                            # parity commands, web search/fetch, document
+│                            # text extraction (PDF/Word/Excel)
 ├── tauri.conf.json
 └── capabilities/            # Tauri v2 permissions
 scripts/
@@ -172,9 +175,13 @@ bun run clean
   `src-tauri/resources/laf-skills/`. Without those flags the harness scans
   `~/.agents/skills` (shared with every other agent tool on the machine),
   `.agents/skills` in the working folder and its ancestors, and
-  `~/.lafagent/skills` — and every skill it finds is injected into the system
-  prompt on every turn. Adding a skill means adding a folder there, never
-  re-enabling discovery. See `docs/sidecar-architecture.md`.
+  `~/.lafagent/skills`, and registers whatever it finds as a `/skill:` command.
+  Adding a skill means adding a folder there, never re-enabling discovery.
+- **The everyday prompt carries its own skills list**: `before_agent_start`
+  replaces the system prompt wholesale, so the harness's `<available_skills>`
+  block never survives. `buildEverydayPrompt` lists name, description and path
+  from `LAF_SKILLS_DIR`; the body is read on demand with `read_file`, which
+  takes that folder as a read-only root. See `docs/sidecar-architecture.md`.
 - **The agent runtime is bundled**: `agent_launch::resolve()` prefers an explicit
   user path, then the sidecar (`<resources>/prime-agent/node dist/bundle/cli.js`),
   then PATH. Every spawn site must use `agent_launch::agent_path_env()` so the

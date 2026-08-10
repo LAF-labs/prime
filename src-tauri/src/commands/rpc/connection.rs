@@ -520,6 +520,12 @@ pub(crate) async fn run_rpc_connection(
         for skill in skill_dirs_in(&dir) {
             cmd.arg("--skill").arg(skill);
         }
+        // The everyday profile replaces the whole system prompt, and the
+        // harness's own skills block goes with it — so the gate builds its own
+        // list, and reads it from here. It also needs the path to let
+        // `read_file` open a skill: the folder is inside the app bundle,
+        // outside every root the everyday tools are otherwise confined to.
+        cmd.env("LAF_SKILLS_DIR", dir);
     }
     // The bundled gate extension enforces the workspace sandbox when asked:
     // file-mutating tools targeting paths outside the workspace are blocked

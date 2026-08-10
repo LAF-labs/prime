@@ -46,6 +46,7 @@
     ],
     "resources": [
       "resources/lafagent/**/*",
+      "resources/laf-skills/**/*",
       "resources/laf-agent-gate.ts"
     ],
     "icon": [

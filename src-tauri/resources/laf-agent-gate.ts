@@ -13,7 +13,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join as joinPath, resolve as resolvePath } from "node:path";
@@ -1345,22 +1345,44 @@ function stripMarkup(html: string): string {
 /**
  * Import a package that lives in the bundled sidecar's `node_modules`.
  *
- * The gate sits one level above the sidecar — `resources/laf-agent-gate.ts`
- * beside `resources/prime-agent/` — and Node resolves bare specifiers by
- * walking *up* from the importer, never down into a sibling. A static
- * `import "@mozilla/readability"` therefore works in the checkout, where the
- * repo's own `node_modules` is on the way up, and fails in the installed app,
- * where it is not. That is exactly what happened: the gate failed to load
- * entirely, and every session came up with no tools. The bare specifier is
- * still tried first so the checkout keeps working unchanged.
+ * Node resolves bare specifiers by walking *up* from the importer, never down
+ * into a sibling. That makes the same static import behave differently in the
+ * two places this file runs from:
+ *
+ * - Installed app: the gate is copied *into* the sidecar as `laf-gate.ts`, so
+ *   walking up finds the sidecar's `node_modules` on the first step.
+ * - Checkout: the gate is `src-tauri/resources/laf-agent-gate.ts`, and walking
+ *   up reaches the repo's `node_modules` — which does not have these packages.
+ *
+ * A static `import "@mozilla/readability"` once failed exactly this way: the
+ * gate did not load at all and every session came up with no tools. So resolve
+ * against the sidecar explicitly, from either location. The bare specifier is
+ * still tried first, so nothing changes where it already worked.
  */
 const SIDECAR_REQUIRE = (() => {
-	try {
-		const here = dirname(fileURLToPath(import.meta.url));
-		return createRequire(joinPath(here, "prime-agent", "package.json"));
-	} catch {
-		return null;
+	const here = (() => {
+		try {
+			return dirname(fileURLToPath(import.meta.url));
+		} catch {
+			return null;
+		}
+	})();
+	if (!here) return null;
+	// `createRequire` only needs a path to resolve *from*; the file itself
+	// need not exist. The sibling comes first and only exists in a checkout:
+	// the repo's own node_modules has some of these packages but not all, so
+	// resolving from there would find readability, declare victory, and then
+	// fail on the next import.
+	for (const base of [joinPath(here, "lafagent", "package.json"), joinPath(here, "package.json")]) {
+		try {
+			const req = createRequire(base);
+			req.resolve("@mozilla/readability");
+			return req;
+		} catch {
+			// Not this one.
+		}
 	}
+	return null;
 })();
 
 async function importFromSidecar<T>(specifier: string): Promise<T | null> {
@@ -1526,6 +1548,65 @@ const MAX_READ_CHARS = 40_000;
 const MAX_DIR_ENTRIES = 200;
 const MAX_ORGANIZE_OPS = 100;
 
+/**
+ * Where the skills this app ships live, if any.
+ *
+ * The harness would normally advertise skills itself, but the everyday
+ * profile replaces the whole system prompt in `before_agent_start`, and the
+ * harness's `<available_skills>` block goes with it. So the prompt below
+ * carries its own list, and this is the folder it lists.
+ */
+const SKILLS_DIR = (() => {
+	const raw = process.env.LAF_SKILLS_DIR;
+	if (!raw) return null;
+	try {
+		return realpathSync(raw);
+	} catch {
+		return null;
+	}
+})();
+
+interface EverydaySkill {
+	name: string;
+	description: string;
+	path: string;
+}
+
+/**
+ * Read the shipped skills' front matter, once, at startup.
+ *
+ * Only `name` and `description` are loaded: the body is what the model reads
+ * on demand with `read_file`, and keeping it out of the prompt is the entire
+ * reason a skill is a file rather than a paragraph of prompt.
+ */
+function loadSkills(): EverydaySkill[] {
+	if (!SKILLS_DIR) return [];
+	let entries: string[];
+	try {
+		entries = readdirSync(SKILLS_DIR).sort();
+	} catch {
+		return [];
+	}
+	const skills: EverydaySkill[] = [];
+	for (const entry of entries) {
+		const file = joinPath(SKILLS_DIR, entry, "SKILL.md");
+		let head: string;
+		try {
+			head = readFileSync(file, "utf8").slice(0, 4_000);
+		} catch {
+			continue;
+		}
+		const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(head);
+		if (!front) continue;
+		const name = /^name:\s*(.+)$/m.exec(front[1])?.[1]?.trim();
+		const description = /^description:\s*(.+)$/m.exec(front[1])?.[1]?.trim();
+		if (!name || !description) continue;
+		skills.push({ name, description, path: file });
+	}
+	return skills;
+}
+
+
 interface EverydayMemory {
 	fact: string;
 	at: string;
@@ -1577,6 +1658,18 @@ function buildEverydayPrompt(cwd: string): string {
 		`Current date: ${date}`,
 		`Working folder: ${cwd}`,
 	];
+	// Skills before memories: the list is the same for every session and every
+	// turn, while memories change, so this keeps the longest possible byte-
+	// identical prefix for the provider's prompt cache.
+	const skills = loadSkills();
+	if (skills.length > 0) {
+		parts.push(
+			"",
+			"Some jobs have step-by-step instructions. When one matches what was asked, read its file with read_file and follow it.",
+		);
+		for (const skill of skills) parts.push(`- ${skill.description} → ${skill.path}`);
+	}
+
 	const memories = loadMemories();
 	if (memories.length > 0) {
 		parts.push("", "Things you remember about this user:");
@@ -1604,12 +1697,20 @@ function buildEverydayPrompt(cwd: string): string {
  * `~/.ssh/id_ed25519` stays unreachable. Prompt-injected text must not be
  * able to point these tools at keychains, cookies, or ssh keys.
  */
-function resolveEverydayPath(raw: string): { path: string } | { error: string } {
+function resolveEverydayPath(raw: string, options?: { allowSkills?: boolean }): { path: string } | { error: string } {
 	const trimmed = raw.trim();
 	if (!trimmed) return { error: "Empty path." };
 	const expanded = trimmed === "~" ? HOME : trimmed.startsWith("~/") ? joinPath(HOME, trimmed.slice(2)) : trimmed;
 	const absolute = isAbsolute(expanded) ? expanded : resolvePath(WORKSPACE || HOME, expanded);
 	const canonical = canonicalize(absolute);
+
+	// The skills folder lives inside the app bundle, outside both roots. A
+	// skill the model is told to read but cannot open is worse than no skill,
+	// so it is a root of its own — opt-in, and only `read_file` opts in. It is
+	// never a place anything may be written.
+	if (options?.allowSkills && SKILLS_DIR && (canonical === SKILLS_DIR || canonical.startsWith(`${SKILLS_DIR}/`))) {
+		return { path: canonical };
+	}
 
 	const roots = WORKSPACE && WORKSPACE !== HOME ? [WORKSPACE, HOME] : [HOME];
 	const root = roots.find((r) => canonical === r || canonical.startsWith(`${r}/`));
@@ -1701,6 +1802,175 @@ function doneSuffix(done: string[]): string {
 	return done.length > 0 ? ` Already completed before the failure: ${done.join("; ")}.` : "";
 }
 
+// ── Reading documents that are not plain text ───────────────────────────
+//
+// The people this app is for keep their work in PDFs, Word files, and
+// spreadsheets — not in .txt. Until this existed, "summarize this report"
+// answered "this file is not text", which is a true sentence and a useless
+// product.
+//
+// Each format is handed to a library that does nothing else: pdf.js for PDF
+// (via unpdf, which ships the build meant for a server), mammoth for .docx,
+// read-excel-file for .xlsx. All three are loaded lazily and only from the
+// sidecar, so a session that never opens a document never pays for them.
+
+/** Extensions we can turn into text, mapped to a human name for messages. */
+const DOCUMENT_FORMATS: Record<string, string> = {
+	pdf: "PDF",
+	docx: "Word document",
+	xlsx: "spreadsheet",
+	xlsm: "spreadsheet",
+};
+
+/**
+ * Formats we recognize but cannot read, with what to tell the user. Naming
+ * them beats a generic "not text": the user learns what to do next, and the
+ * model stops retrying the same file.
+ */
+const UNREADABLE_FORMATS: Record<string, string> = {
+	doc: "an older Word format (.doc). Re-saving it as .docx makes it readable.",
+	xls: "an older Excel format (.xls). Re-saving it as .xlsx makes it readable.",
+	ppt: "a PowerPoint file, which cannot be read yet.",
+	pptx: "a PowerPoint file, which cannot be read yet.",
+	hwp: "a Hangul Word Processor file, which cannot be read yet. Saving it as PDF or .docx makes it readable.",
+	hwpx: "a Hangul Word Processor file, which cannot be read yet. Saving it as PDF or .docx makes it readable.",
+	pages: "an Apple Pages file, which cannot be read yet. Exporting it as PDF or Word makes it readable.",
+	numbers: "an Apple Numbers file, which cannot be read yet. Exporting it as PDF or Excel makes it readable.",
+	key: "an Apple Keynote file, which cannot be read yet.",
+};
+
+/** A document this size is a scan or a book; extraction would stall the turn. */
+const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+/** Extraction is CPU-bound and single-threaded — past this it is a hang. */
+const DOCUMENT_TIMEOUT_MS = 30_000;
+
+function fileExtension(path: string): string {
+	const base = path.slice(path.lastIndexOf("/") + 1);
+	const dot = base.lastIndexOf(".");
+	return dot > 0 ? base.slice(dot + 1).toLowerCase() : "";
+}
+
+type UnpdfModule = {
+	getDocumentProxy: (data: Uint8Array) => Promise<unknown>;
+	extractText: (doc: unknown, options: { mergePages: boolean }) => Promise<{ text: string; totalPages: number }>;
+};
+type MammothModule = { extractRawText: (input: { path: string }) => Promise<{ value: string }> };
+type ReadXlsxModule = (path: string) => Promise<unknown>;
+
+/** ESM interop: some of these publish the API on `default`, some on the namespace. */
+function unwrapDefault<T>(mod: unknown): T {
+	const namespace = mod as { default?: unknown };
+	return (namespace?.default ?? mod) as T;
+}
+
+async function extractPdf(path: string): Promise<string> {
+	// pdf.js 6 reaches for Math.sumPrecise, which Node 22 does not have. It
+	// only sums glyph advances, so an ordinary sum is a faithful stand-in —
+	// without it every page logs a warning to stderr.
+	const math = Math as unknown as { sumPrecise?: (values: Iterable<number>) => number };
+	math.sumPrecise ??= (values) => {
+		let total = 0;
+		for (const value of values) total += value;
+		return total;
+	};
+
+	const mod = await importFromSidecar<UnpdfModule>("unpdf");
+	if (!mod) throw new Error("The PDF reader is not available in this build.");
+	const data = new Uint8Array(await readFile(path));
+	const doc = await mod.getDocumentProxy(data);
+	const { text, totalPages } = await mod.extractText(doc, { mergePages: true });
+	const trimmed = text.trim();
+	if (!trimmed) {
+		throw new Error(
+			`This PDF has ${totalPages} page(s) but no text in it — it is most likely a scan or photos of pages. ` +
+				"Reading it would need character recognition, which this app cannot do yet.",
+		);
+	}
+	return trimmed;
+}
+
+async function extractDocx(path: string): Promise<string> {
+	const mod = await importFromSidecar<MammothModule>("mammoth");
+	if (!mod) throw new Error("The Word document reader is not available in this build.");
+	const { value } = await unwrapDefault<MammothModule>(mod).extractRawText({ path });
+	const trimmed = value.trim();
+	if (!trimmed) throw new Error("This Word document has no text in it.");
+	return trimmed;
+}
+
+/** One cell as text. Dates print as a plain date; everything else stringifies. */
+function cellText(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	if (value instanceof Date) return value.toISOString().slice(0, 10);
+	return String(value);
+}
+
+async function extractXlsx(path: string): Promise<string> {
+	const mod = await importFromSidecar<{ default?: ReadXlsxModule }>("read-excel-file/node");
+	if (!mod) throw new Error("The spreadsheet reader is not available in this build.");
+	const read = unwrapDefault<ReadXlsxModule>(mod);
+	const parsed = await read(path);
+
+	// The library returns bare rows for a single sheet and `{sheet, data}`
+	// entries for a workbook. Normalize, because a one-sheet file and a
+	// five-sheet file should read the same way to the model.
+	const sheets: { name: string; rows: unknown[][] }[] = [];
+	if (Array.isArray(parsed)) {
+		const first = parsed[0] as { sheet?: unknown; data?: unknown } | undefined;
+		if (first && typeof first === "object" && Array.isArray(first.data)) {
+			for (const entry of parsed as { sheet?: unknown; data: unknown[][] }[]) {
+				sheets.push({ name: cellText(entry.sheet) || "Sheet", rows: entry.data });
+			}
+		} else {
+			sheets.push({ name: "", rows: parsed as unknown[][] });
+		}
+	}
+
+	const lines: string[] = [];
+	for (const sheet of sheets) {
+		if (sheets.length > 1 || sheet.name) lines.push(`## ${sheet.name || "Sheet"}`);
+		for (const row of sheet.rows) {
+			lines.push((Array.isArray(row) ? row : [row]).map(cellText).join("\t"));
+		}
+		lines.push("");
+	}
+	const text = lines.join("\n").trim();
+	if (!text) throw new Error("This spreadsheet has no cells with anything in them.");
+	return text;
+}
+
+/**
+ * Extract text from a non-text document, bounded in both size and time.
+ *
+ * Every parser here reads a file format that arrived from outside — an email
+ * attachment, a download — so it gets a deadline. A malformed file that sends
+ * a parser into a loop would otherwise hang the turn with no way out.
+ */
+async function readDocument(kind: string, path: string): Promise<string> {
+	const { size } = await stat(path);
+	if (size > MAX_DOCUMENT_BYTES) {
+		throw new Error(
+			`This ${DOCUMENT_FORMATS[kind]} is ${Math.round(size / 1024 / 1024)} MB, too large to read in one go.`,
+		);
+	}
+
+	const extract =
+		kind === "pdf" ? extractPdf(path) : kind === "docx" ? extractDocx(path) : extractXlsx(path);
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const deadline = new Promise<never>((_, reject) => {
+		timer = setTimeout(
+			() => reject(new Error(`Reading this ${DOCUMENT_FORMATS[kind]} took too long and was stopped.`)),
+			DOCUMENT_TIMEOUT_MS,
+		);
+	});
+	try {
+		return await Promise.race([extract, deadline]);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 function registerEverydayProfile(pi: ExtensionAPI): void {
 	if (!EVERYDAY) return;
 
@@ -1712,7 +1982,8 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		name: "read_file",
 		label: "Read",
 		description:
-			"Read a text file (documents, notes, CSV, …) and return its contents. " +
+			"Read a file and return its text: notes, CSV, and code, plus PDF, Word (.docx) " +
+			"and Excel (.xlsx), whose text is extracted for you. " +
 			"Use it before summarizing, answering questions about, or editing a file.",
 		parameters: {
 			type: "object",
@@ -1722,29 +1993,54 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 			required: ["path"],
 		},
 		execute: async (_toolCallId: string, params: { path: string }) => {
-			const resolved = resolveEverydayPath(String(params.path ?? ""));
+			const resolved = resolveEverydayPath(String(params.path ?? ""), { allowSkills: true });
 			if ("error" in resolved) throw new Error(resolved.error);
+
+			const extension = fileExtension(resolved.path);
+			const format = DOCUMENT_FORMATS[extension];
 			let body: string;
-			try {
-				body = await readFile(resolved.path, "utf8");
-			} catch (error) {
-				const code = errorCode(error);
-				if (code === "ENOENT") throw new Error(await missingPathHint(resolved.path));
-				if (code === "EISDIR") {
+			if (format) {
+				try {
+					body = await readDocument(extension, resolved.path);
+				} catch (error) {
+					if (errorCode(error) === "ENOENT") throw new Error(await missingPathHint(resolved.path));
+					throw error;
+				}
+			} else {
+				try {
+					body = await readFile(resolved.path, "utf8");
+				} catch (error) {
+					const code = errorCode(error);
+					if (code === "ENOENT") throw new Error(await missingPathHint(resolved.path));
+					if (code === "EISDIR") {
+						throw new Error(
+							`'${displayPath(resolved.path)}' is a folder, not a file. Use list_dir to see what is inside it.`,
+						);
+					}
+					throw error;
+				}
+				if (body.includes("\u0000")) {
+					// A format we know by name gets its own answer: the user learns
+					// what to do next, and the model stops retrying the same file.
+					const known = UNREADABLE_FORMATS[extension];
 					throw new Error(
-						`'${displayPath(resolved.path)}' is a folder, not a file. Use list_dir to see what is inside it.`,
+						known
+							? `'${displayPath(resolved.path)}' is ${known}`
+							: "This file is not text (it looks like an image, archive, or other binary format).",
 					);
 				}
-				throw error;
 			}
-			if (body.includes("\u0000")) {
-				throw new Error("This file is not text (it looks like an image, archive, or other binary format).");
-			}
+
 			const truncated = body.length > MAX_READ_CHARS;
-			const text = truncated ? `${body.slice(0, MAX_READ_CHARS)}\n\n…[truncated]` : body;
+			// The model cannot see where the text stopped. A summary of the first
+			// half, presented as a summary of the whole report, is the kind of
+			// wrong that reads as right — so say it in the content itself.
+			const text = truncated
+				? `${body.slice(0, MAX_READ_CHARS)}\n\n…[Cut off here. This file is longer than what you were given, so anything you say about the rest is a guess — tell the user it was cut off.]`
+				: body;
 			return {
 				content: [{ type: "text", text }],
-				details: { path: resolved.path, chars: body.length, truncated },
+				details: { path: resolved.path, chars: body.length, truncated, ...(format ? { format } : {}) },
 			};
 		},
 	});

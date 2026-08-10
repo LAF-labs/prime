@@ -113,6 +113,14 @@ const pkg = {
     // 462 KB -> 7 KB that the regex version could not extract at all.
     '@mozilla/readability': '0.6.0',
     'linkedom': '0.18.13',
+    // Document text extraction for the gate's read_file. The people this app
+    // is for keep their work in PDFs, Word files and spreadsheets, and until
+    // these were here "summarize this report" answered "this file is not
+    // text". One library per format, each doing nothing else, all loaded
+    // lazily so a session that opens no documents pays nothing.
+    'unpdf': '1.8.0',
+    'mammoth': '1.12.1',
+    'read-excel-file': '9.3.9',
   },
 };
 fs.writeFileSync(`${out}/package.json`, JSON.stringify(pkg, null, 1));

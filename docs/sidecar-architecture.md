@@ -167,15 +167,26 @@ per folder in `src-tauri/resources/laf-skills/`. Nothing else loads.
 Left to itself the harness scans `~/.agents/skills` — a directory shared with
 every other agent tool installed on the machine — plus `.agents/skills` in the
 working folder and each of its ancestors up to the repo root, and
-`~/.lafagent/skills`. Whatever it finds is loaded: `formatSkillsForPrompt`
-injects each skill's name and description into the system prompt on *every*
-turn, and each is registered as a `/skill:` command in the palette.
+`~/.lafagent/skills`. Whatever it finds is loaded and registered as a `/skill:`
+command, and `formatSkillsForPrompt` puts each one's description in the system
+prompt.
 
 Measured on a real machine, that meant three third-party skills belonging to
 other tools — including one whose instructions were "fetch your rules from a
-licensed MCP server, and set `UIDOTSH_TOKEN` to your license token." Someone
-else's product, in our prompt, billed to our user as tokens on every request,
-whether or not they ever invoked it.
+licensed MCP server, and set `UIDOTSH_TOKEN` to your license token." Invoking
+it would have put another vendor's instructions into the conversation and asked
+the user for a license key.
+
+One thing that did *not* happen, and is worth stating because it is easy to
+assume otherwise: those descriptions never reached our system prompt. The
+everyday profile returns its own prompt from `before_agent_start`, and the
+harness replaces the base wholesale (`_applyPreparedSystemPrompt`), so the
+`<available_skills>` block went with it. The leak was the palette and the
+`/skill:` expansion, not per-turn tokens.
+
+That same replacement is why the everyday prompt builds its own skills list
+(see below): without it, a skill we ship would never be mentioned to the model
+at all.
 
 The same flags go on the research children the gate spawns, where an injected
 skill would be even less visible.
@@ -185,8 +196,20 @@ skill would be even less visible.
 sidecar's own bundled skills (`notion`, `attach-image`) do not: both are Python
 skills that call into the IPython kernel, and `--no-builtin-tools` removes it.
 
-Deleting rather than hiding matters: hiding a skill from the palette leaves it
-in the prompt, where it still costs tokens and the model can still invoke it.
+## The skills we ship
+
+`src-tauri/resources/laf-skills/` holds them, tracked in this repo rather than
+in the harness fork, and bundled by `tauri.conf.json`. Three today:
+`organize-files`, `find-file`, `summarize-docs`.
+
+Each is a plain Markdown procedure written against the everyday tools. The gate
+lists name, description and full path in the system prompt — about 750
+characters for all three — and the body is read on demand with `read_file`.
+That split is the point: a skill costs a line of prompt until it is used.
+
+The folder sits inside the app bundle, outside the workspace and home roots the
+everyday tools are confined to, so `resolveEverydayPath` takes it as a
+read-only root that only `read_file` opts into. Nothing can write there.
 
 ## The real cost: version drift
 

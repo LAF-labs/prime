@@ -1,0 +1,194 @@
+// @vitest-environment node
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+const GATE = new URL('./laf-agent-gate.ts', import.meta.url).pathname
+
+interface CapturedTool {
+  name: string
+  execute: (
+    id: string,
+    params: Record<string, unknown>,
+  ) => Promise<{ content: { text: string }[]; details?: Record<string, unknown> }>
+}
+
+let loadCounter = 0
+async function loadGate(): Promise<Map<string, CapturedTool>> {
+  const tools = new Map<string, CapturedTool>()
+  const pi = {
+    registerTool: (tool: CapturedTool) => tools.set(tool.name, tool),
+    registerCommand: () => {},
+    on: () => {},
+  }
+  const mod = await import(`${GATE}?documents=${(loadCounter += 1)}`)
+  mod.default(pi)
+  return tools
+}
+
+/**
+ * A PDF that is genuinely a PDF.
+ *
+ * Hand-writing one would test the fixture as much as the reader, so this
+ * borrows a real multi-page document that ships with Xcode. Where Xcode is
+ * absent the PDF cases skip rather than fail — they would be testing the
+ * machine, not the gate.
+ */
+const XCODE_PDF = '/Applications/Xcode.app/Contents/Resources/en.lproj/License.pdf'
+const hasPdfFixture = existsSync(XCODE_PDF)
+
+/**
+ * Zip a directory into `path`, using the system `zip`.
+ *
+ * .docx and .xlsx are ordinary zip archives, so the fixtures are built with
+ * the real thing rather than a library — one less dependency, and no risk of
+ * testing a zip writer's idea of a document instead of a document.
+ */
+function zipDirInto(dir: string, path: string): void {
+  execFileSync('zip', ['-q', '-X', '-r', path, '.'], { cwd: dir })
+}
+
+/** Build a minimal .docx holding one paragraph. */
+function writeDocx(path: string, text: string): void {
+  const dir = mkdtempSync(join(tmpdir(), 'laf-docx-'))
+  mkdirSync(join(dir, '_rels'))
+  mkdirSync(join(dir, 'word'))
+  writeFileSync(
+    join(dir, '[Content_Types].xml'),
+    `<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+  )
+  writeFileSync(
+    join(dir, '_rels', '.rels'),
+    `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+  )
+  writeFileSync(
+    join(dir, 'word', 'document.xml'),
+    `<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`,
+  )
+  zipDirInto(dir, path)
+  rmSync(dir, { recursive: true, force: true })
+}
+
+/** Build a minimal .xlsx with a header row and a data row on a named sheet. */
+function writeXlsx(path: string): void {
+  const dir = mkdtempSync(join(tmpdir(), 'laf-xlsx-'))
+  mkdirSync(join(dir, '_rels'))
+  mkdirSync(join(dir, 'xl', '_rels'), { recursive: true })
+  mkdirSync(join(dir, 'xl', 'worksheets'))
+  writeFileSync(
+    join(dir, '[Content_Types].xml'),
+    `<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+  )
+  writeFileSync(
+    join(dir, '_rels', '.rels'),
+    `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+  )
+  writeFileSync(
+    join(dir, 'xl', 'workbook.xml'),
+    `<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="매출" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+  )
+  writeFileSync(
+    join(dir, 'xl', '_rels', 'workbook.xml.rels'),
+    `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+  )
+  writeFileSync(
+    join(dir, 'xl', 'worksheets', 'sheet1.xml'),
+    `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>품목</t></is></c><c r="B1" t="inlineStr"><is><t>금액</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>커피</t></is></c><c r="B2"><v>4500</v></c></row></sheetData></worksheet>`,
+  )
+  zipDirInto(dir, path)
+  rmSync(dir, { recursive: true, force: true })
+}
+
+let home: string
+let realHome: string | undefined
+
+beforeAll(() => {
+  home = mkdtempSync(join(tmpdir(), 'laf-documents-'))
+  realHome = process.env.HOME
+  process.env.LAF_PROFILE = 'everyday'
+  process.env.LAF_MEMORY_PATH = join(home, 'memories.json')
+  process.env.LAF_WORKSPACE = home
+  process.env.HOME = home
+  writeDocx(join(home, 'report.docx'), '분기 보고서입니다. Revenue grew 12%.')
+  writeXlsx(join(home, 'sales.xlsx'))
+  if (hasPdfFixture) copyFileSync(XCODE_PDF, join(home, 'license.pdf'))
+})
+
+afterAll(() => {
+  delete process.env.LAF_PROFILE
+  delete process.env.LAF_MEMORY_PATH
+  delete process.env.LAF_WORKSPACE
+  if (realHome === undefined) delete process.env.HOME
+  else process.env.HOME = realHome
+  rmSync(home, { recursive: true, force: true })
+})
+
+describe('read_file on documents that are not plain text', () => {
+  it('reads a Word document, including its Korean text', async () => {
+    const tools = await loadGate()
+    const result = await tools.get('read_file')!.execute('c', { path: join(home, 'report.docx') })
+    expect(result.content[0].text).toContain('분기 보고서입니다')
+    expect(result.content[0].text).toContain('Revenue grew 12%')
+    expect(result.details?.format).toBe('Word document')
+  })
+
+  it('reads a spreadsheet as rows, keeping the sheet name', async () => {
+    const tools = await loadGate()
+    const result = await tools.get('read_file')!.execute('c', { path: join(home, 'sales.xlsx') })
+    const text = result.content[0].text
+    expect(text).toContain('매출')
+    expect(text).toContain('커피')
+    expect(text).toContain('4500')
+    expect(result.details?.format).toBe('spreadsheet')
+  })
+
+  it.skipIf(!hasPdfFixture)('reads a real multi-page PDF', async () => {
+    const tools = await loadGate()
+    const result = await tools.get('read_file')!.execute('c', { path: join(home, 'license.pdf') })
+    expect(result.content[0].text.length).toBeGreaterThan(500)
+    expect(result.details?.format).toBe('PDF')
+  }, 30_000)
+
+  /**
+   * A .docx that is not a .docx must fail as a document, not crash the turn.
+   */
+  it('fails cleanly when the file is not the format its name claims', async () => {
+    writeFileSync(join(home, 'fake.docx'), 'this is just text, not a zip')
+    const tools = await loadGate()
+    await expect(
+      tools.get('read_file')!.execute('c', { path: join(home, 'fake.docx') }),
+    ).rejects.toThrow()
+  })
+
+  /**
+   * Naming the format is the difference between a user who knows to re-save
+   * the file and a user who thinks the app is broken.
+   */
+  it('names a format it cannot read instead of saying "not text"', async () => {
+    // A .hwp begins with an OLE compound-file signature — binary, so the text
+    // path rejects it, and the name is what tells us what it is.
+    writeFileSync(join(home, 'notice.hwp'), Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0x00, 0x01, 0x02]))
+    const tools = await loadGate()
+    await expect(
+      tools.get('read_file')!.execute('c', { path: join(home, 'notice.hwp') }),
+    ).rejects.toThrow(/Hangul Word Processor/)
+  })
+
+  it('still refuses an unknown binary file', async () => {
+    writeFileSync(join(home, 'blob.bin'), Buffer.from([0x00, 0x01, 0x02, 0x00]))
+    const tools = await loadGate()
+    await expect(
+      tools.get('read_file')!.execute('c', { path: join(home, 'blob.bin') }),
+    ).rejects.toThrow(/not text/)
+  })
+
+  it('still reads a plain text file unchanged', async () => {
+    writeFileSync(join(home, 'notes.md'), '# Notes\n\nplain as ever')
+    const tools = await loadGate()
+    const result = await tools.get('read_file')!.execute('c', { path: join(home, 'notes.md') })
+    expect(result.content[0].text).toContain('plain as ever')
+    expect(result.details?.format).toBeUndefined()
+  })
+})

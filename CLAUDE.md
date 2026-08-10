@@ -220,10 +220,15 @@ bun run clean
 A task is not done until these pass with zero errors:
 
 ```bash
-bun run check:ts
-bun run test:ui
-cargo test --lib --manifest-path src-tauri/Cargo.toml
+bun run check
+bun run test
 ```
+
+`check` is tsc + oxlint + `cargo check`; `test` is vitest + `cargo test`.
+Between them they run exactly what CI runs, which is the point — CI once
+failed on 18 lint errors and a broken `examples/` binary that the narrower
+commands never compiled. Reach for `check:ts`, `lint`, `test:ui` or
+`test:rust` individually while iterating, but not as the final gate.
 
 Run `bun run build` before shipping a release.
 

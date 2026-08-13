@@ -33,13 +33,15 @@ const READ_ONLY_TOOLS = new Set([
 	"find",
 	"list",
 	"list_dir",
+	"knowledge_search",
+	"knowledge_read",
 ]);
 
 /**
  * Tools that never need an approval dialog even though they aren't reads:
  * their only side effect is on LAF Agent's own state, not the user's files.
  */
-const PROMPTLESS_TOOLS = new Set(["remember"]);
+const PROMPTLESS_TOOLS = new Set(["remember", "knowledge_save"]);
 
 async function summarize(toolName: string, input: Record<string, unknown>): Promise<string> {
 	let summary = "";
@@ -2187,11 +2189,16 @@ function buildEverydayPrompt(cwd: string): string {
 	// identical prefix for the provider's prompt cache.
 	const skills = loadSkills();
 	if (skills.length > 0) {
+		// The folder is named once and each line carries only the skill's own
+		// subpath. With seven skills the old format — a full absolute path on
+		// every line — spent more characters on one repeated directory than on
+		// all the descriptions combined. Every character here is paid on every
+		// request of every session.
 		parts.push(
 			"",
-			"Some jobs have step-by-step instructions. When one matches what was asked, read its file with read_file and follow it.",
+			`Some jobs have step-by-step instructions, as files under ${SKILLS_DIR}. When one matches what was asked, read its file with read_file and follow it:`,
 		);
-		for (const skill of skills) parts.push(`- ${skill.description} → ${skill.path}`);
+		for (const skill of skills) parts.push(`- ${skill.name}/SKILL.md — ${skill.description}`);
 	}
 
 	// Budgeted here as well as on save: an install that already has a long
@@ -2325,7 +2332,12 @@ async function missingPathHint(target: string): Promise<string> {
 	const more = names.length > 30 ? `, and ${names.length - 30} more` : "";
 	return (
 		`'${base}' is not in '${displayPath(parent)}'. That folder contains: ${shown}${more}. ` +
-		"Use one of these names exactly as written — do not translate or re-spell it."
+		// An imperative aimed at the model, ending in "retry now". The softer
+		// wording ("use one of these names") was measured being relayed to the
+		// user as advice — the model corrected nobody but the person, and
+		// stopped. Same lesson as the argument-repair messages: name the next
+		// action, or the correction becomes commentary.
+		"Pick the matching name from that list and call this tool again with it now — copied exactly, never translated or re-spelled."
 	);
 }
 
@@ -3028,6 +3040,215 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				content: [{ type: "text", text: `Remembered.${note} (${kept.length} memories total)` }],
 				details: { total: kept.length, dropped },
 			};
+		},
+	});
+
+	registerKnowledgeTools(pi);
+}
+
+// ── The knowledge base: one local graph per account ────────────────────
+//
+// Karpathy's LLM-knowledge-base shape: instead of searching raw sources, the
+// model *compiles* what it reads into small wiki notes, cross-linked with
+// [[note-name]] references — the links are the graph's edges. When a question
+// comes later, it searches and reads already-distilled notes instead of
+// re-reading the originals.
+//
+// Chosen over the Cerebras architecture (a unified embeddings table with
+// hybrid retrieval) deliberately: that design needs an embedding model and an
+// index, and this product's constraint is LOCAL-ONLY — no service, nothing
+// leaves the machine. Plain markdown files need neither. They are also the
+// shape of the future the product plans for: the *notes* (the skeleton graph)
+// can sync per-file to other devices on a paid plan later, while `source:`
+// lines keep pointing at local paths that never leave this machine.
+//
+// How this differs from `remember`: memories are facts about the *user*,
+// capped tight because every one is injected into every prompt. Knowledge is
+// about the user's *work* — projects, clients, documents — and is never
+// injected; the model reaches for it through search, so it can afford to be
+// two orders of magnitude larger.
+//
+// Storage is `~/.laf-agent/knowledge/<name>.md`, one note per file:
+//
+//   updated: 2026-08-14
+//   source: /Users/me/Documents/계약서.pdf
+//
+//   본문, [[다른-노트]] 링크 포함…
+
+const KNOWLEDGE_DIR = process.env.LAF_KNOWLEDGE_DIR || joinPath(HOME, ".laf-agent", "knowledge");
+const MAX_KNOWLEDGE_NOTES = 400;
+const MAX_KNOWLEDGE_NOTE_CHARS = 6_000;
+const MAX_KNOWLEDGE_RESULTS = 12;
+
+/** A note name as a filename: lowercase kebab, Korean kept, no separators. */
+function knowledgeSlug(raw: string): string {
+	return raw
+		.trim()
+		.toLowerCase()
+		.replace(/[\\/:*?"<>|.]/g, "")
+		.replace(/\s+/g, "-")
+		.slice(0, 80);
+}
+
+function knowledgeNotePath(name: string): string {
+	return joinPath(KNOWLEDGE_DIR, `${knowledgeSlug(name)}.md`);
+}
+
+function listKnowledgeNotes(): string[] {
+	try {
+		return readdirSync(KNOWLEDGE_DIR)
+			.filter((f) => f.endsWith(".md"))
+			.map((f) => f.slice(0, -3));
+	} catch {
+		return [];
+	}
+}
+
+function registerKnowledgeTools(pi: ExtensionAPI): void {
+	pi.registerTool({
+		name: "knowledge_save",
+		label: "Knowledge",
+		description:
+			"Save or update one note in the user's personal knowledge base — a distilled summary of a " +
+			"document, a project, a client, a topic. Write it so a future conversation can answer from the " +
+			"note alone; link related notes as [[note-name]]; name the source file on a `source:` line. " +
+			"Use it after reading something worth keeping, or when the user asks to save knowledge. " +
+			"Notes persist across conversations on this machine.",
+		parameters: {
+			type: "object",
+			properties: {
+				name: { type: "string", description: "Short note name, e.g. '케이리뷰-계약' or 'kreview-contract'" },
+				content: {
+					type: "string",
+					description: "The full note text (markdown; [[links]] to related notes; a `source:` line for the original file)",
+				},
+			},
+			required: ["name", "content"],
+		},
+		execute: async (_toolCallId: string, params: { name: string; content: string }) => {
+			const slug = knowledgeSlug(String(params.name ?? ""));
+			if (!slug) throw new Error("knowledge_save needs a non-empty name.");
+			const content = String(params.content ?? "").trim();
+			if (!content) throw new Error("knowledge_save needs non-empty content.");
+			if (content.length > MAX_KNOWLEDGE_NOTE_CHARS) {
+				throw new Error(
+					`Keep one note under ${MAX_KNOWLEDGE_NOTE_CHARS} characters — split it into linked notes instead.`,
+				);
+			}
+			const existing = listKnowledgeNotes();
+			const isUpdate = existing.includes(slug);
+			if (!isUpdate && existing.length >= MAX_KNOWLEDGE_NOTES) {
+				throw new Error(
+					`The knowledge base is full (${MAX_KNOWLEDGE_NOTES} notes). Update an existing note, or tell the user the limit was reached.`,
+				);
+			}
+			mkdirSync(KNOWLEDGE_DIR, { recursive: true });
+			const body = `updated: ${new Date().toISOString().slice(0, 10)}\n\n${content}\n`;
+			// Same temp-and-rename as the memory file, for the same reason: a
+			// torn write must not eat a note.
+			const temporary = `${knowledgeNotePath(slug)}.tmp.${process.pid}`;
+			try {
+				writeFileSync(temporary, body, "utf8");
+				renameSync(temporary, knowledgeNotePath(slug));
+			} catch (error) {
+				try {
+					rmSync(temporary, { force: true });
+				} catch {
+					// The original note, if any, is intact either way.
+				}
+				throw error;
+			}
+			return {
+				content: [{ type: "text", text: `${isUpdate ? "Updated" : "Saved"} note '${slug}'.` }],
+				details: { name: slug, updated: isUpdate },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "knowledge_search",
+		label: "Knowledge",
+		description:
+			"Search the user's personal knowledge base. Call this FIRST when they ask about their own " +
+			"projects, clients, documents, or anything discussed in past conversations — before saying " +
+			"you don't know, and before re-reading original files. Returns matching note names and snippets.",
+		parameters: {
+			type: "object",
+			properties: {
+				query: { type: "string", description: "Words to look for, in any language" },
+			},
+			required: ["query"],
+		},
+		execute: async (_toolCallId: string, params: { query: string }) => {
+			const query = String(params.query ?? "").trim().toLowerCase();
+			if (!query) throw new Error("knowledge_search needs a query.");
+			const terms = query.split(/\s+/).filter(Boolean);
+			const hits: Array<{ name: string; score: number; snippet: string }> = [];
+			for (const name of listKnowledgeNotes()) {
+				let text = "";
+				try {
+					text = readFileSync(joinPath(KNOWLEDGE_DIR, `${name}.md`), "utf8");
+				} catch {
+					continue;
+				}
+				const haystack = `${name}\n${text}`.toLowerCase();
+				const matched = terms.filter((t) => haystack.includes(t));
+				if (matched.length === 0) continue;
+				const at = haystack.indexOf(matched[0]);
+				const snippet = text.slice(Math.max(0, at - 40), at + 160).replace(/\s+/g, " ").trim();
+				hits.push({ name, score: matched.length + (name.toLowerCase().includes(terms[0]) ? 1 : 0), snippet });
+			}
+			hits.sort((a, b) => b.score - a.score);
+			const top = hits.slice(0, MAX_KNOWLEDGE_RESULTS);
+			if (top.length === 0) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `No notes match "${params.query}". The knowledge base has ${listKnowledgeNotes().length} note(s).`,
+						},
+					],
+					details: { hits: 0 },
+				};
+			}
+			const lines = top.map((h) => `- ${h.name} — ${h.snippet}`);
+			return {
+				content: [
+					{
+						type: "text",
+						text: `${lines.join("\n")}\n\n(Read a note in full with knowledge_read before answering from it.)`,
+					},
+				],
+				details: { hits: top.length },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "knowledge_read",
+		label: "Knowledge",
+		description: "Read one note from the user's knowledge base in full, by name.",
+		parameters: {
+			type: "object",
+			properties: {
+				name: { type: "string", description: "The note name, as returned by knowledge_search" },
+			},
+			required: ["name"],
+		},
+		execute: async (_toolCallId: string, params: { name: string }) => {
+			const slug = knowledgeSlug(String(params.name ?? ""));
+			let text: string;
+			try {
+				text = readFileSync(knowledgeNotePath(slug), "utf8");
+			} catch {
+				const names = listKnowledgeNotes();
+				throw new Error(
+					names.length === 0
+						? "The knowledge base is empty."
+						: `No note named '${slug}'. Notes: ${names.slice(0, 30).join(", ")}`,
+				);
+			}
+			return { content: [{ type: "text", text }], details: { name: slug } };
 		},
 	});
 }

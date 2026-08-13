@@ -198,6 +198,42 @@ describe('everyday profile', () => {
   })
 
   /**
+   * The knowledge base: Karpathy-shaped — the model compiles what it reads
+   * into small linked notes, and later sessions search those instead of
+   * re-reading originals. Verified live end-to-end (compile a real .hwp
+   * contract, recall its payment terms in a fresh session); these tests pin
+   * the deterministic parts.
+   */
+  it('saves, finds, and reads back a knowledge note', async () => {
+    const { tools } = await loadGate()
+    await tools.get('knowledge_save')?.execute('c', {
+      name: '케이리뷰 계약',
+      content: '# 계약\n\n잔금은 검수 후 7영업일. [[케이리뷰]] 프로젝트.\nsource: ~/Downloads/계약서.hwp',
+    })
+    const found = await tools.get('knowledge_search')?.execute('c', { query: '잔금 검수' })
+    expect(found?.content[0]?.text).toContain('케이리뷰-계약')
+    const note = await tools.get('knowledge_read')?.execute('c', { name: '케이리뷰-계약' })
+    expect(note?.content[0]?.text).toContain('7영업일')
+    expect(note?.content[0]?.text).toContain('[[케이리뷰]]')
+  })
+
+  it('updates a note in place rather than piling up duplicates', async () => {
+    const { tools } = await loadGate()
+    await tools.get('knowledge_save')?.execute('c', { name: 'proj', content: 'v1' })
+    await tools.get('knowledge_save')?.execute('c', { name: 'proj', content: 'v2' })
+    const note = await tools.get('knowledge_read')?.execute('c', { name: 'proj' })
+    expect(note?.content[0]?.text).toContain('v2')
+    expect(note?.content[0]?.text).not.toContain('v1')
+  })
+
+  it('refuses an oversized note with advice, not silence', async () => {
+    const { tools } = await loadGate()
+    await expect(
+      tools.get('knowledge_save')?.execute('c', { name: 'big', content: 'x'.repeat(7000) }),
+    ).rejects.toThrow(/split it into linked notes/)
+  })
+
+  /**
    * The nudge is the deterministic half of an unreliable thing.
    *
    * Told "기억해줘" in six phrasings, the model called the tool in one. Leading
@@ -615,12 +651,17 @@ describe('everyday not-found recovery', () => {
     ).rejects.toThrow(/보고서\.txt/)
   })
 
-  it('tells the model not to translate or re-spell the name', async () => {
+  /**
+   * The hint must end in "call this tool again" — measured, the softer "use
+   * one of these names" got relayed to the *user* as advice and the model
+   * stopped. Naming the next action is what turns a correction into a retry.
+   */
+  it('tells the model to retry with the exact name, never a translation', async () => {
     writeFileSync(join(home, '자료.txt'), 'x')
     const { tools } = await loadGate()
     await expect(
       tools.get('read_file')?.execute('c', { path: join(home, 'data.txt') }),
-    ).rejects.toThrow(/do not translate or re-spell/)
+    ).rejects.toThrow(/call this tool again .*never translated/)
   })
 
   it('says the folder is empty rather than listing nothing', async () => {

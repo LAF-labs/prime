@@ -72,8 +72,11 @@ afterAll(() => {
 describe('shipped skills reach the model', () => {
   it('lists every shipped skill in the prompt', async () => {
     const { prompt } = await loadGate()
+    // The folder is stated once and each line carries `<name>/SKILL.md` — the
+    // model joins the two. Both halves have to be present for that to work.
+    expect(prompt).toContain(SHIPPED)
     for (const name of readdirSync(SHIPPED)) {
-      expect(prompt).toContain(join(SHIPPED, name, 'SKILL.md'))
+      expect(prompt).toContain(`${name}/SKILL.md`)
     }
   })
 
@@ -84,15 +87,21 @@ describe('shipped skills reach the model', () => {
 
   /**
    * Every fixed token is paid on every request of every session. The base
-   * prompt is held under 2,000 characters by its own test; three skills add
-   * roughly 750 more — a line each, with the full path so the model never has
-   * to assemble one. That is the deliberate trade. What this catches is a
-   * skill's *body* leaking into the prompt, which is the whole reason a skill
-   * is a file the model opens on demand rather than more prompt.
+   * prompt is held under 2,000 characters by its own test; seven skills add
+   * a header naming the folder once plus a `name/SKILL.md — description` line
+   * each. The limit was 2,700 when three skills shipped; 3,300 is the priced
+   * decision to ship seven, made when the user asked for the catalog to grow.
+   * What this still catches is a skill's *body* leaking into the prompt —
+   * the whole reason a skill is a file the model opens on demand.
+   *
+   * The next skill fits. The one after that probably should not raise this
+   * number again: past that point the right shape is injecting only the
+   * matching skill per turn (the remember-nudge mechanism), not a longer
+   * standing list.
    */
   it('keeps the fixed prompt within budget even with the skills listed', async () => {
     const { prompt } = await loadGate()
-    expect(prompt.length).toBeLessThan(2700)
+    expect(prompt.length).toBeLessThan(3300)
   })
 
   it('says nothing about skills when none ship', async () => {
@@ -173,7 +182,11 @@ describe('the shipped skill files themselves', () => {
 
   it.each(names)('%s only tells the model to use tools that exist', (dir) => {
     const body = readFileSync(join(SHIPPED, dir, 'SKILL.md'), 'utf8')
-    const known = ['read_file', 'list_dir', 'write_file', 'organize', 'remember', 'web_search', 'web_fetch', 'research']
+    const known = [
+      'read_file', 'list_dir', 'write_file', 'organize', 'remember',
+      'web_search', 'web_fetch', 'research',
+      'knowledge_save', 'knowledge_search', 'knowledge_read',
+    ]
     for (const mentioned of body.match(/`([a-z_]+)`/g) ?? []) {
       const tool = mentioned.slice(1, -1)
       // Only judge things that look like a tool call, not prose in backticks.

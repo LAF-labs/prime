@@ -216,6 +216,32 @@ describe('everyday profile', () => {
     expect(prompt).toContain('Prefers green tea')
   })
 
+  /**
+   * The file was written in place, so a crash or a full disk mid-write left it
+   * truncated — and `loadMemories` reads a truncated file as no memories at
+   * all. The user would be told nothing; they would just find the assistant
+   * had forgotten them. `everyday_memory.rs` writes this same file through a
+   * temp-and-rename for exactly this reason, and the gate now matches it.
+   */
+  it('leaves the previous memories intact when a write fails', async () => {
+    const { tools } = await loadGate()
+    await tools.get('remember')?.execute('c', { fact: 'Lives in Seoul' })
+    const before = readFileSync(memoryPath, 'utf8')
+
+    // A directory where the temp file wants to be: the write fails, the rename
+    // never happens, and the real file is never opened for writing.
+    const blocker = `${memoryPath}.tmp.${process.pid}`
+    mkdirSync(blocker, { recursive: true })
+    try {
+      await expect(
+        tools.get('remember')?.execute('c', { fact: 'Prefers green tea' }),
+      ).rejects.toThrow()
+      expect(readFileSync(memoryPath, 'utf8')).toBe(before)
+    } finally {
+      rmSync(blocker, { recursive: true, force: true })
+    }
+  })
+
   it('does not remember the same fact twice', async () => {
     const { tools } = await loadGate()
     await tools.get('remember')?.execute('c', { fact: 'Lives in Seoul' })

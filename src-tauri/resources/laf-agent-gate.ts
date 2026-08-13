@@ -13,7 +13,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, open, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join as joinPath, resolve as resolvePath } from "node:path";
@@ -278,7 +278,14 @@ function ensureSandbox(): Promise<boolean> {
 						"~/.gnupg",
 						"~/.config/gh",
 						"~/.netrc",
+						// All three directories this product has kept private data
+						// in. `~/.lafagent` is the agent runtime's config — API
+						// keys, model definitions, session transcripts.
+						// `~/.laf-agent` is the app's own, and holds the facts the
+						// user asked to be remembered. `~/.prime/agent` is the
+						// pre-rename config, still present on upgraded installs.
 						"~/.lafagent",
+						"~/.laf-agent",
 						"~/.prime/agent",
 					],
 				},
@@ -1724,7 +1731,27 @@ function loadMemories(): EverydayMemory[] {
 
 function saveMemories(memories: EverydayMemory[]): void {
 	mkdirSync(MEMORY_DIR, { recursive: true });
-	writeFileSync(MEMORY_PATH, `${JSON.stringify(memories, null, "\t")}\n`, "utf8");
+	// Write beside the file and rename over it: a rename is atomic, a write is
+	// not. Writing in place leaves a window where the file is truncated, and
+	// `loadMemories` reads a half-written file as no memories at all — the user
+	// would be told nothing and simply find the assistant had forgotten them.
+	// Same directory, so the rename cannot cross a filesystem boundary. The pid
+	// in the name and the cleanup on failure match what `everyday_memory.rs`
+	// already does — the app writes this same file when the user edits their
+	// memories in Settings, and the two must not collide on one temp name or
+	// leave debris behind.
+	const temporary = `${MEMORY_PATH}.tmp.${process.pid}`;
+	try {
+		writeFileSync(temporary, `${JSON.stringify(memories, null, "\t")}\n`, "utf8");
+		renameSync(temporary, MEMORY_PATH);
+	} catch (error) {
+		try {
+			rmSync(temporary, { force: true });
+		} catch {
+			// Nothing useful to do; the original file is intact either way.
+		}
+		throw error;
+	}
 }
 
 /**

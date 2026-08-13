@@ -481,6 +481,7 @@ export const ko: Record<string, string> = {
   'Downloading... {pct}%': '다운로드 중... {pct}%',
   'Update installed — restart to finish': '업데이트 설치 완료 — 재시작하면 적용됩니다',
   'Update check failed': '업데이트 확인 실패',
+  'Could not check for updates right now': '지금은 업데이트를 확인할 수 없습니다',
   'Update download failed': '업데이트 다운로드 실패',
   'Download failed': '다운로드 실패',
   'Restart failed': '재시작 실패',

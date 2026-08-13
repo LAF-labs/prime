@@ -2,23 +2,35 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- TCC usage descriptions: macOS shows these strings in permission prompts.
-         LAF Agent only needs file access to user-selected project folders.
-         These keys prevent generic/confusing TCC prompts for protected directories. -->
+    <!-- macOS shows these strings verbatim in its own permission prompt, which
+         makes them the most-read copy in the product: every user meets them the
+         first time the assistant touches one of these folders, inside a system
+         dialog that offers Allow and Don't Allow and no way to ask a question.
+
+         So they say what the assistant will do with the folder, in the words a
+         non-developer uses for it. They said "to open projects located there"
+         until the day before release — accurate about a code editor, and about
+         nothing this product does now. Someone deciding whether to let an app
+         read their Documents folder should not have to work out what a project
+         is, and a prompt that reads as jargon is a prompt people deny.
+
+         Same rule as the rest of the user-facing copy (see CLAUDE.md): "the
+         agent", never "prime-agent", and never a developer's word for the
+         user's own files. -->
 
     <key>NSDesktopFolderUsageDescription</key>
-    <string>LAF Agent needs access to your Desktop folder to open projects located there.</string>
+    <string>LAF Agent reads and organizes files on your Desktop when you ask it to.</string>
 
     <key>NSDocumentsFolderUsageDescription</key>
-    <string>LAF Agent needs access to your Documents folder to open projects located there.</string>
+    <string>LAF Agent reads and organizes files in your Documents folder when you ask it to.</string>
 
     <key>NSDownloadsFolderUsageDescription</key>
-    <string>LAF Agent needs access to your Downloads folder to open projects located there.</string>
+    <string>LAF Agent reads and organizes files in your Downloads folder when you ask it to.</string>
 
     <key>NSRemovableVolumesUsageDescription</key>
-    <string>LAF Agent needs access to removable volumes to open projects stored on external drives.</string>
+    <string>LAF Agent reads and organizes files on connected drives when you ask it to.</string>
 
     <key>NSNetworkVolumesUsageDescription</key>
-    <string>LAF Agent needs access to network volumes to open projects stored on network drives.</string>
+    <string>LAF Agent reads and organizes files on shared network drives when you ask it to.</string>
 </dict>
 </plist>

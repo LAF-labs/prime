@@ -12,12 +12,14 @@ const PRIMARY_BUTTON_CLASS =
   'inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50'
 
 export const UpdatesCard = () => {
-  const { status, updateInfo, progress, error, triggerDownload, triggerRestart } = useUpdateStore(
+  // `error` is deliberately not selected. The updater's own message is what
+  // this row used to show, and it is written for whoever can fix it, not for
+  // whoever is reading it; the log keeps it.
+  const { status, updateInfo, progress, triggerDownload, triggerRestart } = useUpdateStore(
     useShallow((s) => ({
       status: s.status,
       updateInfo: s.updateInfo,
       progress: s.progress,
-      error: s.error,
       triggerDownload: s.triggerDownload,
       triggerRestart: s.triggerRestart,
     })),
@@ -73,7 +75,13 @@ export const UpdatesCard = () => {
     if (status === 'available' && updateInfo) return t('v{version} available', { version: updateInfo.version })
     if (status === 'downloading') return pct !== null ? t('Downloading... {pct}%', { pct }) : t('Downloading...')
     if (status === 'ready') return t('Update installed — restart to finish')
-    if (status === 'error') return error ?? t('Update check failed')
+    // `error` is whatever the updater plugin threw, and what it throws most is
+    // `update endpoint did not respond with a successful status code` — which
+    // is what a user sees today, on every launch, because the only release is
+    // still a draft and GitHub does not serve `releases/latest` from drafts.
+    // It reads as something broken on their machine that they should fix. The
+    // raw text stays in the log, where whoever can act on it is looking.
+    if (status === 'error') return t('Could not check for updates right now')
     return t('LAF Agent is up to date')
   })()
 

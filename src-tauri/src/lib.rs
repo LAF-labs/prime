@@ -1,6 +1,6 @@
 pub mod commands;
 
-use commands::{rpc, analytics, everyday_memory, fs_ops, agent_resources, history_guard, resource_watcher, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
+use commands::{rpc, analytics, everyday_memory, knowledge, fs_ops, agent_resources, history_guard, resource_watcher, process_diagnostics, project_watcher, provider_discovery, pty, settings, summon, thread_db, thread_title, tracing as app_tracing};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::Emitter;
@@ -639,6 +639,8 @@ pub fn run() {
             history_guard::history_quarantine,
             // Everyday memories (facts the simple-mode assistant remembers)
             everyday_memory::everyday_memories_list,
+            knowledge::knowledge_graph,
+            knowledge::knowledge_note_body,
             everyday_memory::everyday_memory_delete,
             everyday_memory::everyday_memories_clear,
             // File ops

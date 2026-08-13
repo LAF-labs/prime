@@ -1,7 +1,7 @@
 import { t } from '@/lib/i18n'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  IconChartBar, IconSettings, IconLogout, IconLogin, IconUser, IconDownload,
+  IconChartBar, IconSettings, IconLogout, IconLogin, IconUser, IconDownload, IconVectorTriangle,
 } from '@tabler/icons-react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTaskStore } from '@/stores/taskStore'
@@ -58,6 +58,7 @@ export const AccountMenu = memo(function AccountMenu({
   const close = useCallback(() => setOpen(false), [])
 
   const handleUsage = useCallback(() => { close(); setView('analytics') }, [close, setView])
+  const handleKnowledge = useCallback(() => { close(); setView('knowledge') }, [close, setView])
   const handleSettings = useCallback(() => { close(); setSettingsOpen(true) }, [close, setSettingsOpen])
   const handleLogout = useCallback(() => { close(); void logout() }, [close, logout])
   const handleLogin = useCallback(() => { close(); openLogin() }, [close, openLogin])
@@ -94,6 +95,9 @@ export const AccountMenu = memo(function AccountMenu({
         >
           {isSignedIn ? (
             <>
+              <button type="button" role="menuitem" onClick={handleKnowledge} className={MENU_ITEM}>
+                <IconVectorTriangle className="size-3.5" aria-hidden /> {t('Knowledge')}
+              </button>
               <button type="button" role="menuitem" onClick={handleUsage} className={MENU_ITEM}>
                 <IconChartBar className="size-3.5" aria-hidden /> {t('Usage')}
               </button>

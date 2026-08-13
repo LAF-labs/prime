@@ -37,6 +37,11 @@ const AnalyticsDashboard = lazy(() =>
     default: m.AnalyticsDashboard,
   })),
 );
+const KnowledgeView = lazy(() =>
+  import("@/components/knowledge/KnowledgeView").then((m) => ({
+    default: m.KnowledgeView,
+  })),
+);
 import { useTaskStore, initTaskListeners } from "@/stores/taskStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
@@ -353,7 +358,7 @@ export function App() {
           const archivedMeta = state.archivedMeta
           if (ui.selectedTaskId && (tasks[ui.selectedTaskId] || archivedMeta[ui.selectedTaskId])) {
             state.setSelectedTask(ui.selectedTaskId)
-            const validViews = ['chat', 'dashboard', 'analytics'] as const
+            const validViews = ['chat', 'dashboard', 'analytics', 'knowledge'] as const
             if (validViews.includes(ui.view as typeof validViews[number])) {
               state.setView(ui.view as typeof validViews[number])
             }
@@ -734,6 +739,8 @@ export function App() {
                 <Suspense fallback={<PanelFallback />}>
                   {view === 'analytics' ? (
                     <AnalyticsDashboard />
+                  ) : view === 'knowledge' ? (
+                    <KnowledgeView />
                   ) : selectedTaskId && activeSplitId ? (
                     <SplitChatLayout />
                   ) : selectedTaskId ? (

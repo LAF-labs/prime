@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Dev-only harness for the knowledge graph.
+
+     The full app cannot run in a plain browser — Tauri APIs throw at the
+     first header render — so design iteration on the graph happens here:
+     `bun run dev:renderer`, open /graph-preview.html, and the component
+     renders against mock data with no Tauri in sight. Not part of any
+     build; tauri.conf's frontendDist ships dist/, and vite only emits
+     entries it is told about. -->
+<html lang="ko" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knowledge graph preview</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/renderer/graph-preview.tsx"></script>
+  </body>
+</html>

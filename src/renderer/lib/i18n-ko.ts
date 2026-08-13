@@ -309,6 +309,11 @@ export const ko: Record<string, string> = {
   // ── Account row & bug report ──────────────────────────────────────
   'Not signed in': '로그인하지 않음',
   'Usage': '사용량',
+  'Knowledge': '지식',
+  '{count} notes': '노트 {count}개',
+  'Nothing here yet': '아직 아무것도 없어요',
+  'Ask the assistant to save something — "이 계약서 내용 저장해둬" — and it will appear here as a note, linked to everything related.': '어시스턴트에게 저장을 부탁해보세요 — "이 계약서 내용 저장해둬" — 그러면 관련된 것들과 연결된 노트로 여기에 나타납니다.',
+  'Updated {date}': '{date} 업데이트',
   'Log out': '로그아웃',
   'Show agents and tools': '에이전트와 도구 보기',
   'Hide agents and tools': '에이전트와 도구 숨기기',

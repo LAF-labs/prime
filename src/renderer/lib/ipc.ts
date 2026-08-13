@@ -38,6 +38,20 @@ export interface EverydayMemory {
   at: string
 }
 
+/** One note of the local knowledge base, as the graph view consumes it. */
+export interface KnowledgeNote {
+  /** The slug — filename without `.md`, and what [[links]] point at. */
+  name: string
+  /** First heading of the note, for display. */
+  title: string
+  /** `updated:` line, when the note carries one. */
+  updated: string | null
+  /** Outgoing [[links]], deduplicated. */
+  links: string[]
+  /** Body length in characters — node size scales with substance. */
+  chars: number
+}
+
 /** What `history_health` reports about a store file on disk. */
 export interface HistoryHealth {
   /** False on a first run, which is not a fault. */
@@ -146,6 +160,18 @@ export const ipc = {
   /** Forget everything: the store file is removed, not emptied. */
   everydayMemoriesClear: (): Promise<void> =>
     invoke('everyday_memories_clear'),
+
+  // ── Knowledge base ───────────────────────────────────────────────────────
+  /**
+   * Every note in the user's local knowledge base with its outgoing
+   * [[links]] — the node-and-edge list the graph view draws. Missing folder
+   * or unreadable notes degrade to fewer notes, never to a rejection.
+   */
+  knowledgeGraph: (): Promise<KnowledgeNote[]> =>
+    invoke('knowledge_graph'),
+  /** One note's markdown body, for the panel a clicked node opens. */
+  knowledgeNoteBody: (name: string): Promise<string> =>
+    invoke('knowledge_note_body', { name }),
 
   // ── History integrity ────────────────────────────────────────────────────
   /**

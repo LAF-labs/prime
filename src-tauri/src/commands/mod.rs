@@ -6,6 +6,7 @@ pub mod analytics;
 pub mod diff_stats;
 pub mod error;
 pub mod everyday_memory;
+pub mod knowledge;
 pub mod fs_ops;
 pub mod history_guard;
 pub mod agent_resources;

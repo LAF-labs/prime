@@ -58,7 +58,7 @@ export interface TaskStore {
   softDeleted: Record<string, SoftDeletedThread>  // threads pending permanent deletion
   selectedTaskId: string | null
   pendingWorkspace: string | null  // workspace for a new thread not yet created
-  view: 'chat' | 'dashboard' | 'analytics'
+  view: 'chat' | 'dashboard' | 'analytics' | 'knowledge'
   isNewProjectOpen: boolean
   isSettingsOpen: boolean
   settingsInitialSection: string | null
@@ -149,7 +149,7 @@ export interface TaskStore {
   navBack: () => void
   /** Walk forward through history to a still-existing thread; no-op if none */
   navForward: () => void
-  setView: (view: 'chat' | 'dashboard' | 'analytics') => void
+  setView: (view: 'chat' | 'dashboard' | 'analytics' | 'knowledge') => void
   /** Open a pending new-thread chat in the most relevant workspace (or the import-project sheet when there are no projects). */
   startNewThread: () => void
   setNewProjectOpen: (open: boolean) => void

@@ -1766,6 +1766,18 @@ function resolveEverydayPath(raw: string, options?: { allowSkills?: boolean }): 
 	return { path: canonical };
 }
 
+/**
+ * `YYYY-MM-DD` in the machine's own timezone.
+ *
+ * Local, not UTC: a file saved late in the evening in Seoul would otherwise be
+ * listed as the next day, and the user is comparing this against what Finder
+ * shows them.
+ */
+function formatDate(when: Date): string {
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
+}
+
 function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -2085,8 +2097,9 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		name: "list_dir",
 		label: "Browse",
 		description:
-			"List what is inside a folder: subfolder names and file names with sizes. " +
-			"Use it to see what exists before reading or organizing anything.",
+			"List what is inside a folder: subfolder names, and file names with their size " +
+			"and the date they were last changed. Use it to see what exists before reading " +
+			"or organizing anything, and to answer when a file was made or last saved.",
 		parameters: {
 			type: "object",
 			properties: {
@@ -2123,7 +2136,14 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				}
 				try {
 					const info = await stat(joinPath(resolved.path, entry.name));
-					lines.push(`${entry.name} (${formatBytes(info.size)})`);
+					// The date is why this calls `stat` rather than trusting the
+					// dirent: "when did I save that" is an ordinary question, and
+					// without it here the only answer was a shell command for the
+					// user to run and paste back — which is not an answer at all
+					// for the person this is built for. `find-file` also tells the
+					// model to match on a rough date, which it could not do while
+					// this line printed only a size.
+					lines.push(`${entry.name} (${formatBytes(info.size)}, ${formatDate(info.mtime)})`);
 				} catch {
 					lines.push(entry.name);
 				}
@@ -2140,7 +2160,7 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 			const body = lines.length > 0 ? lines.join("\n") : "(empty folder)";
 			const notice =
 				visible.some((e) => !e.isDirectory())
-					? "\n\n(Names and sizes only. To say anything about what is inside one of these files, open it with read_file first.)"
+					? "\n\n(Names, sizes and dates only. To say anything about what is inside one of these files, open it with read_file first.)"
 					: "";
 			return {
 				content: [{ type: "text", text: `${body}${notice}` }],

@@ -188,6 +188,28 @@ describe('everyday profile', () => {
   })
 })
 
+describe('list_dir reports dates', () => {
+  /**
+   * "When did I save that" is an everyday question, and without a date here
+   * the only answer the agent could give was a shell command for the user to
+   * run and paste back. `find-file` also tells the model to match on a rough
+   * date, which it cannot do if the listing does not carry one.
+   */
+  it('shows a date next to every file', async () => {
+    const { tools } = await loadGate()
+    writeFileSync(join(home, 'clip.mp4'), 'x')
+    const result = await tools.get('list_dir')!.execute('c', { path: home })
+    expect(result.content[0].text).toMatch(/clip\.mp4 \([^,]+, \d{4}-\d{2}-\d{2}\)/)
+  })
+
+  it('says what the listing does and does not carry', async () => {
+    const { tools } = await loadGate()
+    writeFileSync(join(home, 'note.txt'), 'x')
+    const result = await tools.get('list_dir')!.execute('c', { path: home })
+    expect(result.content[0].text).toContain('Names, sizes and dates only')
+  })
+})
+
 describe('everyday file confinement', () => {
   it.each([
     ['outside every allowed root', '/etc/passwd', /outside your home folder/],

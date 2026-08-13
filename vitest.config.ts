@@ -11,6 +11,12 @@ export default defineConfig({
         __dirname,
         'src-tauri/resources/gate-test-stubs/pi-coding-agent.ts',
       ),
+      // Same reason, and it also records the confinement policy so a test can
+      // assert what the shell is actually allowed to reach.
+      '@anthropic-ai/sandbox-runtime': path.resolve(
+        __dirname,
+        'src-tauri/resources/gate-test-stubs/sandbox-runtime.ts',
+      ),
     },
   },
   test: {

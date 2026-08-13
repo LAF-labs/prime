@@ -1,5 +1,13 @@
 // @vitest-environment node
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -30,6 +38,9 @@ interface Captured {
   beforeAgentStart?: (event: {
     systemPromptOptions?: { cwd?: string }
   }) => { systemPrompt?: string } | undefined
+  userBash?: () => {
+    operations: { exec: (command: string, cwd?: string, options?: unknown) => Promise<unknown> }
+  }
 }
 
 /**
@@ -50,6 +61,9 @@ async function loadGate(): Promise<Captured> {
       if (event === 'before_agent_start') {
         captured.beforeAgentStart = handler as Captured['beforeAgentStart']
       }
+      // The sandboxed shell operations ride on this event, and running one is
+      // what makes the gate initialize its confinement policy.
+      if (event === 'user_bash') captured.userBash = handler as Captured['userBash']
     },
   }
   const mod = await import(`${GATE}?everyday=${(loadCounter += 1)}`)
@@ -130,6 +144,54 @@ describe('everyday profile', () => {
       expect(armed).not.toContain('You cannot delete files')
       expect(armed).toContain('A shell is available')
       expect(armed).toContain('cannot be undone')
+    } finally {
+      delete process.env.LAF_TIGHT_SANDBOX
+    }
+  })
+
+  /**
+   * The confinement policy is a list of strings with nothing checking it, and
+   * it rotted exactly that way: it went on naming `~/.prime/agent/auth.json`
+   * after the config directory became `~/.lafagent`, so it guarded an empty
+   * path while a shell command could read the user's live API keys. The
+   * network half was open for a reason — an allowlist "would break npm/pip/git"
+   * — that stopped applying when git left the product. Both are asserted here
+   * so the next rename or the next reopening has to be deliberate.
+   */
+  it('confines the shell to no network and away from private data', async () => {
+    process.env.LAF_TIGHT_SANDBOX = '1'
+    try {
+      const { userBash } = await loadGate()
+      // Initialization happens before the command runs, so the stub refusing
+      // to run it is fine — the policy has already been handed over by then.
+      await userBash?.()
+        .operations.exec('echo hi', home)
+        .catch(() => {})
+
+      const { lastSandboxConfig } = await import('./gate-test-stubs/sandbox-runtime.ts')
+      const config = lastSandboxConfig()
+      expect(config).not.toBeNull()
+
+      // Nothing is reachable: no allowed domain, and the allowlist is strict,
+      // so an empty list means none rather than no policy.
+      expect(config?.network?.allowedDomains).toEqual([])
+      expect(config?.network?.strictAllowlist).toBe(true)
+
+      // Every directory this product has kept private data in.
+      for (const denied of ['~/.lafagent', '~/.laf-agent', '~/.prime/agent']) {
+        expect(config?.filesystem?.denyRead).toContain(denied)
+      }
+      // And the credentials the sandbox runtime is not opinionated about.
+      for (const denied of ['~/.ssh', '~/.aws', '~/.gnupg', '~/.netrc']) {
+        expect(config?.filesystem?.denyRead).toContain(denied)
+      }
+
+      // Writes stay in the working folder. The gate canonicalizes it, which on
+      // macOS is what turns /var/folders into /private/var/folders.
+      expect(config?.filesystem?.allowWrite).toContain(realpathSync(home))
+      // The home folder is never blanket-writable — that is the whole reason
+      // `rm` outside the working folder fails.
+      expect(config?.filesystem?.allowWrite).not.toContain(realHome)
     } finally {
       delete process.env.LAF_TIGHT_SANDBOX
     }

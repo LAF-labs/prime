@@ -257,11 +257,28 @@ function ensureSandbox(): Promise<boolean> {
 		try {
 			runtime = (await import("@anthropic-ai/sandbox-runtime")) as unknown as SandboxRuntime;
 			await runtime.SandboxManager.initialize({
-				// An empty network object means "don't touch the network" — a
-				// domain allowlist would route through a proxy and break
-				// npm/pip/git for every project. Filesystem confinement is the
-				// point here; network policy is a separate decision.
-				network: {},
+				// No network from the shell at all.
+				//
+				// This was an empty object, meaning "apply no network policy",
+				// justified by an allowlist routing through a proxy and breaking
+				// npm/pip/git. That reasoning belongs to a product that no longer
+				// exists: git was removed in 2026-08, and the everyday profile has
+				// no npm and no pip. What it left behind was a hole under a door
+				// that had been carefully locked — `assertPublicHost` below refuses
+				// loopback, private, link-local and cloud-metadata addresses for
+				// `web_fetch`, down to poisoning a hostname whose DNS answer mixes
+				// public and private records, and a shell command walked around all
+				// of it. Measured: `curl` reached a service on 127.0.0.1 and read
+				// its response, and posted a file out of the home folder to an
+				// arbitrary host.
+				//
+				// So the network needs of this profile go through `web_search`,
+				// `web_fetch` and `research`, which run in this process and are not
+				// wrapped by the sandbox. The shell keeps the local work — archives,
+				// conversions, counting — that it was offered for. Measured cost of
+				// closing it: none. Initialization stayed at about five
+				// milliseconds and local commands were unaffected.
+				network: { allowedDomains: [], strictAllowlist: true },
 				filesystem: {
 					allowWrite: [WORKSPACE, "/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/dev/null"],
 					// Both config directories, and the whole of each rather than

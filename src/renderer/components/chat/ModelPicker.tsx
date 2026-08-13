@@ -92,8 +92,11 @@ export const ModelPicker = memo(function ModelPicker() {
         <IconChevronDown className="hidden size-3 shrink-0 opacity-50 @[480px]/toolbar:block" aria-hidden />
       </button>
 
+      {/* Capped and scrollable: OpenRouter alone returns well over a hundred
+          models, and the list grew off the top of the window with no way to
+          reach what was above it. */}
       {open && (
-        <div className="absolute bottom-full left-0 z-[200] mb-2 min-w-[200px] rounded-xl border border-border bg-popover py-1.5 shadow-xl">
+        <div className="absolute bottom-full left-0 z-[200] mb-2 max-h-[60vh] min-w-[200px] overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover py-1.5 shadow-xl">
           {models.map((m) => (
             <button
               key={m.modelId}

@@ -539,6 +539,11 @@ function isAllowedByRule(toolName: string, input: Record<string, unknown>): bool
 // silently rewriting a shell command's arguments is not a trade worth making.
 
 /** Canonical parameter names, by everyday tool. */
+// These are the *required* arguments — the validation loop at the bottom of
+// `repairEverydayArgs` demands each one as a non-empty string. Optional
+// parameters (read_file's `part`) must not be listed: adding one here turns
+// every call that omits it into a blocked call, which is how six tests failed
+// the day `part` was added.
 const EVERYDAY_TOOL_ARGS: Record<string, readonly string[]> = {
 	read_file: ["path"],
 	list_dir: ["path"],
@@ -571,7 +576,7 @@ const ENVELOPE_KEYS = ["arguments", "args", "input", "params", "parameters"];
 
 /** The shape message shown when a call cannot be repaired. */
 const SHAPE_HINTS: Record<string, string> = {
-	read_file: 'read_file takes exactly {"path": "<file path>"}.',
+	read_file: 'read_file takes {"path": "<file path>"}, plus optional {"part": "end"} to read the end of a long file.',
 	list_dir: 'list_dir takes exactly {"path": "<folder path>"}.',
 	write_file: 'write_file takes exactly {"path": "<file path>", "content": "<full text to write>"}.',
 	organize:
@@ -682,6 +687,16 @@ function repairEverydayArgs(toolName: string, input: Record<string, unknown>): s
 		const content = input.content;
 		input.content =
 			typeof content === "object" && content !== null ? JSON.stringify(content, null, 2) : String(content);
+	}
+
+	// Optional `part`: normalize the synonyms a model reaches for, and drop
+	// anything unrecognized rather than blocking — the default (the start) is
+	// what every reader got before the parameter existed.
+	if (toolName === "read_file" && input.part !== undefined) {
+		const raw = String(input.part).trim().toLowerCase();
+		if (["end", "tail", "bottom", "last", "ending"].includes(raw)) input.part = "end";
+		else if (["start", "head", "top", "first", "beginning"].includes(raw)) input.part = "start";
+		else delete input.part;
 	}
 
 	for (const field of canonical) {
@@ -2119,6 +2134,27 @@ async function readHead(path: string, bytes: number): Promise<string> {
 	}
 }
 
+/**
+ * The last `bytes` of a file, decoded as UTF-8.
+ *
+ * The cut lands mid-character at the front rather than the back, so this
+ * strips leading replacement characters instead of streaming: the first
+ * visible character stays a character.
+ */
+async function readTail(path: string, bytes: number): Promise<string> {
+	const handle = await open(path, "r");
+	try {
+		const { size } = await handle.stat();
+		const start = Math.max(0, size - bytes);
+		const buffer = Buffer.allocUnsafe(Math.min(bytes, size));
+		const { bytesRead } = await handle.read(buffer, 0, buffer.length, start);
+		const decoded = new TextDecoder("utf-8").decode(buffer.subarray(0, bytesRead));
+		return start > 0 ? decoded.replace(/^�+/, "") : decoded;
+	} finally {
+		await handle.close();
+	}
+}
+
 function fileExtension(path: string): string {
 	const base = path.slice(path.lastIndexOf("/") + 1);
 	const dot = base.lastIndexOf(".");
@@ -2259,21 +2295,38 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		description:
 			"Read a file and return its text: notes, CSV, and code, plus PDF, Word (.docx) " +
 			"and Excel (.xlsx), whose text is extracted for you. " +
-			"Use it before summarizing, answering questions about, or editing a file.",
+			"Use it before summarizing, answering questions about, or editing a file. " +
+			// Measured need, not speculation: asked for a long document's
+			// conclusion, the model twice promised to "check the end" with no
+			// way to do it — conclusions, signatures and latest entries live at
+			// the end, and this tool only served the beginning.
+			"A long file is cut off; call again with part \"end\" to read its ending instead " +
+			"(conclusions, signature pages, the newest entries of a log).",
 		parameters: {
 			type: "object",
 			properties: {
 				path: { type: "string", description: "File path; ~ means the home folder" },
+				part: {
+					type: "string",
+					enum: ["start", "end"],
+					description: "Which part of a long file to read; omit for the start.",
+				},
 			},
 			required: ["path"],
 		},
-		execute: async (_toolCallId: string, params: { path: string }) => {
+		execute: async (_toolCallId: string, params: { path: string; part?: string }) => {
+			const wantEnd = params.part === "end";
 			const resolved = resolveEverydayPath(String(params.path ?? ""), { allowSkills: true });
 			if ("error" in resolved) throw new Error(resolved.error);
 
 			const extension = fileExtension(resolved.path);
 			const format = DOCUMENT_FORMATS[extension];
 			let body: string;
+			// True when only part of the file was read from disk. `body.length`
+			// alone cannot say so: a 160k-byte tail of dense multi-byte text can
+			// decode to no more than the display budget, and the notice would
+			// vanish from a read that silently skipped megabytes.
+			let partial = false;
 			if (format) {
 				try {
 					body = await readDocument(extension, resolved.path);
@@ -2286,9 +2339,14 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 					const info = await stat(resolved.path);
 					// Directories reach `readFile` as EISDIR below; keep that path
 					// rather than duplicating the message here.
-					body = info.isFile() && info.size > FULL_READ_BYTES
-						? await readHead(resolved.path, HEAD_READ_BYTES)
-						: await readFile(resolved.path, "utf8");
+					if (info.isFile() && info.size > FULL_READ_BYTES) {
+						partial = true;
+						body = wantEnd
+							? await readTail(resolved.path, HEAD_READ_BYTES)
+							: await readHead(resolved.path, HEAD_READ_BYTES);
+					} else {
+						body = await readFile(resolved.path, "utf8");
+					}
 				} catch (error) {
 					const code = errorCode(error);
 					if (code === "ENOENT") throw new Error(await missingPathHint(resolved.path));
@@ -2311,16 +2369,26 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				}
 			}
 
-			const truncated = body.length > MAX_READ_CHARS;
+			const truncated = partial || body.length > MAX_READ_CHARS;
 			// The model cannot see where the text stopped. A summary of the first
 			// half, presented as a summary of the whole report, is the kind of
-			// wrong that reads as right — so say it in the content itself.
+			// wrong that reads as right — so say it in the content itself. When
+			// the end was asked for, the notice moves to the top and the slice
+			// keeps the ending, since that is the part the question was about.
 			const text = truncated
-				? `${body.slice(0, MAX_READ_CHARS)}\n\n…[Cut off here. This file is longer than what you were given, so anything you say about the rest is a guess — tell the user it was cut off.]`
+				? wantEnd
+					? `[This is the END of the file — everything before this point was cut off, so anything you say about the beginning is a guess.]…\n\n${body.slice(-MAX_READ_CHARS)}`
+					: `${body.slice(0, MAX_READ_CHARS)}\n\n…[Cut off here. This file is longer than what you were given, so anything you say about the rest is a guess — tell the user it was cut off. The ending can be read with part "end".]`
 				: body;
 			return {
 				content: [{ type: "text", text }],
-				details: { path: resolved.path, chars: body.length, truncated, ...(format ? { format } : {}) },
+				details: {
+					path: resolved.path,
+					chars: body.length,
+					truncated,
+					...(wantEnd ? { part: "end" } : {}),
+					...(format ? { format } : {}),
+				},
 			};
 		},
 	});

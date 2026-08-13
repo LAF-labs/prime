@@ -458,6 +458,43 @@ describe('everyday file confinement', () => {
     expect(result?.details?.truncated).toBe(true)
     expect(result?.content[0]?.text).toContain('Cut off here')
   })
+
+  /**
+   * Conclusions, signature pages and the newest log entries live at the end,
+   * and this tool only served the beginning. Measured: asked for a long
+   * document's conclusion, the model twice promised to "check the end" with
+   * no way to do it — the fake enthusiasm of a tool set that cannot say no.
+   */
+  it('reads the end of a long file when asked for it', async () => {
+    const file = join(home, 'novel.md')
+    writeFileSync(file, `시작 부분입니다.\n${'중간 내용. '.repeat(20_000)}\n결론: 9월 15일에 시작한다.`)
+    const { tools } = await loadGate()
+    const result = await tools.get('read_file')?.execute('c', { path: file, part: 'end' })
+    const text = result?.content[0]?.text ?? ''
+    expect(text).toContain('결론: 9월 15일에 시작한다.')
+    expect(text).toContain('END of the file')
+    expect(text).not.toContain('시작 부분입니다.')
+    expect(result?.details?.part).toBe('end')
+  })
+
+  /**
+   * The tail of a >4 MB file is read from disk without decoding the front.
+   * The cut can land mid-character at the tail's own start, so the first
+   * visible character must still be a character, not a replacement box.
+   */
+  it('reads the end of a huge file without decoding the whole of it', async () => {
+    const file = join(home, 'huge-korean.log')
+    writeFileSync(file, `${'가나다라마바사아자차'.repeat(160_000)}\n마지막 줄입니다.`)
+    const { tools } = await loadGate()
+    const started = Date.now()
+    const result = await tools.get('read_file')?.execute('c', { path: file, part: 'end' })
+    const text = result?.content[0]?.text ?? ''
+    expect(Date.now() - started).toBeLessThan(2000)
+    expect(text).toContain('마지막 줄입니다.')
+    expect(text).not.toContain('�')
+    // Partial read: the truncation flag must not depend on the decoded length.
+    expect(result?.details?.truncated).toBe(true)
+  })
 })
 
 /**

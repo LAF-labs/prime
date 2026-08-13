@@ -83,6 +83,19 @@ pub fn classify(raw: &str) -> ProviderError {
             detail,
         };
     }
+    // Missing key before wrong key: this is the very first thing a fresh
+    // install says when someone types a message without setting a provider
+    // up, and the harness's own text for it points at `/login` — a TUI
+    // command this app deliberately does not ship — and at documentation
+    // paths inside the app bundle. Neither is anything a user can act on.
+    if mentions(raw, &["no api key found", "no api key set", "missing api key"]) {
+        return ProviderError {
+            message: "This model has no API key yet. Add one in Settings → Providers, then send your message again."
+                .into(),
+            action: ErrorAction::OpenSettings,
+            detail,
+        };
+    }
     if mentions(
         raw,
         &["invalid_api_key", "invalid api key", "incorrect api key", "unauthorized", "authentication"],
@@ -154,6 +167,19 @@ fn first_line(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The harness's no-key text tells the user to run `/login` — a TUI
+    /// command this app does not ship — and cites docs paths inside the app
+    /// bundle. It is also the first error a fresh install produces, so it must
+    /// come out as a sentence about Settings, not the raw text.
+    #[test]
+    fn a_missing_key_reads_as_setup_not_as_a_broken_app() {
+        let raw = "No API key found for the selected model.\n\nUse /login to log into a provider via OAuth or API key. See:\n  /Applications/LAF Agent.app/.../docs/providers.md";
+        let e = classify(raw);
+        assert_eq!(e.action, ErrorAction::OpenSettings);
+        assert!(e.message.contains("Settings"), "-> {}", e.message);
+        assert!(!e.message.contains("/login"), "-> {}", e.message);
+    }
 
     #[test]
     fn a_rejected_key_says_so_and_points_at_settings() {

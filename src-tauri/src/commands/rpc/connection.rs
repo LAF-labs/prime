@@ -1240,6 +1240,35 @@ fn handle_rpc_response(ctx: &Arc<ReaderCtx>, event: &Value) {
             if !success {
                 let err = event.get("error").and_then(|v| v.as_str()).unwrap_or("unknown error");
                 log::warn!("[RPC] command failed ({id}): {err}");
+
+                // A refused prompt never starts a run, so nothing downstream
+                // ends one: no agent_end, no message_update error — just this
+                // response, which used to stop at the log line above. The
+                // user's side of that was a message that got no reply and a
+                // spinner that never stopped, and the first person to see it
+                // is whoever installs the app and types a greeting before
+                // adding an API key. Measured on a clean HOME: "안녕" → the
+                // harness answers `success:false, "No API key found…"` → the
+                // app showed nothing, forever.
+                //
+                // Only `prompt` gets this treatment. It is the one command
+                // whose failure strands a visible turn; background commands
+                // (`__stats`, `__commands`) fail without anything waiting on
+                // them, and UI-issued requests resolve through `pending`.
+                if event.get("command").and_then(|v| v.as_str()) == Some("prompt") {
+                    let classified = crate::commands::provider_errors::classify(err);
+                    let _ = ctx.app.emit("task_error", json!({
+                        "taskId": ctx.task_id,
+                        "message": classified.message,
+                        "action": classified.action,
+                        "detail": classified.detail,
+                    }));
+                    ctx.streaming.store(false, Ordering::SeqCst);
+                    let _ = ctx.app.emit("turn_end", json!({
+                        "taskId": ctx.task_id,
+                        "stopReason": "error",
+                    }));
+                }
             }
         }
     }

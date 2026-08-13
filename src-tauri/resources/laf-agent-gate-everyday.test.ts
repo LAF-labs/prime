@@ -198,6 +198,30 @@ describe('everyday profile', () => {
   })
 
   /**
+   * The approval dialog is plain language for every tool but the shell, which
+   * showed the raw command — the one thing here a non-developer cannot read,
+   * on the one action that cannot be undone. Recognizing dangerous commands in
+   * the gate would have taught people that a quiet dialog is a safe one, so the
+   * model that wrote the command owes the sentence instead.
+   */
+  it('requires the shell to say what its command does', async () => {
+    process.env.LAF_TIGHT_SANDBOX = '1'
+    try {
+      const { tools } = await loadGate()
+      const bash = tools.get('bash') as unknown as {
+        parameters: { properties: Record<string, unknown>; required: string[] }
+        description: string
+      }
+      expect(bash.parameters.properties).toHaveProperty('explanation')
+      expect(bash.parameters.required).toContain('explanation')
+      expect(bash.parameters.required).toContain('command')
+      expect(bash.description).toContain("language the user is writing in")
+    } finally {
+      delete process.env.LAF_TIGHT_SANDBOX
+    }
+  })
+
+  /**
    * Asked when a video was made, the assistant handed the user a `stat`
    * command to run in a terminal and paste back — a non-answer for someone who
    * does not use a terminal.

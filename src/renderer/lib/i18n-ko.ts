@@ -1041,6 +1041,12 @@ export const ko: Record<string, string> = {
   // Permissions
   'a tool': '도구',
   'LAF Agent wants to use {tool}': 'LAF Agent가 {tool}을(를) 사용하려고 합니다',
+  'LAF Agent wants to {tool}': 'LAF Agent가 {tool} 하려고 합니다',
+  'run a command on your computer': '컴퓨터에서 명령을 실행',
+  'save a file': '파일을 저장',
+  'move or copy files': '파일을 옮기거나 복사',
+  'read a file': '파일을 읽기',
+  'look inside a folder': '폴더 안을 보기',
   'Could not answer the permission request': '권한 요청에 응답하지 못했습니다',
   'Permissions: {mode}': '권한: {mode}',
   'Current mode: {mode}': '현재 모드: {mode}',

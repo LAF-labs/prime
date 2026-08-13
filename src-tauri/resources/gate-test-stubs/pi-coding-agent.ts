@@ -17,6 +17,9 @@ export const createBashTool = (cwd: string) => ({
 	name: "bash",
 	label: "Shell",
 	description: "Run a shell command (test stub).",
+	// Shaped like the real one so `withExplanation` has something to widen: it
+	// leaves an unfamiliar schema alone, and a stub that did not look like a
+	// schema would make that pass-through look like success.
 	parameters: {
 		type: "object",
 		properties: { command: { type: "string", description: "Command to run" } },

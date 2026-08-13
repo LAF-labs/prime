@@ -43,8 +43,14 @@ const PROMPTLESS_TOOLS = new Set(["remember"]);
 
 async function summarize(toolName: string, input: Record<string, unknown>): Promise<string> {
 	let summary = "";
-	if (typeof input.command === "string") summary = input.command;
-	else if (typeof input.code === "string") summary = input.code;
+	// The explanation leads and the command follows on its own line. The banner
+	// splits on that newline: the sentence is rendered as prose, the command as
+	// the literal text it is. Both are shown — the command still has to be there
+	// for anyone who can read it.
+	if (typeof input.command === "string") {
+		const explanation = typeof input.explanation === "string" ? input.explanation.trim() : "";
+		summary = explanation ? `${explanation}\n${input.command}` : input.command;
+	} else if (typeof input.code === "string") summary = input.code;
 	else if (typeof input.path === "string") summary = input.path;
 	else if (typeof input.file_path === "string") summary = input.file_path;
 	else if (Array.isArray(input.operations)) {
@@ -330,6 +336,64 @@ async function sandboxCommand(command: string): Promise<string> {
 	}
 }
 
+/** The shape `createBashTool` returns, narrowed to what is wrapped below. */
+interface RegisteredTool {
+	name?: string;
+	description?: string;
+	parameters?: { type?: string; properties?: Record<string, unknown>; required?: string[] };
+	execute: (toolCallId: string, input: Record<string, unknown>, ...rest: unknown[]) => unknown;
+}
+
+/**
+ * Make the shell explain itself, in the user's own language.
+ *
+ * The approval dialog shows what the gate summarizes, and for every other tool
+ * that is a path — something a person can read. For the shell it was the raw
+ * command, which is the one thing here a non-developer cannot read, attached to
+ * the one action that cannot be undone. Measured: asked to delete a file, the
+ * dialog said `rm -v "지울것.txt"` and nothing else.
+ *
+ * Guessing at the meaning in this file was the wrong fix. A recognizer that
+ * knows `rm` but not `find -delete` teaches people that a quiet dialog is a
+ * safe one, which is worse than never having claimed anything. The model wrote
+ * the command and knows why, so it is the one that owes the sentence.
+ *
+ * Structural changes are made only against the shape we expect; an unfamiliar
+ * schema is passed through untouched rather than half-rewritten, because a
+ * broken shell is worse than an unexplained one.
+ */
+function withExplanation(tool: RegisteredTool): RegisteredTool {
+	const params = tool.parameters;
+	if (!params || params.type !== "object" || typeof params.properties !== "object") return tool;
+	return {
+		...tool,
+		description:
+			`${tool.description ?? ""}\n\n` +
+			"Every call must include `explanation`: one short sentence, in the language the user is writing in, " +
+			"saying what this command does to their computer. It is the only part of the approval prompt they can read, " +
+			"so write it for someone who has never used a terminal — say the file names, and say plainly when something " +
+			"will be deleted or overwritten.",
+		parameters: {
+			...params,
+			properties: {
+				...params.properties,
+				explanation: {
+					type: "string",
+					description:
+						"One short sentence, in the user's language, describing what this command does to their files. " +
+						"Shown to them in the approval prompt instead of the command.",
+				},
+			},
+			required: [...(params.required ?? []), "explanation"],
+		},
+		execute: (toolCallId, input, ...rest) => {
+			// The shell never sees it: it exists for the dialog.
+			const { explanation: _explanation, ...actual } = input ?? {};
+			return tool.execute(toolCallId, actual, ...rest);
+		},
+	};
+}
+
 function registerSandboxedBash(pi: ExtensionAPI): void {
 	// Replace the built-in bash tool with one whose operations wrap every
 	// command before it reaches the shell. The tool_call approval flow below
@@ -342,7 +406,7 @@ function registerSandboxedBash(pi: ExtensionAPI): void {
 	};
 
 	const cwd = WORKSPACE || process.cwd();
-	const sandboxedBash = createBashTool(cwd, { operations: sandboxedOps });
+	const sandboxedBash = withExplanation(createBashTool(cwd, { operations: sandboxedOps }));
 
 	// Always route through the sandboxed tool: sandboxCommand() falls back to
 	// the raw command when the runtime is unavailable, so there is no state to

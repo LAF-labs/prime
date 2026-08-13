@@ -76,12 +76,17 @@ export const ResourcePanel = memo(function ResourcePanel({
 
   useEffect(() => { void loadConfig(activeWorkspace ?? undefined) }, [loadConfig, activeWorkspace])
 
-  // `/mcp` from the chat input expands the MCP group here.
+  // `/mcp` from the chat input expands the MCP group — or, when nothing is
+  // provisioned yet, opens the add dialog directly. That command is the one
+  // deliberate way in: MCP is an enterprise feature we provision per
+  // workspace, so the sidebar shows no MCP affordance until a server exists,
+  // and support can still walk someone through typing /mcp.
+  const hasMcpServers = mcpServers.length > 0
   useEffect(() => {
-    const handleOpen = () => setMcpOpen(true)
+    const handleOpen = () => (hasMcpServers ? setMcpOpen(true) : setAddMcpOpen(true))
     document.addEventListener('slash-mcp', handleOpen)
     return () => document.removeEventListener('slash-mcp', handleOpen)
-  }, [])
+  }, [hasMcpServers])
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => {})
@@ -219,17 +224,14 @@ export const ResourcePanel = memo(function ResourcePanel({
               </Tooltip>
             </div>
           </div>
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={() => setAddMcpOpen(true)}
-              className="flex w-full h-8 items-center gap-2 rounded-lg px-2 text-[13px] text-left text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            >
-              <IconPlus className="size-3.5 shrink-0" aria-hidden />
-              <IconPlug className="size-3.5 shrink-0 text-primary" aria-hidden />
-              <span className="flex-1 truncate">{t('Add MCP server…')}</span>
-            </button>
-          )}
+          {/* No "Add MCP server" affordance here anymore. MCP is an
+              enterprise feature: we build and provision servers into a
+              workspace, and only accounts in that workspace should ever see
+              the section. For everyone else this button was an invitation
+              into JSON-shaped configuration the product does not want to
+              teach — the section appears on its own as soon as a server has
+              been provisioned, and typing /mcp still opens the add dialog
+              when support needs to walk someone through it. */}
         </div>
         <AddMcpServerDialog open={addMcpOpen} onOpenChange={setAddMcpOpen} workspace={activeWorkspace} />
         <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />

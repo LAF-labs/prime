@@ -325,6 +325,43 @@ function ensureSandbox(): Promise<boolean> {
 	return initOnce;
 }
 
+/**
+ * Variables a shell command has no business reading.
+ *
+ * The credential shapes are DeepSeek's list from their harness's defensive
+ * patterns — the rule that a spawned command never gets the ambient
+ * environment, because harness credentials otherwise leak into its own output.
+ * Our sandbox denies reading the *files* that hold keys and said nothing about
+ * the environment: measured, `env` inside a sandboxed command printed
+ * `PRIME_AGENT_INTERNAL_DAEMON_WORKER_TOKEN`, which authenticates to the
+ * agent daemon's socket, plus any provider key the app happened to inherit.
+ *
+ * The two prefixes are ours and the harness's own internals. Nothing an
+ * everyday shell command does — unzip, convert, count — needs either, and the
+ * daemon token lives behind one of them.
+ */
+const SECRET_ENV = /KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL/i;
+const INTERNAL_ENV_PREFIXES = ["LAF_", "PRIME_AGENT_"];
+
+/**
+ * The environment for a sandboxed command: the caller's, less anything secret.
+ *
+ * Deliberately does not prepend the harness's own bin directory the way its
+ * `getShellEnv` does. That directory is `~/.lafagent/bin`, inside the tree the
+ * sandbox denies reading, so putting it on PATH would only produce commands
+ * that resolve and then fail.
+ */
+function shellEnv(base: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
+	const source = base ?? process.env;
+	const scrubbed: NodeJS.ProcessEnv = {};
+	for (const [name, value] of Object.entries(source)) {
+		if (SECRET_ENV.test(name)) continue;
+		if (INTERNAL_ENV_PREFIXES.some((prefix) => name.startsWith(prefix))) continue;
+		scrubbed[name] = value;
+	}
+	return scrubbed;
+}
+
 /** Wrap a shell command with the OS sandbox; pass through when unavailable. */
 async function sandboxCommand(command: string): Promise<string> {
 	if (!(await ensureSandbox()) || !runtime) return command;
@@ -402,7 +439,8 @@ function registerSandboxedBash(pi: ExtensionAPI): void {
 	// aliases "@earendil-works/pi-coding-agent" to the running harness itself.
 	const localOps = createLocalBashOperations();
 	const sandboxedOps: BashOperations = {
-		exec: async (command, cwd, options) => localOps.exec(await sandboxCommand(command), cwd, options),
+		exec: async (command, cwd, options) =>
+			localOps.exec(await sandboxCommand(command), cwd, { ...options, env: shellEnv(options?.env) }),
 	};
 
 	const cwd = WORKSPACE || process.cwd();
@@ -1024,7 +1062,30 @@ export default function (pi: ExtensionAPI) {
 			return undefined;
 		}
 
-		if (!ctx.hasUI) return undefined;
+		// Nothing to ask, so the answer is no.
+		//
+		// This used to allow the call. Everything above it is a reason a
+		// mutation may proceed — a read, a research child that has already been
+		// refused every mutating tool, a rule the user saved, acceptEdits. What
+		// is left is a session that reached a file-changing or command-running
+		// tool with no way to ask permission, and allowing that makes "the
+		// approval dialog stands between the model and your files" true only
+		// when a dialog happens to exist.
+		//
+		// Both reference implementations to hand fail closed here: DeepSeek's
+		// harness documents its approval step as "absent or unanswerable: deny",
+		// and this harness itself answers its own no-UI prompt with "cancel".
+		// Measured on the app's own path, RPC sessions do bind a UI — dialogs
+		// arrive and are answered — so this changes nothing a user sees today,
+		// and is the difference between a boundary and a coincidence tomorrow.
+		if (!ctx.hasUI) {
+			return {
+				block: true,
+				reason:
+					`'${event.toolName}' needs the user's approval and this session has no way to ask for it. ` +
+					"Report what you were about to do and let them run it.",
+			};
+		}
 
 		const title = JSON.stringify({
 			__lafGate: 1,

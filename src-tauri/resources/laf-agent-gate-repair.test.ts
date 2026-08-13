@@ -25,8 +25,16 @@ async function loadToolCall(): Promise<ToolCallHandler> {
   return handler
 }
 
-/** No UI, so the approval dialog is never reached and only the repair verdict shows. */
-const CTX = { hasUI: false }
+/**
+ * A UI that always allows, so the only thing that can block a call here is the
+ * repair layer — which is what these tests are about.
+ *
+ * This was `{ hasUI: false }`, back when a session with no way to ask for
+ * approval was allowed to mutate files anyway. It is denied now, so "no UI"
+ * would make every mutating case below fail for a reason that has nothing to
+ * do with argument repair.
+ */
+const CTX = { hasUI: true, ui: { select: async () => 'Allow' } }
 
 /** Run one tool call through the gate and report the repaired input. */
 async function call(toolName: string, input: Record<string, unknown>) {

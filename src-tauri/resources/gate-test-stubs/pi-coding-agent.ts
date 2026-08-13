@@ -30,8 +30,18 @@ export const createBashTool = (cwd: string) => ({
 	},
 });
 
+/** What the gate handed the shell on the most recent exec, for assertions. */
+let lastExec: { command: string; cwd: string; options: { env?: NodeJS.ProcessEnv } } | null = null;
+
+export const lastShellExec = () => lastExec;
+
 export const createLocalBashOperations = () => ({
-	exec: async () => {
-		throw new Error("the test stub's bash cannot run commands");
+	// Records rather than throws: the environment the gate builds for a shell
+	// command is a security boundary — a harness credential in there leaks into
+	// the command's own output — and a stub that throws first cannot be asked
+	// what was in it.
+	exec: async (command: string, cwd: string, options: { env?: NodeJS.ProcessEnv }) => {
+		lastExec = { command, cwd, options };
+		return { stdout: "", stderr: "", exitCode: 0 };
 	},
 });

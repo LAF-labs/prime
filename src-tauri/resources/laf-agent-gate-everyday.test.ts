@@ -198,6 +198,44 @@ describe('everyday profile', () => {
   })
 
   /**
+   * The sandbox denies reading the files that hold keys and says nothing about
+   * the environment. Measured before this: `env` inside a sandboxed command
+   * printed `PRIME_AGENT_INTERNAL_DAEMON_WORKER_TOKEN` — the credential for the
+   * agent daemon's own socket — along with any provider key the app inherited.
+   * The rule is DeepSeek's, from their harness's defensive patterns: a spawned
+   * command never gets the ambient environment.
+   */
+  it('keeps credentials out of the environment it hands the shell', async () => {
+    process.env.LAF_TIGHT_SANDBOX = '1'
+    process.env.PRIME_AGENT_INTERNAL_DAEMON_WORKER_TOKEN = 'daemon-secret'
+    process.env.UPSTAGE_API_KEY = 'sk-provider-secret'
+    process.env.SOME_PASSWORD = 'hunter2'
+    try {
+      const { userBash } = await loadGate()
+      await userBash?.().operations.exec('echo hi', home).catch(() => {})
+
+      const { lastShellExec } = await import('./gate-test-stubs/pi-coding-agent.ts')
+      const env = lastShellExec()?.options?.env ?? {}
+      const names = Object.keys(env)
+
+      expect(names).not.toContain('PRIME_AGENT_INTERNAL_DAEMON_WORKER_TOKEN')
+      expect(names).not.toContain('UPSTAGE_API_KEY')
+      expect(names).not.toContain('SOME_PASSWORD')
+      expect(names.filter((n) => /KEY|SECRET|TOKEN|PASSWORD/i.test(n))).toEqual([])
+      // Our own knobs are internal too, and one of them names the workspace.
+      expect(names.filter((n) => n.startsWith('LAF_'))).toEqual([])
+      // Still a usable shell: an ordinary command needs its PATH and HOME.
+      expect(names).toContain('PATH')
+      expect(names).toContain('HOME')
+    } finally {
+      delete process.env.LAF_TIGHT_SANDBOX
+      delete process.env.PRIME_AGENT_INTERNAL_DAEMON_WORKER_TOKEN
+      delete process.env.UPSTAGE_API_KEY
+      delete process.env.SOME_PASSWORD
+    }
+  })
+
+  /**
    * The approval dialog is plain language for every tool but the shell, which
    * showed the raw command — the one thing here a non-developer cannot read,
    * on the one action that cannot be undone. Recognizing dangerous commands in

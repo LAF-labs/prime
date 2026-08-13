@@ -461,4 +461,42 @@ mod audit_tests {
         let received = rx.recv().await.unwrap();
         assert_eq!(received, "test");
     }
+
+    // ── P4: in-memory fallback must be detectable (degraded flag) ────────
+    //
+    // Audit doc §2: `ThreadDatabase::open()` silently falls back to an
+    // in-memory DB when the file DB cannot be opened. In-memory state does
+    // not survive a quit, so a user who "saved" a conversation loses it on
+    // restart — and currently nothing tells them. SQLite's own docs treat
+    // file-backed and in-memory as different durability contracts, so the
+    // standard fix is to surface the distinction with a flag.
+    //
+    // These tests pin the contract: the flag must exist and must be true
+    // exactly on the in-memory path, false on the file-backed path.
+
+    /// The in-memory constructor must report itself as degraded.
+    #[tokio::test]
+    async fn open_memory_is_degraded() {
+        let db = ThreadDatabase::open_memory().expect("open memory db");
+        assert!(
+            db.is_degraded(),
+            "open_memory yields a non-persistent DB; callers must be able to tell"
+        );
+    }
+
+    /// The file-backed constructor must NOT report degraded, and must still
+    /// function as a real (persistent-capable) database.
+    #[tokio::test]
+    async fn open_at_is_not_degraded() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("threads.db");
+        let db = ThreadDatabase::open_at(&path).expect("open file db");
+        assert!(
+            !db.is_degraded(),
+            "a real file-backed DB survives a quit; it is not degraded"
+        );
+        // It must still function as a real DB, not a broken handle.
+        let stats = db.stats().await.expect("stats");
+        assert_eq!(stats.total_threads, 0);
+    }
 }

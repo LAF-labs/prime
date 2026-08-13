@@ -383,6 +383,13 @@ export const ipc = {
     invoke('generate_thread_title', { message, workspace }),
 
   // ── Thread Database (SQLite persistence) ────────────────────────────────────
+  /**
+   * True when the thread database fell back to memory because the file could
+   * not be opened — nothing written survives a quit. Fixed at launch, so it is
+   * read once rather than watched.
+   */
+  threadDbIsDegraded: (): Promise<boolean> =>
+    invoke('thread_db_is_degraded'),
   threadDbList: (): Promise<Array<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown; messageCount: number }>> =>
     invoke('thread_db_list'),
   threadDbLoad: (threadId: string): Promise<{ id: string; name: string; workspace: string; status: string; createdAt: string; updatedAt: string; parentThreadId?: string; autoApprove: boolean; metadata?: unknown; messageCount?: number } | null> =>

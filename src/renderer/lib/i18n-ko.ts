@@ -739,6 +739,7 @@ export const ko: Record<string, string> = {
   'Could not create the file': '파일을 만들지 못했습니다',
   'Could not create the folder': '폴더를 만들지 못했습니다',
   'Could not delete': '삭제하지 못했습니다',
+  'This conversation will not be saved — the chat storage could not be opened. Restarting the app usually fixes it.': '이 대화는 저장되지 않습니다 — 채팅 저장소를 열지 못했습니다. 앱을 다시 시작하면 대개 해결됩니다.',
   'Could not save settings': '설정을 저장하지 못했습니다',
   'Could not open the file picker': '파일 선택 창을 열지 못했습니다',
   '{label} connected — {count} models available': '{label} 연결됨 — 모델 {count}개 사용 가능',

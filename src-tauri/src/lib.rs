@@ -736,6 +736,7 @@ pub fn run() {
             process_diagnostics::list_child_processes,
             process_diagnostics::signal_process,
             // Thread Database
+            thread_db::thread_db_is_degraded,
             thread_db::thread_db_list,
             thread_db::thread_db_load,
             thread_db::thread_db_save,

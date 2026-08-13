@@ -9,6 +9,7 @@ import { warmTerminalRuntime } from "@/components/chat/TerminalDrawer";
 import { startConnectionHealthMonitor } from "@/lib/connection-health";
 import { AppHeader } from "@/components/AppHeader";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
+import { StorageBanner } from "@/components/StorageBanner";
 import { TaskSidebar } from "@/components/sidebar/TaskSidebar";
 
 const ChatPanel = lazy(() =>
@@ -714,6 +715,12 @@ export function App() {
               sidebar dot disappears with the sidebar; this does not. */}
           <ErrorBoundary fallback={null}>
             <ConnectionBanner />
+          </ErrorBoundary>
+
+          {/* Above the connection banner in severity: a lost connection comes
+              back, a non-persistent database does not give the work back. */}
+          <ErrorBoundary fallback={null}>
+            <StorageBanner />
           </ErrorBoundary>
 
           {/* Main area: content + side panel */}

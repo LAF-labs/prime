@@ -290,16 +290,21 @@ pub struct ThreadDatabase {
     read_conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
     /// Channel to the background write task.
     write_tx: mpsc::Sender<WriteCommand>,
+    /// `true` when the database is in-memory because the file-backed open
+    /// failed and we fell back. An in-memory DB loses everything on quit, so
+    /// this is what lets the renderer tell a degraded database from a healthy
+    /// one — see `StorageBanner`. Audit doc §2.
+    is_degraded: bool,
 }
 
 impl ThreadDatabase {
     /// Open or create the thread database at the default location.
     /// Falls back to an in-memory database if the file-based DB cannot be opened.
     ///
-    /// Known limitation: the fallback is signalled only via `log::error!` —
-    /// callers cannot tell a degraded (in-memory, nothing survives quit)
-    /// database from a healthy one. Surfacing that state to the user would
-    /// need a flag or event plus a renderer banner.
+    /// The resulting handle exposes `is_degraded()`: `true` means the app is
+    /// running on an in-memory database and nothing survives a quit, which the
+    /// renderer shows as a banner. `false` means a healthy file-backed
+    /// database. See audit doc §2.
     pub fn open() -> Self {
         match Self::try_open_file() {
             Ok(db) => db,
@@ -351,13 +356,13 @@ impl ThreadDatabase {
             let conn = rusqlite::Connection::open(&path)?;
             Self::initialize_connection(&conn)?;
             Self::run_migrations(&conn)?;
-            return Self::build_from_connection(conn, ConnectionMode::FileSeparate);
+            return Self::build_from_connection(conn, ConnectionMode::FileSeparate, false);
         }
 
         // Run migrations
         Self::run_migrations(&conn)?;
 
-        Self::build_from_connection(conn, ConnectionMode::FileSeparate)
+        Self::build_from_connection(conn, ConnectionMode::FileSeparate, false)
     }
 
     /// Open an in-memory fallback database (app still works, just no persistence).
@@ -366,7 +371,7 @@ impl ThreadDatabase {
             .expect("Failed to open in-memory SQLite — this is a fatal error");
         Self::initialize_connection(&conn).expect("Failed to initialize in-memory DB");
         Self::run_migrations(&conn).expect("Failed to migrate in-memory DB");
-        Self::build_from_connection(conn, ConnectionMode::SharedSingle)
+        Self::build_from_connection(conn, ConnectionMode::SharedSingle, true)
             .expect("Failed to build from in-memory connection")
     }
 
@@ -377,7 +382,7 @@ impl ThreadDatabase {
         let conn = rusqlite::Connection::open(path)?;
         Self::initialize_connection(&conn)?;
         Self::run_migrations(&conn)?;
-        Self::build_from_connection(conn, ConnectionMode::FileSeparate)
+        Self::build_from_connection(conn, ConnectionMode::FileSeparate, false)
     }
 
     /// Open an in-memory database (for testing).
@@ -386,7 +391,7 @@ impl ThreadDatabase {
         let conn = rusqlite::Connection::open_in_memory()?;
         Self::initialize_connection(&conn)?;
         Self::run_migrations(&conn)?;
-        Self::build_from_connection(conn, ConnectionMode::SharedSingle)
+        Self::build_from_connection(conn, ConnectionMode::SharedSingle, true)
     }
 
     /// Build the ThreadDatabase from an initialized + migrated connection.
@@ -399,6 +404,7 @@ impl ThreadDatabase {
     fn build_from_connection(
         write_conn: rusqlite::Connection,
         mode: ConnectionMode,
+        is_degraded: bool,
     ) -> Result<Self, ThreadDbError> {
         // In-memory databases cannot share state across connections, so we use
         // a single connection protected by a mutex for both reads and writes.
@@ -431,6 +437,7 @@ impl ThreadDatabase {
             return Ok(Self {
                 read_conn: shared,
                 write_tx,
+                is_degraded,
             });
         }
 
@@ -474,6 +481,7 @@ impl ThreadDatabase {
         Ok(Self {
             read_conn,
             write_tx,
+            is_degraded,
         })
     }
 
@@ -525,6 +533,16 @@ impl ThreadDatabase {
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
+
+    /// Returns `true` when the database is in-memory because the file-backed
+    /// open failed and we fell back — nothing written will survive a quit.
+    /// Surfaced to the user by `StorageBanner`, via [`thread_db_is_degraded`].
+    ///
+    /// The flag is set once at open time and never changes for the lifetime of
+    /// the handle, so reading it needs no lock.
+    pub fn is_degraded(&self) -> bool {
+        self.is_degraded
+    }
 
     /// Execute a write operation on the background writer thread.
     /// The closure captures its own `oneshot::Sender` for the result, so we
@@ -1143,6 +1161,24 @@ use tauri::State;
 
 pub struct ThreadDbState {
     pub db: ThreadDatabase,
+}
+
+impl ThreadDbState {
+    /// Whether the database is running in degraded (in-memory) mode because the
+    /// file-backed store could not be opened. Reached from the renderer through
+    /// [`thread_db_is_degraded`], which the storage banner reads once on launch.
+    pub fn is_degraded(&self) -> bool {
+        self.db.is_degraded()
+    }
+}
+
+/// Tell the renderer whether conversations are being kept in memory only.
+///
+/// Synchronous on purpose: the flag is a plain bool fixed at open time, so
+/// there is nothing to await and no lock to take.
+#[tauri::command]
+pub fn thread_db_is_degraded(state: State<'_, ThreadDbState>) -> bool {
+    state.is_degraded()
 }
 
 #[tauri::command]

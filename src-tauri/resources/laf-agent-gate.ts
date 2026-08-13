@@ -1877,7 +1877,11 @@ function buildEverydayPrompt(cwd: string): string {
 		// described the new contents in detail and said it had overwritten the
 		// file. No tool had run and the file was byte-identical afterwards.
 		// The same correction as the line above, for the other direction.
-		"- Never say you created, changed, moved, or saved a file unless a tool call did it and succeeded.",
+		// Both clauses are measured failures of the same shape: a session
+		// described a save it never performed (file byte-identical afterwards),
+		// and another answered "기억해줘" with "기억해 둘게요" and no remember
+		// call — a promise that dissolves when the conversation ends.
+		"- Never say you did something — created, saved, moved, remembered — unless a tool call did it and succeeded. \"Remember this\" means calling the remember tool.",
 		"- File and folder names are exact. Never translate one into another language and never re-spell it — copy it character for character from what a tool showed you.",
 		// Both of these describe what this session actually has. The shell line
 		// used to be written as a conditional the model had to evaluate ("if a
@@ -2588,8 +2592,16 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		name: "remember",
 		label: "Remember",
 		description:
-			"Save one stable fact about the user (their name, preferences, recurring context) so " +
-			"future conversations know it. Not for one-off task details.",
+			// Trigger first, definition second. Measured four times: told
+			// "기억해", the model answered "기억해 둘게" and never called this —
+			// a promise that dissolves when the conversation ends. The old text
+			// opened by defining what a memory is, which describes the tool to
+			// something that has already decided to call it and never tells it
+			// when to decide that.
+			"Call this whenever the user asks you to remember something — replying \"I'll remember\" " +
+			"without calling it means the fact is lost when this conversation ends. " +
+			"Saves one stable fact about the user (their name, preferences, recurring context) for " +
+			"future conversations. Not for one-off task details.",
 		parameters: {
 			type: "object",
 			properties: {

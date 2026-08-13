@@ -14,7 +14,7 @@
 
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
-import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join as joinPath, resolve as resolvePath } from "node:path";
 import { lookup as dnsLookup } from "node:dns/promises";
@@ -264,7 +264,23 @@ function ensureSandbox(): Promise<boolean> {
 				network: {},
 				filesystem: {
 					allowWrite: [WORKSPACE, "/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/dev/null"],
-					denyRead: ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh", "~/.netrc", "~/.prime/agent/auth.json"],
+					// Both config directories, and the whole of each rather than
+					// auth.json alone. This list named `~/.prime/agent/auth.json`
+					// and nothing else, which stopped protecting anything the day
+					// the config directory became `~/.lafagent` — measured: a
+					// sandboxed command could read the user's live API keys while
+					// the entry above it guarded an empty path. Nothing a shell
+					// command legitimately does reads either directory, and
+					// `sessions/` in there is the user's own chat history.
+					denyRead: [
+						"~/.ssh",
+						"~/.aws",
+						"~/.gnupg",
+						"~/.config/gh",
+						"~/.netrc",
+						"~/.lafagent",
+						"~/.prime/agent",
+					],
 				},
 			});
 			return true;
@@ -615,6 +631,17 @@ function repairEverydayArgs(toolName: string, input: Record<string, unknown>): s
 const RESEARCH_DEPTH = Number.parseInt(process.env.LAF_RESEARCH_DEPTH ?? "0", 10) || 0;
 const READONLY = process.env.LAF_READONLY === "1";
 
+/**
+ * Whether a shell is registered this session — the condition `activate()` uses
+ * to offer one, hoisted so the system prompt can describe the same reality.
+ *
+ * The prompt used to claim outright that files could not be deleted. That is
+ * true of the everyday tools, and false of the shell: measured, a sandboxed
+ * command deletes anything inside the workspace, which is exactly where the
+ * user's work is. A promise the tools do not keep is worse than no promise.
+ */
+const BASH_AVAILABLE = TIGHT_SANDBOX && WORKSPACE !== "" && !READONLY;
+
 const MAX_QUESTIONS = 5;
 const MAX_CONCURRENT = 3;
 // A child fetches (up to 20s) and then generates from what it read; ninety
@@ -828,7 +855,7 @@ export default function (pi: ExtensionAPI) {
 	// the OS sandbox keeps writes inside the workspace and credentials
 	// unreadable, and every command still goes through the approval dialog.
 	// A research child never gets one; it has nobody to ask.
-	if (TIGHT_SANDBOX && WORKSPACE && !READONLY) registerSandboxedBash(pi);
+	if (BASH_AVAILABLE) registerSandboxedBash(pi);
 
 	pi.on("tool_call", async (event, ctx) => {
 		// A read-only research child is refused the mutating tools outright.
@@ -1576,6 +1603,23 @@ const MAX_MEMORY_CHARS = 240;
  */
 const MAX_MEMORY_BLOCK_CHARS = 2_000;
 const MAX_READ_CHARS = 40_000;
+/**
+ * Read a file whole only up to here; past it, read just the head.
+ *
+ * `readFile(path, "utf8")` decodes the entire file before anything downstream
+ * gets to cut it to `MAX_READ_CHARS`, so the size of the file — not the size
+ * of the answer — decided the cost. Measured on a 938 MB archive sitting on
+ * this machine's Desktop: eight seconds of stall, about a gigabyte resident,
+ * and then a raw V8 `Invalid string length`, which carries no `code` and so
+ * fell through every branch below to reach the user verbatim.
+ *
+ * Anything past this threshold is cut to 40k characters regardless, so reading
+ * the rest was never anything but waste. Below it, files are still read whole
+ * and `chars` stays exact.
+ */
+const FULL_READ_BYTES = 4 * 1024 * 1024;
+/** Enough bytes to yield 40k characters at UTF-8's worst case for real text. */
+const HEAD_READ_BYTES = 4 * MAX_READ_CHARS;
 const MAX_DIR_ENTRIES = 200;
 const MAX_ORGANIZE_OPS = 100;
 
@@ -1703,9 +1747,26 @@ function buildEverydayPrompt(cwd: string): string {
 		"- Use tools instead of guessing: read a file before summarizing it, search the web for anything current, list a folder before organizing it.",
 		"- Never state what is inside a file you have not opened with read_file. Seeing a file's name in a folder listing tells you nothing about its contents; if you have not read it, say so and read it.",
 		"- File and folder names are exact. Never translate one into another language and never re-spell it — copy it character for character from what a tool showed you.",
-		"- If a bash tool is available, use it for work the other tools do not cover — archives, image conversion, counting things. Prefer the plain tools when they suffice, and keep commands short enough that the user can read what they do.",
-		"- Before creating, changing, or moving any file, say in one short sentence what you are about to do. Touch only the files the task requires.",
-		"- You cannot delete files. When something should be removed, name the files and let the user do it.",
+		// Both of these describe what this session actually has. The shell line
+		// used to be written as a conditional the model had to evaluate ("if a
+		// bash tool is available"), and the deletion line was an unconditional
+		// promise that the shell breaks inside the workspace.
+		...(BASH_AVAILABLE
+			? [
+					"- A shell is available for work the other tools do not cover — archives, image conversion, counting things. Prefer the plain tools when they suffice, and keep commands short enough that the user can read what they do.",
+					"- Before creating, changing, or moving any file, say in one short sentence what you are about to do. Touch only the files the task requires.",
+					"- Your file tools cannot delete anything, and the shell can only reach the working folder. Deleting is the one thing that cannot be undone, so never remove anything the user did not ask you to remove, and name exactly what will go before it goes.",
+				]
+			: [
+					"- Before creating, changing, or moving any file, say in one short sentence what you are about to do. Touch only the files the task requires.",
+					"- You cannot delete files. When something should be removed, name the files and let the user do it.",
+				]),
+		// Today's report: asked when a video was made, the assistant handed the
+		// user a `stat` command to run in a terminal and paste back. That is a
+		// non-answer for someone who does not use a terminal, and it is what an
+		// assistant does when it treats "I have no tool for this" as "the user
+		// has one".
+		"- Never hand the user a command to run on your behalf. Do it with the tools you have, or say plainly that you cannot do it and what would.",
 		"- If a step fails, say what happened in plain words and offer the closest thing you can do.",
 		"- Use the remember tool only for stable facts about the user (name, preferences, recurring context), never for one-off task details.",
 		"",
@@ -1913,6 +1974,24 @@ const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
 /** Extraction is CPU-bound and single-threaded — past this it is a hang. */
 const DOCUMENT_TIMEOUT_MS = 30_000;
 
+/**
+ * The first `bytes` of a file, decoded as UTF-8.
+ *
+ * Decoded as a stream chunk that is never flushed, so a multi-byte character
+ * straddling the cut is dropped rather than turned into a replacement
+ * character — the last visible character stays a character.
+ */
+async function readHead(path: string, bytes: number): Promise<string> {
+	const handle = await open(path, "r");
+	try {
+		const buffer = Buffer.allocUnsafe(bytes);
+		const { bytesRead } = await handle.read(buffer, 0, bytes, 0);
+		return new TextDecoder("utf-8").decode(buffer.subarray(0, bytesRead), { stream: true });
+	} finally {
+		await handle.close();
+	}
+}
+
 function fileExtension(path: string): string {
 	const base = path.slice(path.lastIndexOf("/") + 1);
 	const dot = base.lastIndexOf(".");
@@ -2077,7 +2156,12 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 				}
 			} else {
 				try {
-					body = await readFile(resolved.path, "utf8");
+					const info = await stat(resolved.path);
+					// Directories reach `readFile` as EISDIR below; keep that path
+					// rather than duplicating the message here.
+					body = info.isFile() && info.size > FULL_READ_BYTES
+						? await readHead(resolved.path, HEAD_READ_BYTES)
+						: await readFile(resolved.path, "utf8");
 				} catch (error) {
 					const code = errorCode(error);
 					if (code === "ENOENT") throw new Error(await missingPathHint(resolved.path));

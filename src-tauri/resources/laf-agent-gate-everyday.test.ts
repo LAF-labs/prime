@@ -93,13 +93,57 @@ afterEach(() => {
 })
 
 describe('everyday profile', () => {
-  it('registers the everyday tools and never a shell', async () => {
+  it('registers the everyday tools, and no shell without a tight sandbox', async () => {
     const { tools } = await loadGate()
     for (const name of ['read_file', 'list_dir', 'write_file', 'organize', 'remember']) {
       expect(tools.has(name)).toBe(true)
     }
+    // ipython is gone for good — `--no-builtin-tools` removes it. bash is not:
+    // it is registered whenever the OS sandbox can confine it, which is the
+    // default. This assertion is about the sandbox being off, not about the
+    // profile never having a shell; the test below covers the other half.
     expect(tools.has('bash')).toBe(false)
     expect(tools.has('ipython')).toBe(false)
+  })
+
+  /**
+   * The prompt has to describe the session the user actually got.
+   *
+   * It used to claim outright that files could not be deleted. True of the
+   * everyday tools; false of the shell, which deletes anything inside the
+   * workspace — measured against the real sandbox, which blocks writes outside
+   * the working folder and permits them inside it. Someone was being promised
+   * their files were safe by the same paragraph that handed out `rm`.
+   */
+  it('tells the truth about deleting, in both shell and no-shell sessions', async () => {
+    const withoutShell = await loadGate()
+    const quiet = withoutShell.beforeAgentStart?.({})?.systemPrompt ?? ''
+    expect(withoutShell.tools.has('bash')).toBe(false)
+    expect(quiet).toContain('You cannot delete files')
+    expect(quiet).not.toContain('A shell is available')
+
+    process.env.LAF_TIGHT_SANDBOX = '1'
+    try {
+      const withShell = await loadGate()
+      const armed = withShell.beforeAgentStart?.({})?.systemPrompt ?? ''
+      expect(withShell.tools.has('bash')).toBe(true)
+      expect(armed).not.toContain('You cannot delete files')
+      expect(armed).toContain('A shell is available')
+      expect(armed).toContain('cannot be undone')
+    } finally {
+      delete process.env.LAF_TIGHT_SANDBOX
+    }
+  })
+
+  /**
+   * Asked when a video was made, the assistant handed the user a `stat`
+   * command to run in a terminal and paste back — a non-answer for someone who
+   * does not use a terminal.
+   */
+  it('never offers to have the user run a command', async () => {
+    const { beforeAgentStart } = await loadGate()
+    const prompt = beforeAgentStart?.({})?.systemPrompt ?? ''
+    expect(prompt).toContain('Never hand the user a command to run on your behalf')
   })
 
   it('replaces the RLM prompt with a conversational one', async () => {
@@ -270,6 +314,37 @@ describe('everyday file confinement', () => {
     writeFileSync(file, Buffer.from([0x50, 0x4b, 0x00, 0x01]))
     const { tools } = await loadGate()
     await expect(tools.get('read_file')?.execute('c', { path: file })).rejects.toThrow(/not text/)
+  })
+
+  /**
+   * A big archive used to be decoded whole before anything cut it to 40k
+   * characters. Measured on a real 938 MB file: eight seconds, about a
+   * gigabyte resident, and then V8's `Invalid string length` — an error with
+   * no `code`, so it fell through every branch and reached the user verbatim.
+   * Both halves matter: the answer has to be the plain-language one, and it
+   * has to arrive without reading the file.
+   */
+  it('recognizes a huge binary file without decoding all of it', async () => {
+    const file = join(home, 'huge.bin')
+    const block = Buffer.alloc(1024 * 1024)
+    block[0] = 0x50
+    block[1] = 0x4b
+    // Nulls throughout, as any archive has — the point is that only the head
+    // is looked at, not that the tail is special.
+    writeFileSync(file, Buffer.concat(Array.from({ length: 6 }, () => block)))
+    const { tools } = await loadGate()
+    const started = Date.now()
+    await expect(tools.get('read_file')?.execute('c', { path: file })).rejects.toThrow(/not text/)
+    expect(Date.now() - started).toBeLessThan(2000)
+  })
+
+  it('returns the head of a text file too large to read whole, and says so', async () => {
+    const file = join(home, 'huge.log')
+    writeFileSync(file, 'a'.repeat(5 * 1024 * 1024))
+    const { tools } = await loadGate()
+    const result = await tools.get('read_file')?.execute('c', { path: file })
+    expect(result?.details?.truncated).toBe(true)
+    expect(result?.content[0]?.text).toContain('Cut off here')
   })
 })
 

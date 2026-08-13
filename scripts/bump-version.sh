@@ -32,14 +32,31 @@ fi
 
 echo "Bumping $CURRENT → $NEW"
 
+# Substitute-and-verify. Each sed matches the CURRENT version taken from
+# package.json — so a file that has drifted to some other version matches
+# nothing, sed exits 0 anyway, and the bump "succeeds" while leaving that file
+# behind. That is not hypothetical: Cargo.toml sat at 0.1.0 through the 0.1.1
+# bump, and nothing said so. Grep for the NEW version afterwards and stop the
+# release on the spot instead.
+bump_file() {
+  local file="$1" pattern="$2" replacement="$3"
+  sed -i '' "$pattern" "$file"
+  if ! grep -q "$replacement" "$file"; then
+    echo "error: $file still lacks version $NEW after the bump." >&2
+    echo "       Its version line no longer matches package.json's $CURRENT —" >&2
+    echo "       fix the drift by hand, then re-run." >&2
+    exit 1
+  fi
+}
+
 # 1. package.json
-sed -i '' "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" package.json
+bump_file package.json "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" "\"version\": \"$NEW\""
 
 # 2. src-tauri/Cargo.toml (only the first version line)
-sed -i '' "0,/^version = \"$CURRENT\"/s//version = \"$NEW\"/" src-tauri/Cargo.toml
+bump_file src-tauri/Cargo.toml "0,/^version = \"$CURRENT\"/s//version = \"$NEW\"/" "^version = \"$NEW\""
 
 # 3. src-tauri/tauri.conf.json
-sed -i '' "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" src-tauri/tauri.conf.json
+bump_file src-tauri/tauri.conf.json "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" "\"version\": \"$NEW\""
 
 # 4. Update Cargo.lock
 (cd src-tauri && cargo update -p laf-agent 2>/dev/null || true)

@@ -41,7 +41,7 @@ const READ_ONLY_TOOLS = new Set([
  */
 const PROMPTLESS_TOOLS = new Set(["remember"]);
 
-function summarize(toolName: string, input: Record<string, unknown>): string {
+async function summarize(toolName: string, input: Record<string, unknown>): Promise<string> {
 	let summary = "";
 	if (typeof input.command === "string") summary = input.command;
 	else if (typeof input.code === "string") summary = input.code;
@@ -64,6 +64,27 @@ function summarize(toolName: string, input: Record<string, unknown>): string {
 		}
 	}
 	if (summary.length > 500) summary = `${summary.slice(0, 500)}…`;
+
+	// Say when a write lands on a file that already exists.
+	//
+	// The everyday prompt promises "you cannot delete files", and `organize`
+	// keeps that promise literally — it refuses a move onto an existing name.
+	// `write_file` replaces the contents instead, which is the same loss by
+	// another route, and the dialog showed nothing but the path. Someone
+	// approving "save the tidied version" could not tell the original was
+	// about to go.
+	if (toolName === "write_file" && typeof input.path === "string") {
+		const resolved = resolveEverydayPath(input.path);
+		if (!("error" in resolved)) {
+			try {
+				if ((await stat(resolved.path)).isFile()) {
+					summary += " — replaces the file that is already there";
+				}
+			} catch {
+				// Nothing there: an ordinary new file, and nothing to warn about.
+			}
+		}
+	}
 	return summary;
 }
 
@@ -878,7 +899,7 @@ export default function (pi: ExtensionAPI) {
 		const title = JSON.stringify({
 			__lafGate: 1,
 			tool: event.toolName,
-			summary: summarize(event.toolName, event.input as Record<string, unknown>),
+			summary: await summarize(event.toolName, event.input as Record<string, unknown>),
 		});
 
 		// "Always allow" is surfaced by the app as an allow_always option; the
@@ -2175,8 +2196,10 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		name: "write_file",
 		label: "Write",
 		description:
-			"Create a text file or replace the contents of an existing one. " +
-			"Use it to save notes, lists, drafts, or edited versions of a document.",
+			"Create a text file, or replace the whole contents of one that already exists. " +
+			"Use it to save notes, lists, drafts, or edited versions of a document. " +
+			"Replacing keeps nothing of the old contents, so write to a new name when the " +
+			"original still matters.",
 		parameters: {
 			type: "object",
 			properties: {

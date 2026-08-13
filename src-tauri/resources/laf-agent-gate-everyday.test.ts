@@ -188,6 +188,42 @@ describe('everyday profile', () => {
   })
 })
 
+describe('the approval dialog names a replacement', () => {
+  /**
+   * The everyday prompt promises the assistant cannot delete files, and
+   * `organize` keeps that literally by refusing a move onto an existing name.
+   * `write_file` replaces the contents instead — the same loss by another
+   * route — and the dialog showed only a path, so "save the tidied version"
+   * and "erase what is there" looked identical to the person approving.
+   */
+  it('says so when the file already exists', async () => {
+    const { toolCall } = await loadGate()
+    const path = join(home, 'draft.md')
+    writeFileSync(path, 'the original')
+    const seen: string[] = []
+    await toolCall?.(
+      { type: 'tool_call', toolCallId: '1', toolName: 'write_file', input: { path, content: 'new' } },
+      { hasUI: true, ui: { select: async (title: string) => { seen.push(title); return 'Allow' } } },
+    )
+    expect(seen[0]).toContain('replaces the file that is already there')
+  })
+
+  it('says nothing of the sort for a new file', async () => {
+    const { toolCall } = await loadGate()
+    const seen: string[] = []
+    await toolCall?.(
+      {
+        type: 'tool_call',
+        toolCallId: '1',
+        toolName: 'write_file',
+        input: { path: join(home, 'brand-new.md'), content: 'x' },
+      },
+      { hasUI: true, ui: { select: async (title: string) => { seen.push(title); return 'Allow' } } },
+    )
+    expect(seen[0]).not.toContain('replaces')
+  })
+})
+
 describe('list_dir reports dates', () => {
   /**
    * "When did I save that" is an everyday question, and without a date here

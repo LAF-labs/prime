@@ -1789,7 +1789,16 @@ function buildEverydayPrompt(cwd: string): string {
 		"- Always answer in the language the user writes in.",
 		"- Lead with the result. Keep explanations short and warm; do not narrate your process.",
 		"- Use tools instead of guessing: read a file before summarizing it, search the web for anything current, list a folder before organizing it.",
-		"- Never state what is inside a file you have not opened with read_file. Seeing a file's name in a folder listing tells you nothing about its contents; if you have not read it, say so and read it.",
+		// The dropped middle clause ("seeing a name tells you nothing about the
+		// contents") is not lost: `list_dir` appends exactly that to its own
+		// result, which is where it was moved to because the prompt alone did
+		// not stop a small model inventing the contents of a listed file.
+		"- Never state what is inside a file you have not opened with read_file. If you have not read it, say so and read it.",
+		// Measured: asked to tidy a file and save it back, the assistant
+		// described the new contents in detail and said it had overwritten the
+		// file. No tool had run and the file was byte-identical afterwards.
+		// The same correction as the line above, for the other direction.
+		"- Never say you created, changed, moved, or saved a file unless a tool call did it and succeeded.",
 		"- File and folder names are exact. Never translate one into another language and never re-spell it — copy it character for character from what a tool showed you.",
 		// Both of these describe what this session actually has. The shell line
 		// used to be written as a conditional the model had to evaluate ("if a
@@ -1812,10 +1821,20 @@ function buildEverydayPrompt(cwd: string): string {
 		// has one".
 		"- Never hand the user a command to run on your behalf. Do it with the tools you have, or say plainly that you cannot do it and what would.",
 		"- If a step fails, say what happened in plain words and offer the closest thing you can do.",
-		"- Use the remember tool only for stable facts about the user (name, preferences, recurring context), never for one-off task details.",
+		// The `remember` line that stood here said, almost word for word, what
+		// the tool's own description already says — and a tool description is
+		// paid once in the schema rather than restated in the prompt. This file
+		// says as much at the top of this function; it just was not followed.
 		"",
 		`Current date: ${date}`,
-		`Working folder: ${cwd}`,
+		// The path alone was not enough. Asked "when was the video in this
+		// folder made", the assistant asked back which folder was meant — a
+		// question the app already knows the answer to. Told the same thing
+		// while naming the working folder, it answered in one call. Worse, a
+		// session that could not place the folder invented an absolute path,
+		// was refused, and fell back to listing the home directory and running
+		// `find ~` to locate a file that was sitting in the working folder.
+		`Working folder: ${cwd} — "this folder", and any request naming no place, means here. Start here; never sweep the home folder for something implied to be here.`,
 	];
 	// Skills before memories: the list is the same for every session and every
 	// turn, while memories change, so this keeps the longest possible byte-

@@ -131,17 +131,33 @@ pub fn terminate_group(pid: u32, grace: std::time::Duration) {
 /// Identification is deliberately narrow, because getting it wrong means
 /// killing something that is not ours:
 ///
-/// - the executable path must be exactly the `node` binary inside this app's
-///   sidecar directory, and
+/// - the executable must be a `node` binary inside this app's *resources*
+///   directory — the sidecar folder's parent — and
 /// - the parent must be pid 1, which is true only after the real parent died.
 ///
 /// A second window or a concurrently running copy of the app has a live
 /// parent, so its agents are never matched.
 ///
+/// The parent directory rather than the sidecar folder itself, because the
+/// folder gets renamed. An orphan from the build before the sidecar became
+/// `lafagent/` runs `…/resources/prime-agent/node`, which an exact match on
+/// today's path skips — and one of those survived an app update, kept the
+/// daemon socket, and answered every new client with "Failed to obtain daemon
+/// session worker pid" because it was spawning workers from a binary the
+/// update had deleted. The app looked broken and the cause was three days old.
+/// Matching the resources directory catches the previous name as well as the
+/// current one, while still being confined to this bundle: a `prime-agent`
+/// the user installed themselves lives nowhere near it.
+///
 /// Returns the number of process groups signalled.
 pub fn reap_orphans(sidecar_dir: &std::path::Path) -> usize {
-    let node = sidecar_dir.join("node");
-    let Some(node) = node.to_str() else { return 0 };
+    // The sidecar's parent: `…/resources`, shared by every generation of the
+    // bundled runtime whatever the folder was called.
+    let Some(resources) = sidecar_dir.parent().and_then(|p| p.to_str()) else {
+        return 0;
+    };
+    let node = resources.to_string();
+    let node = node.as_str();
     let Ok(output) = std::process::Command::new("ps").args(["-eo", "pid=,ppid=,comm="]).output() else {
         return 0;
     };
@@ -166,9 +182,11 @@ pub fn reap_orphans(sidecar_dir: &std::path::Path) -> usize {
 
 /// Pick the orphaned sidecar processes out of `ps -eo pid=,ppid=,comm=`.
 ///
-/// Split out from [`reap_orphans`] so the matching rule can be tested without
-/// a process table that has orphans in it.
-fn orphan_pids(ps_output: &str, node_path: &str) -> Vec<u32> {
+/// `resources_dir` is the directory the sidecar folder sits in; a process
+/// matches when its executable is a `node` directly inside one of that
+/// directory's children. Split out from [`reap_orphans`] so the rule can be
+/// tested without a process table that has orphans in it.
+fn orphan_pids(ps_output: &str, resources_dir: &str) -> Vec<u32> {
     ps_output
         .lines()
         .filter_map(|line| {
@@ -179,9 +197,23 @@ fn orphan_pids(ps_output: &str, node_path: &str) -> Vec<u32> {
             let (ppid, comm) = rest.trim_start().split_once(char::is_whitespace)?;
             let pid: u32 = pid.parse().ok()?;
             let ppid: u32 = ppid.parse().ok()?;
-            (ppid == 1 && comm.trim() == node_path).then_some(pid)
+            (ppid == 1 && is_bundled_node(comm.trim(), resources_dir)).then_some(pid)
         })
         .collect()
+}
+
+/// Is `comm` the `node` of some sidecar directly inside `resources_dir`?
+///
+/// `<resources>/<anything>/node`, and nothing deeper — a match on a prefix
+/// alone would take in whatever else happens to live under the bundle.
+fn is_bundled_node(comm: &str, resources_dir: &str) -> bool {
+    let Some(rest) = comm.strip_prefix(resources_dir) else { return false };
+    let Some(rest) = rest.strip_prefix('/') else { return false };
+    let mut parts = rest.split('/');
+    let (Some(folder), Some(file), None) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    !folder.is_empty() && file == "node"
 }
 
 #[cfg(test)]
@@ -251,7 +283,8 @@ mod tests {
     /// The reaper's matching rule, exercised against a synthetic table.
     #[test]
     fn orphan_matching_is_narrow() {
-        let node = "/Applications/LAF Agent.app/Contents/Resources/resources/lafagent/node";
+        let resources = "/Applications/LAF Agent.app/Contents/Resources/resources";
+        let node = format!("{resources}/lafagent/node");
         let table = format!(
             "\
   100     1 {node}
@@ -259,13 +292,25 @@ mod tests {
   102     1 /usr/local/bin/node
   103   999 {node}
   104     1 /Applications/Other.app/Contents/Resources/resources/lafagent/node
+  105     1 {resources}/laf-agent-gate.ts
+  106     1 {resources}/lafagent/dist/bundle/node
 "
         );
-        let pids = orphan_pids(&table, node);
-        // 100 only: orphaned (ppid 1) and running our sidecar's node.
-        //  101 has a live parent, 102 is a different binary, 103 has a live
-        //  parent, 104 belongs to another app.
+        let pids = orphan_pids(&table, resources);
+        // 100 only. 101 and 103 have live parents; 102 is a different binary;
+        // 104 belongs to another app; 105 is not a `node`; 106 is nested
+        // deeper than a sidecar folder's own `node`.
         assert_eq!(pids, vec![100]);
+    }
+
+    /// The one that got away: an orphan from before the sidecar folder was
+    /// renamed. Matching today's exact path skipped it, and it kept the daemon
+    /// socket across an app update.
+    #[test]
+    fn an_orphan_from_the_previous_sidecar_name_is_matched() {
+        let resources = "/Applications/LAF Agent.app/Contents/Resources/resources";
+        let table = format!("  5790     1 {resources}/prime-agent/node\n");
+        assert_eq!(orphan_pids(&table, resources), vec![5790]);
     }
 
     /// A malformed or empty process table must not panic.

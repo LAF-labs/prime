@@ -148,22 +148,23 @@ const asIs = (s: string) => s
 const names = (rows: Array<{ name: string }>) => rows.map((r) => r.name)
 
 describe('mergePaletteCommands', () => {
-  it('drops a skill that duplicates a built-in command', () => {
+  /**
+   * A skill is a procedure the model follows when a request matches it. What
+   * the palette showed was a folder name and a description written for a
+   * model — `/skill:organize-files`, "Tidying, sorting, grouping…" — in front
+   * of someone who only wanted to tidy a folder.
+   */
+  it('lists no skills at all', () => {
     const merged = mergePaletteCommands(
-      [{ name: 'skill:compact', description: 'Compact from IPython' }],
+      [
+        { name: 'skill:organize-files', description: 'Tidying, sorting, grouping or cleaning up a folder' },
+        { name: 'skill:compact', description: 'Compact from IPython' },
+      ],
       asIs,
     )
-    expect(names(merged)).not.toContain('skill:compact')
-    // The built-in survives — it runs in the agent session with no kernel.
+    expect(names(merged).some((n) => n.includes('skill:'))).toBe(false)
+    // The built-in of the same name is unaffected.
     expect(names(merged)).toContain('compact')
-  })
-
-  it('keeps a skill that has no built-in counterpart', () => {
-    const merged = mergePaletteCommands(
-      [{ name: 'skill:notion', description: 'Search Notion' }],
-      asIs,
-    )
-    expect(names(merged)).toContain('skill:notion')
   })
 
   it('still lets a plain agent command override a built-in of the same name', () => {
@@ -189,8 +190,14 @@ describe('mergePaletteCommands', () => {
   })
 
   it('lists agent commands before the client registry', () => {
-    const merged = mergePaletteCommands([{ name: 'skill:notion', description: 'x' }], asIs)
-    expect(merged[0].name).toBe('skill:notion')
+    const merged = mergePaletteCommands([{ name: 'notion', description: 'x' }], asIs)
+    expect(merged[0].name).toBe('notion')
+  })
+
+  /** Harness plumbing, on a palette read by people who run no harness. */
+  it('hides reload', () => {
+    const merged = mergePaletteCommands([{ name: 'reload', description: 'Reload extensions, skills…' }], asIs)
+    expect(names(merged)).not.toContain('reload')
   })
 
   it('passes every client description through the translator', () => {

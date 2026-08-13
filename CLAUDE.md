@@ -168,8 +168,9 @@ bun run clean
   deliberately absent because they are TUI-only with no RPC method behind them.
   `get_commands` supplies extensions, prompt templates, and skills at runtime —
   never the agent's built-ins. `mergePaletteCommands` folds those into the
-  palette; a skill whose target names a built-in (`skill:compact` vs `/compact`)
-  is dropped, because the built-in needs no Python kernel.
+  palette and drops every `skill:*`: a skill is a procedure the model follows
+  when a request matches, so its folder name and its model-facing description
+  are plumbing, not copy. Hidden, not disabled — typing one still runs it.
 - **Skills are an allowlist**: the agent is spawned with `--no-skills
   --no-extensions` and one `--skill` per folder in
   `src-tauri/resources/laf-skills/`. Without those flags the harness scans

@@ -126,7 +126,10 @@ export const CLIENT_COMMANDS: readonly AgentCommandSpec[] = [
 export const visibleClientCommands = (): readonly AgentCommandSpec[] => CLIENT_COMMANDS
 
 /** Palette rows the agent advertises but the app never wants shown. */
-const HIDDEN_COMMANDS = new Set(['reply'])
+// `reload` re-reads extensions and themes; `skill:*` is covered below. Both
+// are harness plumbing, and this palette is read by people who are not
+// operating a harness.
+const HIDDEN_COMMANDS = new Set(['reply', 'reload'])
 
 const bareName = (name: string): string => name.replace(/^\/+/, '')
 
@@ -137,12 +140,18 @@ const bareName = (name: string): string => name.replace(/^\/+/, '')
  * The agent's own commands come first because they are project-specific, and a
  * name it already advertises wins so a project can override a built-in.
  *
- * Skills are the exception. Their `skill:` prefix means a skill can never
- * collide with a built-in by name, so `/compact` and `/skill:compact` both sat
- * in the palette looking like separate features. They are one action by two
- * routes, and the built-in is the better route: the agent session runs it on
- * any transport, while the skill drives it from IPython and fails when the
- * kernel is not up. A skill whose target names a built-in is dropped.
+ * Skills are not listed at all.
+ *
+ * A skill is a procedure the model follows when a request matches it — the
+ * user asks "tidy up my Downloads" and never types `/skill:organize-files`.
+ * What the palette showed was the plumbing: a folder name in kebab-case and a
+ * description written to tell a model when to reach for the file. Neither is
+ * copy for a person, and translating them would mean maintaining the same
+ * procedure twice, in two voices, for two audiences.
+ *
+ * Hidden, not disabled. Typing `/skill:organize-files` still runs it, which
+ * keeps it reachable for us without putting it in front of someone who came
+ * here to tidy a folder.
  *
  * `describe` translates a registry description — passed in rather than called
  * here so the caller controls when the active locale is read.
@@ -151,11 +160,10 @@ export const mergePaletteCommands = <T extends { name: string; description?: str
   agentCommands: readonly T[],
   describe: (source: string) => string,
 ): Array<T | { name: string; description: string }> => {
-  const clientNames = new Set(visibleClientCommands().map((c) => c.name))
   const fromAgent = agentCommands.filter((c) => {
     const name = bareName(c.name)
     if (HIDDEN_COMMANDS.has(name)) return false
-    if (name.startsWith('skill:') && clientNames.has(name.slice('skill:'.length))) return false
+    if (name.startsWith('skill:')) return false
     return true
   })
   const advertised = new Set(fromAgent.map((c) => bareName(c.name)))

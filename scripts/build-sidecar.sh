@@ -121,6 +121,13 @@ const pkg = {
     'unpdf': '1.8.0',
     'mammoth': '1.12.1',
     'read-excel-file': '9.3.9',
+    // .hwp is the ordinary document format in Korea and the second most common
+    // one on the machine this was built for — 55 of them against 20 PDFs. It is
+    // a compound binary rather than a zip of XML, so it needs a parser instead
+    // of the unzip path the others share. Naver's, Apache-2.0, +4 MB, and it
+    // read all 55 with the Hangul character count matching the same document's
+    // PDF export exactly.
+    'hwp.js': '0.0.3',
   },
 };
 fs.writeFileSync(`${out}/package.json`, JSON.stringify(pkg, null, 1));

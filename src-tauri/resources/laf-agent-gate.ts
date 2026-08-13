@@ -2165,6 +2165,7 @@ const DOCUMENT_FORMATS: Record<string, string> = {
 	docx: "Word document",
 	xlsx: "spreadsheet",
 	xlsm: "spreadsheet",
+	hwp: "Hangul document",
 };
 
 /**
@@ -2177,8 +2178,9 @@ const UNREADABLE_FORMATS: Record<string, string> = {
 	xls: "an older Excel format (.xls). Re-saving it as .xlsx makes it readable.",
 	ppt: "a PowerPoint file, which cannot be read yet.",
 	pptx: "a PowerPoint file, which cannot be read yet.",
-	hwp: "a Hangul Word Processor file, which cannot be read yet. Saving it as PDF or .docx makes it readable.",
-	hwpx: "a Hangul Word Processor file, which cannot be read yet. Saving it as PDF or .docx makes it readable.",
+	// `.hwp` reads now; `.hwpx` is the newer zip-of-XML format and does not, so
+	// only one of these two is still an apology.
+	hwpx: "the newer Hangul format (.hwpx), which cannot be read yet. Saving it as .hwp or PDF makes it readable.",
 	pages: "an Apple Pages file, which cannot be read yet. Exporting it as PDF or Word makes it readable.",
 	numbers: "an Apple Numbers file, which cannot be read yet. Exporting it as PDF or Excel makes it readable.",
 	key: "an Apple Keynote file, which cannot be read yet.",
@@ -2240,6 +2242,15 @@ type UnpdfModule = {
 };
 type MammothModule = { extractRawText: (input: { path: string }) => Promise<{ value: string }> };
 type ReadXlsxModule = (path: string) => Promise<unknown>;
+/** hwp.js's document model, narrowed to the parts the text walk touches. */
+type HwpModule = {
+	parse?: (
+		data: Uint8Array,
+		options: { type: string },
+	) => {
+		sections?: Array<{ content?: Array<{ content?: Array<{ type?: number; value?: unknown }> }> }>;
+	};
+};
 
 /** ESM interop: some of these publish the API on `default`, some on the namespace. */
 function unwrapDefault<T>(mod: unknown): T {
@@ -2280,6 +2291,50 @@ async function extractDocx(path: string): Promise<string> {
 	const trimmed = value.trim();
 	if (!trimmed) throw new Error("This Word document has no text in it.");
 	return trimmed;
+}
+
+/**
+ * Text out of a Hangul Word Processor document.
+ *
+ * `.hwp` is a compound binary (the `D0CF11E0` OLE header), not a zip of XML
+ * like `.docx` — so it needs a parser rather than the unzip machinery the other
+ * formats share. hwp.js is Naver's, Apache-2.0, and reads HWP 5.0, which is
+ * every file this was tested against.
+ *
+ * Why it earned its 4 MB: on the machine this was built on there are 55 `.hwp`
+ * files across Desktop, Documents and Downloads — more than PDF. An everyday
+ * assistant for Korean users that cannot open the country's ordinary document
+ * format is missing its second most common input, and the honest refusal it
+ * gave instead ("save it as PDF and I can read it") asks the user to do the
+ * work the product exists to do.
+ *
+ * The document model is paragraphs of character records. A record of type 0
+ * carries either a character or a control code as a number — the numbers are
+ * paragraph breaks and shape markers, and taking only the strings drops them
+ * without needing to know which is which.
+ */
+async function extractHwp(path: string): Promise<string> {
+	const mod = await importFromSidecar<HwpModule>("hwp.js");
+	if (!mod) throw new Error("The Hangul document reader is not available in this build.");
+	const parse = mod.parse ?? unwrapDefault<HwpModule>(mod).parse;
+	if (typeof parse !== "function") throw new Error("The Hangul document reader is not available in this build.");
+
+	const document = parse(new Uint8Array(await readFile(path)), { type: "binary" });
+	const paragraphs: string[] = [];
+	for (const section of document.sections ?? []) {
+		for (const paragraph of section.content ?? []) {
+			let line = "";
+			for (const record of paragraph.content ?? []) {
+				if (record?.type === 0 && typeof record.value === "string") line += record.value;
+			}
+			paragraphs.push(line);
+		}
+	}
+	// HWP spaces a page out with runs of empty paragraphs; keeping every one of
+	// them would spend the read budget on blank lines.
+	const text = paragraphs.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+	if (!text) throw new Error("This Hangul document has no text in it.");
+	return text;
 }
 
 /** One cell as text. Dates print as a plain date; everything else stringifies. */
@@ -2339,7 +2394,13 @@ async function readDocument(kind: string, path: string): Promise<string> {
 	}
 
 	const extract =
-		kind === "pdf" ? extractPdf(path) : kind === "docx" ? extractDocx(path) : extractXlsx(path);
+		kind === "pdf"
+			? extractPdf(path)
+			: kind === "docx"
+				? extractDocx(path)
+				: kind === "hwp"
+					? extractHwp(path)
+					: extractXlsx(path);
 
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const deadline = new Promise<never>((_, reject) => {
@@ -2413,8 +2474,8 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 		name: "read_file",
 		label: "Read",
 		description:
-			"Read a file and return its text: notes, CSV, and code, plus PDF, Word (.docx) " +
-			"and Excel (.xlsx), whose text is extracted for you. " +
+			"Read a file and return its text: notes, CSV, and code, plus PDF, Word (.docx), " +
+			"Excel (.xlsx) and Hangul (.hwp), whose text is extracted for you. " +
 			"Use it before summarizing, answering questions about, or editing a file. " +
 			// Measured need, not speculation: asked for a long document's
 			// conclusion, the model twice promised to "check the end" with no

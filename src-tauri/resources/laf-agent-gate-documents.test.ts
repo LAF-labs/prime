@@ -177,15 +177,29 @@ describe('read_file on documents that are not plain text', () => {
   /**
    * Naming the format is the difference between a user who knows to re-save
    * the file and a user who thinks the app is broken.
+   *
+   * `.hwp` used to be the example here and is readable now, so the case moved
+   * to `.hwpx` — the newer zip-of-XML format, which still is not.
    */
   it('names a format it cannot read instead of saying "not text"', async () => {
-    // A .hwp begins with an OLE compound-file signature — binary, so the text
-    // path rejects it, and the name is what tells us what it is.
-    writeFileSync(join(home, 'notice.hwp'), Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0x00, 0x01, 0x02]))
+    writeFileSync(join(home, 'notice.hwpx'), Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x01, 0x02]))
     const tools = await loadGate()
     await expect(
-      tools.get('read_file')!.execute('c', { path: join(home, 'notice.hwp') }),
-    ).rejects.toThrow(/Hangul Word Processor/)
+      tools.get('read_file')!.execute('c', { path: join(home, 'notice.hwpx') }),
+    ).rejects.toThrow(/newer Hangul format/)
+  })
+
+  /**
+   * A truncated `.hwp` reaches the parser rather than the binary check, so the
+   * failure has to arrive as a sentence about a Hangul document — not a stack
+   * trace from inside a parser the user has never heard of.
+   */
+  it('fails a damaged Hangul document without leaking the parser', async () => {
+    writeFileSync(join(home, 'broken.hwp'), Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0x00, 0x01, 0x02]))
+    const tools = await loadGate()
+    await expect(
+      tools.get('read_file')!.execute('c', { path: join(home, 'broken.hwp') }),
+    ).rejects.toThrow()
   })
 
   it('still refuses an unknown binary file', async () => {

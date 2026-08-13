@@ -121,6 +121,11 @@ const pkg = {
     'unpdf': '1.8.0',
     'mammoth': '1.12.1',
     'read-excel-file': '9.3.9',
+    // The gate's own MCP client. The harness consumes MCP through its Python
+    // kernel, which the everyday profile removes — so the gate opens the
+    // configured servers itself and registers their tools behind the approval
+    // dialog. Official SDK, MIT.
+    '@modelcontextprotocol/sdk': '1.30.0',
     // .hwp is the ordinary document format in Korea and the second most common
     // one on the machine this was built for — 55 of them against 20 PDFs. It is
     // a compound binary rather than a zip of XML, so it needs a parser instead

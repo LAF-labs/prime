@@ -1784,6 +1784,14 @@ const MAX_READ_CHARS = 40_000;
 const FULL_READ_BYTES = 4 * 1024 * 1024;
 /** Enough bytes to yield 40k characters at UTF-8's worst case for real text. */
 const HEAD_READ_BYTES = 4 * MAX_READ_CHARS;
+/**
+ * How much of a long file's ending is kept alongside its beginning.
+ *
+ * A fifth of the budget, the same 4:1 head-to-tail split DeepSeek's tool-result
+ * pruner uses. Enough for a conclusion, a total, or a signature block; small
+ * enough that the beginning is still substantially intact.
+ */
+const TAIL_CHARS = 8_000;
 const MAX_DIR_ENTRIES = 200;
 const MAX_ORGANIZE_OPS = 100;
 
@@ -2439,6 +2447,14 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 			// decode to no more than the display budget, and the notice would
 			// vanish from a read that silently skipped megabytes.
 			let partial = false;
+			// The real ending, when `body` holds only the front of a file too
+			// large to decode whole. Slicing `body`'s own tail would present the
+			// end of the first four megabytes as the end of the document.
+			let tailText: string | undefined;
+			// Characters in the whole file, for the omission marker. A partial
+			// read cannot know it exactly; the byte size is the honest estimate
+			// and the marker is rounded to thousands anyway.
+			let approxTotalChars = 0;
 			if (format) {
 				try {
 					body = await readDocument(extension, resolved.path);
@@ -2453,11 +2469,16 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 					// rather than duplicating the message here.
 					if (info.isFile() && info.size > FULL_READ_BYTES) {
 						partial = true;
-						body = wantEnd
-							? await readTail(resolved.path, HEAD_READ_BYTES)
-							: await readHead(resolved.path, HEAD_READ_BYTES);
+						approxTotalChars = info.size;
+						if (wantEnd) {
+							body = await readTail(resolved.path, HEAD_READ_BYTES);
+						} else {
+							body = await readHead(resolved.path, HEAD_READ_BYTES);
+							tailText = await readTail(resolved.path, 4 * TAIL_CHARS);
+						}
 					} else {
 						body = await readFile(resolved.path, "utf8");
+						approxTotalChars = body.length;
 					}
 				} catch (error) {
 					const code = errorCode(error);
@@ -2484,13 +2505,23 @@ function registerEverydayProfile(pi: ExtensionAPI): void {
 			const truncated = partial || body.length > MAX_READ_CHARS;
 			// The model cannot see where the text stopped. A summary of the first
 			// half, presented as a summary of the whole report, is the kind of
-			// wrong that reads as right — so say it in the content itself. When
-			// the end was asked for, the notice moves to the top and the slice
-			// keeps the ending, since that is the part the question was about.
+			// wrong that reads as right — so say it in the content itself.
+			//
+			// A long file gives back its beginning *and* its ending, with the
+			// gap named between them, rather than the beginning alone. Taken
+			// from DeepSeek's tool-result pruner, which bounds an oversized
+			// result to a head, a fixed omission marker and a tail. Measured
+			// here as a real failure first: asked for a document's conclusion,
+			// the model read the front, correctly said it had only seen the
+			// front, and needed a second call to reach the last line. The
+			// conclusion of a report, the total of a statement, the signature
+			// on a contract — the end of a document is where its answer usually
+			// is, and spending a fifth of the budget to keep it costs nothing
+			// the middle was going to be read for anyway.
 			const text = truncated
 				? wantEnd
 					? `[This is the END of the file — everything before this point was cut off, so anything you say about the beginning is a guess.]…\n\n${body.slice(-MAX_READ_CHARS)}`
-					: `${body.slice(0, MAX_READ_CHARS)}\n\n…[Cut off here. This file is longer than what you were given, so anything you say about the rest is a guess — tell the user it was cut off. The ending can be read with part "end".]`
+					: `${body.slice(0, MAX_READ_CHARS - TAIL_CHARS)}\n\n…[The middle of this file was skipped — roughly ${Math.max(1, Math.round((approxTotalChars - MAX_READ_CHARS) / 1000))}k characters. What follows is its ending. Say the middle was skipped rather than describing it; read more of the ending with part "end".]…\n\n${(tailText ?? body).slice(-TAIL_CHARS)}`
 				: body;
 			return {
 				content: [{ type: "text", text }],

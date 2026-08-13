@@ -525,13 +525,38 @@ describe('everyday file confinement', () => {
     expect(Date.now() - started).toBeLessThan(2000)
   })
 
-  it('returns the head of a text file too large to read whole, and says so', async () => {
-    const file = join(home, 'huge.log')
-    writeFileSync(file, 'a'.repeat(5 * 1024 * 1024))
+  /**
+   * A long file gives back its beginning and its ending, with the gap named
+   * between them — DeepSeek's tool-result pruner shape (head, marker, tail).
+   * Head-only was measured failing: asked for a document's conclusion, the
+   * model read the front, said honestly it had only seen the front, and needed
+   * a second call to reach the last line.
+   */
+  it('keeps the ending of a long file alongside its beginning', async () => {
+    const file = join(home, 'report.md')
+    writeFileSync(file, `첫 줄입니다.\n${'중간 내용. '.repeat(30_000)}\n결론: 9월 15일에 시작한다.`)
+    const { tools } = await loadGate()
+    const text = (await tools.get('read_file')?.execute('c', { path: file }))?.content[0]?.text ?? ''
+    expect(text).toContain('첫 줄입니다.')
+    expect(text).toContain('결론: 9월 15일에 시작한다.')
+    expect(text).toContain('middle of this file was skipped')
+  })
+
+  /**
+   * Past the whole-read threshold the front is all that is decoded, so the
+   * ending has to come from its own read. Slicing the loaded chunk would
+   * present the end of the first four megabytes as the end of the document —
+   * confidently, and wrongly.
+   */
+  it('reads the real ending of a huge file, not the end of the part it loaded', async () => {
+    const file = join(home, 'huge-report.log')
+    writeFileSync(file, `머리말\n${'x'.repeat(6 * 1024 * 1024)}\n진짜 마지막 줄`)
     const { tools } = await loadGate()
     const result = await tools.get('read_file')?.execute('c', { path: file })
+    const text = result?.content[0]?.text ?? ''
     expect(result?.details?.truncated).toBe(true)
-    expect(result?.content[0]?.text).toContain('Cut off here')
+    expect(text).toContain('머리말')
+    expect(text).toContain('진짜 마지막 줄')
   })
 
   /**

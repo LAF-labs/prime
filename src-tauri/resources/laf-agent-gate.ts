@@ -2347,11 +2347,58 @@ async function readDocument(kind: string, path: string): Promise<string> {
 	}
 }
 
+/**
+ * Does this message read as "remember this"?
+ *
+ * Imperative forms only — Korean `기억나?` ("do you remember?") is a question
+ * about what is already stored and must not match. Deliberately loose all the
+ * same, because the nudge it triggers is written as a conditional: a false
+ * positive costs one ignored sentence, a false negative costs the user a fact
+ * they believe was saved.
+ */
+function looksLikeRememberRequest(prompt: unknown): boolean {
+	if (typeof prompt !== "string" || !prompt) return false;
+	return /기억\s*(해|하고|해두|해 두|하세요|해줘|해주세요)|잊지\s*(마|말)|외워|remember (this|that|it)|don'?t forget|keep in mind/i.test(
+		prompt,
+	);
+}
+
+/**
+ * Injected for that one turn, and only when the message asks for it.
+ *
+ * Measured: told "기억해줘" in four different phrasings, the model answered
+ * "기억해 둘게요" and called nothing in three of them — a promise that
+ * dissolves when the session ends, and one the user cannot see failing because
+ * the same session answers correctly from its own context. Leading the tool's
+ * description with its trigger moved it from zero to one in four; this is what
+ * moved the rest.
+ *
+ * It rides here rather than in the system prompt for two reasons. The fixed
+ * prompt is at 2,637 characters against a 2,700 budget, and a sentence that
+ * matters on one turn in fifty should not be paid for on all fifty. And a
+ * message sitting directly under the user's own is the closest context to the
+ * generation that follows it — the same reason `list_dir`'s warning about
+ * unread files rides on its result instead of the prompt.
+ *
+ * `display: false` keeps it out of the transcript: it is a correction aimed at
+ * the model, and showing the user their assistant being reminded to do its job
+ * is noise.
+ */
+const REMEMBER_NUDGE = {
+	customType: "laf_remember_hint",
+	display: false,
+	content:
+		"[LAF Agent] The message above asks you to remember something. Call the `remember` tool with that fact " +
+		"before you reply. Answering \"I'll remember that\" without calling it is how the fact gets lost the " +
+		"moment this conversation ends.",
+};
+
 function registerEverydayProfile(pi: ExtensionAPI): void {
 	if (!EVERYDAY) return;
 
 	pi.on("before_agent_start", (event) => ({
 		systemPrompt: buildEverydayPrompt(event.systemPromptOptions?.cwd ?? WORKSPACE ?? HOME),
+		...(looksLikeRememberRequest(event.prompt) ? { message: REMEMBER_NUDGE } : {}),
 	}));
 
 	pi.registerTool({

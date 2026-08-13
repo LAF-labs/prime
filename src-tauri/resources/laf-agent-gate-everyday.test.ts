@@ -198,6 +198,43 @@ describe('everyday profile', () => {
   })
 
   /**
+   * The nudge is the deterministic half of an unreliable thing.
+   *
+   * Told "기억해줘" in six phrasings, the model called the tool in one. Leading
+   * the tool description with its trigger took it to two; this per-turn message
+   * took it to four. What can be tested is that the message is emitted for a
+   * request and withheld otherwise — the model's response to it cannot be, so
+   * the rate is recorded in the commit rather than asserted here.
+   */
+  it.each([
+    ['내 이름은 기범이야. 기억해줘.', true],
+    ['앞으로 반말로 해줘. 기억해.', true],
+    ['커피는 아메리카노만 마셔. 잊지 마.', true],
+    ['Remember that I work in Dubai.', true],
+    ['이 폴더 정리해줘.', false],
+    ['어제 뭐 했는지 알려줘.', false],
+    ['이 파일 읽어줘.', false],
+  ])('nudges the remember tool for %s → %s', async (prompt, expected) => {
+    const { beforeAgentStart } = await loadGate()
+    const result = beforeAgentStart?.({ prompt }) as { message?: { content: string } } | undefined
+    expect(Boolean(result?.message)).toBe(expected)
+  })
+
+  it('keeps the nudge out of the transcript and off the fixed prompt', async () => {
+    const { beforeAgentStart } = await loadGate()
+    const nudged = beforeAgentStart?.({ prompt: '내 이름은 기범이야. 기억해줘.' }) as
+      | { message?: { display: boolean }; systemPrompt?: string }
+      | undefined
+    // The user does not need to watch their assistant being reminded.
+    expect(nudged?.message?.display).toBe(false)
+    // And a turn that never asks pays nothing for it.
+    const plain = beforeAgentStart?.({ prompt: '이 폴더 정리해줘.' }) as
+      | { systemPrompt?: string }
+      | undefined
+    expect(plain?.systemPrompt).toBe(nudged?.systemPrompt)
+  })
+
+  /**
    * The sandbox denies reading the files that hold keys and says nothing about
    * the environment. Measured before this: `env` inside a sandboxed command
    * printed `PRIME_AGENT_INTERNAL_DAEMON_WORKER_TOKEN` — the credential for the

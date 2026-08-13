@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tauri dev",
     "dev:renderer": "vite",
-    "build": "tauri build --target aarch64-apple-darwin",
+    "build": "./scripts/unmount-stale-dmg.sh && tauri build --target aarch64-apple-darwin",
     "build:renderer": "vite build",
     "check": "npm run check:ts && npm run lint && npm run check:rust",
     "check:ts": "tsc --noEmit",

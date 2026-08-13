@@ -454,8 +454,9 @@ pub fn run() {
             // One-time move of ~/.prime/agent to ~/.lafagent. Runs before
             // anything reads a credential or spawns an agent, so the rest of
             // startup sees a single, current location.
-            if let Some(dir) = commands::agent_paths::migrate_legacy_config_dir() {
-                log::info!("Migrated agent config to {dir:?}");
+            let carried = commands::agent_paths::migrate_legacy_config_dir();
+            if !carried.is_empty() {
+                log::info!("Carried {} setting file(s) over from the previous config directory", carried.len());
             }
 
             // Agents from a previous run that no code could clean up — the app
